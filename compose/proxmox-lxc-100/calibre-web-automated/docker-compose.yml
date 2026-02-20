@@ -1,0 +1,20 @@
+services:
+  calibre-web-automated:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibre-web-automated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Budapest
+    volumes:
+      - /srv/docker-data/calibrewebauto:/config
+      - /mnt/storage/media/konyv_ingest:/cwa-book-ingest
+      - /mnt/storage/media/konyvek:/calibre-library
+    ports:
+      - 8085:8083
+    restart: unless-stopped
+networks:
+  arr_stack:
+    external: true
+  utils:
+    external: true

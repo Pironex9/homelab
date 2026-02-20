@@ -1,0 +1,22 @@
+services:
+  sonarr:
+    image: ghcr.io/hotio/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+    volumes:
+      - /srv/docker-data/sonarr:/config
+      - /mnt/storage/media/tv/hun:/tv/hun
+      - /mnt/storage/media/tv/eng:/tv/eng
+      - /mnt/storage/media/downloads:/downloads
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+    networks:
+      - arr_stack
+networks:
+  arr_stack:
+    external: true

@@ -1,0 +1,18 @@
+services:
+  prowlarr:
+    image: ghcr.io/hotio/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+      - PROWLARR_API=${PROWLARR_API}
+    volumes:
+      - /srv/docker-data/prowlarr:/config
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+networks:
+  arr_stack:
+    external: true

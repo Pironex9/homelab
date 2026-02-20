@@ -1,0 +1,18 @@
+services:
+  dockge:
+    image: louislam/dockge:1
+    container_name: dockge
+    environment:
+      - DOCKGE_STACKS_DIR=/opt/stacks
+      - TZ=Europe/Budapest
+    ports:
+      - 5001:5001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/docker-data/dockge:/app/data
+      - /srv/docker-compose:/opt/stacks
+    restart: unless-stopped
+
+networks:
+  arr_stack:
+    external: true

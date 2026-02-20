@@ -1,0 +1,25 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Budapest
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.0.YOUR_DOCKER_IP:3002
+    volumes:
+      - /srv/docker-data/homepage:/app/config
+      - /srv/docker-data/homepage/images:/app/public/images
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/storage:/mnt/storage:ro
+    ports:
+      - 3002:3000
+    restart: unless-stopped
+    networks:
+      - arr_stack
+      - utils
+networks:
+  arr_stack:
+    external: true
+  utils:
+    external: true

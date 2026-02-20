@@ -1,0 +1,20 @@
+services:
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    environment:
+      - TZ=${TZ}
+      # Extra funkciók bekapcsolása (szükség esetén vedd ki a kommentet):
+      - DOZZLE_ENABLE_ACTIONS=true
+      - DOZZLE_ENABLE_SHELL=true
+      # - DOZZLE_AUTH_PROVIDER=simple
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8888:8080
+    restart: unless-stopped
+networks:
+  arr_stack:
+    external: true
+  utils:
+    external: true

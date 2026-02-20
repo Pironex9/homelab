@@ -1,0 +1,30 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    environment:
+      # Server URL (change if using reverse proxy later)
+      - DOMAIN=http://192.168.0.YOUR_DOCKER_IP:8283
+      # Allow signups (DISABLE after creating your account!)
+      - SIGNUPS_ALLOWED=true
+      # Allow invitations
+      - INVITATIONS_ALLOWED=true
+      # WebSocket for real-time sync
+      - WEBSOCKET_ENABLED=true
+      # Logging
+      - LOG_LEVEL=info
+      # Timezone
+      - TZ=Europe/Budapest
+      # Security (optional but recommended)
+      - SHOW_PASSWORD_HINT=false
+    volumes:
+      - /srv/docker-data/vaultwarden:/data
+    ports:
+      - 8283:80 # Main WebUI
+      - 3012:3012 # WebSocket port
+    restart: unless-stopped
+    networks:
+      - utils
+networks:
+  utils:
+    external: true

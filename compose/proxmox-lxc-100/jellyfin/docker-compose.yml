@@ -1,0 +1,31 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    container_name: jellyfin
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+      - JELLYFIN_PublishedServerUrl=http://${HOMEPAGE_HOST}:8096
+    network_mode: host
+    volumes:
+      - /srv/docker-data/jellyfin:/config
+      - /srv/docker-data/jellyfin/cache:/cache
+      - type: bind
+        source: /mnt/storage/media/movies
+        target: /media
+      - type: bind
+        source: /mnt/storage/media/tv
+        target: /media2
+        read_only: true
+    devices:                        # <-- HOZZÁADÁS
+      - /dev/dri:/dev/dri          # <-- HOZZÁADÁS
+    group_add:                      # <-- HOZZÁADÁS
+      - "993"                       # <-- HOZZÁADÁS (render group GID)
+    restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway
+networks:
+  arr_stack:
+    external: true

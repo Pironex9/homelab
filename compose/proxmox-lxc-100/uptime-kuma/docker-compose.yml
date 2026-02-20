@@ -1,0 +1,12 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    environment:
+      - TZ=Europe/Budapest
+    volumes:
+      - /srv/docker-data/uptime-kuma:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    network_mode: host
+    restart: unless-stopped
+networks: {}

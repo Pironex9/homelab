@@ -1,0 +1,19 @@
+services:
+  notifiarr:
+    container_name: notifiarr
+    image: golift/notifiarr
+    environment:
+      - TZ=${TZ}
+      - NOTIFIARR_API_KEY=${NOTIFIARR_API_KEY}
+    volumes:
+      - /srv/docker-data/notifiarr:/config
+      - /etc/machine-id:/etc/machine-id:ro
+      - /var/run/utmp:/var/run/utmp:ro
+      - /etc/os-release:/etc/os-release:ro
+    network_mode: host
+    restart: unless-stopped
+networks:
+  arr_stack:
+    external: true
+  utils:
+    external: true

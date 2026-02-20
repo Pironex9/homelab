@@ -1,0 +1,24 @@
+services:
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: proxmox-syncthing
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Budapest
+    volumes:
+      - /srv/docker-data/syncthing/config:/config
+      - /mnt/storage/syncthing:/data1/syncthing
+    ports:
+      - 8384:8384   # WebUI
+      - 22000:22000/tcp   # File transfers
+      - 22000:22000/udp
+      - 21027:21027/udp   # Discovery
+    restart: unless-stopped
+    networks:
+      - utils
+
+networks:
+  utils:
+    external: true

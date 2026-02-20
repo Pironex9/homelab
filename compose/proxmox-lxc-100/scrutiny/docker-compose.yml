@@ -1,0 +1,21 @@
+services:
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:latest
+    container_name: scrutiny
+    environment:
+      - TZ=Europe/Budapest
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - /srv/docker-data/scrutiny/config:/opt/scrutiny/config
+      - /srv/docker-data/scrutiny:/run/udev:ro
+      - /srv/docker-data/scrutiny/disk:/dev/disk
+    ports:
+      - 8082:8080
+    restart: unless-stopped
+    privileged: true
+networks:
+  arr_stack:
+    external: true
+  utils:
+    external: true

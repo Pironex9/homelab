@@ -1,0 +1,12 @@
+services:
+  bentopdf:
+    image: bentopdf/bentopdf:latest
+    container_name: bentopdf
+    ports:
+      - 3000:8080
+    restart: unless-stopped
+    networks:
+      - utils
+networks:
+  utils:
+    external: true

@@ -1,0 +1,50 @@
+# Environment files with secrets
+.env
+*.env
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# OS files
+.DS_Store
+Thumbs.db
+*~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+docker-compose.override.yml
+
+# Restic
+.restic/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Ansible
+*.retry
+
+# Private keys
+*.key
+*.pem
+*.ppk
+id_rsa*
+!id_rsa.pub.example

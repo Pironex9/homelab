@@ -1,0 +1,31 @@
+services:
+  qbittorrent:
+    image: ghcr.io/hotio/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - QBT_EULA=accept
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+      - WEBUI_PORT=8080
+      - QBIT_PASS=${QBIT_PASS}
+    volumes:
+      - /srv/docker-data/qbittorrent:/config
+      - /srv/docker-data/qbittorrent/vuetorrent:/vuetorrent:ro
+      - /mnt/storage/media/downloads:/downloads
+      - /mnt/storage/media/tv/hun:/tv/hun
+      - /mnt/storage/media/tv/eng:/tv/eng
+      - /mnt/storage/media/movies/hun:/movies/hun
+      - /mnt/storage/media/movies/hun:/movies/hun
+      - /mnt/storage/media/konyvek:/konyvek
+    ports:
+      - 8080:8080
+      - 6881:6881
+      - 6881:6881/udp
+    restart: unless-stopped
+    networks:
+      - arr_stack
+networks:
+  arr_stack:
+    external: true
