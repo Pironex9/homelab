@@ -41,7 +41,7 @@ This repository documents my production homelab environment, showcasing skills i
 ## 📊 Key Metrics
 
 - **Services**: 21 Docker Compose stacks
-- **Hosts**: 2 LXC containers + 1 desktop
+- **Hosts**: 8 LXC containers + 1 VM + 1 desktop
 - **Storage**: 10.5TB usable (MergerFS + SnapRAID)
 - **Uptime**: 99.9% (last 90 days)
 - **Backups**: Automated to 3 locations (local, NFS, cloud)
@@ -49,12 +49,23 @@ This repository documents my production homelab environment, showcasing skills i
 ## 🏗️ Architecture
 
 ```
-Proxmox VE 9.1
-├── LXC 105 (Komodo Core)
-├── LXC 100 (Docker Host)
-│   └── 20 Docker Compose stacks
-└── Storage Server
-    └── MergerFS + SnapRAID
+Proxmox VE 9.1 (pve)
+├── LXC 100 (docker-host) [running]
+├── LXC 102 (adguard-home) [running]
+├── LXC 103 (alpine-vaultwarden) [running]
+├── LXC 104 (scanopy) [running]
+├── LXC 105 (alpine-komodo) [running]
+├── LXC 106 (karakeep) [running]
+├── LXC 107 (n8n) [running]
+├── LXC 108 (ollama) [running]
+├── VM  101 (haos-16.3) [running]
+└── Storage
+    ├── backup-hdd (dir) [available]
+    │   ├── Used:      2.399 TiB
+    │   └── Available: 8.098 TiB
+    └── local (dir) [available]
+        ├── Used:      17.686 GiB
+        └── Available: 58.758 GiB
 
 Nobara PC
 └── Desktop services (Open WebUI, AnythingLLM)
