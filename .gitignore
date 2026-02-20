@@ -42,6 +42,9 @@ docker-compose.override.yml
 # Ansible
 *.retry
 
+# Private / personal files
+private/
+
 # Private keys
 *.key
 *.pem
