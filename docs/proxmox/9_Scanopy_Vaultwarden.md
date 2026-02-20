@@ -10,7 +10,7 @@
 
 | Service | LXC ID | IP Address | Tailscale IP | Port | Status |
 |---------|--------|------------|--------------|------|--------|
-| Vaultwarden | 102 | TBD | TBD | 8000 | ✅ Working |
+| Vaultwarden | 103 | TBD | TBD | 8000 | ✅ Working |
 | Scanopy | 104 | 192.168.0.YOUR_SCANOPY_IP | YOUR_TAILSCALE_IP | 60072 | ✅ Working |
 
 ---

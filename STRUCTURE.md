@@ -36,8 +36,7 @@ homelab/
 │   │   └── .gitkeep
 │   ├── vps/                    # VPS deployment
 │   │   └── .gitkeep
-│   └── komodo/                 # Management platform
-│       └── komodo-complete-setup.md
+│   └── komodo/                 # Management platform (moved to proxmox/17_Komodo_complete_setup.md)
 │
 └── scripts/                    # Automation scripts
     ├── README.md              # Scripts documentation
@@ -106,7 +105,7 @@ homelab/
 - Documentation standards
 - Search guide
 
-**docs/komodo/komodo-complete-setup.md**
+**docs/proxmox/17_Komodo_complete_setup.md**
 - Complete Komodo installation guide
 - LXC setup instructions
 - Import workflow
@@ -118,7 +117,7 @@ homelab/
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/homelab.git
+   git clone https://github.com/Pironex9/homelab.git
    cd homelab
    ```
 

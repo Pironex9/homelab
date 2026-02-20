@@ -27,7 +27,7 @@ Proxmox VE setup, service installation, and configuration guides:
 
 ### komodo/
 Komodo container management platform:
-- `komodo-complete-setup.md` - Full installation, migration from Dockge, and usage guide
+- See `proxmox/17_Komodo_complete_setup.md` - Full installation, migration from Dockge, and usage guide
 
 ### vps/
 Cloud VPS and reverse proxy setup:
@@ -38,11 +38,11 @@ Cloud VPS and reverse proxy setup:
 **New to the homelab?** Start here:
 1. [Proxmox Setup + Storage](./proxmox/1_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 2. [LXC & Docker Setup](./proxmox/2_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
-3. [Komodo Management Setup](./komodo/komodo-complete-setup.md)
+3. [Komodo Management Setup](./proxmox/17_Komodo_complete_setup.md)
 
 **Deploying a new service?**
 1. [Create Docker Compose file](../compose/README.md)
-2. [Import to Komodo](./komodo/komodo-complete-setup.md)
+2. [Import to Komodo](./proxmox/17_Komodo_complete_setup.md)
 3. [Configure backups](./proxmox/16_Proxmox_Backup_System_Documentation.md)
 
 ## 🎯 Documentation Standards

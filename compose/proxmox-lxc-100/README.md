@@ -37,16 +37,13 @@ Docker host running production services.
 - **uptime-kuma** - Uptime monitoring (port 3001)
 - **scrutiny** - Disk health monitoring (port 8082)
 
-### Security
-- **vaultwarden** - Password manager (port 8283)
-
 ### Automation & Notifications
 - **notifiarr** - Notification hub (port 5454)
 - **suggestarr-recommendarr** - AI media suggestions (port 3003)
 
 ## Management
 
-Services are managed via [Komodo](../../docs/komodo/komodo-complete-setup.md).
+Services are managed via [Komodo](../../docs/proxmox/17_Komodo_complete_setup.md).
 
 ```bash
 # On Proxmox host
