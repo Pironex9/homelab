@@ -1,50 +1,25 @@
-# 🏗️ Production-Grade Homelab Infrastructure
+# Homelab Infrastructure
 
 [![Infrastructure](https://img.shields.io/badge/Infrastructure-Proxmox-orange)](https://www.proxmox.com/)
 [![Containers](https://img.shields.io/badge/Containers-Docker-blue)](https://www.docker.com/)
 [![Management](https://img.shields.io/badge/Management-Komodo-green)](https://komo.do/)
 [![Status](https://img.shields.io/badge/Status-Production-success)]()
 
-> Self-hosted infrastructure with 19 Docker Compose stacks + 8 LXC/VM services across Proxmox virtualization platform. Focus on automation, Infrastructure as Code, and containerization.
-
-## 🎯 Overview
-
-This repository documents my production homelab environment, showcasing skills in:
-- **Virtualization & Containerization**: Proxmox VE, LXC, Docker
-- **Infrastructure Management**: Komodo, automated deployments, monitoring
-- **Storage Engineering**: MergerFS + SnapRAID with 8.1TB capacity
-- **Network Architecture**: Reverse proxy, VPN, secure remote access
-- **Automation**: IaC principles, scripted backups
+Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
 
 ## 🛠️ Tech Stack
 
-### Infrastructure
-- **Hypervisor**: Proxmox VE 9.1
-- **Containers**: Docker, LXC
-- **Management**: Komodo
-
-### Storage
-- **File System**: MergerFS (8.1TB pooled storage)
-- **Parity**: SnapRAID (single parity protection)
-- **Backup**: Restic (encrypted, deduplicated)
-
-### Networking
-- **Reverse Proxy**: Pangolin (self-hosted Cloudflare Tunnel alternative)
-- **VPN**: Tailscale, WireGuard
-- **DNS**: AdGuard Home
-
-### Monitoring & Observability
-- **Health**: Scrutiny (disk SMART), Uptime Kuma
-- **Logs**: Dozzle (centralized Docker logs)
-- **Metrics**: Netdata (runs on Proxmox host, bare metal for hardware compatibility)
-
-## 📊 Key Metrics
-
-- **Services**: 19 Docker Compose stacks (LXC 100)
-- **Hosts**: 8 LXC containers + 1 VM + 1 desktop
-- **Storage**: 8.1TB usable (MergerFS + SnapRAID)
-- **Uptime**: 99%+
-- **Backups**: Automated to 3 locations (local, NFS, cloud)
+| Category | Tools |
+|----------|-------|
+| Hypervisor | Proxmox VE 9.1 |
+| Containers | Docker, LXC |
+| Management | Komodo |
+| Storage | MergerFS + SnapRAID (8.1TB) |
+| Backup | Restic (local, NFS, cloud) |
+| Reverse Proxy | Pangolin (self-hosted tunnel) |
+| VPN | Tailscale |
+| DNS | AdGuard Home |
+| Monitoring | Scrutiny, Uptime Kuma, Dozzle, Netdata |
 
 ## 🏗️ Architecture
 
@@ -76,127 +51,33 @@ K3s Cluster (Planned)
 
 ## 🚀 Featured Projects
 
-### 1. Automated Docker Stack Migration
-**Challenge**: Managing 20 Docker Compose stacks across multiple hosts without unified control
-
-**Solution**:
-- Implemented Komodo with systemd periphery for centralized management
-- Created automated import workflow (Docker → TOML → Komodo)
-- Migrated from Dockge to Komodo with zero downtime
-
-**Tech**: Docker, systemd, TOML, bash scripting, Python
-
-**Outcome**:
-- Single-pane-of-glass management for all services
-- Git-based version control for all stack configurations
-- Automated health monitoring and alerting
+### Automated Docker Stack Migration
+Migrated 20 Docker Compose stacks from Dockge to Komodo with zero downtime. Built an automated import workflow (Docker → TOML → Komodo) for centralized management and Git-based version control of all stack configs.
 
 📖 [Full Documentation →](./docs/proxmox/17_Komodo_complete_setup.md)
 
----
-
-### 2. Resilient Storage Architecture
-**Challenge**: Protect 8.1TB media library from disk failures without expensive RAID hardware
-
-**Solution**:
-- Implemented MergerFS for pooled storage across 4 disks
-- Added SnapRAID for single-parity protection
-- Automated scrub and sync scheduling
-
-**Tech**: MergerFS, SnapRAID, bash, systemd timers
-
-**Outcome**:
-- Can survive 1 disk failure
-- Flexible expansion (add disks as needed)
-- <1% storage overhead vs traditional RAID
+### Resilient Storage Architecture
+Pooled 4 disks into a single MergerFS volume with SnapRAID parity protection. Automated sync and scrub via systemd timers. Can survive 1 disk failure with no data loss.
 
 📖 [Storage Setup Guide →](./docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 
----
-
-### 3. Infrastructure as Code
-**Challenge**: Reproducible infrastructure setup across multiple reinstalls
-
-**Solution**:
-- All services defined in version-controlled Docker Compose files
-- Documented setup procedures for every service
-- Secrets managed via `.env` files (gitignored), templates committed as `.env.example`
-
-**Tech**: Docker Compose, bash, git, markdown
-
-**Outcome**:
-- Full infrastructure rebuild in <2 hours
-- Git history tracks all configuration changes
-- Easy rollback to previous working states
+### Infrastructure as Code
+All services version-controlled as Docker Compose files. Secrets in gitignored `.env` files, templates committed as `.env.example`. Full infrastructure rebuild in under 2 hours.
 
 📖 [Compose Files →](./compose/)
 
----
-
-## 📂 Repository Structure
-
-```
-homelab/
-├── compose/              # Docker Compose configurations
-│   ├── proxmox-lxc-100/ # Main Docker host services (20 stacks)
-│   └── nobara/          # Desktop services
-├── docs/                # Complete setup documentation
-│   ├── proxmox/         # Virtualization & service guides
-│   ├── komodo/          # Management platform
-│   └── vps/             # VPS & reverse proxy setup
-└── scripts/             # Automation scripts
-    └── backup.sh
-```
-
-## 🔗 Live Services
-
-| Service | Description | Access |
-|---------|-------------|--------|
-| Homepage | Service dashboard | Local / Tailscale |
-| Uptime Kuma | Status monitoring | Local / Tailscale |
-| Jellyfin | Media server | Local / Pangolin |
-| Vaultwarden | Password manager | Local / Tailscale |
-
-> Note: Services accessible via Tailscale VPN, local network, or Pangolin reverse proxy
-
 ## 📚 Documentation
 
-### Setup Guides
 - [Proxmox Initial Setup + Storage](./docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 - [LXC & Docker Setup](./docs/proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
 - [Komodo Installation & Configuration](./docs/proxmox/17_Komodo_complete_setup.md)
 - [Backup System](./docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
 - [VPS + Pangolin Reverse Proxy](./docs/vps/10_Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md)
 - [Security Configuration](./docs/proxmox/12_Security_Configuration_Guide.md)
-
-### Service Guides
 - [Immich Photo Management](./docs/proxmox/06_Immich_Setup_Full_Installation_Guide.md)
 - [Jellyfin Hardware Transcoding](./docs/proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md)
 - [AdGuard Home + Tailscale DNS](./docs/proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md)
-- [Scrutiny Disk Health](./docs/proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md)
-- [NFS Storage](./docs/proxmox/15_NFS-Setup_Documentation.md)
-
-## 🎓 Skills Demonstrated
-
-**System Administration**
-- Linux system administration (Ubuntu, Debian)
-- LXC containerization and resource management
-- Storage management and data protection strategies
-
-**DevOps & Automation**
-- Docker and Docker Compose orchestration
-- Infrastructure as Code principles
-- Centralized stack management with Komodo
-
-**Networking**
-- Reverse proxy and SSL certificate management
-- VPN setup and secure remote access (Tailscale, WireGuard)
-- Self-hosted tunnel with Pangolin
-
-**Monitoring & Observability**
-- Health monitoring and alerting setup
-- Log aggregation and analysis
-- Disk health and SMART monitoring
+- [Karakeep, n8n, Ollama LXCs](./docs/proxmox/20_Helper_Script_LXCs.md)
 
 ## 🛣️ Roadmap
 
@@ -204,25 +85,11 @@ homelab/
 - [ ] Implement GitOps workflow with ArgoCD
 - [ ] Add Ansible for configuration management
 - [ ] Set up Grafana + Prometheus monitoring stack
-- [ ] Implement automated testing for compose files
-- [ ] Create Terraform modules for VPS deployments
-
-## 🤝 Contributing
-
-While this is a personal infrastructure repository, suggestions and questions are welcome! Feel free to:
-- Open an issue for questions or suggestions
-- Suggest improvements to documentation
-- Share your own homelab experiences
-
-## 📜 License
-
-This documentation is provided under the MIT License. See [LICENSE](./LICENSE) for details.
-
----
 
 ## 📬 Contact
 
 - **LinkedIn**: [Norbert Csicsay](https://www.linkedin.com/in/norbert-csicsay-497195334)
+- **GitHub**: [Pironex9](https://github.com/Pironex9)
 
 ---
 
