@@ -72,12 +72,12 @@ All services version-controlled as Docker Compose files. Secrets in gitignored `
 - [LXC & Docker Setup](./docs/proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
 - [Komodo Installation & Configuration](./docs/proxmox/17_Komodo_complete_setup.md)
 - [Backup System](./docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
-- [VPS + Pangolin Reverse Proxy](./docs/vps/10_Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md)
+- [VPS + Pangolin Reverse Proxy](./docs/vps/Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md)
 - [Security Configuration](./docs/proxmox/12_Security_Configuration_Guide.md)
 - [Immich Photo Management](./docs/proxmox/06_Immich_Setup_Full_Installation_Guide.md)
 - [Jellyfin Hardware Transcoding](./docs/proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md)
 - [AdGuard Home + Tailscale DNS](./docs/proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md)
-- [Karakeep, n8n, Ollama LXCs](./docs/proxmox/20_Helper_Script_LXCs.md)
+- [Karakeep, n8n, Ollama LXCs](./docs/proxmox/10_Helper_Script_LXCs.md)
 
 ## 🛣️ Roadmap
 
