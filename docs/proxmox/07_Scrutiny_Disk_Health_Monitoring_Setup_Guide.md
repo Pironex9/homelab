@@ -65,7 +65,7 @@ Scrutiny Collector (Proxmox Host):
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ Proxmox Host (pve - 192.168.0.YOUR_PROXMOX_IP)              │
+│ Proxmox Host (pve - 192.168.0.109)              │
 │                                                  │
 │ Physical Disks:                                 │
 │   ├─ /dev/nvme0n1 (238.5GB NVMe - System)      │
@@ -82,14 +82,14 @@ Scrutiny Collector (Proxmox Host):
 │                                                  │
 │   └─ Sends SMART data → HTTP API               │
 └─────────────────────────────────────────────────┘
-         ↓ API: http://192.168.0.YOUR_DOCKER_IP:8082
+         ↓ API: http://192.168.0.110:8082
 ┌─────────────────────────────────────────────────┐
-│ LXC 100 - Docker Host (192.168.0.YOUR_DOCKER_IP)           │
+│ LXC 100 - Docker Host (192.168.0.110)           │
 │                                                  │
 │ Scrutiny Server (Docker):                       │
 │   ├─ Container: scrutiny                        │
 │   ├─ Image: ghcr.io/analogj/scrutiny:latest    │
-│   ├─ WebUI: http://192.168.0.YOUR_DOCKER_IP:8082          │
+│   ├─ WebUI: http://192.168.0.110:8082          │
 │   ├─ InfluxDB (embedded metrics storage)        │
 │   └─ Dashboard (all disks, historical data)     │
 └─────────────────────────────────────────────────┘
@@ -271,7 +271,7 @@ curl http://localhost:8082/api/health
 
 **Browser:**
 ```
-http://192.168.0.YOUR_DOCKER_IP:8082
+http://192.168.0.110:8082
 ```
 
 **Expected:**
@@ -368,7 +368,7 @@ host:
 
 # Scrutiny Server API endpoint (LXC 100)
 api:
-  endpoint: http://192.168.0.YOUR_DOCKER_IP:8082
+  endpoint: http://192.168.0.110:8082
 
 # Logging
 log:
@@ -551,7 +551,7 @@ journalctl -u scrutiny-collector.service -f
 
 **Browser:**
 ```
-http://192.168.0.YOUR_DOCKER_IP:8082
+http://192.168.0.110:8082
 ```
 
 **Expected Dashboard:**
@@ -743,14 +743,14 @@ journalctl -u scrutiny-collector.service -n 100
 
 ```bash
 # Test API from Proxmox host
-curl http://192.168.0.YOUR_DOCKER_IP:8082/api/health
+curl http://192.168.0.110:8082/api/health
 
 # Should return: {"success": true}
 
 # If fails:
 # - Check LXC 100 Scrutiny container running
 # - Check port 8082 not blocked
-# - Check LXC IP correct (192.168.0.YOUR_DOCKER_IP)
+# - Check LXC IP correct (192.168.0.110)
 ```
 
 **Solution 2: SMART access denied**
@@ -809,7 +809,7 @@ pct enter 100
 docker ps | grep scrutiny
 
 # Check API accessible
-curl http://192.168.0.YOUR_DOCKER_IP:8082/api/health
+curl http://192.168.0.110:8082/api/health
 ```
 
 ---
@@ -1166,8 +1166,8 @@ InfluxDB: /srv/docker-data/scrutiny/influxdb/
 ### **Important URLs**
 
 ```
-WebUI: http://192.168.0.YOUR_DOCKER_IP:8082
-API Health: http://192.168.0.YOUR_DOCKER_IP:8082/api/health
+WebUI: http://192.168.0.110:8082
+API Health: http://192.168.0.110:8082/api/health
 GitHub: https://github.com/AnalogJ/scrutiny
 Documentation: https://github.com/AnalogJ/scrutiny/blob/master/docs/
 ```
@@ -1195,7 +1195,7 @@ LXC 100:
 ☑ Config file present (if using alerts)
 
 Verification:
-☑ WebUI accessible (http://192.168.0.YOUR_DOCKER_IP:8082)
+☑ WebUI accessible (http://192.168.0.110:8082)
 ☑ All disks visible in dashboard
 ☑ SMART data displayed
 ☑ Status indicators showing

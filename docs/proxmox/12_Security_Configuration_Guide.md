@@ -1156,10 +1156,10 @@ Step 3: Check VPS
 □ Check logs: docker logs pangolin
 
 Step 4: Check Home Lab
-□ SSH to Proxmox: ssh root@192.168.0.YOUR_PROXMOX_IP
+□ SSH to Proxmox: ssh root@192.168.0.109
 □ Newt status: systemctl status newt.service
 □ If down: systemctl restart newt.service
-□ Jellyfin running?: curl http://192.168.0.YOUR_DOCKER_IP:8096
+□ Jellyfin running?: curl http://192.168.0.110:8096
 
 Step 5: Verify restoration
 □ Wait 2-3 minutes

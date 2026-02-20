@@ -11,7 +11,7 @@
 | Service | LXC ID | IP Address | Tailscale IP | Port | Status |
 |---------|--------|------------|--------------|------|--------|
 | Vaultwarden | 103 | TBD | TBD | 8000 | ✅ Working |
-| Scanopy | 104 | 192.168.0.YOUR_SCANOPY_IP | YOUR_TAILSCALE_IP | 60072 | ✅ Working |
+| Scanopy | 104 | 192.168.0.122 | YOUR_TAILSCALE_IP | 60072 | ✅ Working |
 
 ---
 
@@ -57,11 +57,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/Proxmo
 - **CPU:** 2 cores
 - **RAM:** 3GB (3072 MiB)
 - **Disk:** 6GB
-- **Network:** vmbr0, DHCP (192.168.0.YOUR_SCANOPY_IP)
+- **Network:** vmbr0, DHCP (192.168.0.122)
 - **Features:** nesting=1, keyctl=1
 
 ### Access
-- **Local IP:** http://192.168.0.YOUR_SCANOPY_IP:60072
+- **Local IP:** http://192.168.0.122:60072
 - **Tailscale IP:** http://YOUR_TAILSCALE_IP:60072
 
 ### Daemon Configuration
@@ -220,7 +220,7 @@ tailscale status
 
 ### Scanopy local IP not reachable
 
-**Problem:** 192.168.0.YOUR_SCANOPY_IP:60072 not accessible from browser
+**Problem:** 192.168.0.122:60072 not accessible from browser
 
 **Checks:**
 ```bash
@@ -366,13 +366,13 @@ tailscale up --accept-routes=false --netfilter-mode=off
 ss -tulpn | grep 60072
 
 # Ping test
-ping 192.168.0.YOUR_SCANOPY_IP
+ping 192.168.0.122
 
 # HTTP test
-curl -I http://192.168.0.YOUR_SCANOPY_IP:60072
+curl -I http://192.168.0.122:60072
 
 # Packet capture
-tcpdump -i eth0 -n host 192.168.0.YOUR_SCANOPY_IP
+tcpdump -i eth0 -n host 192.168.0.122
 
 # Routing
 ip route show
@@ -437,7 +437,7 @@ ip rule show
 
 1. **HTTPS Setup (Nginx Proxy Manager)**
    - Subdomain: scanopy.yourdomain.com
-   - Forward to: 192.168.0.YOUR_SCANOPY_IP:60072
+   - Forward to: 192.168.0.122:60072
    - SSL certificate (Let's Encrypt)
 
 2. **Vaultwarden HTTPS**
@@ -492,7 +492,7 @@ ip rule show
 ```
 
 This caused:
-- Scanopy LXC tried to reach a local IP (e.g. 192.168.0.YOUR_SCANOPY_IP)
+- Scanopy LXC tried to reach a local IP (e.g. 192.168.0.122)
 - The kernel sent the packet out via the `tailscale0` interface based on the routing table
 - Tailscale tried to forward it through the Proxmox host
 - BUT it was the LXC's own IP address, creating a loop
@@ -541,8 +541,8 @@ iptables -I ts-input 1 -i eth0 -j ACCEPT  # Local network access
 **BEFORE (WRONG):**
 ```bash
 # Main table
-default via 192.168.0.YOUR_ROUTER_IP dev eth0
-192.168.0.0/24 dev eth0 proto kernel scope link src 192.168.0.YOUR_SCANOPY_IP
+default via 192.168.0.1 dev eth0
+192.168.0.0/24 dev eth0 proto kernel scope link src 192.168.0.122
 
 # Table 52 (Tailscale)
 192.168.0.0/24 dev tailscale0  # ← CONFLICT!
@@ -553,8 +553,8 @@ YOUR_TAILSCALE_IP_PVE dev tailscale0
 **AFTER (CORRECT):**
 ```bash
 # Main table
-default via 192.168.0.YOUR_ROUTER_IP dev eth0
-192.168.0.0/24 dev eth0 proto kernel scope link src 192.168.0.YOUR_SCANOPY_IP
+default via 192.168.0.1 dev eth0
+192.168.0.0/24 dev eth0 proto kernel scope link src 192.168.0.122
 
 # Table 52 (Tailscale)
 # NO 192.168.0.0/24 ← CORRECT!

@@ -1,6 +1,6 @@
 
 **Date:** 2024-12-22/23  
-**System:** Proxmox VE + Docker LXC (ID: 100, IP: 192.168.0.YOUR_DOCKER_IP)
+**System:** Proxmox VE + Docker LXC (ID: 100, IP: 192.168.0.110)
 
 ---
 
@@ -319,7 +319,7 @@ cat /etc/resolv.conf
 
 **Result:**
 ```
-nameserver 192.168.0.YOUR_OLD_SERVER_IP  ← OLD RPi AdGuard Home!
+nameserver 192.168.0.102  ← OLD RPi AdGuard Home!
 ```
 
 ### Temporary fix (inside LXC):
@@ -342,7 +342,7 @@ nano /etc/pve/lxc/100.conf
 **Change:**
 ```
 # OLD:
-nameserver: 192.168.0.YOUR_OLD_SERVER_IP
+nameserver: 192.168.0.102
 
 # NEW:
 nameserver: 8.8.8.8
@@ -412,8 +412,8 @@ volumes:
 
 ### DNS strategy:
 - **Currently:** Google DNS (8.8.8.8)
-- **Later:** Start AdGuard Home on new server (192.168.0.YOUR_DOCKER_IP)
-- **Then:** Modify LXC config: `nameserver: 192.168.0.YOUR_DOCKER_IP`
+- **Later:** Start AdGuard Home on new server (192.168.0.110)
+- **Then:** Modify LXC config: `nameserver: 192.168.0.110`
 
 ### Scrutiny problem:
 ❌ **Does not work inside LXC** (device access restricted)

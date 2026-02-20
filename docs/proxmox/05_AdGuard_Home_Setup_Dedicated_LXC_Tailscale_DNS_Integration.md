@@ -27,16 +27,16 @@
 
 | ID | Type | Name | IP | Services |
 |----|------|------|----|----------|
-| **100** | LXC | docker-host | 192.168.0.YOUR_DOCKER_IP | Nginx Proxy Manager, Jellyfin, *arr stack, qBittorrent |
-| **101** | VM | homeassistant | 192.168.0.YOUR_HA_IP | Home Assistant OS, Zigbee2MQTT, Mosquitto |
-| **102** | LXC | **adguard-home** | **192.168.0.YOUR_ADGUARD_IP** | **AdGuard Home DNS** |
+| **100** | LXC | docker-host | 192.168.0.110 | Nginx Proxy Manager, Jellyfin, *arr stack, qBittorrent |
+| **101** | VM | homeassistant | 192.168.0.202 | Home Assistant OS, Zigbee2MQTT, Mosquitto |
+| **102** | LXC | **adguard-home** | **192.168.0.111** | **AdGuard Home DNS** |
 
 ### **Network:**
 
 ```
-Router: 192.168.0.YOUR_ROUTER_IP
-Proxmox Host: 192.168.0.YOUR_PROXMOX_IP
-AdGuard DNS: 192.168.0.YOUR_ADGUARD_IP ← NEW!
+Router: 192.168.0.1
+Proxmox Host: 192.168.0.109
+AdGuard DNS: 192.168.0.111 ← NEW!
 ```
 
 ---
@@ -65,7 +65,7 @@ AdGuard DNS: 192.168.0.YOUR_ADGUARD_IP ← NEW!
 **Advantages:**
 
 ✅ **Port isolation** - No conflict with Nginx  
-✅ **Static IP** - Easy DHCP configuration (192.168.0.YOUR_ADGUARD_IP)  
+✅ **Static IP** - Easy DHCP configuration (192.168.0.111)  
 ✅ **Network accessibility** - All devices (physical machines, Docker, VM) can use it  
 ✅ **Independent** - LXC stops/restarts → does not affect Docker or HA  
 ✅ **Easy backup** - Proxmox vzdump  
@@ -80,8 +80,8 @@ AdGuard DNS: 192.168.0.YOUR_ADGUARD_IP ← NEW!
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ Router (192.168.0.YOUR_ROUTER_IP)                                 │
-│ DHCP DNS server: 192.168.0.YOUR_ADGUARD_IP (AdGuard)            │
+│ Router (192.168.0.1)                                 │
+│ DHCP DNS server: 192.168.0.111 (AdGuard)            │
 └─────────────────────────────────────────────────────┘
                         ↓
         ┌───────────────┼───────────────┐
@@ -89,7 +89,7 @@ AdGuard DNS: 192.168.0.YOUR_ADGUARD_IP ← NEW!
 ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
 │ LXC 102       │ │ LXC 100       │ │ VM 101        │
 │ AdGuard Home  │ │ Docker Stack  │ │ Home Assistant│
-│ 192.168.0.YOUR_ADGUARD_IP │ │ 192.168.0.YOUR_DOCKER_IP │ │ 192.168.0.YOUR_HA_IP │
+│ 192.168.0.111 │ │ 192.168.0.110 │ │ 192.168.0.202 │
 │               │ │               │ │               │
 │ Port 53 (DNS) │ │ Nginx (80/443)│ │ HA + Z2M      │
 │ Port 80 (UI)  │ │ Jellyfin, *arr│ │               │
@@ -152,8 +152,8 @@ Memory:
 
 Network:
   Bridge: vmbr0
-  Static IP: 192.168.0.YOUR_ADGUARD_IP/24
-  Gateway: 192.168.0.YOUR_ROUTER_IP
+  Static IP: 192.168.0.111/24
+  Gateway: 192.168.0.1
   DNS: 1.1.1.1 (temporary, later will use itself)
 
 DNS:
@@ -204,7 +204,7 @@ ss -tulpn | grep -E '53|3000'
 
 # IP address
 ip addr show eth0 | grep inet
-# inet 192.168.0.YOUR_ADGUARD_IP/24 ✅
+# inet 192.168.0.111/24 ✅
 ```
 
 ---
@@ -213,7 +213,7 @@ ip addr show eth0 | grep inet
 
 ### **Initial Setup Wizard:**
 
-**WebUI:** `http://192.168.0.YOUR_ADGUARD_IP:3000`
+**WebUI:** `http://192.168.0.111:3000`
 
 **Steps:**
 
@@ -238,7 +238,7 @@ ip addr show eth0 | grep inet
 
 5. **Complete** → Open Dashboard
 
-**NEW URL:** `http://192.168.0.YOUR_ADGUARD_IP` (no more :3000!)
+**NEW URL:** `http://192.168.0.111` (no more :3000!)
 
 ---
 
@@ -395,7 +395,7 @@ URL: https://adaway.org/hosts.txt
 
 ### **1. Router DHCP DNS (MOST IMPORTANT!):**
 
-**Router admin panel (192.168.0.YOUR_ROUTER_IP):**
+**Router admin panel (192.168.0.1):**
 
 **DHCP Server / LAN settings:**
 
@@ -407,7 +407,7 @@ Secondary DNS: YOUR_ISP_DNS2 (ISP - E-MAX)
 
 **AFTER:**
 ```
-Primary DNS: 192.168.0.YOUR_ADGUARD_IP (AdGuard) ✅
+Primary DNS: 192.168.0.111 (AdGuard) ✅
 Secondary DNS: 1.1.1.1 (Cloudflare fallback)
 ```
 
@@ -432,7 +432,7 @@ nano /etc/docker/daemon.json
 **File contents:**
 ```json
 {
-  "dns": ["192.168.0.YOUR_ADGUARD_IP", "1.1.1.1"],
+  "dns": ["192.168.0.111", "1.1.1.1"],
   "log-driver": "json-file",
   "log-opts": {
     "max-size": "10m",
@@ -447,7 +447,7 @@ systemctl restart docker
 
 # Verify
 docker run --rm alpine nslookup google.com
-# Server: 192.168.0.YOUR_ADGUARD_IP ✅
+# Server: 192.168.0.111 ✅
 ```
 
 ---
@@ -456,18 +456,18 @@ docker run --rm alpine nslookup google.com
 
 **Automatic (DHCP):**
 - HA OS automatically uses the network DNS
-- Router DHCP → 192.168.0.YOUR_ADGUARD_IP ✅
+- Router DHCP → 192.168.0.111 ✅
 
 **Manual (if static IP):**
 
 **HA Terminal & SSH:**
 ```bash
-ha network update eth0 --ipv4-nameserver 192.168.0.YOUR_ADGUARD_IP --ipv4-nameserver 1.1.1.1
+ha network update eth0 --ipv4-nameserver 192.168.0.111 --ipv4-nameserver 1.1.1.1
 ```
 
 **OR WebUI:**
 - Settings → System → Network
-- DNS servers: `192.168.0.YOUR_ADGUARD_IP`, `1.1.1.1`
+- DNS servers: `192.168.0.111`, `1.1.1.1`
 
 ---
 
@@ -482,7 +482,7 @@ ipconfig /renew
 **Manual (static IP):**
 1. Network Adapter Properties
 2. IPv4 Properties
-3. **Preferred DNS:** `192.168.0.YOUR_ADGUARD_IP`
+3. **Preferred DNS:** `192.168.0.111`
 4. **Alternate DNS:** `1.1.1.1`
 5. OK
 
@@ -544,14 +544,14 @@ https://login.tailscale.com/admin/dns
 **Configuration:**
 
 **Global nameservers:**
-1. **Add nameserver:** `192.168.0.YOUR_ADGUARD_IP` (AdGuard)
+1. **Add nameserver:** `192.168.0.111` (AdGuard)
 2. **Add nameserver:** `1.1.1.1` (fallback)
 3. **Save**
 
 **Result:**
 ```
 Proxmox → Tailscale MagicDNS (100.100.100.100)
-         → Upstream: AdGuard (192.168.0.YOUR_ADGUARD_IP) ✅
+         → Upstream: AdGuard (192.168.0.111) ✅
                     → Upstream: Quad9 DoH ✅
 ```
 
@@ -593,7 +593,7 @@ nslookup google.com
 
 # Expected result:
 Server:  adguard-home
-Address: 192.168.0.YOUR_ADGUARD_IP  ✅
+Address: 192.168.0.111  ✅
 
 Name:    google.com
 Address: 142.250.185.46
@@ -609,7 +609,7 @@ nslookup doubleclick.net
 
 # Expected result:
 Server:  adguard-home
-Address: 192.168.0.YOUR_ADGUARD_IP
+Address: 192.168.0.111
 
 Name:    doubleclick.net
 Address: 0.0.0.0  ← BLOCKED! ✅
@@ -626,7 +626,7 @@ https://ads-blocker.com/testing/
 
 ### **3. AdGuard Dashboard:**
 
-**http://192.168.0.YOUR_ADGUARD_IP**
+**http://192.168.0.111**
 
 **Query Log:**
 - DNS requests visible
@@ -640,9 +640,9 @@ https://ads-blocker.com/testing/
 
 **Top clients check:**
 ```
-192.168.0.YOUR_PROXMOX_IP (Proxmox host) ✅
-192.168.0.YOUR_DOCKER_IP (Docker LXC) ✅
-192.168.0.YOUR_HA_IP (HA OS VM) ✅
+192.168.0.109 (Proxmox host) ✅
+192.168.0.110 (Docker LXC) ✅
+192.168.0.202 (HA OS VM) ✅
 192.168.0.XXX (Windows/Phone) ✅
 ```
 
@@ -775,7 +775,7 @@ pct set 101 -startup order=3,up=5
 
 **AND fallback DNS everywhere:**
 ```
-DNS: 192.168.0.YOUR_ADGUARD_IP, 1.1.1.1
+DNS: 192.168.0.111, 1.1.1.1
 ```
 
 ---
@@ -790,7 +790,7 @@ DNS: 192.168.0.YOUR_ADGUARD_IP, 1.1.1.1
 
 **Instead:**
 - Tailscale Admin Console → DNS → Global nameservers
-- Add: 192.168.0.YOUR_ADGUARD_IP
+- Add: 192.168.0.111
 
 ---
 
@@ -799,7 +799,7 @@ DNS: 192.168.0.YOUR_ADGUARD_IP, 1.1.1.1
 ### **LXC 102 - AdGuard Home:**
 
 ```
-IP: 192.168.0.YOUR_ADGUARD_IP
+IP: 192.168.0.111
 Port 53: DNS server
 Port 80: WebUI
 Upstream DNS: Quad9 DoH/DoT
@@ -813,7 +813,7 @@ Blocklists: ~500,000 rules
 
 ```
 /etc/resolv.conf: 100.100.100.100 (Tailscale MagicDNS)
-  → Upstream: 192.168.0.YOUR_ADGUARD_IP (AdGuard - Tailscale Admin Console)
+  → Upstream: 192.168.0.111 (AdGuard - Tailscale Admin Console)
     → Upstream: Quad9 DoH
 ```
 
@@ -824,7 +824,7 @@ Blocklists: ~500,000 rules
 ```
 /etc/docker/daemon.json:
 {
-  "dns": ["192.168.0.YOUR_ADGUARD_IP", "1.1.1.1"]
+  "dns": ["192.168.0.111", "1.1.1.1"]
 }
 
 Docker containers → AdGuard → Quad9 DoH ✅
@@ -835,9 +835,9 @@ Docker containers → AdGuard → Quad9 DoH ✅
 ### **VM 101 - HA OS:**
 
 ```
-DHCP DNS: 192.168.0.YOUR_ADGUARD_IP (automatic)
+DHCP DNS: 192.168.0.111 (automatic)
 OR
-Manual DNS: 192.168.0.YOUR_ADGUARD_IP, 1.1.1.1
+Manual DNS: 192.168.0.111, 1.1.1.1
 
 HA → AdGuard → Quad9 DoH ✅
 ```
@@ -847,7 +847,7 @@ HA → AdGuard → Quad9 DoH ✅
 ### **Router DHCP:**
 
 ```
-Primary DNS: 192.168.0.YOUR_ADGUARD_IP
+Primary DNS: 192.168.0.111
 Secondary DNS: 1.1.1.1
 
 Physical machines → AdGuard → Quad9 DoH ✅
@@ -859,7 +859,7 @@ Physical machines → AdGuard → Quad9 DoH ✅
 
 ```
 Admin Console → DNS → Global nameservers:
-  - 192.168.0.YOUR_ADGUARD_IP (AdGuard)
+  - 192.168.0.111 (AdGuard)
   - 1.1.1.1 (Cloudflare fallback)
 
 MagicDNS: 100.100.100.100
@@ -890,7 +890,7 @@ Search domains: YOUR_TAILSCALE_NET.ts.net, homelab.local
    - Secure mesh networking
 
 4. 🏠 Local network
-   - Single DNS server (192.168.0.YOUR_ADGUARD_IP)
+   - Single DNS server (192.168.0.111)
    - Fallback DNS (1.1.1.1)
    - Centralized management
 ```
@@ -947,14 +947,14 @@ nslookup google.com
 dig google.com
 
 # Specific DNS server
-nslookup google.com 192.168.0.YOUR_ADGUARD_IP
-dig @192.168.0.YOUR_ADGUARD_IP google.com
+nslookup google.com 192.168.0.111
+dig @192.168.0.111 google.com
 
 # DNS trace
 dig +trace google.com
 
 # Reverse DNS
-nslookup 192.168.0.YOUR_ADGUARD_IP
+nslookup 192.168.0.111
 ```
 
 ---
@@ -970,8 +970,8 @@ tcpdump -i eth0 port 53 -vv
 tcpdump -i eth0 port 443 -vv
 
 # Connection test
-telnet 192.168.0.YOUR_ADGUARD_IP 53
-curl -I http://192.168.0.YOUR_ADGUARD_IP
+telnet 192.168.0.111 53
+curl -I http://192.168.0.111
 ```
 
 ---
@@ -1002,7 +1002,7 @@ pct exec 102 -- htop
 
 ```
 On EVERY device:
-Primary DNS: 192.168.0.YOUR_ADGUARD_IP (AdGuard)
+Primary DNS: 192.168.0.111 (AdGuard)
 Secondary DNS: 1.1.1.1 (Cloudflare fallback)
 
 Why?
@@ -1053,7 +1053,7 @@ Semi-annually:
 
 **Watch AdGuard Dashboard:**
 ```
-http://192.168.0.YOUR_ADGUARD_IP
+http://192.168.0.111
 
 Metrics:
 - Queries/day: increasing?
@@ -1098,7 +1098,7 @@ AdGuard WebUI → Settings → General settings
 
 **What we achieved:**
 
-✅ **Dedicated AdGuard Home LXC** (192.168.0.YOUR_ADGUARD_IP)  
+✅ **Dedicated AdGuard Home LXC** (192.168.0.111)  
 ✅ **Port conflicts resolved** (Nginx + AdGuard working together)  
 ✅ **Quad9 DoH/DoT upstream** (encrypted DNS)  
 ✅ **~500k blocklist rules** (ad + malware blocking)  

@@ -56,11 +56,11 @@ sudo nano /etc/fstab
 
 Add entries:
 ```
-192.168.0.YOUR_PROXMOX_IP:/mnt/storage /mnt/storage nfs vers=3,defaults 0 0
-192.168.0.YOUR_PROXMOX_IP:/mnt/disk1 /mnt/disk1 nfs vers=3,defaults 0 0
-192.168.0.YOUR_PROXMOX_IP:/mnt/disk2 /mnt/disk2 nfs vers=3,defaults 0 0
-192.168.0.YOUR_PROXMOX_IP:/mnt/disk3 /mnt/disk3 nfs vers=3,defaults 0 0
-192.168.0.YOUR_PROXMOX_IP:/mnt/disk4 /mnt/disk4 nfs vers=3,defaults 0 0
+192.168.0.109:/mnt/storage /mnt/storage nfs vers=3,defaults 0 0
+192.168.0.109:/mnt/disk1 /mnt/disk1 nfs vers=3,defaults 0 0
+192.168.0.109:/mnt/disk2 /mnt/disk2 nfs vers=3,defaults 0 0
+192.168.0.109:/mnt/disk3 /mnt/disk3 nfs vers=3,defaults 0 0
+192.168.0.109:/mnt/disk4 /mnt/disk4 nfs vers=3,defaults 0 0
 ```
 
 ### Mount All
@@ -86,10 +86,10 @@ apt install nfs-common
 mkdir -p /mnt/nobara-docs
 
 # Mount from Nobara PC
-mount -t nfs 192.168.0.YOUR_PC_IP:/home/nex/homelab-docs /mnt/nobara-docs
+mount -t nfs 192.168.0.100:/home/nex/homelab-docs /mnt/nobara-docs
 
 # Make permanent in /etc/fstab
-echo "192.168.0.YOUR_PC_IP:/home/nex/homelab-docs /mnt/nobara-docs nfs defaults 0 0" >> /etc/fstab
+echo "192.168.0.100:/home/nex/homelab-docs /mnt/nobara-docs nfs defaults 0 0" >> /etc/fstab
 systemctl daemon-reload
 ```
 
@@ -143,13 +143,13 @@ This writes directly to the NFS mount without needing SSH or sudo.
 ### Check Available Exports
 From client:
 ```bash
-showmount -e 192.168.0.YOUR_PROXMOX_IP
+showmount -e 192.168.0.109
 ```
 
 ### Remount NFS
 ```bash
 umount /mnt/nobara-docs
-mount -t nfs 192.168.0.YOUR_PC_IP:/home/nex/homelab-docs /mnt/nobara-docs
+mount -t nfs 192.168.0.100:/home/nex/homelab-docs /mnt/nobara-docs
 ```
 
 ### LXC Can't Access Mount

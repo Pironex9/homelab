@@ -139,9 +139,9 @@ curl -s http://localhost:19999/api/v1/info | grep -i version
 
 **Browser:**
 ```
-http://192.168.0.YOUR_PROXMOX_IP:19999
+http://192.168.0.109:19999
 
-(Replace 192.168.0.YOUR_PROXMOX_IP with your Proxmox IP)
+(Replace 192.168.0.109 with your Proxmox IP)
 ```
 
 **Expected:**
@@ -257,7 +257,7 @@ Or: Close the pop-up (X button)
 
 ### **Main Dashboard Overview:**
 
-**URL:** `http://192.168.0.YOUR_PROXMOX_IP:19999`
+**URL:** `http://192.168.0.109:19999`
 
 **Top Section (Overview):**
 
@@ -731,7 +731,7 @@ Scrutiny (Disk Health):
    - See high I/O wait
    - Identify which disk (/dev/sda)
    
-2. Scrutiny → http://192.168.0.YOUR_DOCKER_IP:8082
+2. Scrutiny → http://192.168.0.110:8082
    - Check /dev/sda SMART data
    - Reallocated sectors?
    - Pending sectors?
@@ -771,19 +771,19 @@ Result: Thermal throttling causing slowdown
 - Monitoring:
     - Netdata:
         icon: netdata.png
-        href: http://192.168.0.YOUR_PROXMOX_IP:19999
+        href: http://192.168.0.109:19999
         description: Real-time system monitoring
         widget:
           type: iframe
-          url: http://192.168.0.YOUR_PROXMOX_IP:19999
+          url: http://192.168.0.109:19999
     
     - Scrutiny:
         icon: scrutiny.png
-        href: http://192.168.0.YOUR_DOCKER_IP:8082
+        href: http://192.168.0.110:8082
         description: Disk health monitoring
         widget:
           type: scrutiny
-          url: http://192.168.0.YOUR_DOCKER_IP:8082
+          url: http://192.168.0.110:8082
 ```
 
 ---
@@ -933,7 +933,7 @@ ss -tunp | grep netdata
 
 ```
 Morning check (~30 seconds):
-  1. Open http://192.168.0.YOUR_PROXMOX_IP:19999
+  1. Open http://192.168.0.109:19999
   2. Glance at top gauges
      - CPU < 80%? ✅
      - RAM < 80%? ✅
@@ -1015,7 +1015,7 @@ systemctl restart netdata
     bind to = localhost
     
     # Or specific IP
-    bind to = 192.168.0.YOUR_PROXMOX_IP
+    bind to = 192.168.0.109
     
     # Allow only specific IPs
     allow connections from = localhost 192.168.0.*
@@ -1041,7 +1041,7 @@ openssl req -newkey rsa:2048 -nodes -keyout /etc/netdata/ssl/key.pem -x509 -days
 systemctl restart netdata
 
 # Access via HTTPS
-https://192.168.0.YOUR_PROXMOX_IP:19999
+https://192.168.0.109:19999
 ```
 
 ---
@@ -1123,7 +1123,7 @@ Disable (not recommended):
    - No sustained high I/O wait
    - No error counters increasing
    
-☑ Scrutiny → http://192.168.0.YOUR_DOCKER_IP:8082
+☑ Scrutiny → http://192.168.0.110:8082
    - All disks: Passed status
    - Temperatures < 50°C
    - No reallocated sectors
@@ -1137,13 +1137,13 @@ Disable (not recommended):
 
 ```
 Netdata WebUI:
-  http://192.168.0.YOUR_PROXMOX_IP:19999
+  http://192.168.0.109:19999
 
 Scrutiny WebUI:
-  http://192.168.0.YOUR_DOCKER_IP:8082
+  http://192.168.0.110:8082
 
 Netdata API:
-  http://192.168.0.YOUR_PROXMOX_IP:19999/api/v1/info
+  http://192.168.0.109:19999/api/v1/info
 ```
 
 ---
@@ -1207,7 +1207,7 @@ ps aux | grep netdata | grep -v grep
 **Your Netdata setup is working correctly when:**
 
 ```
-✅ WebUI accessible: http://192.168.0.YOUR_PROXMOX_IP:19999
+✅ WebUI accessible: http://192.168.0.109:19999
 ✅ Dashboard shows real-time metrics
 ✅ All gauges updating (1 sec refresh)
 ✅ Containers & VMs visible
@@ -1225,10 +1225,10 @@ ps aux | grep netdata | grep -v grep
 
 ```
 ┌─────────────────────────────────────────────┐
-│ Proxmox Host (192.168.0.YOUR_PROXMOX_IP)                │
+│ Proxmox Host (192.168.0.109)                │
 │                                             │
 │ ✅ Netdata (System Monitoring)             │
-│    http://192.168.0.YOUR_PROXMOX_IP:19999              │
+│    http://192.168.0.109:19999              │
 │    - Real-time metrics (1 sec)             │
 │    - CPU, RAM, Network, Disk I/O           │
 │    - Container/VM metrics                  │
@@ -1242,10 +1242,10 @@ ps aux | grep netdata | grep -v grep
 └─────────────────────────────────────────────┘
          ↓
 ┌─────────────────────────────────────────────┐
-│ LXC 100 (192.168.0.YOUR_DOCKER_IP)                     │
+│ LXC 100 (192.168.0.110)                     │
 │                                             │
 │ ✅ Scrutiny Server (Disk Dashboard)        │
-│    http://192.168.0.YOUR_DOCKER_IP:8082               │
+│    http://192.168.0.110:8082               │
 │    - SMART attributes                      │
 │    - Temperature trends                    │
 │    - Health predictions                    │

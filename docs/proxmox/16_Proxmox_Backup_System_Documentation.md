@@ -108,7 +108,7 @@ mkdir -p /mnt/nobara-backup
 
 **Fstab entry** (`/etc/fstab`):
 ```
-192.168.0.YOUR_PC_IP:/mnt/hdd/Backup /mnt/nobara-backup nfs defaults,_netdev 0 0
+192.168.0.100:/mnt/hdd/Backup /mnt/nobara-backup nfs defaults,_netdev 0 0
 ```
 
 **Mount**:
@@ -200,8 +200,8 @@ ls -lh /mnt/nobara-backup/proxmox-host/
 
 ## 6. Network Configuration
 
-- **Proxmox IP**: 192.168.0.YOUR_PROXMOX_IP
-- **Nobara PC IP**: 192.168.0.YOUR_PC_IP
+- **Proxmox IP**: 192.168.0.109
+- **Nobara PC IP**: 192.168.0.100
 - **Subnet**: 192.168.0.0/24
 - **Protocol**: NFS v4
 
