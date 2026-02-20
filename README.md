@@ -5,14 +5,14 @@
 [![Management](https://img.shields.io/badge/Management-Komodo-green)](https://komo.do/)
 [![Status](https://img.shields.io/badge/Status-Production-success)]()
 
-> Self-hosted infrastructure with 21 services across Proxmox virtualization platform. Focus on automation, Infrastructure as Code, and containerization.
+> Self-hosted infrastructure with 19 Docker Compose stacks + 8 LXC/VM services across Proxmox virtualization platform. Focus on automation, Infrastructure as Code, and containerization.
 
 ## 🎯 Overview
 
 This repository documents my production homelab environment, showcasing skills in:
 - **Virtualization & Containerization**: Proxmox VE, LXC, Docker
 - **Infrastructure Management**: Komodo, automated deployments, monitoring
-- **Storage Engineering**: MergerFS + SnapRAID with 10.5TB capacity
+- **Storage Engineering**: MergerFS + SnapRAID with 8.1TB capacity
 - **Network Architecture**: Reverse proxy, VPN, secure remote access
 - **Automation**: IaC principles, scripted backups
 
@@ -24,7 +24,7 @@ This repository documents my production homelab environment, showcasing skills i
 - **Management**: Komodo
 
 ### Storage
-- **File System**: MergerFS (10.5TB pooled storage)
+- **File System**: MergerFS (8.1TB pooled storage)
 - **Parity**: SnapRAID (single parity protection)
 - **Backup**: Restic (encrypted, deduplicated)
 
@@ -36,14 +36,14 @@ This repository documents my production homelab environment, showcasing skills i
 ### Monitoring & Observability
 - **Health**: Scrutiny (disk SMART), Uptime Kuma
 - **Logs**: Dozzle (centralized Docker logs)
-- **Metrics**: Netdata
+- **Metrics**: Netdata (runs on Proxmox host, bare metal for hardware compatibility)
 
 ## 📊 Key Metrics
 
-- **Services**: 21 Docker Compose stacks
+- **Services**: 19 Docker Compose stacks (LXC 100)
 - **Hosts**: 8 LXC containers + 1 VM + 1 desktop
-- **Storage**: 10.5TB usable (MergerFS + SnapRAID)
-- **Uptime**: 99.9% (last 90 days)
+- **Storage**: 8.1TB usable (MergerFS + SnapRAID)
+- **Uptime**: 99%+
 - **Backups**: Automated to 3 locations (local, NFS, cloud)
 
 ## 🏗️ Architecture
@@ -91,12 +91,12 @@ K3s Cluster (Planned)
 - Git-based version control for all stack configurations
 - Automated health monitoring and alerting
 
-📖 [Full Documentation →](./docs/komodo/komodo-complete-setup.md)
+📖 [Full Documentation →](./docs/proxmox/17_Komodo_complete_setup.md)
 
 ---
 
 ### 2. Resilient Storage Architecture
-**Challenge**: Protect 10.5TB media library from disk failures without expensive RAID hardware
+**Challenge**: Protect 8.1TB media library from disk failures without expensive RAID hardware
 
 **Solution**:
 - Implemented MergerFS for pooled storage across 4 disks
@@ -164,7 +164,7 @@ homelab/
 ### Setup Guides
 - [Proxmox Initial Setup + Storage](./docs/proxmox/1_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 - [LXC & Docker Setup](./docs/proxmox/2_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
-- [Komodo Installation & Configuration](./docs/komodo/komodo-complete-setup.md)
+- [Komodo Installation & Configuration](./docs/proxmox/17_Komodo_complete_setup.md)
 - [Backup System](./docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
 - [VPS + Pangolin Reverse Proxy](./docs/vps/10_Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md)
 - [Security Configuration](./docs/proxmox/12_Security_Configuration_Guide.md)

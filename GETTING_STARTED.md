@@ -23,7 +23,7 @@ To use this repository, you should have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/homelab.git
+git clone https://github.com/Pironex9/homelab.git
 cd homelab
 ```
 
@@ -43,7 +43,7 @@ Start with these key documents:
 1. [Main README](./README.md) - Overview and features
 2. [Proxmox Setup](./docs/proxmox/setup.md) - Infrastructure foundation
 3. [Docker Compose Guide](./compose/README.md) - Service deployment
-4. [Komodo Setup](./docs/komodo/komodo-complete-setup.md) - Management platform
+4. [Komodo Setup](./docs/proxmox/17_Komodo_complete_setup.md) - Management platform
 
 ### 4. Adapt to Your Environment
 
@@ -83,7 +83,7 @@ cp .env.example .env
 
 ### Import to Komodo
 
-Follow the [Komodo setup guide](./docs/komodo/komodo-complete-setup.md) to:
+Follow the [Komodo setup guide](./docs/proxmox/17_Komodo_complete_setup.md) to:
 1. Install Komodo Core
 2. Setup Periphery agents
 3. Import your compose files
@@ -147,7 +147,7 @@ Before deploying to your environment:
 - Network architecture
 
 ### Service Configurations
-- 33+ Docker Compose stacks
+- 19 Docker Compose stacks (LXC 100) + 8 LXC/VM services
 - Media server stack (Jellyfin, *arr apps)
 - Automation tools (n8n, Home Assistant)
 - Security services (Vaultwarden, reverse proxy)

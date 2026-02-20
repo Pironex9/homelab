@@ -24,7 +24,7 @@ Automated backup script using restic.
 
 1. Clone repository to automation server:
 ```bash
-git clone https://github.com/yourusername/homelab.git
+git clone https://github.com/Pironex9/homelab.git
 cd homelab/scripts
 ```
 
