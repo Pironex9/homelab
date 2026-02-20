@@ -1,0 +1,20 @@
+services:
+  radarr:
+    image: ghcr.io/hotio/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+    volumes:
+      - /srv/docker-data/radarr:/config
+      - /mnt/storage/media/movies/hun:/movies/hun
+      - /mnt/storage/media/movies/eng:/movies/eng
+      - /mnt/storage/media/downloads:/downloads
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+networks:
+  arr_stack:
+    external: true

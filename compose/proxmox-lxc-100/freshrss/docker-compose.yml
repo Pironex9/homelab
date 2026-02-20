@@ -1,0 +1,22 @@
+services:
+  freshrss:
+    image: freshrss/freshrss:latest
+    container_name: freshrss
+    hostname: freshrss 
+    environment:
+      - TZ=Europe/Bratislava
+      # Cron for auto-update feeds (every 15 minutes)
+      - CRON_MIN=*/15
+      - UID=1000
+      - GID=1000
+    volumes:
+      - /srv/docker-data/freshrss/data:/var/www/FreshRSS/data
+      - /srv/docker-data/freshrss/extensions:/var/www/FreshRSS/extensions
+    ports:
+      - 8083:80
+    restart: unless-stopped
+    networks:
+      - utils
+networks:
+  utils:
+    external: true

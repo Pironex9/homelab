@@ -1,0 +1,55 @@
+services:
+  anythingllm:
+    image: mintplexlabs/anythingllm:latest
+    container_name: anythingllm
+    ports:
+      - "3001:3001"
+    environment:
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_PATH=http://192.168.0.YOUR_PC_IP:11434
+      - OLLAMA_MODEL_PREF=llama3.1:8b
+      - EMBEDDING_ENGINE=ollama
+      - EMBEDDING_MODEL_PREF=nomic-embed-text
+      - VECTOR_DB=lancedb
+      - STORAGE_DIR=/app/server/storage
+    volumes:
+      - anythingllm-storage:/app/server/storage
+      - /home/nex/homelab-docs:/import:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://192.168.0.YOUR_PC_IP:11434
+      - WEBUI_NAME=Homelab AI Assistant
+      - DEFAULT_MODELS=llama3.1:8b
+      - ENABLE_RAG_WEB_SEARCH=true
+      - RAG_EMBEDDING_MODEL=nomic-embed-text
+    volumes:
+      - open-webui-data:/app/backend/data
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  anythingllm-storage:
+    driver: local
+    name: anythingllm-storage
+  open-webui-data:
+    driver: local
+    name: open-webui-data

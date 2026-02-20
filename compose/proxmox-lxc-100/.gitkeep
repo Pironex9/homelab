@@ -1,0 +1,6 @@
+# Placeholder for service directories
+# Add your docker-compose projects here:
+# - jellyfin/
+# - radarr/
+# - sonarr/
+# etc.
