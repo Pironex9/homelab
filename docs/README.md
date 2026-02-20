@@ -20,11 +20,11 @@
 - `17_Komodo_complete_setup.md` — Komodo container management platform
 - `18_SuggestArr_Setup_Troubleshooting_Guide.md` — SuggestArr media suggestion automation
 - `19_Recommendarr_Setup_Troubleshooting_Guide.md` — Recommendarr AI recommendations
-- `20_Helper_Script_LXCs.md` — Karakeep, n8n, Ollama via Proxmox helper scripts
+- `10_Helper_Script_LXCs.md` — Karakeep, n8n, Ollama via Proxmox helper scripts
 
 ## vps/
 
-- `10_Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md` — Hetzner VPS, Pangolin reverse proxy, public Jellyfin access
+- `Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md` — Hetzner VPS, Pangolin reverse proxy, public Jellyfin access
 
 ## Quick Start
 
