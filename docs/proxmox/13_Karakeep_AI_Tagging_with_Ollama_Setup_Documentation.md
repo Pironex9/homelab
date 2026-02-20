@@ -3,8 +3,8 @@
 Self-hosted AI tagging solution for Karakeep bookmark manager using remote Ollama inference with dedicated GPU acceleration.
 
 **Architecture:**
-- Karakeep: Proxmox LXC 106 (192.168.0.YOUR_KARAKEEP_IP)
-- Ollama: Nobara PC (192.168.0.YOUR_PC_IP:11434) - RTX 2060 Super
+- Karakeep: Proxmox LXC 106 (192.168.0.128)
+- Ollama: Nobara PC (192.168.0.100:11434) - RTX 2060 Super
 - Proxmox Host: HP EliteDesk 800 G4 (Intel i5-8400, 32GB RAM)
 
 ## Problem Statement
@@ -79,7 +79,7 @@ ollama pull llama3.1:8b
 curl http://localhost:11434
 
 # Remote test (from Proxmox):
-curl http://192.168.0.YOUR_PC_IP:11434
+curl http://192.168.0.100:11434
 ```
 
 **Expected response:** `Ollama is running`
@@ -91,7 +91,7 @@ curl http://192.168.0.YOUR_PC_IP:11434
 **File:** `/etc/karakeep/karakeep.env`
 ```bash
 # Ollama configuration - Remote Nobara PC
-OLLAMA_BASE_URL="http://192.168.0.YOUR_PC_IP:11434/"
+OLLAMA_BASE_URL="http://192.168.0.100:11434/"
 OLLAMA_KEEP_ALIVE="5m"
 
 # Model selection
@@ -170,7 +170,7 @@ journalctl -u karakeep-workers.service -f
 **Test connectivity:**
 ```bash
 # From Proxmox host:
-curl http://192.168.0.YOUR_PC_IP:11434
+curl http://192.168.0.100:11434
 ```
 
 **Common causes:**
@@ -228,11 +228,11 @@ Ollama (Nobara PC):
 
 ## Network Architecture
 ```
-Internet → Proxmox Host (192.168.0.YOUR_PROXMOX_IP)
+Internet → Proxmox Host (192.168.0.109)
               ↓
-          LXC 106: Karakeep (192.168.0.YOUR_KARAKEEP_IP)
+          LXC 106: Karakeep (192.168.0.128)
               ↓ HTTP API Call
-          Nobara PC (192.168.0.YOUR_PC_IP:11434)
+          Nobara PC (192.168.0.100:11434)
               ↓ GPU Inference
           RTX 2060 Super → Fast AI Tagging
 ```

@@ -31,9 +31,9 @@
 
 ### **Proxmox configuration:**
 - **Version:** Proxmox VE 9.1.2
-- **IP:** 192.168.0.YOUR_PROXMOX_IP
-- **LXC 100:** Docker host (192.168.0.YOUR_DOCKER_IP)
-- **VM 101:** Home Assistant OS (192.168.0.YOUR_HA_IP)
+- **IP:** 192.168.0.109
+- **LXC 100:** Docker host (192.168.0.110)
+- **VM 101:** Home Assistant OS (192.168.0.202)
 
 ### **Storage:**
 - **local-lvm:** VM/LXC disks (NVMe)
@@ -79,8 +79,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/Proxmo
 - **Name:** haos-16.3
 - **CPU:** 2 cores
 - **RAM:** 4096MB
-- **IP:** 192.168.0.YOUR_HA_IP
-- **WebUI:** http://192.168.0.YOUR_HA_IP:8123
+- **IP:** 192.168.0.202
+- **WebUI:** http://192.168.0.202:8123
 
 ### **Manual installation problems (that we avoided):**
 
@@ -116,7 +116,7 @@ scsihw: virtio-scsi-pci
 
 ### **First login:**
 
-**HA WebUI (http://192.168.0.YOUR_HA_IP:8123):**
+**HA WebUI (http://192.168.0.202:8123):**
 1. Create Account
 2. Name, username, password
 3. Location: YOUR_CITY, YOUR_COUNTRY
@@ -253,7 +253,7 @@ advanced:
 
 ✅ **Working!**
 
-**Z2M WebUI:** http://192.168.0.YOUR_HA_IP:8099 (OR sidebar: Zigbee2MQTT icon)
+**Z2M WebUI:** http://192.168.0.202:8099 (OR sidebar: Zigbee2MQTT icon)
 
 ### **Adding MQTT Integration in HA:**
 
@@ -660,12 +660,12 @@ Proxmox backup → HDD (/mnt/storage/backup/proxmox)
 
 **Proxmox Samba share:**
 ```
-\\192.168.0.YOUR_PROXMOX_IP\Storage\backup\proxmox
+\\192.168.0.109\Storage\backup\proxmox
 User: smbuser
 Password: [configured password]
 ```
 
-**Windows access:** File Explorer → `\\192.168.0.YOUR_PROXMOX_IP\Storage`
+**Windows access:** File Explorer → `\\192.168.0.109\Storage`
 
 ### **Windows Robocopy script:**
 
@@ -679,14 +679,14 @@ echo ================================================
 echo      PROXMOX BACKUP SYNC
 echo ================================================
 echo.
-echo Source: \\192.168.0.YOUR_PROXMOX_IP\Storage\backup\proxmox\dump
+echo Source: \\192.168.0.109\Storage\backup\proxmox\dump
 echo Dest:   D:\Backups\Proxmox
 echo.
 echo Starting copy...
 echo.
 
 REM Robocopy sync - without net use!
-robocopy "\\192.168.0.YOUR_PROXMOX_IP\Storage\backup\proxmox\dump" "D:\Backups\Proxmox" /MIR /Z /W:5 /R:3 /NP /V /LOG:D:\Scripts\sync.log
+robocopy "\\192.168.0.109\Storage\backup\proxmox\dump" "D:\Backups\Proxmox" /MIR /Z /W:5 /R:3 /NP /V /LOG:D:\Scripts\sync.log
 
 echo.
 echo ================================================
@@ -750,7 +750,7 @@ D:\Scripts\proxmox-backup-sync.bat
 
 ```powershell
 # PowerShell Admin
-cmdkey /add:192.168.0.YOUR_PROXMOX_IP /user:smbuser /pass:PASSWORD
+cmdkey /add:192.168.0.109 /user:smbuser /pass:PASSWORD
 ```
 
 **After this the script can run without asking for a password!** ✅
@@ -787,8 +787,8 @@ cmdkey /add:192.168.0.YOUR_PROXMOX_IP /user:smbuser /pass:PASSWORD
 
 | ID | Type | Name | vCPU | RAM | Disk | IP | Services |
 |----|------|------|------|-----|------|----|----------|
-| 100 | LXC | docker-host | 4 | 8GB | 48GB | 192.168.0.YOUR_DOCKER_IP | Docker (Jellyfin, *arr stack, qBittorrent, etc.) |
-| 101 | VM | homeassistant | 2 | 4GB | 32GB | 192.168.0.YOUR_HA_IP | HA OS 16.3, Z2M, Mosquitto |
+| 100 | LXC | docker-host | 4 | 8GB | 48GB | 192.168.0.110 | Docker (Jellyfin, *arr stack, qBittorrent, etc.) |
+| 101 | VM | homeassistant | 2 | 4GB | 32GB | 192.168.0.202 | HA OS 16.3, Z2M, Mosquitto |
 
 ### **HA Add-ons:**
 
@@ -841,32 +841,32 @@ While Windows machine is on:
 ```
 Internet
    ↓
-Router (192.168.0.YOUR_ROUTER_IP)
+Router (192.168.0.1)
    ↓
-   ├─ Proxmox Host (192.168.0.YOUR_PROXMOX_IP)
-   │    ├─ LXC 100 (192.168.0.YOUR_DOCKER_IP) - Docker
-   │    └─ VM 101 (192.168.0.YOUR_HA_IP) - Home Assistant
+   ├─ Proxmox Host (192.168.0.109)
+   │    ├─ LXC 100 (192.168.0.110) - Docker
+   │    └─ VM 101 (192.168.0.202) - Home Assistant
    │         └─ USB: SONOFF Zigbee Dongle
    │              └─ Zigbee2MQTT
    │                   ├─ Philips Hue (3x)
    │                   ├─ EMOS GoSmart (1x)
    │                   └─ Aqara Door Sensor (1x)
    │
-   └─ Windows PC (192.168.0.YOUR_PC_IP) - Offsite backup
+   └─ Windows PC (192.168.0.100) - Offsite backup
 ```
 
 ### **Access points:**
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Proxmox WebUI** | https://192.168.0.YOUR_PROXMOX_IP:8006 | Proxmox management |
-| **Home Assistant** | http://192.168.0.YOUR_HA_IP:8123 | HA WebUI |
-| **Zigbee2MQTT** | http://192.168.0.YOUR_HA_IP:8099 | Z2M frontend (OR sidebar) |
-| **Jellyfin** | http://192.168.0.YOUR_DOCKER_IP:8096 | Media server |
-| **qBittorrent** | http://192.168.0.YOUR_DOCKER_IP:8080 | Torrent client |
-| **Radarr** | http://192.168.0.YOUR_DOCKER_IP:7878 | Movie management |
-| **Sonarr** | http://192.168.0.YOUR_DOCKER_IP:8989 | TV management |
-| **Samba** | \\192.168.0.YOUR_PROXMOX_IP\Storage | Network file share |
+| **Proxmox WebUI** | https://192.168.0.109:8006 | Proxmox management |
+| **Home Assistant** | http://192.168.0.202:8123 | HA WebUI |
+| **Zigbee2MQTT** | http://192.168.0.202:8099 | Z2M frontend (OR sidebar) |
+| **Jellyfin** | http://192.168.0.110:8096 | Media server |
+| **qBittorrent** | http://192.168.0.110:8080 | Torrent client |
+| **Radarr** | http://192.168.0.110:7878 | Movie management |
+| **Sonarr** | http://192.168.0.110:8989 | TV management |
+| **Samba** | \\192.168.0.109\Storage | Network file share |
 
 ---
 
@@ -973,7 +973,7 @@ docker system prune -a
 
 ```cmd
 REM Samba connection
-net use \\192.168.0.YOUR_PROXMOX_IP\Storage /user:smbuser
+net use \\192.168.0.109\Storage /user:smbuser
 net use  REM List all connections
 net use * /delete /yes  REM Delete all
 
@@ -985,7 +985,7 @@ type D:\Scripts\sync.log | more
 
 REM Credential Manager
 cmdkey /list
-cmdkey /add:192.168.0.YOUR_PROXMOX_IP /user:smbuser /pass:PASSWORD
+cmdkey /add:192.168.0.109 /user:smbuser /pass:PASSWORD
 ```
 
 ---
@@ -1076,8 +1076,8 @@ D:\Scripts\proxmox-backup-sync.bat
 
 **Or modify the script:** Delete connections first!
 ```batch
-net use \\192.168.0.YOUR_PROXMOX_IP /delete /yes 2>nul
-robocopy "\\192.168.0.YOUR_PROXMOX_IP\Storage\backup\proxmox\dump" "D:\Backups\Proxmox" /MIR
+net use \\192.168.0.109 /delete /yes 2>nul
+robocopy "\\192.168.0.109\Storage\backup\proxmox\dump" "D:\Backups\Proxmox" /MIR
 ```
 
 ---
@@ -1149,7 +1149,7 @@ robocopy "\\192.168.0.YOUR_PROXMOX_IP\Storage\backup\proxmox\dump" "D:\Backups\P
 ✅ **3-2-1 rule met** (3 copies, 2 media, 1 offsite)
 
 **Working system:**
-- 🏠 Home Assistant: http://192.168.0.YOUR_HA_IP:8123
+- 🏠 Home Assistant: http://192.168.0.202:8123
 - 📡 Zigbee2MQTT: Sidebar or :8099
 - 💾 Automatic backup: Nightly 02:30
 - 🔒 Secure: Snapshot + Backup + Offsite

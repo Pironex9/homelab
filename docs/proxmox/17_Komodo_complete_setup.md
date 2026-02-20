@@ -101,7 +101,7 @@ bind_ip = "[::]"
 passkeys = ["YOUR_RANDOM_PASSKEY_HERE"]
 
 # Optional: whitelist Core IP
-allowed_ips = ["192.168.0.YOUR_PROXMOX_IP"]
+allowed_ips = ["192.168.0.109"]
 ```
 
 **Passkey synchronization:**
@@ -126,7 +126,7 @@ systemctl restart periphery
 ```bash
 # On Proxmox host
 pct exec 105 -- hostname -I
-# Example output: 192.168.0.YOUR_ROUTER_IP15
+# Example output: 192.168.0.115
 ```
 
 ### In Komodo UI
@@ -134,7 +134,7 @@ pct exec 105 -- hostname -I
 1. Navigate to **Servers** → **New Server**
 2. Fill in:
    - **Name:** LXC 100
-   - **Address:** http://192.168.0.YOUR_PROXMOX_IP:8120 (LXC 100's IP)
+   - **Address:** http://192.168.0.109:8120 (LXC 100's IP)
    - **Passkey:** (same as in periphery.config.toml)
 3. **Save** and **Refresh** - should show green (OK)
 
@@ -469,7 +469,7 @@ docker compose ls  # Shows actual project names
 **Check:**
 ```bash
 # From Komodo Core host
-curl -k https://192.168.0.YOUR_PROXMOX_IP:8120/
+curl -k https://192.168.0.109:8120/
 
 # From LXC
 systemctl status periphery
@@ -494,7 +494,7 @@ ls -la /srv/docker-compose/STACK_NAME/
 **Check connectivity from Core to Periphery:**
 ```bash
 # From LXC 105 (Komodo Core)
-pct exec 105 -- wget -qO- http://192.168.0.YOUR_PROXMOX_IP:8120/health
+pct exec 105 -- wget -qO- http://192.168.0.109:8120/health
 ```
 
 **Check firewall on LXC 100:**
@@ -522,7 +522,7 @@ pct exec 105 -- docker logs komodo --tail 50
 ## 9. Current Setup Summary
 
 **Infrastructure:**
-- Proxmox Host: 192.168.0.YOUR_PROXMOX_IP
+- Proxmox Host: 192.168.0.109
 - **LXC 105:** Komodo Core (Alpine + MongoDB)
   - Access: http://LXC_105_IP:9120
   - Installed via: Community Script

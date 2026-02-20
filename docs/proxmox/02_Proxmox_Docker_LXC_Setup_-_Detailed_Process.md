@@ -1,7 +1,7 @@
 
 **Date:** 2025-12-19  
-**Proxmox:** 192.168.0.YOUR_PROXMOX_IP  
-**Old RPi server:** 192.168.0.YOUR_OLD_SERVER_IP
+**Proxmox:** 192.168.0.109  
+**Old RPi server:** 192.168.0.102
 
 ---
 
@@ -19,7 +19,7 @@
 
 ### URL:
 ```
-https://192.168.0.YOUR_PROXMOX_IP:8006
+https://192.168.0.109:8006
 ```
 
 ### Login:
@@ -104,13 +104,13 @@ Swap (MiB): 512
 Name: eth0
 Bridge: vmbr0
 IPv4: Static
-IPv4/CIDR: 192.168.0.YOUR_DOCKER_IP/24
-Gateway (IPv4): 192.168.0.YOUR_ROUTER_IP
+IPv4/CIDR: 192.168.0.110/24
+Gateway (IPv4): 192.168.0.1
 ```
 
 ### 3.8 DNS tab
 ```
-DNS servers: 192.168.0.YOUR_ROUTER_IP
+DNS servers: 192.168.0.1
 ```
 
 ### 3.9 Confirm
@@ -223,7 +223,7 @@ mkdir -p /srv/docker
 **On Proxmox host:**
 ```bash
 # Attempt to copy to /tmp
-scp -r nex@192.168.0.YOUR_OLD_SERVER_IP:/mnt/hdd2/backup/2025-12-19 /tmp/backup
+scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19 /tmp/backup
 ```
 
 **Problem:**
@@ -252,13 +252,13 @@ df -h /
 rm -rf /tmp/backup
 
 # Copy directly to storage
-scp -r nex@192.168.0.YOUR_OLD_SERVER_IP:/mnt/hdd2/backup/2025-12-19/docker /mnt/storage/backup-restore/compose
-scp -r nex@192.168.0.YOUR_OLD_SERVER_IP:/mnt/hdd2/backup/2025-12-19/docker /mnt/storage/backup-restore/config
+scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19/docker /mnt/storage/backup-restore/compose
+scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19/docker /mnt/storage/backup-restore/config
 ```
 
 **OR simpler:**
 ```bash
-scp -r nex@192.168.0.YOUR_OLD_SERVER_IP:/mnt/hdd2/backup/2025-12-19/docker/* /mnt/storage/backup-restore/
+scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19/docker/* /mnt/storage/backup-restore/
 ```
 
 ### 6.4 Check backup size
@@ -362,7 +362,7 @@ drwxr-xr-x  2 nobody nogroup 4.0K Dec 20 17:26 watchtower
 
 ### Proxmox Host
 ```
-IP: 192.168.0.YOUR_PROXMOX_IP
+IP: 192.168.0.109
 Storage:
 ├─ NVMe SSD: 60GB root, 8GB swap, ~150GB data
 ├─ HDD #1 (sda): 5.5TB data (/mnt/disk1)
@@ -373,7 +373,7 @@ Storage:
 ### Docker LXC (ID: 100)
 ```
 Hostname: docker-host
-IP: 192.168.0.YOUR_DOCKER_IP
+IP: 192.168.0.110
 Resources: 4 cores, 4GB RAM, 32GB disk
 Storage: /mnt/storage (bind mount)
 Docker: ✅ Installed
@@ -383,7 +383,7 @@ Applications: 25 stacks restored
 
 ### Backup
 ```
-Source: 192.168.0.YOUR_BACKUP_IP:/mnt/hdd2/backup/2025-12-19/
+Source: 192.168.0.107:/mnt/hdd2/backup/2025-12-19/
 Destination: /mnt/storage/backup-restore/ (7.6GB)
 Docker volumes: /srv/docker/ (25 applications)
 ```

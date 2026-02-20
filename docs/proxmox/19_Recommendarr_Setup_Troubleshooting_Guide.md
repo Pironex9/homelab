@@ -34,7 +34,7 @@ Password: 1234
 
 ⚠️ **CRITICAL:** Change password immediately after first login!
 
-**Access:** `http://192.168.0.YOUR_DOCKER_IP:3003`
+**Access:** `http://192.168.0.110:3003`
 
 ---
 
@@ -45,7 +45,7 @@ Password: 1234
 #### Ollama Service Setup (Nobara PC)
 
 **Prerequisites:**
-- Ollama installed on Nobara: `http://192.168.0.YOUR_PC_IP:11434`
+- Ollama installed on Nobara: `http://192.168.0.100:11434`
 - GPU: RTX 2060 SUPER (8GB VRAM)
 
 **Required: Enable CORS for Browser Access**
@@ -70,16 +70,16 @@ sudo systemctl restart ollama
 **Verify CORS:**
 ```bash
 # Should return Access-Control-Allow-Origin: *
-curl -I -H "Origin: http://192.168.0.YOUR_DOCKER_IP:3003" http://localhost:11434/v1/models
+curl -I -H "Origin: http://192.168.0.110:3003" http://localhost:11434/v1/models
 
 # Test from LXC
-curl http://192.168.0.YOUR_PC_IP:11434/v1/models
+curl http://192.168.0.100:11434/v1/models
 ```
 
 #### Recommendarr LLM Settings
 
 1. Navigate to Settings → AI Settings
-2. **API URL:** `http://192.168.0.YOUR_PC_IP:11434/v1`
+2. **API URL:** `http://192.168.0.100:11434/v1`
 3. **API Key:** Leave empty (local Ollama doesn't need key)
 4. Click **Fetch Available Models**
 5. **Select Model:** 
@@ -147,7 +147,7 @@ nano /srv/docker-data/sonarr/config.xml
 docker start sonarr
 
 # Verify
-curl http://192.168.0.YOUR_DOCKER_IP:8989/api/v3/system/status \
+curl http://192.168.0.110:8989/api/v3/system/status \
   -H "X-Api-Key: YOUR_SONARR_API_KEY" | grep authentication
 
 # Should return: "authentication": "external"
@@ -158,7 +158,7 @@ curl http://192.168.0.YOUR_DOCKER_IP:8989/api/v3/system/status \
 #### Recommendarr Sonarr Settings
 
 1. Navigate to Settings → Services
-2. **Sonarr URL:** `http://192.168.0.YOUR_DOCKER_IP:8989`
+2. **Sonarr URL:** `http://192.168.0.110:8989`
 3. **API Key:** Get from Sonarr Settings → General → Security
 4. **Save**
 5. Test connection - should work without auth errors
@@ -176,7 +176,7 @@ docker start radarr
 ```
 
 **Recommendarr Radarr Settings:**
-- **URL:** `http://192.168.0.YOUR_DOCKER_IP:7878`
+- **URL:** `http://192.168.0.110:7878`
 - **API Key:** From Radarr Settings → General → Security
 
 ---
@@ -184,7 +184,7 @@ docker start radarr
 ### 4. Jellyfin Integration
 
 **Recommendarr Jellyfin Settings:**
-- **URL:** `http://192.168.0.YOUR_DOCKER_IP:8096`
+- **URL:** `http://192.168.0.110:8096`
 - **API Key:** Jellyfin Dashboard → API Keys → Create New
 
 **Usage:**
@@ -198,7 +198,7 @@ docker start radarr
 ### Bug #1: CORS Error - Cannot Connect to Ollama
 
 **Symptom:**
-- Browser error: `Failed to connect to LLM server at http://192.168.0.YOUR_PC_IP:11434/v1. Network Error`
+- Browser error: `Failed to connect to LLM server at http://192.168.0.100:11434/v1. Network Error`
 - Console: `CORS policy: No 'Access-Control-Allow-Origin' header`
 - Fetch Available Models button fails
 - `curl` from host works, but browser blocks
@@ -324,7 +324,7 @@ systemctl restart ollama
 **Check:**
 1. Ollama service running: `systemctl status ollama`
 2. CORS enabled: `sudo systemctl cat ollama` - check for OLLAMA_ORIGINS
-3. Network connectivity: `curl http://192.168.0.YOUR_PC_IP:11434/v1/models`
+3. Network connectivity: `curl http://192.168.0.100:11434/v1/models`
 4. Firewall: `sudo firewall-cmd --list-all` (if enabled)
 
 **Fix:**
@@ -333,8 +333,8 @@ systemctl restart ollama
 sudo systemctl restart ollama
 
 # Verify
-curl -I -H "Origin: http://192.168.0.YOUR_DOCKER_IP:3003" \
-  http://192.168.0.YOUR_PC_IP:11434/v1/models | grep Access-Control
+curl -I -H "Origin: http://192.168.0.110:3003" \
+  http://192.168.0.100:11434/v1/models | grep Access-Control
 ```
 
 ### Sonarr Connection Failed
@@ -342,7 +342,7 @@ curl -I -H "Origin: http://192.168.0.YOUR_DOCKER_IP:3003" \
 **Check:**
 1. Sonarr running: `docker ps | grep sonarr`
 2. Auth mode: `grep AuthenticationMethod /srv/docker-data/sonarr/config.xml`
-3. API key valid: `curl http://192.168.0.YOUR_DOCKER_IP:8989/api/v3/system/status -H "X-Api-Key: KEY"`
+3. API key valid: `curl http://192.168.0.110:8989/api/v3/system/status -H "X-Api-Key: KEY"`
 
 **Fix:**
 - Set External auth mode (see Bug #2)
@@ -355,7 +355,7 @@ curl -I -H "Origin: http://192.168.0.YOUR_DOCKER_IP:3003" \
 1. Ollama model selected (not embedding model)
 2. GPU being utilized: `nvidia-smi`
 3. Jellyfin watch history exists for user
-4. LLM accessible: `curl http://192.168.0.YOUR_PC_IP:11434/v1/models`
+4. LLM accessible: `curl http://192.168.0.100:11434/v1/models`
 
 **Debug:**
 ```bash
@@ -397,12 +397,12 @@ docker logs recommendarr
 
 ## Integration URLs
 
-- **Recommendarr:** http://192.168.0.YOUR_DOCKER_IP:3003
-- **Ollama (Nobara):** http://192.168.0.YOUR_PC_IP:11434
-- **Sonarr:** http://192.168.0.YOUR_DOCKER_IP:8989
-- **Radarr:** http://192.168.0.YOUR_DOCKER_IP:7878
-- **Jellyfin:** http://192.168.0.YOUR_DOCKER_IP:8096
-- **SuggestArr:** http://192.168.0.YOUR_DOCKER_IP:5000
+- **Recommendarr:** http://192.168.0.110:3003
+- **Ollama (Nobara):** http://192.168.0.100:11434
+- **Sonarr:** http://192.168.0.110:8989
+- **Radarr:** http://192.168.0.110:7878
+- **Jellyfin:** http://192.168.0.110:8096
+- **SuggestArr:** http://192.168.0.110:5000
 
 ---
 

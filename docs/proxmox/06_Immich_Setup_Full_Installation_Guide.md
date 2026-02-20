@@ -30,14 +30,14 @@
 
 | ID | Type | Name | IP | Services |
 |----|------|------|----|----------|
-| **100** | LXC | docker-host | 192.168.0.YOUR_DOCKER_IP | Docker stack (Nginx, Jellyfin, *arr, **Immich**) |
-| **101** | VM | homeassistant | 192.168.0.YOUR_HA_IP | Home Assistant OS |
-| **102** | LXC | adguard-home | 192.168.0.YOUR_ADGUARD_IP | AdGuard Home DNS |
+| **100** | LXC | docker-host | 192.168.0.110 | Docker stack (Nginx, Jellyfin, *arr, **Immich**) |
+| **101** | VM | homeassistant | 192.168.0.202 | Home Assistant OS |
+| **102** | LXC | adguard-home | 192.168.0.111 | AdGuard Home DNS |
 
 ### **Immich Services:**
 
 ```
-LXC 100 - Docker (192.168.0.YOUR_DOCKER_IP)
+LXC 100 - Docker (192.168.0.110)
 ├─ Immich Server (port 2283) - WebUI + API
 ├─ Immich ML (port 3003) - Face recognition, CLIP search
 ├─ PostgreSQL (port 5432) - Database
@@ -568,7 +568,7 @@ Swap: 0-500Mi used / 4.0Gi total  ✅ (low initially)
 **Browser (Windows/Phone/any device):**
 
 ```
-http://192.168.0.YOUR_DOCKER_IP:2283
+http://192.168.0.110:2283
 ```
 
 **Expected screen:**
@@ -655,7 +655,7 @@ Model: buffalo_l (default, leave it!)
 ```
 1. Google Play / App Store → "Immich"
 2. Install
-3. Server URL: http://192.168.0.YOUR_DOCKER_IP:2283
+3. Server URL: http://192.168.0.110:2283
 4. Login: admin@homelab.local + password
 5. Backup settings:
    ✅ Foreground backup
@@ -863,7 +863,7 @@ Install
 **Open app:**
 
 ```
-1. Server URL: http://192.168.0.YOUR_DOCKER_IP:2283
+1. Server URL: http://192.168.0.110:2283
 2. Login: admin@homelab.local (or partner@homelab.local)
 3. Password: [password]
 4. Login
@@ -892,7 +892,7 @@ Settings → Backup:
 **If Tailscale VPN is set up:**
 
 ```
-Mobile app Server URL: http://192.168.0.YOUR_DOCKER_IP:2283
+Mobile app Server URL: http://192.168.0.110:2283
 → Works through Tailscale VPN! ✅
 → Securely accessible from anywhere!
 ```
@@ -964,7 +964,7 @@ Name: TV App - Living Room
 ```
 1. Install: "Immich for Android TV" (Play Store)
 2. Open app
-3. Server URL: http://192.168.0.YOUR_DOCKER_IP:2283
+3. Server URL: http://192.168.0.110:2283
 4. Login method: API Key
 5. API Key: [paste the key]
 6. Connect!
@@ -1005,7 +1005,7 @@ Active API Keys:
 
 ### **Problem 1: WebUI not accessible**
 
-**Symptom:** `http://192.168.0.YOUR_DOCKER_IP:2283` timeout
+**Symptom:** `http://192.168.0.110:2283` timeout
 
 **Check:**
 
@@ -1302,22 +1302,22 @@ Monthly:
 ### **Final configuration:**
 
 ```
-Proxmox Host (192.168.0.YOUR_PROXMOX_IP):
+Proxmox Host (192.168.0.109):
 ├─ Swap: swappiness=10 ✅
 │
-├─ LXC 100 - Docker (192.168.0.YOUR_DOCKER_IP):
+├─ LXC 100 - Docker (192.168.0.110):
 │  ├─ Swap: 4GB ✅
 │  ├─ iGPU: Intel QuickSync ✅
 │  │
-│  └─ Immich (http://192.168.0.YOUR_DOCKER_IP:2283):
+│  └─ Immich (http://192.168.0.110:2283):
 │     ├─ Server (1G RAM limit) ✅
 │     ├─ ML (2G RAM limit + iGPU) ✅
 │     ├─ PostgreSQL (512M limit, HDD optimized) ✅
 │     ├─ Redis (256M limit) ✅
 │     └─ Storage: /mnt/storage/immich/ ✅
 │
-├─ LXC 102 - AdGuard (192.168.0.YOUR_ADGUARD_IP) ✅
-└─ VM 101 - Home Assistant (192.168.0.YOUR_HA_IP) ✅
+├─ LXC 102 - AdGuard (192.168.0.111) ✅
+└─ VM 101 - Home Assistant (192.168.0.202) ✅
 ```
 
 ---
@@ -1343,7 +1343,7 @@ Proxmox Host (192.168.0.YOUR_PROXMOX_IP):
 
 **What we achieved:**
 
-✅ **Immich installed** - WebUI working (http://192.168.0.YOUR_DOCKER_IP:2283)  
+✅ **Immich installed** - WebUI working (http://192.168.0.110:2283)  
 ✅ **ML features** - Face detection, CLIP search, object recognition  
 ✅ **iGPU acceleration** - 3-4x faster ML processing  
 ✅ **Resource limits** - RAM overflow protection  

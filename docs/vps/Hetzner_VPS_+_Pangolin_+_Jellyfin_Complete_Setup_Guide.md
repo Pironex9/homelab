@@ -1,7 +1,7 @@
 
 **Date:** 2026-01-11  
 **Purpose:** Remote Jellyfin streaming via Pangolin reverse proxy  
-**Home Lab:** Proxmox (192.168.0.YOUR_PROXMOX_IP), Jellyfin LXC (192.168.0.YOUR_DOCKER_IP:8096)  
+**Home Lab:** Proxmox (192.168.0.109), Jellyfin LXC (192.168.0.110:8096)  
 **VPS:** Hetzner CX23, Ubuntu 24.04 LTS  
 **Domain:** your-domain.com (Cloudflare DNS)
 
@@ -312,7 +312,7 @@ Accept Client Connections: Enabled
 
 **SSH to Proxmox:**
 ```bash
-ssh root@192.168.0.YOUR_PROXMOX_IP
+ssh root@192.168.0.109
 ```
 
 **Install Newt Client:**
@@ -427,7 +427,7 @@ Click: "+ Add Target"
 Target Settings:
   Site: Home Network
   Target Type: HTTP
-  Target Address: 192.168.0.YOUR_DOCKER_IP:8096
+  Target Address: 192.168.0.110:8096
   Health Check: Enabled (optional)
   
 → Add Target
@@ -437,7 +437,7 @@ Target Settings:
 ```
 Enable Health Checks: ON
 Method: HTTP
-IP/Host: 192.168.0.YOUR_DOCKER_IP
+IP/Host: 192.168.0.110
 Port: 8096
 Path: /
 HTTP Method: GET
@@ -807,10 +807,10 @@ Hetzner VPS (YOUR_VPS_IP)
     ↓ WireGuard Tunnel (Encrypted)
     ↓
 Home Network (192.168.0.0/24)
-├─ Proxmox Host (192.168.0.YOUR_PROXMOX_IP)
+├─ Proxmox Host (192.168.0.109)
 │  └─ Newt Client (systemd service)
 │     └─ WireGuard IP: 100.90.128.2
-└─ Jellyfin LXC (192.168.0.YOUR_DOCKER_IP:8096)
+└─ Jellyfin LXC (192.168.0.110:8096)
    └─ Media Server
 ```
 
@@ -828,8 +828,8 @@ Home Network (192.168.0.0/24)
 
 **Home Network:**
 - Subnet: 192.168.0.0/24
-- Proxmox Host: 192.168.0.YOUR_PROXMOX_IP
-- Jellyfin LXC: 192.168.0.YOUR_DOCKER_IP
+- Proxmox Host: 192.168.0.109
+- Jellyfin LXC: 192.168.0.110
 
 ### Port Mapping
 
@@ -1009,7 +1009,7 @@ TOTAL: €50.88/year (~17,000 HUF/year)
 3. **Verify Jellyfin Running:**
    ```bash
    # Home Lab - check Jellyfin LXC
-   curl http://192.168.0.YOUR_DOCKER_IP:8096
+   curl http://192.168.0.110:8096
    # Should return Jellyfin HTML
    ```
 
@@ -1103,7 +1103,7 @@ TOTAL: €50.88/year (~17,000 HUF/year)
 ```
 Pangolin Dashboard: https://pangolin.your-domain.com
 Jellyfin (Public): https://jellyfin.your-domain.com
-Jellyfin (Local): http://192.168.0.YOUR_DOCKER_IP:8096
+Jellyfin (Local): http://192.168.0.110:8096
 Hetzner Console: https://console.hetzner.cloud/
 Cloudflare Dashboard: https://dash.cloudflare.com/
 ```
@@ -1166,7 +1166,7 @@ systemctl status newt.service
 journalctl -u newt.service -f
 
 # Test Jellyfin locally
-curl http://192.168.0.YOUR_DOCKER_IP:8096
+curl http://192.168.0.110:8096
 ```
 
 ---

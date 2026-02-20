@@ -1,8 +1,8 @@
 
 **Date:** 2025-12-19  
 **Hostname:** pve  
-**IP address:** 192.168.0.YOUR_PROXMOX_IP  
-**Web UI:** https://192.168.0.YOUR_PROXMOX_IP:8006
+**IP address:** 192.168.0.109  
+**Web UI:** https://192.168.0.109:8006
 
 ---
 
@@ -50,9 +50,9 @@ Options:
 
 Network:
 ├─ Hostname: pve.local
-├─ IP Address: 192.168.0.YOUR_PROXMOX_IP/24
-├─ Gateway: 192.168.0.YOUR_ROUTER_IP
-└─ DNS: 192.168.0.YOUR_ROUTER_IP
+├─ IP Address: 192.168.0.109/24
+├─ Gateway: 192.168.0.1
+└─ DNS: 192.168.0.1
 ```
 
 ### Resulting layout
@@ -388,8 +388,8 @@ Total: 11.5TB usable storage!
 ## 🔐 Important Passwords and Data
 
 - **Proxmox root password:** [WRITE THIS DOWN!]
-- **Web UI:** https://192.168.0.YOUR_PROXMOX_IP:8006
-- **SSH:** `ssh root@192.168.0.YOUR_PROXMOX_IP`
+- **Web UI:** https://192.168.0.109:8006
+- **SSH:** `ssh root@192.168.0.109`
 
 ---
 

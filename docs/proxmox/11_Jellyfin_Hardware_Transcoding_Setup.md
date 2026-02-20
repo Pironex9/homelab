@@ -94,8 +94,8 @@ features: nesting=1
 hostname: docker-host
 memory: 8192
 mp0: /mnt/storage,mp=/mnt/storage
-nameserver: 192.168.0.YOUR_ROUTER_IP
-net0: name=eth0,bridge=vmbr0,firewall=1,gw=192.168.0.YOUR_ROUTER_IP,hwaddr=YOUR_LXC_MAC_ADDRESS,ip=192.168.0.YOUR_DOCKER_IP/24,type=veth
+nameserver: 192.168.0.1
+net0: name=eth0,bridge=vmbr0,firewall=1,gw=192.168.0.1,hwaddr=YOUR_LXC_MAC_ADDRESS,ip=192.168.0.110/24,type=veth
 onboot: 1
 ostype: debian
 rootfs: local-lvm:vm-100-disk-1,size=48G

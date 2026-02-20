@@ -33,7 +33,7 @@ networks:
 
 ## Web UI Setup
 
-**Access:** `http://192.168.0.YOUR_DOCKER_IP:5000`
+**Access:** `http://192.168.0.110:5000`
 
 ### Setup Wizard Configuration
 
@@ -43,13 +43,13 @@ networks:
 
 #### 2. Media Server (Jellyfin)
 - **Type:** Jellyfin
-- **URL:** `http://192.168.0.YOUR_DOCKER_IP:8096`
+- **URL:** `http://192.168.0.110:8096`
 - **API Token:** Get from Jellyfin Dashboard → API Keys
 - **Libraries:** ⚠️ **MUST SELECT ALL** - do not leave empty (see Bug #1)
 
 #### 3. Request Service (Jellyseerr)
 - **Type:** Jellyseerr
-- **URL:** `http://192.168.0.YOUR_DOCKER_IP:5055`
+- **URL:** `http://192.168.0.110:5055`
   - Docker network alternative: `jellyseerr:5055`
 - **API Key:** From Jellyseerr Settings → General
 
@@ -176,7 +176,7 @@ docker stop suggestarr
 rm -rf /srv/docker-data/suggestarr/*
 docker start suggestarr
 
-# Access http://192.168.0.YOUR_DOCKER_IP:5000
+# Access http://192.168.0.110:5000
 # Complete setup wizard
 # CRITICAL: Check config.yaml for genre duplicates
 # Fix if needed, restart, then test
@@ -260,10 +260,10 @@ ports:
 
 ## Integration URLs
 
-- **SuggestArr:** http://192.168.0.YOUR_DOCKER_IP:5000
-- **Jellyfin:** http://192.168.0.YOUR_DOCKER_IP:8096
-- **Jellyseerr:** http://192.168.0.YOUR_DOCKER_IP:5055
-- **Recommendarr:** http://192.168.0.YOUR_DOCKER_IP:3003
+- **SuggestArr:** http://192.168.0.110:5000
+- **Jellyfin:** http://192.168.0.110:8096
+- **Jellyseerr:** http://192.168.0.110:5055
+- **Recommendarr:** http://192.168.0.110:3003
 
 ---
 
