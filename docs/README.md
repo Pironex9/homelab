@@ -24,6 +24,7 @@ Proxmox VE setup, service installation, and configuration guides:
 - `17_Komodo_complete_setup.md` - Komodo container management platform
 - `18_SuggestArr_Setup_Troubleshooting_Guide.md` - SuggestArr media suggestion automation
 - `19_Recommendarr_Setup_Troubleshooting_Guide.md` - Recommendarr AI recommendations
+- `20_Helper_Script_LXCs.md` - Karakeep, n8n, Ollama LXC setup via Proxmox helper scripts
 
 ### komodo/
 Komodo container management platform:

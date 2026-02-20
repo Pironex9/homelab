@@ -14,7 +14,9 @@ Production services running on LXC 100 (docker-host):
 
 ### nobara/
 Desktop services running on Nobara workstation:
-- AI tools (Open WebUI + AnythingLLM with Ollama backend)
+- AI tools (Open WebUI + AnythingLLM)
+- Ollama with GPU acceleration (not 24/7 — used for heavy inference tasks)
+- Note: A second Ollama instance runs on LXC 108 (always on, CPU, integrated with n8n for light tasks)
 
 ## Usage
 
