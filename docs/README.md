@@ -11,6 +11,7 @@
 - `07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md` — Scrutiny disk health monitoring
 - `08_Netdata_System_Monitoring_Setup_Guide.md` — Netdata system metrics
 - `09_Scanopy_Vaultwarden.md` — Scanopy + Vaultwarden password manager
+- `10_Helper_Script_LXCs.md` — Karakeep, n8n, Ollama via Proxmox helper scripts
 - `11_Jellyfin_Hardware_Transcoding_Setup.md` — Jellyfin GPU hardware transcoding
 - `12_Security_Configuration_Guide.md` — Security hardening and firewall
 - `13_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md` — Karakeep AI tagging with Ollama
@@ -20,7 +21,6 @@
 - `17_Komodo_complete_setup.md` — Komodo container management platform
 - `18_SuggestArr_Setup_Troubleshooting_Guide.md` — SuggestArr media suggestion automation
 - `19_Recommendarr_Setup_Troubleshooting_Guide.md` — Recommendarr AI recommendations
-- `10_Helper_Script_LXCs.md` — Karakeep, n8n, Ollama via Proxmox helper scripts
 
 ## vps/
 
