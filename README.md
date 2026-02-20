@@ -49,6 +49,10 @@ K3s Cluster (Planned)
 └── 3x Dell OptiPlex nodes (5060, 3060, 3050)
 ```
 
+## 📸 Dashboard
+
+![Homepage Dashboard](./assets/dashboard.png)
+
 ## 🚀 Featured Projects
 
 ### Automated Docker Stack Migration
