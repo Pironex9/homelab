@@ -12,7 +12,7 @@
 This repository documents my production homelab environment, showcasing skills in:
 - **Virtualization & Containerization**: Proxmox VE, LXC, Docker
 - **Infrastructure Management**: Komodo, automated deployments, monitoring
-- **Storage Engineering**: MergerFS + SnapRAID with 20TB+ capacity
+- **Storage Engineering**: MergerFS + SnapRAID with 10.5TB capacity
 - **Network Architecture**: Reverse proxy, VPN, secure remote access
 - **Automation**: IaC principles, scripted backups
 
@@ -24,8 +24,8 @@ This repository documents my production homelab environment, showcasing skills i
 - **Management**: Komodo
 
 ### Storage
-- **File System**: MergerFS (20TB+ pooled storage)
-- **Parity**: SnapRAID (dual parity protection)
+- **File System**: MergerFS (10.5TB pooled storage)
+- **Parity**: SnapRAID (single parity protection)
 - **Backup**: Restic (encrypted, deduplicated)
 
 ### Networking
@@ -42,7 +42,7 @@ This repository documents my production homelab environment, showcasing skills i
 
 - **Services**: 21 Docker Compose stacks
 - **Hosts**: 2 LXC containers + 1 desktop
-- **Storage**: 20TB usable (MergerFS + SnapRAID)
+- **Storage**: 10.5TB usable (MergerFS + SnapRAID)
 - **Uptime**: 99.9% (last 90 days)
 - **Backups**: Automated to 3 locations (local, NFS, cloud)
 
@@ -60,7 +60,7 @@ Nobara PC
 └── Desktop services (Open WebUI, AnythingLLM)
 
 K3s Cluster (Planned)
-└── 3x Raspberry Pi nodes
+└── 3x Dell OptiPlex nodes (5060, 3060, 3050)
 ```
 
 ## 🚀 Featured Projects
@@ -85,17 +85,17 @@ K3s Cluster (Planned)
 ---
 
 ### 2. Resilient Storage Architecture
-**Challenge**: Protect 15TB+ media library from disk failures without expensive RAID hardware
+**Challenge**: Protect 10.5TB media library from disk failures without expensive RAID hardware
 
 **Solution**:
 - Implemented MergerFS for pooled storage across 4 disks
-- Added SnapRAID for dual-parity protection
+- Added SnapRAID for single-parity protection
 - Automated scrub and sync scheduling
 
 **Tech**: MergerFS, SnapRAID, bash, systemd timers
 
 **Outcome**:
-- Can survive 2 simultaneous disk failures
+- Can survive 1 disk failure
 - Flexible expansion (add disks as needed)
 - <1% storage overhead vs traditional RAID
 
