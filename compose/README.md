@@ -10,7 +10,6 @@ Production services running on LXC 100 (docker-host):
 - Photo & library management (Immich, Calibre-Web-Automated)
 - Productivity (FreshRSS, Syncthing, BentoPDF)
 - Management & monitoring (Dockge, Dozzle, Homepage, Uptime Kuma, Scrutiny)
-- Security (Vaultwarden)
 - Notifications & automation (Notifiarr, SuggestArr + Recommendarr)
 
 ### nobara/
