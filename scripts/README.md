@@ -107,4 +107,4 @@ When adding new scripts:
 ## Related Documentation
 
 - [Backup Strategy](../docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
-- [LXC & Docker Setup](../docs/proxmox/2_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
+- [LXC & Docker Setup](../docs/proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)

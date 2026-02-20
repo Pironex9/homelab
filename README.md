@@ -110,7 +110,7 @@ K3s Cluster (Planned)
 - Flexible expansion (add disks as needed)
 - <1% storage overhead vs traditional RAID
 
-📖 [Storage Setup Guide →](./docs/proxmox/1_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
+📖 [Storage Setup Guide →](./docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 
 ---
 
@@ -162,18 +162,18 @@ homelab/
 ## 📚 Documentation
 
 ### Setup Guides
-- [Proxmox Initial Setup + Storage](./docs/proxmox/1_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
-- [LXC & Docker Setup](./docs/proxmox/2_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
+- [Proxmox Initial Setup + Storage](./docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
+- [LXC & Docker Setup](./docs/proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
 - [Komodo Installation & Configuration](./docs/proxmox/17_Komodo_complete_setup.md)
 - [Backup System](./docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
 - [VPS + Pangolin Reverse Proxy](./docs/vps/10_Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md)
 - [Security Configuration](./docs/proxmox/12_Security_Configuration_Guide.md)
 
 ### Service Guides
-- [Immich Photo Management](./docs/proxmox/6_Immich_Setup_Full_Installation_Guide.md)
+- [Immich Photo Management](./docs/proxmox/06_Immich_Setup_Full_Installation_Guide.md)
 - [Jellyfin Hardware Transcoding](./docs/proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md)
-- [AdGuard Home + Tailscale DNS](./docs/proxmox/5_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md)
-- [Scrutiny Disk Health](./docs/proxmox/7_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md)
+- [AdGuard Home + Tailscale DNS](./docs/proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md)
+- [Scrutiny Disk Health](./docs/proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md)
 - [NFS Storage](./docs/proxmox/15_NFS-Setup_Documentation.md)
 
 ## 🎓 Skills Demonstrated

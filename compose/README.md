@@ -128,5 +128,5 @@ docker compose up -d
 ## Related Documentation
 
 - [Komodo Setup](../docs/proxmox/17_Komodo_complete_setup.md)
-- [Storage Configuration](../docs/proxmox/1_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
+- [Storage Configuration](../docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 - [Backup Procedures](../docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
