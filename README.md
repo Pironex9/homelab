@@ -226,4 +226,4 @@ This documentation is provided under the MIT License. See [LICENSE](./LICENSE) f
 
 ---
 
-<sub>Last updated: February 2026 | Infrastructure: Proxmox VE 9.1 | Services: 21 active</sub>
+<sub>Last updated: February 2026 | Infrastructure: Proxmox VE 9.1 | Services: 27 active (19 Docker stacks + 8 LXC/VM)</sub>
