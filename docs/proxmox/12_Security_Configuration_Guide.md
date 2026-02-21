@@ -3,7 +3,7 @@
 
 **Date:** 2026-01-11  
 **Status:** Production Security Complete  
-**Security Score:** 95/100 ⭐⭐⭐⭐⭐
+**Security Score:** 90/100 ⭐⭐⭐⭐⭐
 
 ---
 
@@ -71,13 +71,13 @@
 ### Security Score Breakdown
 
 ```
-Layer 1 (Edge):        100/100 ⭐⭐⭐⭐⭐
+Layer 1 (Edge):         90/100 ⭐⭐⭐⭐⭐
 Layer 2 (VPS):         100/100 ⭐⭐⭐⭐⭐
 Layer 3 (Application):  95/100 ⭐⭐⭐⭐⭐
 Layer 4 (Tunnel):      100/100 ⭐⭐⭐⭐⭐
 Layer 5 (Backend):     100/100 ⭐⭐⭐⭐⭐
 ─────────────────────────────────────
-OVERALL:                95/100 ⭐⭐⭐⭐⭐
+OVERALL:                90/100 ⭐⭐⭐⭐⭐
 ```
 
 ---
@@ -1647,10 +1647,10 @@ Documentation:
 
 ```
 ═══════════════════════════════════════════════════════
-CURRENT SECURITY SCORE: 95/100 ⭐⭐⭐⭐⭐
+CURRENT SECURITY SCORE: 90/100 ⭐⭐⭐⭐⭐
 ═══════════════════════════════════════════════════════
 
-Layer 1 (Cloudflare Edge):     100/100 ⭐⭐⭐⭐⭐
+Layer 1 (Cloudflare Edge):      90/100 ⭐⭐⭐⭐⭐
 Layer 2 (VPS Security):        100/100 ⭐⭐⭐⭐⭐
 Layer 3 (Pangolin):             95/100 ⭐⭐⭐⭐⭐
 Layer 4 (WireGuard Tunnel):    100/100 ⭐⭐⭐⭐⭐
@@ -1666,16 +1666,19 @@ Access Control:                100/100 ⭐⭐⭐⭐⭐
 - Rule-based access ✓
 - Resource-level auth ✓
 
-Encryption:                    100/100 ⭐⭐⭐⭐⭐
-- HTTPS enforced ✓
+Encryption:                     93/100 ⭐⭐⭐⭐⭐
+- HTTPS enforced (redirect) ✓
 - TLS 1.2+ ✓
 - WireGuard tunnel ✓
+- HSTS: Not enabled (SSL-stripping risk on first visit)
 
-Monitoring:                     90/100 ⭐⭐⭐⭐
+Monitoring:                     82/100 ⭐⭐⭐⭐
 - Fail2ban active ✓
 - Log monitoring ✓
-- Uptime monitoring (basic) ✓
-- Advanced monitoring: Not configured
+- Uptime Kuma monitoring ✓
+- Netdata (performance/infrastructure observability) ✓
+- Security event monitoring (Wazuh/Falco): Not configured
+- File integrity monitoring: Not configured
 
 Backup & Recovery:              85/100 ⭐⭐⭐⭐
 - Configs documented ✓
@@ -1690,16 +1693,16 @@ Documentation:                 100/100 ⭐⭐⭐⭐⭐
 - Incident response plan ✓
 
 ═══════════════════════════════════════════════════════
-FREE TIER MAXIMUM ACHIEVED! 🏆
-═══════════════════════════════════════════════════════
 
 To reach 100/100:
-→ Automated backup system (+3 points)
-→ Advanced monitoring (Grafana) (+2 points)
-→ Total cost: ~€10-15/month additional
+Free wins:
+→ Enable HSTS in Cloudflare (+4 points: Encryption + Layer 1)
+→ Security event monitoring - Wazuh/osquery (+4 points, open source)
+Paid/complex:
+→ Automated VPS backup system (+2 points)
 
-Current recommendation: STAY AT 95/100!
-Cost-benefit ratio excellent for home lab use.
+Current recommendation: STAY AT 90/100!
+Solid homelab security. Free wins available when ready.
 ```
 
 ---
