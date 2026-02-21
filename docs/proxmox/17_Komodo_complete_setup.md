@@ -40,7 +40,7 @@ pct exec 105 -- docker logs komodo
 pct exec 105 -- docker ps
 ```
 
-**Access:** http://KOMODO_LXC_IP:9120 (check with `pct exec 105 -- hostname -I`)
+**Access:** http://192.168.0.105:9120
 
 **First login:** Create admin account via UI
 
@@ -524,7 +524,7 @@ pct exec 105 -- docker logs komodo --tail 50
 **Infrastructure:**
 - Proxmox Host: 192.168.0.109
 - **LXC 105:** Komodo Core (Alpine + MongoDB)
-  - Access: http://LXC_105_IP:9120
+  - Access: http://192.168.0.105:9120
   - Installed via: Community Script
 - **LXC 100:** docker-host
   - Periphery: systemd service on port 8120
@@ -553,8 +553,8 @@ Periphery → Docker (LXC 100)
 - [ ] Set up Resource Sync for config versioning
 - [ ] Enable disk space alerts
 - [ ] Plan migration to git-backed stacks (optional)
-- [ ] Disable/remove Dockge (no longer needed)
-- [ ] Document LXC 105 IP for future reference
+- [x] Disable/remove Dockge (no longer needed) ✅
+- [x] Document LXC 105 IP for future reference ✅ (192.168.0.105)
 
 ---
 

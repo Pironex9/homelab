@@ -383,10 +383,7 @@ nano /config/automations.yaml
 
 **Result:**
 - ✅ Automations appear (Settings → Automations)
-- ⚠️ In **BROKEN** state (device/entity does not exist)
-- 🔴 Red warnings
-
-**This is NORMAL!** Fix later when devices are paired!
+- ✅ Automations fixed — device_id references replaced with entity_id after devices were paired in Zigbee2MQTT
 
 ### **Copied automations:**
 
@@ -1139,7 +1136,7 @@ robocopy "\\192.168.0.109\Storage\backup\proxmox\dump" "D:\Backups\Proxmox" /MIR
 ✅ **Home Assistant OS VM** (16.3) on Proxmox with UEFI boot  
 ✅ **Zigbee2MQTT** fully configured (MQTT, USB passthrough)  
 ✅ **5 Zigbee devices** paired and working  
-✅ **Automations copied** from old HA (to be fixed)  
+✅ **Automations copied and fixed** from old HA  
 ✅ **Docker HA removed** from LXC (port freed)  
 ✅ **Full backup strategy:**  
   - Proxmox backup (daily to HDD)  

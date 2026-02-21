@@ -411,9 +411,9 @@ volumes:
 3. **Docker containers** start
 
 ### DNS strategy:
-- **Currently:** Google DNS (8.8.8.8)
-- **Later:** Start AdGuard Home on new server (192.168.0.110)
-- **Then:** Modify LXC config: `nameserver: 192.168.0.110`
+- **At this point:** Google DNS (8.8.8.8) — temporary fix
+- **Later:** Start AdGuard Home on dedicated LXC 102 (192.168.0.111) ✅ Done — see Doc 05
+- **Then:** Modify LXC config: `nameserver: 192.168.0.111` ✅ Done — see Doc 05
 
 ### Scrutiny problem:
 ❌ **Does not work inside LXC** (device access restricted)

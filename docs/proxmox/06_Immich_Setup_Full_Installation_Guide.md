@@ -163,6 +163,8 @@ Swap:          4.0Gi          0B       4.0Gi  ✅ 4GB swap!
 
 ## 🎮 iGPU Passthrough
 
+> **Note:** The Intel UHD 630 is shared between Immich (ML/face detection) and Jellyfin (hardware transcoding). Both services can use it simultaneously without conflict — the GPU handles concurrent workloads fine.
+
 ### **Why is iGPU (Intel Quick Sync) needed?**
 
 ```

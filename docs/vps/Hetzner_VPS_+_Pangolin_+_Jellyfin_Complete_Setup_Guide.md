@@ -676,7 +676,7 @@ ufw status verbose
 
 ## 9. Remaining Security Steps
 
-### Cloudflare Security (TODO)
+### Cloudflare Security ✅ (completed — see Doc 12: Security Configuration Guide)
 
 **Dashboard → your-domain.com → Security:**
 
@@ -731,7 +731,7 @@ Action: Block for 10 minutes
 → Deploy
 ```
 
-### Pangolin Security Settings (TODO)
+### Pangolin Security Settings ✅ (completed — see Doc 12: Security Configuration Guide)
 
 **Dashboard → Settings (ORGANIZATION section):**
 
@@ -754,7 +754,7 @@ Log all access attempts: ON
 Log configuration changes: ON
 ```
 
-### Jellyfin Resource Rules (TODO)
+### Jellyfin Resource Rules ✅ (completed — see Doc 12: Security Configuration Guide)
 
 **Resources → Jellyfin → Rules tab:**
 
@@ -1173,4 +1173,4 @@ curl http://192.168.0.110:8096
 
 **Document Version:** 1.0  
 **Last Updated:** 2026-01-11  
-**Status:** VPS Security Complete, Cloudflare/Pangolin Security Pending
+**Status:** Complete — full security configuration documented in Doc 12
