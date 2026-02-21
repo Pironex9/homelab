@@ -7,10 +7,32 @@ All LXCs in this document were installed using [Proxmox VE Helper Scripts](https
 
 ---
 
+## LXC 105 — Komodo Core
+
+### What it does
+A self-hosted Docker management platform used to manage, deploy, and monitor all Docker Compose stacks running in LXC 100. Replaced Dockge (deprecated). Full setup documented in Doc 17.
+
+### Installation
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/komodo-core.sh)"
+```
+
+### Details
+
+- **Port:** 9120
+- **LXC ID:** 105
+- **IP:** 192.168.0.105
+- **See also:** [17_Komodo_complete_setup.md](17_Komodo_complete_setup.md)
+
+---
+
 ## LXC 106 — Karakeep
 
 ### What it does
 A self-hostable bookmark manager that saves links, notes, and images with AI-based automatic tagging and full-text search. Self-hosted alternative to read-it-later services like Pocket or Instapaper.
+
+AI tagging uses the **Nobara PC Ollama** (GPU, 192.168.0.100:11434) — requires Nobara to be on. See Doc 13 for setup details.
 
 ### Installation
 
