@@ -1,6 +1,6 @@
 
 **Version:** 1.0  
-**Date:** 2024-12-30  
+**Date:** 2025-12-30  
 **Platform:** Proxmox VE + LXC 100 (Docker)  
 **Purpose:** SMART disk monitoring with web dashboard
 
@@ -1223,7 +1223,7 @@ Verification:
 
 ---
 
-**Prepared:** 2024-12-30  
+**Prepared:** 2025-12-30  
 **Version:** 1.0  
 **Tested:** Proxmox VE 8.x + LXC 100 (Docker)
 

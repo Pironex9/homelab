@@ -1,5 +1,5 @@
 
-**Date:** 2024-12-26  
+**Date:** 2025-12-26  
 **System:** Proxmox VE 9.1.2  
 **Goal:** AdGuard Home DNS server installation with Quad9 DoH/DoT upstream and Tailscale MagicDNS integration
 
@@ -1119,6 +1119,6 @@ AdGuard WebUI → Settings → General settings
 
 ---
 
-**Created:** 2024-12-26  
+**Created:** 2025-12-26  
 **System:** Proxmox VE 9.1.2 / AdGuard Home v0.107+ / Tailscale  
 **Version:** 1.0
