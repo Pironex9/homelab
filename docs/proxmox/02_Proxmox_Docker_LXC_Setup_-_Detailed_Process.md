@@ -218,52 +218,25 @@ mkdir -p /srv/docker
 
 ## 💾 6. Restoring Backup
 
-### 6.1 First attempt - FAILED
+### 6.1 Context
+
+The Raspberry Pi (`192.168.0.102`) was dead at this point. The backup resided on the "Filmek2" USB HDD (2TB, `/dev/sdd1`) which had been physically moved from the Pi to the Proxmox machine and mounted as `/mnt/disk4` (see doc 03 — USB HDD Integration).
+
+On the Raspberry Pi this disk was mounted at `/mnt/hdd2/`, so the backup path on Proxmox is:
+```
+/mnt/disk4/backup/2025-12-19/
+```
+
+### 6.2 Copy backup to storage
 
 **On Proxmox host:**
 ```bash
-# Attempt to copy to /tmp
-scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19 /tmp/backup
+mkdir -p /mnt/storage/backup-restore
+cp -r /mnt/disk4/backup/2025-12-19/docker/* /mnt/storage/backup-restore/
 ```
 
-**Problem:**
-```
-scp: write local "...": No space left on device
-```
+### 6.3 Verify backup size
 
-**Reason:** `/tmp` is on the root filesystem (60GB), and the backup (~40-50GB) **FILLED IT UP!**
-
-### 6.2 Check root filesystem
-
-```bash
-df -h /
-```
-
-**Result during problem:**
-```
-/dev/mapper/pve-root   59G  55G   1G  98% /
-```
-
-### 6.3 Solution: Copy directly to storage
-
-**On Proxmox host:**
-```bash
-# Clean up /tmp
-rm -rf /tmp/backup
-
-# Copy directly to storage
-scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19/docker /mnt/storage/backup-restore/compose
-scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19/docker /mnt/storage/backup-restore/config
-```
-
-**OR simpler:**
-```bash
-scp -r nex@192.168.0.102:/mnt/hdd2/backup/2025-12-19/docker/* /mnt/storage/backup-restore/
-```
-
-### 6.4 Check backup size
-
-**On Proxmox host:**
 ```bash
 du -sh /mnt/storage/backup-restore/
 ls -lh /mnt/storage/backup-restore/
@@ -278,19 +251,6 @@ drwxr-xr-x 25 root root 4.0K Dec 20 18:31 config
 ```
 
 ✅ **Backup successfully copied: 7.6GB**
-
-### 6.5 Recheck root filesystem
-
-```bash
-df -h /
-```
-
-**Result after copying:**
-```
-/dev/mapper/pve-root   59G  5.3G   51G  10% /
-```
-
-✅ Free space restored!
 
 ---
 

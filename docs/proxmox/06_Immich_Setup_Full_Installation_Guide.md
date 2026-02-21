@@ -1,6 +1,6 @@
 
 **Version:** Immich v2.4.1  
-**Date:** 2024-12-26  
+**Date:** 2025-12-26  
 **Platform:** Proxmox VE 9.1.2 / LXC 100 (Docker)  
 **Hardware:** Intel i5-8400, 16GB RAM, NVMe + HDD
 
@@ -993,7 +993,7 @@ Active API Keys:
 ┌─────────────────┬──────────────┬────────────┐
 │ Name            │ Created      │ Action     │
 ├─────────────────┼──────────────┼────────────┤
-│ TV App          │ 2024-12-26   │ [Revoke]   │
+│ TV App          │ 2025-12-26   │ [Revoke]   │
 └─────────────────┴──────────────┴────────────┘
 ```
 
@@ -1357,6 +1357,6 @@ Proxmox Host (192.168.0.109):
 
 ---
 
-**Created:** 2024-12-26  
+**Created:** 2025-12-26  
 **Version:** 1.0  
 **System:** Proxmox VE 9.1.2 / Immich v2.4.1 / Docker

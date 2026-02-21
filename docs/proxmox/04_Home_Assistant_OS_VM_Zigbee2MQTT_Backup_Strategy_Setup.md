@@ -1,5 +1,5 @@
 
-**Date:** 2024-12-25  
+**Date:** 2025-12-25  
 **System:** Proxmox VE 9.1.2, HP EliteDesk 800 G4  
 **Goal:** Home Assistant OS VM installation, Zigbee2MQTT integration, full backup strategy
 
@@ -1158,6 +1158,6 @@ robocopy "\\192.168.0.109\Storage\backup\proxmox\dump" "D:\Backups\Proxmox" /MIR
 
 ---
 
-**Created:** 2024-12-25  
+**Created:** 2025-12-25  
 **System:** Proxmox VE 9.1.2 / Home Assistant OS 16.3  
 **Version:** 1.0
