@@ -383,7 +383,7 @@ nano /config/automations.yaml
 
 **Result:**
 - ✅ Automations appear (Settings → Automations)
-- ✅ Automations fixed — device_id references replaced with entity_id after devices were paired in Zigbee2MQTT
+- ✅ Automations fixed - device_id references replaced with entity_id after devices were paired in Zigbee2MQTT
 
 ### **Copied automations:**
 

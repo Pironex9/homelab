@@ -9,7 +9,7 @@
 
 ---
 
-> **Note:** The Intel UHD 630 is shared between Jellyfin (hardware transcoding) and Immich (built-in ML — face detection, image search). Both services can use it simultaneously without conflict.
+> **Note:** The Intel UHD 630 is shared between Jellyfin (hardware transcoding) and Immich (built-in ML - face detection, image search). Both services can use it simultaneously without conflict.
 
 ## 1. Proxmox Host - GPU Permissions
 

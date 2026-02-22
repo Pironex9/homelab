@@ -220,7 +220,7 @@ mkdir -p /srv/docker
 
 ### 6.1 Context
 
-The Raspberry Pi (`192.168.0.102`) was dead at this point. The backup resided on the "Filmek2" USB HDD (2TB, `/dev/sdd1`) which had been physically moved from the Pi to the Proxmox machine and mounted as `/mnt/disk4` (see doc 03 — USB HDD Integration).
+The Raspberry Pi (`192.168.0.102`) was dead at this point. The backup resided on the "Filmek2" USB HDD (2TB, `/dev/sdd1`) which had been physically moved from the Pi to the Proxmox machine and mounted as `/mnt/disk4` (see doc 03 - USB HDD Integration).
 
 On the Raspberry Pi this disk was mounted at `/mnt/hdd2/`, so the backup path on Proxmox is:
 ```
