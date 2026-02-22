@@ -39,7 +39,7 @@ bash -c "$(wget -qO - https://github.com/community-scripts/ProxmoxVE/raw/main/ct
 
 ---
 
-## 🗺️ Scanopy (Network Discovery & Mapping)
+## 🗺️ Scanopy (Network Scanner & Topology Visualizer)
 
 ### Basic Information
 - **Platform:** Debian 13 LXC (Unprivileged)
