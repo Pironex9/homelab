@@ -21,6 +21,7 @@
 - `17_Komodo_complete_setup.md` — Komodo container management platform
 - `18_SuggestArr_Setup_Troubleshooting_Guide.md` — SuggestArr media suggestion automation
 - `19_Recommendarr_Setup_Troubleshooting_Guide.md` — Recommendarr AI recommendations
+- `20_Claude_Code_Management_LXC_Setup.md` — Claude Code management LXC, SSH key infrastructure, GitHub MCP server
 
 ## vps/
 
