@@ -359,7 +359,7 @@ Total: 11.5TB usable storage!
 
 ## 📝 Backup Script Information
 
-**Source:** `/mnt/hdd2/backup/2025-12-19/` *(path as it was on the Raspberry Pi — on Proxmox this disk became `/mnt/disk4`)*
+**Source:** `/mnt/hdd2/backup/2025-12-19/` *(path as it was on the Raspberry Pi - on Proxmox this disk became `/mnt/disk4`)*
 
 **Contents:**
 - Docker volumes: `/srv/docker/`

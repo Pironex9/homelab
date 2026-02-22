@@ -10,7 +10,7 @@
 
 ## Overview
 
-This document describes the creation and configuration of a dedicated management LXC container (`claude-mgmt`, VMID 109) on the Proxmox homelab. The purpose of this container is to run [Claude Code](https://claude.ai/code) — Anthropic's agentic terminal-based AI assistant — and use it to automate documentation of the homelab infrastructure via SSH.
+This document describes the creation and configuration of a dedicated management LXC container (`claude-mgmt`, VMID 109) on the Proxmox homelab. The purpose of this container is to run [Claude Code](https://claude.ai/code) - Anthropic's agentic terminal-based AI assistant - and use it to automate documentation of the homelab infrastructure via SSH.
 
 Rather than installing Claude Code directly on the Proxmox host (which would be a security risk), a dedicated, isolated container is used. If something goes wrong, the container can be destroyed and rebuilt in minutes without touching the host.
 
@@ -24,19 +24,19 @@ The following LXC containers and VMs are under management. For individual servic
 |------|--------------------|----------------|---------------------------------------------------|-----|
 | 100  | docker-host        | 192.168.0.110  | Docker containers (Jellyfin, Immich, etc.)        | [02](./02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md) |
 | 102  | adguard-home       | 192.168.0.111  | DNS-level ad blocking                             | [05](./05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md) |
-| 103  | alpine-vaultwarden | —              | Password manager (excluded from SSH intentionally)| [09](./09_Scanopy_Vaultwarden.md) |
-| 104  | scanopy            | —              | Network scanner and topology visualizer           | [09](./09_Scanopy_Vaultwarden.md) |
+| 103  | alpine-vaultwarden | -              | Password manager (excluded from SSH intentionally)| [09](./09_Scanopy_Vaultwarden.md) |
+| 104  | scanopy            | -              | Network scanner and topology visualizer           | [09](./09_Scanopy_Vaultwarden.md) |
 | 105  | alpine-komodo      | 192.168.0.105  | Komodo deployment manager (Alpine Linux)          | [17](./17_Komodo_complete_setup.md) |
 | 106  | karakeep           | 192.168.0.128  | Bookmarking service                               | [10](./10_Helper_Script_LXCs.md) |
 | 107  | n8n                | 192.168.0.112  | Workflow automation                               | [10](./10_Helper_Script_LXCs.md) |
 | 108  | ollama             | 192.168.0.231  | Local LLM inference                               | [10](./10_Helper_Script_LXCs.md) |
-| 109  | claude-mgmt        | 192.168.0.204  | Management node (this container)                  | — |
+| 109  | claude-mgmt        | 192.168.0.204  | Management node (this container)                  | - |
 
 The Proxmox host itself is reachable at `192.168.0.109`.
 
 ---
 
-## Step 1 — Creating the Management LXC
+## Step 1 - Creating the Management LXC
 
 The container was created using the Proxmox web UI with the following parameters. Debian 12 was chosen over Alpine Linux because Claude Code's native installer works out-of-the-box on Debian without requiring additional compatibility packages. Alpine uses `musl libc` instead of `glibc`, which can cause conflicts with Node.js-based tools like MCP servers.
 
@@ -52,13 +52,13 @@ The container was created using the Proxmox web UI with the following parameters
 | Nesting feature | Enabled (`features: nesting=1`)            |
 | Start at boot   | Yes                                        |
 
-Nesting is enabled because it exposes `procfs` and `sysfs` to the container, which is required by systemd to properly isolate services — and may be needed if Docker is added to this container in the future.
+Nesting is enabled because it exposes `procfs` and `sysfs` to the container, which is required by systemd to properly isolate services - and may be needed if Docker is added to this container in the future.
 
-> For general LXC creation steps, see [Doc 02 — Proxmox Docker LXC Setup](./02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md).
+> For general LXC creation steps, see [Doc 02 - Proxmox Docker LXC Setup](./02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md).
 
 ---
 
-## Step 2 — Installing Claude Code
+## Step 2 - Installing Claude Code
 
 After entering the container with `pct enter 109`, the following packages were installed first. Node.js 20 is required not for Claude Code itself (the native installer is standalone), but for MCP servers, which are typically distributed as Node.js packages run via `npx`.
 
@@ -71,7 +71,7 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
 ```
 
-Claude Code was then installed using the official native installer. The `sudo`-less install is intentional — the installer places the binary in user space (`~/.local/bin/`), and using `sudo` would cause permission issues.
+Claude Code was then installed using the official native installer. The `sudo`-less install is intentional - the installer places the binary in user space (`~/.local/bin/`), and using `sudo` would cause permission issues.
 
 ```bash
 curl -fsSL https://claude.ai/install.sh | bash
@@ -90,7 +90,7 @@ Authentication was completed using a Claude Pro subscription. Because the LXC ha
 
 ---
 
-## Step 3 — Project Directory and CLAUDE.md
+## Step 3 - Project Directory and CLAUDE.md
 
 A project directory was created to serve as the root for all homelab documentation. Git was initialised here so that documentation can be version-controlled and published to GitHub as part of a portfolio.
 
@@ -100,15 +100,15 @@ cd /root/homelab
 git init
 ```
 
-Claude Code was then started inside this directory (`claude`), the folder was trusted, and `/init` was run to generate a starter `CLAUDE.md`. This file is the persistent memory system for Claude Code — it is automatically read at the start of every session, which solves the context-window exhaustion problem that occurs with browser-based Claude when working through long installation sessions.
+Claude Code was then started inside this directory (`claude`), the folder was trusted, and `/init` was run to generate a starter `CLAUDE.md`. This file is the persistent memory system for Claude Code - it is automatically read at the start of every session, which solves the context-window exhaustion problem that occurs with browser-based Claude when working through long installation sessions.
 
 The `CLAUDE.md` was extended with homelab-specific instructions including SSH hostnames, documentation structure, language preference (English, for portfolio use), and a requirement to include a "Lessons Learned" section at the end of every document.
 
 ---
 
-## Step 4 — SSH Key Infrastructure
+## Step 4 - SSH Key Infrastructure
 
-For Claude Code to be genuinely useful — connecting to other containers, reading their configs, and writing documentation based on the real state of the system — it needs passwordless SSH access to every container it manages. A dedicated SSH keypair was generated on `claude-mgmt`:
+For Claude Code to be genuinely useful - connecting to other containers, reading their configs, and writing documentation based on the real state of the system - it needs passwordless SSH access to every container it manages. A dedicated SSH keypair was generated on `claude-mgmt`:
 
 ```bash
 ssh-keygen -t ed25519 -C "claude-mgmt" -f ~/.ssh/id_ed25519 -N ""
@@ -129,7 +129,7 @@ for VMID in 100 102 106 107 108; do
 done
 ```
 
-The `alpine-komodo` container (105) required a different approach because it runs Alpine Linux, which uses `apk` and `rc-service` instead of `apt` and `systemctl`. See [Doc 17 — Komodo Setup](./17_Komodo_complete_setup.md) for more on Alpine-specific differences.
+The `alpine-komodo` container (105) required a different approach because it runs Alpine Linux, which uses `apk` and `rc-service` instead of `apt` and `systemctl`. See [Doc 17 - Komodo Setup](./17_Komodo_complete_setup.md) for more on Alpine-specific differences.
 
 ```bash
 pct exec 105 -- bash -c "apk add openssh && rc-update add sshd && rc-service sshd start && \
@@ -140,29 +140,29 @@ pct exec 105 -- bash -c "apk add openssh && rc-update add sshd && rc-service ssh
 
 The Proxmox host itself was added via standard `ssh-copy-id` from within the claude-mgmt container. This allows Claude Code to run `pct list`, `pct exec`, and other Proxmox management commands directly over SSH.
 
-### Security decision — Vaultwarden excluded
+### Security decision - Vaultwarden excluded
 
-The `alpine-vaultwarden` container (VMID 103) was deliberately excluded from SSH access. It stores all passwords and secrets for the homelab. Granting any automated tool access to it would be an unnecessary risk — documentation for that container is written manually. See [Doc 09 — Vaultwarden](./09_Scanopy_Vaultwarden.md) and [Doc 12 — Security Configuration](./12_Security_Configuration_Guide.md) for background on the security posture.
+The `alpine-vaultwarden` container (VMID 103) was deliberately excluded from SSH access. It stores all passwords and secrets for the homelab. Granting any automated tool access to it would be an unnecessary risk - documentation for that container is written manually. See [Doc 09 - Vaultwarden](./09_Scanopy_Vaultwarden.md) and [Doc 12 - Security Configuration](./12_Security_Configuration_Guide.md) for background on the security posture.
 
 ### Verification
 
 All connections were tested from `claude-mgmt`:
 
 ```bash
-ssh root@192.168.0.109 "hostname && pct list"   # Proxmox host — OK
-ssh root@192.168.0.110  "hostname && uptime"     # docker-host — OK
-ssh root@192.168.0.111 "hostname && uptime"     # adguard-home — OK
-ssh root@192.168.0.128 "hostname && uptime"    # karakeep — OK
-ssh root@192.168.0.112     "hostname && uptime"     # n8n — OK
-ssh root@192.168.0.231  "hostname && uptime"     # ollama — OK
-ssh root@192.168.0.105  "hostname && uptime"     # alpine-komodo — OK
+ssh root@192.168.0.109 "hostname && pct list"   # Proxmox host - OK
+ssh root@192.168.0.110  "hostname && uptime"     # docker-host - OK
+ssh root@192.168.0.111 "hostname && uptime"     # adguard-home - OK
+ssh root@192.168.0.128 "hostname && uptime"    # karakeep - OK
+ssh root@192.168.0.112     "hostname && uptime"     # n8n - OK
+ssh root@192.168.0.231  "hostname && uptime"     # ollama - OK
+ssh root@192.168.0.105  "hostname && uptime"     # alpine-komodo - OK
 ```
 
 All returned output without prompting for a password.
 
 ---
 
-## Step 5 — SSH Config Aliases
+## Step 5 - SSH Config Aliases
 
 To avoid using raw IP addresses in commands and in `CLAUDE.md`, a `~/.ssh/config` file was created on `claude-mgmt` with named aliases for every managed host:
 
@@ -207,17 +207,17 @@ EOF
 chmod 600 ~/.ssh/config
 ```
 
-The `chmod 600` is mandatory — SSH silently ignores the config file if permissions are too open.
+The `chmod 600` is mandatory - SSH silently ignores the config file if permissions are too open.
 
 ---
 
-## Step 6 — CLAUDE.md Configuration
+## Step 6 - CLAUDE.md Configuration
 
 The `CLAUDE.md` file at `/root/homelab/CLAUDE.md` serves as Claude Code's persistent memory. It is automatically read at the start of every session, eliminating the need to re-explain the infrastructure each time. This also solves the context exhaustion problem that occurs with browser-based Claude during long installation sessions.
 
 ```bash
 cat > /root/homelab/CLAUDE.md << 'EOF'
-# CLAUDE.md — Homelab Management
+# CLAUDE.md - Homelab Management
 
 This file is automatically read by Claude Code at the start of every session.
 
@@ -241,7 +241,7 @@ This file is automatically read by Claude Code at the start of every session.
 
 ## Excluded from Automation
 
-- `alpine-vaultwarden` (VMID 103) — password manager, never access via SSH or automation
+- `alpine-vaultwarden` (VMID 103) - password manager, never access via SSH or automation
 
 ## Documentation Workflow
 
@@ -266,11 +266,11 @@ EOF
 
 ---
 
-## Step 7 — GitHub MCP Server
+## Step 7 - GitHub MCP Server
 
-The GitHub MCP server was configured on the local workstation inside the portfolio repo. This gives Claude Code direct access to 26 GitHub API tools — reading commits, managing issues, creating PRs, and more — without needing manual `git` commands for every operation.
+The GitHub MCP server was configured on the local workstation inside the portfolio repo. This gives Claude Code direct access to 26 GitHub API tools - reading commits, managing issues, creating PRs, and more - without needing manual `git` commands for every operation.
 
-### Prerequisites — Node.js
+### Prerequisites - Node.js
 
 The workstation did not have Node.js installed. The GitHub MCP server runs via `npx`, so Node.js was installed first (example for Fedora/Nobara):
 
@@ -290,7 +290,7 @@ source ~/.bashrc
 
 ### MCP Server configuration
 
-The token must be explicitly passed in the MCP server env block — simply having it as a shell variable is not enough, as Claude Code spawns the MCP server as a subprocess and does not inherit the parent shell environment automatically.
+The token must be explicitly passed in the MCP server env block - simply having it as a shell variable is not enough, as Claude Code spawns the MCP server as a subprocess and does not inherit the parent shell environment automatically.
 
 ```bash
 claude mcp remove github  # remove if already added without token
@@ -299,7 +299,7 @@ claude mcp add github \
   -- npx -y @modelcontextprotocol/server-github
 ```
 
-This writes to `~/.claude.json` scoped to the project directory — the MCP server is only active when Claude Code is started from that directory.
+This writes to `~/.claude.json` scoped to the project directory - the MCP server is only active when Claude Code is started from that directory.
 
 ### Verification
 
@@ -315,7 +315,7 @@ This writes to `~/.claude.json` scoped to the project directory — the MCP serv
 
 **Community scripts and unknown passwords.** Several containers created by [Proxmox VE Helper Scripts](https://community-scripts.github.io/ProxmoxVE/) do not set a root password during installation. When `ssh-copy-id` fails with "Permission denied", the correct approach is to use `pct exec` from the Proxmox host rather than attempting to recover or reset the password. This is faster and does not require modifying the container's authentication configuration.
 
-**Shell quoting with `pct exec`.** When passing a complex bash command through `pct exec`, the outer string must use single quotes and any inner strings must use double quotes. If both use the same quote style, the shell on the Proxmox host misinterprets the command before passing it to the container. The first attempts silently failed — the key was printed to the terminal but never written to the file — which was only caught by running `cat /root/.ssh/authorized_keys` to verify.
+**Shell quoting with `pct exec`.** When passing a complex bash command through `pct exec`, the outer string must use single quotes and any inner strings must use double quotes. If both use the same quote style, the shell on the Proxmox host misinterprets the command before passing it to the container. The first attempts silently failed - the key was printed to the terminal but never written to the file - which was only caught by running `cat /root/.ssh/authorized_keys` to verify.
 
 **Alpine vs Debian.** Two containers run Alpine Linux (`alpine-vaultwarden`, `alpine-komodo`). Alpine uses `apk` instead of `apt`, and `rc-service`/`rc-update` instead of `systemctl`. Any automation or documentation script that assumes Debian-style tooling will fail silently or with confusing errors on Alpine containers. It is worth checking the OS before running commands: `pct exec <VMID> -- cat /etc/os-release`.
 
