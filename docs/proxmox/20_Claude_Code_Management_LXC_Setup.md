@@ -25,7 +25,7 @@ The following LXC containers and VMs are under management. For individual servic
 | 100  | docker-host        | 192.168.0.110  | Docker containers (Jellyfin, Immich, etc.)        | [02](./02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md) |
 | 102  | adguard-home       | 192.168.0.111  | DNS-level ad blocking                             | [05](./05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md) |
 | 103  | alpine-vaultwarden | —              | Password manager (excluded from SSH intentionally)| [09](./09_Scanopy_Vaultwarden.md) |
-| 104  | scanopy            | —              | Document scanning                                 | [09](./09_Scanopy_Vaultwarden.md) |
+| 104  | scanopy            | —              | Network scanner and topology visualizer           | [09](./09_Scanopy_Vaultwarden.md) |
 | 105  | alpine-komodo      | 192.168.0.105  | Komodo deployment manager (Alpine Linux)          | [17](./17_Komodo_complete_setup.md) |
 | 106  | karakeep           | 192.168.0.128  | Bookmarking service                               | [10](./10_Helper_Script_LXCs.md) |
 | 107  | n8n                | 192.168.0.112  | Workflow automation                               | [10](./10_Helper_Script_LXCs.md) |
@@ -46,8 +46,7 @@ The container was created using the Proxmox web UI with the following parameters
 | Hostname        | `claude-mgmt`                              |
 | CPU cores       | 2                                          |
 | Memory          | 2048 MB                                    |
-| Swap            | 512 MB                                     |
-| Disk            | 20 GB on `local-lvm`                       |
+| Disk            | 8 GB on `local-lvm`                        |
 | Network         | `vmbr0`, DHCP                              |
 | Unprivileged    | Yes                                        |
 | Nesting feature | Enabled (`features: nesting=1`)            |
@@ -230,15 +229,15 @@ This file is automatically read by Claude Code at the start of every session.
 
 ## Managed Hosts
 
-| Alias       | IP                            | OS     | Purpose                          |
-|-------------|-------------------------------|--------|----------------------------------|
-| proxmox     | 192.168.0.109     | Debian | Proxmox VE host                  |
-| docker-host | 192.168.0.110      | Debian | Docker containers                |
-| adguard     | 192.168.0.111     | Debian | AdGuard Home DNS                 |
-| komodo      | 192.168.0.105      | Alpine | Komodo deployment manager        |
-| karakeep    | 192.168.0.128    | Debian | Bookmarking service              |
-| n8n         | 192.168.0.112         | Debian | Workflow automation              |
-| ollama      | 192.168.0.231      | Debian | Local LLM inference              |
+| Alias       | IP            | OS     | Purpose                    |
+|-------------|---------------|--------|----------------------------|
+| proxmox     | 192.168.0.109 | Debian | Proxmox VE host            |
+| docker-host | 192.168.0.110 | Debian | Docker containers          |
+| adguard     | 192.168.0.111 | Debian | AdGuard Home DNS           |
+| komodo      | 192.168.0.105 | Alpine | Komodo deployment manager  |
+| karakeep    | 192.168.0.128 | Debian | Bookmarking service        |
+| n8n         | 192.168.0.112 | Debian | Workflow automation        |
+| ollama      | 192.168.0.231 | Debian | Local LLM inference        |
 
 ## Excluded from Automation
 
