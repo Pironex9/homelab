@@ -311,6 +311,68 @@ This writes to `~/.claude.json` scoped to the project directory - the MCP server
 
 ---
 
+## Container Reference
+
+Current state of the `claude-mgmt` container, auto-documented by Claude Code running inside it.
+
+### System Overview
+
+| Property   | Value                                    |
+|------------|------------------------------------------|
+| Hostname   | claude-mgmt                              |
+| IP Address | 192.168.0.204                            |
+| VMID       | 109                                      |
+| OS         | Debian GNU/Linux 12 (bookworm)           |
+| Purpose    | Claude Code homelab management container |
+
+### Installed Software
+
+| Package     | Version | Notes                                 |
+|-------------|---------|---------------------------------------|
+| Claude Code | 2.1.50  | Installed via native installer        |
+| Node.js     | 20.20.0 | Required by Claude Code MCP servers   |
+| git         | 2.39.5  | Version control                       |
+| ripgrep     | latest  | Fast code search, used by Claude Code |
+
+### Running Services
+
+| Service          | Status | Description                     |
+|------------------|--------|---------------------------------|
+| ssh.service      | active | OpenSSH server                  |
+| cron.service     | active | Scheduled tasks                 |
+| postfix.service  | active | Mail transport (localhost only) |
+| systemd-networkd | active | Network configuration           |
+
+### Open Ports
+
+| Port | Protocol | Process | Notes                |
+|------|----------|---------|----------------------|
+| 22   | TCP      | sshd    | SSH access           |
+| 25   | TCP      | postfix | SMTP, localhost only |
+
+### SSH Access
+
+SSH uses key-based authentication only. Password login for root is disabled by default (`PermitRootLogin prohibit-password`).
+
+One authorized key is registered (comment: `termux`), stored in `/root/.ssh/authorized_keys`.
+
+**Adding a new SSH key** - since password login is disabled, new keys must be added via the Proxmox host:
+
+```bash
+ssh proxmox "pct exec 109 -- bash -c 'echo \"<public-key>\" >> /root/.ssh/authorized_keys'"
+```
+
+### MCP Servers
+
+| Server   | Scope   | Description                                      |
+|----------|---------|--------------------------------------------------|
+| github   | project | GitHub API - 26 tools (issues, PRs, commits)    |
+| n8n-mcp  | project | Connects to the n8n workflow automation instance |
+
+Config stored in `/root/.claude.json` under the project's `mcpServers` key.
+
+---
+
 ## Lessons Learned
 
 **Community scripts and unknown passwords.** Several containers created by [Proxmox VE Helper Scripts](https://community-scripts.github.io/ProxmoxVE/) do not set a root password during installation. When `ssh-copy-id` fails with "Permission denied", the correct approach is to use `pct exec` from the Proxmox host rather than attempting to recover or reset the password. This is faster and does not require modifying the container's authentication configuration.
@@ -320,3 +382,15 @@ This writes to `~/.claude.json` scoped to the project directory - the MCP server
 **Alpine vs Debian.** Two containers run Alpine Linux (`alpine-vaultwarden`, `alpine-komodo`). Alpine uses `apk` instead of `apt`, and `rc-service`/`rc-update` instead of `systemctl`. Any automation or documentation script that assumes Debian-style tooling will fail silently or with confusing errors on Alpine containers. It is worth checking the OS before running commands: `pct exec <VMID> -- cat /etc/os-release`.
 
 **Proxmox host vs management container IP.** During setup, the Proxmox host IP was briefly confused with the claude-mgmt container IP, since both share part of the address scheme, and the VMID (`109`) matched the last octet of the host IP. Always verify with `pct list` on the host and `ip a` inside the container.
+
+**SSH password login is disabled on claude-mgmt.** The container runs with `PermitRootLogin prohibit-password`, meaning SSH key-based auth is required. If you cannot connect, do not try to reset the SSH password - add your public key via the Proxmox host instead:
+
+```bash
+ssh proxmox "pct exec 109 -- bash -c 'echo \"<public-key>\" >> /root/.ssh/authorized_keys'"
+```
+
+**`pct exec` cannot run interactive commands.** Running `passwd` via `pct exec` fails because there is no TTY attached. Use `chpasswd` for non-interactive password setting if a password is ever needed:
+
+```bash
+pct exec 109 -- bash -c 'echo "root:newpassword" | chpasswd'
+```
