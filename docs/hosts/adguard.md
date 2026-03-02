@@ -39,7 +39,7 @@
 
 ### Upstream DNS
 
-Quad9 — privacy-focused, malware-blocking resolver, using all three protocols with load balancing:
+Quad9 - privacy-focused, malware-blocking resolver, using all three protocols with load balancing:
 
 | Upstream | Protocol |
 |----------|----------|
