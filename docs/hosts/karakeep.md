@@ -19,7 +19,7 @@
 | Service | Description |
 |---------|-------------|
 | `karakeep-web.service` | Next.js web frontend (port 3000) |
-| `karakeep-workers.service` | Background workers — crawling, AI tagging, link processing |
+| `karakeep-workers.service` | Background workers - crawling, AI tagging, link processing |
 | `karakeep-browser.service` | Headless Chromium for webpage snapshots and full-page screenshots |
 | `meilisearch.service` | Full-text search engine |
 | `avahi-daemon.service` | mDNS/DNS-SD (local service discovery) |
@@ -59,10 +59,10 @@
 
 ```
 /opt/karakeep_data/
-├── db.db          # SQLite — main application database
+├── db.db          # SQLite - main application database
 ├── db.db-shm      # SQLite shared memory
 ├── db.db-wal      # SQLite WAL journal
-├── queue.db       # SQLite — job/task queue
+├── queue.db       # SQLite - job/task queue
 ├── queue.db-shm
 ├── queue.db-wal
 └── assets/        # Saved page snapshots, favicons, images
@@ -78,12 +78,12 @@ Karakeep can auto-tag and summarize bookmarks using an LLM. Currently configured
 | `OLLAMA_KEEP_ALIVE` | `5m` |
 | `INFERENCE_TEXT_MODEL` | `qwen2.5:7b` |
 
-Meilisearch listens only on `127.0.0.1:7700` — not exposed externally.
+Meilisearch listens only on `127.0.0.1:7700` - not exposed externally.
 
 ## Lessons Learned
 
 - **Debian 13 (trixie):** This is the only LXC in the homelab running Debian trixie (testing). All others run bookworm (stable) or Alpine. Trixie provided a newer Chromium version needed by Karakeep's browser service.
-- **Chromium in a headless LXC:** The `karakeep-browser.service` runs Chromium in headless mode inside an unprivileged LXC. This requires careful attention to sandbox settings — some Chromium sandbox features require kernel capabilities not available in unprivileged containers.
+- **Chromium in a headless LXC:** The `karakeep-browser.service` runs Chromium in headless mode inside an unprivileged LXC. This requires careful attention to sandbox settings - some Chromium sandbox features require kernel capabilities not available in unprivileged containers.
 - **SQLite WAL mode:** `DB_WAL_MODE=true` enables Write-Ahead Logging, which improves concurrent read performance and reduces lock contention between the web process and background workers.
 - **Disk usage watch:** At 65% of 10 GB, the disk is filling up. The `assets/` directory grows as more pages are snapshotted. Consider increasing the disk or periodically pruning old snapshots.
 - **Ollama over cloud APIs:** Using the local Ollama instance for AI tagging avoids sending bookmark content to external APIs. The tradeoff is slower inference compared to cloud APIs.

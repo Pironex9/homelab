@@ -17,7 +17,7 @@
 | Claude Code | 2.1.50 | Installed via native installer |
 | Node.js | 20.20.0 | Required by Claude Code |
 | git | 2.39.5 | Version control |
-| ripgrep | — | Fast code search, used by Claude Code |
+| ripgrep | - | Fast code search, used by Claude Code |
 
 ## Running Services
 
@@ -76,4 +76,4 @@ Connects Claude Code to the n8n workflow automation instance.
 - **No root password by default:** Community script-based LXC containers do not receive a root password during provisioning. SSH password login is also disabled. The only way to add SSH keys initially is via `pct exec` from the Proxmox host.
 - **`pct exec` interactive commands fail:** Running interactive commands like `passwd` via `pct exec` does not work because there is no TTY. Use `chpasswd` for non-interactive password setting: `echo 'root:password' | chpasswd`.
 - **Key-based SSH is the right approach:** Rather than enabling password auth, it's cleaner to inject the public key directly via `pct exec` and keep `PasswordAuthentication` at its default.
-- **MCP token security:** Store API tokens in `~/.secrets/` with chmod 600, and use wrapper scripts to pass them as environment variables — never put tokens directly in config files.
+- **MCP token security:** Store API tokens in `~/.secrets/` with chmod 600, and use wrapper scripts to pass them as environment variables - never put tokens directly in config files.

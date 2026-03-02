@@ -39,7 +39,7 @@ All three Komodo components run as Docker containers from a single Compose stack
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
 | `komodo-core-1` | `ghcr.io/moghtech/komodo-core:latest` | 9120 | Core API server and web UI |
-| `komodo-mongo-1` | `mongo` | 27017 (internal) | MongoDB — stores all Komodo state |
+| `komodo-mongo-1` | `mongo` | 27017 (internal) | MongoDB - stores all Komodo state |
 | `komodo-periphery-1` | `ghcr.io/moghtech/komodo-periphery:latest` | 8120 (internal) | Local periphery agent |
 
 ### Docker Volumes
@@ -64,9 +64,9 @@ All three Komodo components run as Docker containers from a single Compose stack
 
 Komodo is a self-hosted alternative to tools like Portainer or Dockge with a focus on GitOps-style deployments. It consists of:
 
-- **Core** — Central server. Manages resources (servers, stacks, builds). Exposes the web UI on port 9120.
-- **Periphery** — Lightweight agent installed on each managed server. Executes actions on behalf of Core (deploy stacks, restart containers, collect stats).
-- **MongoDB** — Stores all state: servers, stacks, alerts, resource definitions.
+- **Core** - Central server. Manages resources (servers, stacks, builds). Exposes the web UI on port 9120.
+- **Periphery** - Lightweight agent installed on each managed server. Executes actions on behalf of Core (deploy stacks, restart containers, collect stats).
+- **MongoDB** - Stores all state: servers, stacks, alerts, resource definitions.
 
 The `periphery.service` systemd unit on **docker-host** connects outward to Komodo Core, allowing Komodo to manage Docker stacks on docker-host remotely.
 
@@ -81,5 +81,5 @@ The `periphery.service` systemd unit on **docker-host** connects outward to Komo
 
 - **Alpine does not have `ss`:** The `iproute2` package (which includes `ss`) is not installed by default on Alpine. Use `netstat` from the `net-tools` package instead, or install `iproute2` with `apk add iproute2`.
 - **High RAM allocation:** 32 GB RAM is allocated to this LXC, but actual usage is lower. This may be intentional for MongoDB's working set cache or could be reduced after profiling.
-- **Swap is configured:** Unlike most other LXCs in this homelab, komodo has 8 GB swap — useful because MongoDB can have large memory requirements during indexing.
-- **Periphery on managed hosts:** Each host managed by Komodo must run the `periphery` agent. On docker-host this runs as `periphery.service`. The agent opens an outbound connection to Core — no inbound firewall rules are needed on the managed host.
+- **Swap is configured:** Unlike most other LXCs in this homelab, komodo has 8 GB swap - useful because MongoDB can have large memory requirements during indexing.
+- **Periphery on managed hosts:** Each host managed by Komodo must run the `periphery` agent. On docker-host this runs as `periphery.service`. The agent opens an outbound connection to Core - no inbound firewall rules are needed on the managed host.

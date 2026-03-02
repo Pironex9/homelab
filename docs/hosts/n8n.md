@@ -110,7 +110,7 @@ This n8n instance is connected to Claude Code via the **n8n-mcp** server. The MC
 
 ## Lessons Learned
 
-- **Data directory at filesystem root:** n8n stores its data in `/.n8n/` (filesystem root), not in a home directory. This is because the service runs as root and n8n defaults to `$HOME/.n8n` — on this system `$HOME` is `/`. Be mindful when planning backups or migrations.
+- **Data directory at filesystem root:** n8n stores its data in `/.n8n/` (filesystem root), not in a home directory. This is because the service runs as root and n8n defaults to `$HOME/.n8n` - on this system `$HOME` is `/`. Be mindful when planning backups or migrations.
 - **`N8N_SECURE_COOKIE=false` is mandatory for plain HTTP:** Without this setting, the browser refuses to store the session cookie over HTTP, making login impossible. Only remove this flag if HTTPS is configured (e.g., via a reverse proxy).
 - **SQLite as backend:** n8n uses SQLite by default (no PostgreSQL setup). Suitable for a single-node homelab deployment, but SQLite WAL files (`-shm`, `-wal`) must be included together when backing up the database, or the backup will be corrupt.
 - **NodeSource repository:** Node.js was installed from the NodeSource apt repository (not Debian's default), providing a much newer version (v22 vs Debian's older packages). Check the repository when planning updates.

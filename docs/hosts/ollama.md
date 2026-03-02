@@ -57,8 +57,8 @@
 The LXC has `/dev/dri/card0` and `/dev/dri/renderD128` passed through from the Proxmox host, enabling Intel GPU acceleration for inference. Ollama uses the Intel oneAPI SYCL backend.
 
 ```
-/dev/dri/card0       — Intel graphics card
-/dev/dri/renderD128  — Intel render device (used for GPU compute)
+/dev/dri/card0       - Intel graphics card
+/dev/dri/renderD128  - Intel render device (used for GPU compute)
 ```
 
 ## API Usage

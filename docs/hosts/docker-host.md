@@ -13,11 +13,11 @@
 | RAM | 8 GB |
 | Disk | 48 GB (local-lvm, LVM thin) |
 | Storage mount | `/mnt/storage` → ZFS pool (8.1 TB) |
-| Purpose | Primary Docker host — all self-hosted services |
+| Purpose | Primary Docker host - all self-hosted services |
 
 ## Features
 
-- `nesting=1` — required for Docker inside LXC
+- `nesting=1` - required for Docker inside LXC
 - GPU passthrough: `/dev/dri/card0` and `/dev/dri/renderD128` (for Jellyfin hardware transcoding)
 - Unprivileged container
 
@@ -26,7 +26,7 @@
 | Service | Description |
 |---------|-------------|
 | `docker.service` / `containerd.service` | Docker container runtime |
-| `periphery.service` | Komodo agent — connects this host to Komodo Core for remote management |
+| `periphery.service` | Komodo agent - connects this host to Komodo Core for remote management |
 | `ssh.service` | OpenSSH server |
 | `cron.service` | Scheduled tasks |
 | `rpcbind.service` | Required for NFS mounts |
@@ -44,7 +44,7 @@ All stacks are managed via **Dockge** and stored at `/srv/docker-compose/<stack-
 | `radarr` | `ghcr.io/hotio/radarr` | 7878 | Movie management |
 | `prowlarr` | `ghcr.io/hotio/prowlarr` | 9696 | Indexer manager |
 | `qbittorrent` | `ghcr.io/hotio/qbittorrent` | 8080, 6881 | Torrent client |
-| `huntarr` | `huntarr/huntarr` | — | Automated media hunting |
+| `huntarr` | `huntarr/huntarr` | - | Automated media hunting |
 | `recommendarr` | `tannermiddleton/recommendarr` | 3003 | AI media recommendations |
 | `suggestarr` | `ciuse99/suggestarr` | 5000 | Media suggestion bot |
 
@@ -53,7 +53,7 @@ All stacks are managed via **Dockge** and stored at `/srv/docker-compose/<stack-
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
 | `immich_server` | `ghcr.io/immich-app/immich-server:v2` | 2283 | Photo/video backup and management |
-| `immich_machine_learning` | `ghcr.io/immich-app/immich-machine-learning:v2` | — | ML backend (face recognition, CLIP) |
+| `immich_machine_learning` | `ghcr.io/immich-app/immich-machine-learning:v2` | - | ML backend (face recognition, CLIP) |
 | `immich_postgres` | `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` | 5432 | PostgreSQL with pgvectors extension |
 | `immich_redis` | `valkey/valkey:9` | 6379 | Redis-compatible cache |
 
@@ -71,7 +71,7 @@ All stacks are managed via **Dockge** and stored at `/srv/docker-compose/<stack-
 | `freshrss` | `freshrss/freshrss` | 8083 | RSS feed reader |
 | `seerr` | `ghcr.io/seerr-team/seerr` | 5055 | Media request management |
 | `syncthing` | `lscr.io/linuxserver/syncthing` | 8384, 22000 | File synchronization |
-| `notifiarr` | `golift/notifiarr` | — | Notification hub |
+| `notifiarr` | `golift/notifiarr` | - | Notification hub |
 
 ### Management
 
@@ -80,7 +80,7 @@ All stacks are managed via **Dockge** and stored at `/srv/docker-compose/<stack-
 | `dockge` | `louislam/dockge:1` | 5001 | Docker Compose stack manager |
 | `dozzle` | `amir20/dozzle` | 8888 | Real-time Docker log viewer |
 | `homepage` | `ghcr.io/gethomepage/homepage` | 3002 | Self-hosted dashboard |
-| `uptime-kuma` | `louislam/uptime-kuma` | — | Service uptime monitoring |
+| `uptime-kuma` | `louislam/uptime-kuma` | - | Service uptime monitoring |
 | `scrutiny` | `ghcr.io/analogj/scrutiny` | 8082 | Hard drive S.M.A.R.T. monitoring |
 
 ## Docker Volumes
@@ -132,7 +132,7 @@ The `periphery.service` agent connects this host to Komodo Core (LXC 105). This 
 
 ## Lessons Learned
 
-- **LVM thin pool vs filesystem usage:** The Proxmox LVM thin pool `Data%` for this LXC showed 96.51% while the actual filesystem was only 70% full. Thin pool percentages track historically allocated blocks, not current usage — old Docker images and deleted files leave "phantom" allocations until TRIM runs.
+- **LVM thin pool vs filesystem usage:** The Proxmox LVM thin pool `Data%` for this LXC showed 96.51% while the actual filesystem was only 70% full. Thin pool percentages track historically allocated blocks, not current usage - old Docker images and deleted files leave "phantom" allocations until TRIM runs.
 - **fstrim must run from the Proxmox host via nsenter:** Running `fstrim` from inside an unprivileged LXC fails with "Operation not permitted". Running it on the host at `/var/lib/lxc/100/rootfs` also doesn't work because LVM-backed containers are not mounted there. The correct method is: `nsenter --target $(pgrep -a lxc-start | grep '\\b100\\b' | awk '{print $1}') --mount -- fstrim -v /`
 - **Docker image pruning is essential:** With 20+ containers, dangling images accumulate quickly. `docker image prune -f` reclaimed ~390 MB in one session. Schedule this regularly.
 - **Swap is not configured:** Neither the LXC nor Docker containers have swap. A heavily memory-loaded container (e.g., postgres during Immich indexing) will be OOM-killed instead of swapping. Monitor memory headroom.

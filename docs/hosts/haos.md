@@ -91,7 +91,7 @@ KVM VM (VMID 101)
 
 ## SSH Access
 
-SSH is provided by the **Advanced SSH & Web Terminal** add-on. The shell runs inside an Alpine Linux sandbox — not on the HAOS host directly.
+SSH is provided by the **Advanced SSH & Web Terminal** add-on. The shell runs inside an Alpine Linux sandbox - not on the HAOS host directly.
 
 | Setting        | Value                        |
 |----------------|------------------------------|
@@ -142,9 +142,9 @@ curl -s -X POST \
 
 ## Lessons Learned
 
-- **HAOS is a KVM VM, not an LXC** — `pct exec` does not work; `qm terminal 101` gives the HAOS console, which is very limited.
-- **SSH user is `hassio`, not `root`** — the add-on config UI shows the `username` field set to `hassio`, which must match the SSH login.
-- **SSH add-on must be configured before starting** — starting it without `authorized_keys` or `password` causes a fatal error and the add-on immediately stops.
-- **The `ha` CLI requires Supervisor API token** — commands like `ha core info` fail from the SSH add-on shell; use the REST API instead.
-- **Protection mode** blocks Docker access — to run `docker ps` or interact with containers, Protection Mode must be disabled in the add-on settings. Leave it enabled unless absolutely needed.
-- **Alpine Linux inside, HAOS outside** — the SSH session runs in an Alpine 3.23 container sandbox, not on the HAOS host. Some host-level commands are unavailable or proxied.
+- **HAOS is a KVM VM, not an LXC** - `pct exec` does not work; `qm terminal 101` gives the HAOS console, which is very limited.
+- **SSH user is `hassio`, not `root`** - the add-on config UI shows the `username` field set to `hassio`, which must match the SSH login.
+- **SSH add-on must be configured before starting** - starting it without `authorized_keys` or `password` causes a fatal error and the add-on immediately stops.
+- **The `ha` CLI requires Supervisor API token** - commands like `ha core info` fail from the SSH add-on shell; use the REST API instead.
+- **Protection mode** blocks Docker access - to run `docker ps` or interact with containers, Protection Mode must be disabled in the add-on settings. Leave it enabled unless absolutely needed.
+- **Alpine Linux inside, HAOS outside** - the SSH session runs in an Alpine 3.23 container sandbox, not on the HAOS host. Some host-level commands are unavailable or proxied.
