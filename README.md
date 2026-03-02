@@ -26,14 +26,15 @@ Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch
 ```
 Proxmox VE 9.1 (pve)
 ├── LXC 100 (docker-host) [running]
-├── LXC 102 (adguard-home) [running]
-├── LXC 103 (alpine-vaultwarden) [running]
+├── VM  101 (haos) [running]
+├── LXC 102 (adguard) [running]
+├── LXC 103 (vaultwarden) [running]
 ├── LXC 104 (scanopy) [running]
-├── LXC 105 (alpine-komodo) [running]
+├── LXC 105 (komodo) [running]
 ├── LXC 106 (karakeep) [running]
 ├── LXC 107 (n8n) [running]
 ├── LXC 108 (ollama) [running]
-├── VM  101 (haos-16.3) [running]
+├── LXC 109 (claude-mgmt) [running]
 └── Storage
     ├── backup-hdd (dir) [available]
     │   ├── Used:      2.399 TiB
@@ -72,6 +73,10 @@ All services version-controlled as Docker Compose files. Secrets in gitignored `
 
 ## 📚 Documentation
 
+**Host reference** (current config, services, lessons learned):
+- [docker-host](./docs/hosts/docker-host.md) · [adguard](./docs/hosts/adguard.md) · [komodo](./docs/hosts/komodo.md) · [karakeep](./docs/hosts/karakeep.md) · [n8n](./docs/hosts/n8n.md) · [ollama](./docs/hosts/ollama.md) · [haos](./docs/hosts/haos.md) · [claude-mgmt](./docs/hosts/claude-mgmt.md)
+
+**Setup guides** (how it was built):
 - [Proxmox Initial Setup + Storage](./docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 - [LXC & Docker Setup](./docs/proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
 - [Komodo Installation & Configuration](./docs/proxmox/17_Komodo_complete_setup.md)
@@ -97,4 +102,4 @@ All services version-controlled as Docker Compose files. Secrets in gitignored `
 
 ---
 
-<sub>Last updated: February 2026 | Infrastructure: Proxmox VE 9.1 | Services: 27 active (19 Docker stacks + 8 LXC/VM)</sub>
+<sub>Last updated: March 2026 | Infrastructure: Proxmox VE 9.1 | Services: 27 active (19 Docker stacks + 9 LXC/VM)</sub>

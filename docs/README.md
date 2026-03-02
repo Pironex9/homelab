@@ -1,6 +1,21 @@
 # Documentation
 
+## hosts/
+
+Per-host reference documentation — current configuration, running services, and lessons learned for each VM and LXC container.
+
+- [`docker-host.md`](./hosts/docker-host.md) - Primary Docker host (LXC 100) — 19 stacks, GPU passthrough, Komodo integration
+- [`haos.md`](./hosts/haos.md) - Home Assistant OS VM (VM 101) — Zigbee2MQTT, MQTT, REST API
+- [`adguard.md`](./hosts/adguard.md) - AdGuard Home (LXC 102) — DNS, blocklists, Quad9 DoH/DoT
+- [`komodo.md`](./hosts/komodo.md) - Komodo (LXC 105) — GitOps deployment management, Periphery agents
+- [`karakeep.md`](./hosts/karakeep.md) - Karakeep (LXC 106) — bookmarking, AI tagging with local Ollama
+- [`n8n.md`](./hosts/n8n.md) - n8n (LXC 107) — workflow automation, Claude Code MCP integration
+- [`ollama.md`](./hosts/ollama.md) - Ollama (LXC 108) — local LLM inference, Intel GPU via SYCL
+- [`claude-mgmt.md`](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) — GitHub MCP, n8n MCP
+
 ## proxmox/
+
+Chronological setup guides — how the homelab was built, step by step.
 
 - `01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md` - Initial Proxmox setup, MergerFS + SnapRAID storage
 - `02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md` - LXC creation and Docker installation
