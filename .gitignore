@@ -45,6 +45,10 @@ docker-compose.override.yml
 # Private / personal files
 private/
 
+# Claude Code files
+CLAUDE.md
+.claude/
+
 # Private keys
 *.key
 *.pem
