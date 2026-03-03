@@ -1,3 +1,14 @@
+> **DEPRECATED - 2026-03-03**
+>
+> Recommendarr has been removed from this homelab due to security concerns.
+> The upstream GitHub repository (`qdread/recommendarr`) was deleted without explanation
+> around the same time as the Huntarr security incident (February 2026).
+> Given the developer's disappearance and the lack of any official statement,
+> running this service is no longer considered safe.
+>
+> This document is kept as historical reference only.
+
+---
 
 ## Docker Compose Configuration
 
