@@ -4,7 +4,7 @@
 
 Per-host reference documentation - current configuration, running services, and lessons learned for each VM and LXC container.
 
-- [docker-host](./hosts/docker-host.md) - Primary Docker host (LXC 100) - 19 stacks, GPU passthrough, Komodo integration
+- [docker-host](./hosts/docker-host.md) - Primary Docker host (LXC 100) - 17 stacks, GPU passthrough, Komodo integration
 - [haos](./hosts/haos.md) - Home Assistant OS VM (VM 101) - Zigbee2MQTT, MQTT, REST API
 - [adguard](./hosts/adguard.md) - AdGuard Home (LXC 102) - DNS, blocklists, Quad9 DoH/DoT
 - [komodo](./hosts/komodo.md) - Komodo (LXC 105) - GitOps deployment management, Periphery agents
@@ -35,7 +35,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [16 - Backup System](./proxmox/16_Proxmox_Backup_System_Documentation.md) - Backup system and schedules
 - [17 - Komodo Complete Setup](./proxmox/17_Komodo_complete_setup.md) - Komodo container management platform
 - [18 - SuggestArr Setup](./proxmox/18_SuggestArr_Setup_Troubleshooting_Guide.md) - SuggestArr media suggestion automation
-- [19 - Recommendarr Setup](./proxmox/19_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations
+- [19 - Recommendarr Setup](./proxmox/19_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (DEPRECATED - removed due to security concerns, Mar 2026)
 - [20 - Claude Code Management LXC](./proxmox/20_Claude_Code_Management_LXC_Setup.md) - Claude Code management LXC, SSH key infrastructure, GitHub MCP server
 
 ## vps/

@@ -44,8 +44,6 @@ All stacks are managed via **Dockge** and stored at `/srv/docker-compose/<stack-
 | `radarr` | `ghcr.io/hotio/radarr` | 7878 | Movie management |
 | `prowlarr` | `ghcr.io/hotio/prowlarr` | 9696 | Indexer manager |
 | `qbittorrent` | `ghcr.io/hotio/qbittorrent` | 8080, 6881 | Torrent client |
-| `huntarr` | `huntarr/huntarr` | - | Automated media hunting |
-| `recommendarr` | `tannermiddleton/recommendarr` | 3003 | AI media recommendations |
 | `suggestarr` | `ciuse99/suggestarr` | 5000 | Media suggestion bot |
 
 ### Photos
@@ -99,7 +97,6 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 2283 | TCP | Immich |
 | 3000 | TCP | BentoPDF |
 | 3002 | TCP | Homepage |
-| 3003 | TCP | Recommendarr |
 | 5000 | TCP | Suggestarr |
 | 5001 | TCP | Dockge |
 | 5055 | TCP | Seerr |
@@ -137,4 +134,5 @@ The `periphery.service` agent connects this host to Komodo Core (LXC 105). This 
 - **Docker image pruning is essential:** With 20+ containers, dangling images accumulate quickly. `docker image prune -f` reclaimed ~390 MB in one session. Schedule this regularly.
 - **Swap is not configured:** Neither the LXC nor Docker containers have swap. A heavily memory-loaded container (e.g., postgres during Immich indexing) will be OOM-killed instead of swapping. Monitor memory headroom.
 - **GPU passthrough for Jellyfin requires `dev0`/`dev1` in LXC config:** The `/dev/dri/card0` and `/dev/dri/renderD128` devices must be explicitly passed through in the Proxmox LXC config for hardware transcoding to work.
-- **huntarr OOM-killed:** The `huntarr` container exited with code 137 (SIGKILL), which is the OOM killer. This container should have a memory limit set in its Compose file.
+- **Huntarr security incident (Feb 2026):** Huntarr v9.4.2 was found to have critical unauthenticated API endpoints - any attacker could call every API endpoint and dump the full config including API keys for Sonarr, Radarr, Prowlarr, and other *arr apps. The developer deleted the GitHub repo and their account without any public statement. Huntarr was removed immediately. All *arr API keys were rotated after removal.
+- **Recommendarr removal (Mar 2026):** The Recommendarr GitHub repo (`qdread/recommendarr`) disappeared around the same time as the Huntarr incident with no explanation. Service removed as a precaution.
