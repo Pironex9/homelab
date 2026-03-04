@@ -1,26 +1,42 @@
-
-## Overview
-
-3-2-1 backup strategy:
-1. **Original data**: VMs/LXCs on Proxmox
-2. **Backup 1**: Local Proxmox storage (disk1)
-3. **Backup 2**: Nobara PC via NFS (different physical machine)
-4. **Backup 3**: Cloud (later)
+**Date:** 2026-02-11
+**Updated:** 2026-03-04
+**Hostname:** pve
+**IP address:** 192.168.0.109
 
 ---
 
-## 1. Proxmox Host OS Backup (Restic)
+## Overview
 
-### Installation and initialization
-```bash
-apt install restic
-restic init --repo /mnt/disk1/backup/proxmox-host
-```
+Backup strategy - two targets, two types of data:
 
-### Backup script: `/root/backup-proxmox-restic.sh`
+| What | Tool | Primary location | Secondary (Nobara) |
+|---|---|---|---|
+| LXC/VM backups | vzdump | `/mnt/storage/backup/proxmox/` | `/mnt/hdd/Backup/proxmox-vms/` |
+| Proxmox host OS | Restic | `/mnt/disk1/backup/proxmox-host/` | `/mnt/hdd/Backup/proxmox-host/` |
+
+Nobara is not always on - rsync skips gracefully if offline.
+
+---
+
+## 1. LXC/VM Backups (vzdump)
+
+Configured in the Proxmox GUI under Datacenter - Backup.
+
+**Storage**: `backup-hdd` - path `/mnt/storage/backup/proxmox/`
+
+Backups are stored as `.tar.zst` files (vzdump format).
+
+---
+
+## 2. Proxmox Host OS Backup (Restic)
+
+Backs up the Proxmox root filesystem (`/`) to a local restic repository.
+
+### Script: `/root/backup-proxmox-restic.sh`
 ```bash
 #!/bin/bash
 REPO="/mnt/disk1/backup/proxmox-host"
+export RESTIC_PASSWORD_FILE="/root/.secrets/restic-password"
 
 restic -r $REPO backup / \
   --exclude /mnt/disk1 \
@@ -28,6 +44,7 @@ restic -r $REPO backup / \
   --exclude /mnt/disk3 \
   --exclude /mnt/disk4 \
   --exclude /mnt/storage \
+  --exclude /mnt/pve \
   --exclude /var/lib/vz \
   --exclude /tmp \
   --exclude /dev \
@@ -47,190 +64,103 @@ restic -r $REPO forget \
 restic -r $REPO check
 ```
 
-### Cron configuration
+Password stored in `/root/.secrets/restic-password` (chmod 600).
+
+### Cron (on Proxmox host)
+```
+0 4 * * 0 /root/backup-proxmox-restic.sh >> /var/log/restic-backup.log 2>&1
+```
+
+Runs Sundays at 04:00.
+
+### Check snapshots
 ```bash
-# Every Sunday at 03:00
-0 4 * * 0 /root/backup-proxmox-restic.sh
-```
-
-### Restore procedure
-```bash
-# 1. Fresh Proxmox install
-# 2. Restic install
-apt install restic
-
-# 3. List snapshots
-restic -r /mnt/disk1/backup/proxmox-host snapshots
-
-# 4. Restore latest
-restic -r /mnt/disk1/backup/proxmox-host restore latest --target /
-
-# 5. Update bootloader
-update-grub
-grub-install /dev/nvme0n1
-
-# 6. Reboot
-```
-
-### First backup results
-- **Files**: 79,433
-- **Original size**: 14.2 GB
-- **Compressed**: 7.1 GB
-- **Duration**: 1 hour 51 minutes
-
----
-
-## 2. NFS Configuration
-
-### Nobara PC (NFS Server)
-
-**Export configuration** (`/etc/exports`):
-```
-/mnt/hdd/Backup 192.168.0.0/24(rw,sync,no_subtree_check,no_root_squash)
-```
-
-**Activate export**:
-```bash
-sudo exportfs -arv
-```
-
-**Start service**:
-```bash
-sudo systemctl enable --now nfs-server
-```
-
-### Proxmox (NFS Client)
-
-**Create mount point**:
-```bash
-mkdir -p /mnt/nobara-backup
-```
-
-**Fstab entry** (`/etc/fstab`):
-```
-192.168.0.100:/mnt/hdd/Backup /mnt/nobara-backup nfs defaults,_netdev 0 0
-```
-
-**Mount**:
-```bash
-mount /mnt/nobara-backup
-systemctl daemon-reload
+RESTIC_PASSWORD_FILE=/root/.secrets/restic-password restic -r /mnt/disk1/backup/proxmox-host snapshots
 ```
 
 ---
 
-## 3. Automatic Synchronization
+## 3. Rsync to Nobara PC
 
-### Sync script: `/root/sync-to-nobara.sh`
+After local backups run, a cron job rsyncs both the vzdump files and the restic repo to Nobara.
+
+### Script: `/root/sync-to-nobara.sh`
 ```bash
 #!/bin/bash
 
-if mountpoint -q /mnt/nobara-backup; then
+if mountpoint -q /mnt/pve/nobara-backup; then
   echo "$(date) - Syncing to Nobara..." >> /var/log/nobara-sync.log
-  
-  rsync -av --delete /mnt/disk1/backup/proxmox/dump/ \
-    /mnt/nobara-backup/proxmox-vms/ >> /var/log/nobara-sync.log
-  
+
+  rsync -av --delete /mnt/storage/backup/proxmox/ \
+    /mnt/pve/nobara-backup/proxmox-vms/ >> /var/log/nobara-sync.log 2>&1
+
   rsync -av --delete /mnt/disk1/backup/proxmox-host/ \
-    /mnt/nobara-backup/proxmox-host/ >> /var/log/nobara-sync.log
+    /mnt/pve/nobara-backup/proxmox-host/ >> /var/log/nobara-sync.log 2>&1
+
+  echo "$(date) - Sync done" >> /var/log/nobara-sync.log
 else
-  echo "$(date) - NFS not mounted" >> /var/log/nobara-sync.log
+  echo "$(date) - NFS not mounted, skipping" >> /var/log/nobara-sync.log
 fi
 ```
 
-### Cron configuration
-```bash
-# Sync on Sundays at 11:00 and 19:00, if Nobara is online -> sync
+### Cron (on Proxmox host)
+```
 0 11,19 * * 0 /root/sync-to-nobara.sh
 ```
 
-**Behaviour**:
-- If Nobara is powered on -> synchronize
-- If Nobara is offline -> skip, write log entry
+Runs Sundays at 11:00 and 19:00. If Nobara is offline, it logs and skips.
+
+### NFS mount
+See `15_NFS-Setup_Documentation.md` for mount configuration.
 
 ---
 
-## 4. Backup Locations
+## 4. Weekly Schedule (Sundays)
 
-### On the Proxmox server
-- **Host OS backup**: `/mnt/disk1/backup/proxmox-host/` (restic repo)
-- **VM/LXC backups**: `/mnt/disk1/backup/proxmox/dump/` (Proxmox built-in)
-
-### On the Nobara PC
-- **Host OS backup**: `/mnt/hdd/Backup/proxmox-host/` (rsync mirror)
-- **VM/LXC backups**: `/mnt/hdd/Backup/proxmox-vms/` (rsync mirror)
+| Time | Job |
+|---|---|
+| 03:00 | SnapRAID sync |
+| 04:00 | Restic host OS backup |
+| 11:00 | Rsync to Nobara |
+| 19:00 | Rsync to Nobara (second attempt, in case Nobara was offline at 11:00) |
 
 ---
 
-## 5. Monitoring and Maintenance
+## 5. Monitoring
 
-### Log files
 ```bash
-# Restic backup log (stdout/stderr in cron email)
-# Sync log
+# Restic backup log
+tail -f /var/log/restic-backup.log
+
+# Nobara sync log
 tail -f /var/log/nobara-sync.log
+
+# List LXC backups
+ls -lh /mnt/storage/backup/proxmox/dump/
+
+# Check NFS mount
+mountpoint /mnt/pve/nobara-backup
 ```
-
-### Checks
-```bash
-# NFS mount status
-df -h | grep nobara
-
-# Restic repo integrity
-restic -r /mnt/disk1/backup/proxmox-host check
-
-# Restic snapshot list
-restic -r /mnt/disk1/backup/proxmox-host snapshots
-
-# Nobara sync status
-ls -lh /mnt/nobara-backup/proxmox-vms/
-ls -lh /mnt/nobara-backup/proxmox-host/
-```
-
-### Retention Policy
-**Restic (host backup)**:
-- Daily: 7 days
-- Weekly: 4 weeks
-- Monthly: 3 months
-
-**Proxmox VM/LXC backups**:
-- According to retention set in Proxmox GUI
 
 ---
 
-## 6. Network Configuration
-
-- **Proxmox IP**: 192.168.0.109
-- **Nobara PC IP**: 192.168.0.100
-- **Subnet**: 192.168.0.0/24
-- **Protocol**: NFS v4
-
----
-
-## 7. Disk Layout
+## 5. Disk Layout
 
 ### Proxmox
 ```
 nvme0n1p3 (237GB LVM)
 ├─ pve-root (60GB) -> /
 ├─ pve-swap (8GB)
-└─ pve-data (150GB) -> VM storage
+└─ pve-data (150GB) -> VM/LXC disk storage
 
 sda1 (5.5TB) -> /mnt/disk1
 sdb1 (5.5TB) -> /mnt/disk2
 sdc1 (931GB) -> /mnt/disk3
 sdd1 (1.8TB) -> /mnt/disk4
-/mnt/storage -> MergerFS pool
+/mnt/storage -> MergerFS pool (backup-hdd lives here)
 ```
 
 ### Nobara PC
 ```
-/mnt/hdd/Backup (3.7TB) -> NFS export
+/mnt/hdd/Backup (3.7TB) -> NFS export, rsync target
 ```
-
----
-
-## Author
-- **Date**: 2026-02-11
-- **System**: Proxmox VE + Nobara Linux
-- **Backup tools**: Restic + rsync + NFS
