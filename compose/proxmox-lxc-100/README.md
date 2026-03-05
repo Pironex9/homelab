@@ -1,4 +1,4 @@
-# LXC 100 — docker-host
+# LXC 100 - docker-host
 
 - **OS**: Ubuntu 22.04 LTS
 - **Resources**: 8 CPU cores, 16GB RAM, 48GB disk
@@ -25,7 +25,7 @@
 ### Productivity & Utilities
 | Service | Description | Port |
 |---------|-------------|------|
-| freshrss | RSS reader | 80 |
+| freshrss | RSS reader | 8083 |
 | syncthing | File synchronization | 8384 |
 | bentopdf | PDF tools | 3000 |
 | homepage | Service dashboard | 3002 |
@@ -46,10 +46,10 @@
 
 ## Storage Mounts
 
-- `/srv/docker-data/` — service configs
-- `/srv/docker-compose/` — compose files
-- `/mnt/storage/media/` — media library (MergerFS)
-- `/mnt/storage/media/downloads/` — downloads
+- `/srv/docker-data/` - service configs
+- `/srv/docker-compose/` - compose files
+- `/mnt/storage/media/` - media library (MergerFS)
+- `/mnt/storage/media/downloads/` - downloads
 
 ## Access
 

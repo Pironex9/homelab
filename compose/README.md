@@ -4,16 +4,16 @@
 
 ### proxmox-lxc-100/
 Services running on LXC 100 (docker-host):
-- Media: Jellyfin, Radarr, Sonarr, Prowlarr, qBittorrent, Seerr, Huntarr
+- Media: Jellyfin, Radarr, Sonarr, Prowlarr, qBittorrent, Seerr
 - Photos & library: Immich, Calibre-Web-Automated
 - Productivity: FreshRSS, Syncthing, BentoPDF
 - Monitoring & management: Dockge, Dozzle, Homepage, Uptime Kuma, Scrutiny
-- Notifications: Notifiarr, SuggestArr + Recommendarr
+- Notifications: Notifiarr, SuggestArr
 
 ### nobara/
 Desktop services on Nobara workstation:
 - Open WebUI + AnythingLLM
-- Ollama with GPU acceleration (not 24/7 — for heavy inference)
+- Ollama with GPU acceleration (not 24/7 - for heavy inference)
 - Note: A second Ollama instance runs on LXC 108 (always on, CPU, integrated with n8n)
 
 ## Conventions
