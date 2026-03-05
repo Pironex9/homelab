@@ -4,11 +4,11 @@
 
 ### proxmox-lxc-100/
 Services running on LXC 100 (docker-host):
-- Media: Jellyfin, Radarr, Sonarr, Prowlarr, qBittorrent, Seerr
+- Media: Jellyfin, Radarr, Sonarr, Prowlarr, qBittorrent, Seerr, SuggestArr
 - Photos & library: Immich, Calibre-Web-Automated
 - Productivity: FreshRSS, Syncthing, BentoPDF
 - Monitoring & management: Dockge, Dozzle, Homepage, Uptime Kuma, Scrutiny
-- Notifications: Notifiarr, SuggestArr
+- Notifications: Notifiarr
 
 ### nobara/
 Desktop services on Nobara workstation:

@@ -15,6 +15,7 @@
 | prowlarr | Indexer manager | 9696 |
 | qbittorrent | Torrent client | 8080 |
 | seerr | Media requests | 5055 |
+| suggestarr | Automated movie/TV recommendations (Radarr/Sonarr integration) | 5000 |
 
 ### Photos & Library
 | Service | Description | Port |
@@ -42,7 +43,6 @@
 | Service | Description | Port |
 |---------|-------------|------|
 | notifiarr | Notification hub | 5454 |
-| suggestarr | Media suggestion automation | 5000 |
 
 ## Storage Mounts
 
