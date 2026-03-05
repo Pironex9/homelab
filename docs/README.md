@@ -4,7 +4,7 @@
 
 Per-host reference documentation - current configuration, running services, and lessons learned for each VM and LXC container.
 
-- [docker-host](./hosts/docker-host.md) - Primary Docker host (LXC 100) - 17 stacks, GPU passthrough, Komodo integration
+- [docker-host](./hosts/docker-host.md) - Primary Docker host (LXC 100) - 18 stacks, GPU passthrough, Komodo integration
 - [haos](./hosts/haos.md) - Home Assistant OS VM (VM 101) - Zigbee2MQTT, MQTT, REST API
 - [adguard](./hosts/adguard.md) - AdGuard Home (LXC 102) - DNS, blocklists, Quad9 DoH/DoT
 - [komodo](./hosts/komodo.md) - Komodo (LXC 105) - GitOps deployment management, Periphery agents

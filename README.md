@@ -102,4 +102,4 @@ All services version-controlled as Docker Compose files. Secrets in gitignored `
 
 ---
 
-<sub>Last updated: March 2026 | Infrastructure: Proxmox VE 9.1 | Services: 27 active (19 Docker stacks + 9 LXC/VM)</sub>
+<sub>Last updated: March 2026 | Infrastructure: Proxmox VE 9.1 | Services: 27 active (18 Docker stacks + 9 LXC/VM)</sub>
