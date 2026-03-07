@@ -32,7 +32,7 @@
 
 ## AdGuard Home
 
-**Version:** v0.107.71
+**Version:** v0.107.72
 **Install path:** `/opt/AdGuardHome/`
 **Config file:** `/opt/AdGuardHome/AdGuardHome.yaml`
 **Local domain:** `lan`
@@ -142,3 +142,4 @@ PTR records use the `in-addr.arpa` format in the rewrites section (e.g. `109.0.1
 - **PTR rewrites require `enabled: true`:** AdGuard Home v0.107.71 automatically adds `enabled: false` to rewrite entries when it serializes the config. New rewrites added directly to the YAML must explicitly include `enabled: true`, otherwise they are silently ignored.
 - **PTR via `in-addr.arpa` rewrites:** AdGuard Home does not have a dedicated PTR record UI. Reverse DNS is handled by adding entries like `109.0.168.192.in-addr.arpa → proxmox.lan` to the rewrites section. Requires `private_networks` to include the local subnet so AdGuard handles PTR queries locally instead of forwarding to upstream.
 - **Config edits need Python over SSH:** Editing the YAML config directly via SSH heredoc is unreliable due to shell quoting issues. The correct approach is to write a Python script locally, `scp` it to the host, and execute it there.
+- **`update` command not available:** This LXC was installed before the community script update function was added. Use the full binary path instead: `/opt/AdGuardHome/AdGuardHome --update`. Add to PATH permanently: `echo 'export PATH=$PATH:/opt/AdGuardHome' >> /root/.bashrc`

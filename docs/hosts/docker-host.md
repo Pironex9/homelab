@@ -33,7 +33,7 @@
 
 ## Docker Stacks
 
-All stacks are managed via **Dockge** and stored at `/srv/docker-compose/<stack-name>/`.
+All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in the [homelab git repo](https://github.com/Pironex9/homelab) under `compose/proxmox-lxc-100/<stack-name>/`. Komodo clones the repo to `/etc/komodo/repos/github/` on this host and runs deploys from there. Legacy compose files remain at `/srv/docker-compose/<stack-name>/` but are no longer used.
 
 ### Media
 

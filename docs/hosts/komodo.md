@@ -59,6 +59,10 @@ All three Komodo components run as Docker containers from a single Compose stack
 | Monitoring interval | 15 seconds |
 | JWT TTL | 1 day |
 | First server | `https://periphery:8120` (local agent) |
+| `KOMODO_HOST` | `http://192.168.0.105:9120` |
+| `TZ` | `Europe/Budapest` |
+| `KOMODO_DISABLE_USER_REGISTRATION` | `true` |
+| `KOMODO_ENABLE_NEW_USERS` | `false` |
 
 ## Architecture
 
@@ -77,9 +81,28 @@ The `periphery.service` systemd unit on **docker-host** connects outward to Komo
 | Local | `https://periphery:8120` | Built-in local agent on the komodo LXC itself |
 | docker-host | via `periphery.service` on docker-host | Main Docker host managed via Komodo |
 
+## Updating
+
+The Komodo community script was migrated to an addon in March 2026. After running the one-time migration prompt, use:
+
+```bash
+update_komodo
+```
+
+For manual updates (or if `update_komodo` is unavailable):
+
+```bash
+cd /opt/komodo
+docker compose -f mongo.compose.yaml --env-file compose.env pull
+docker compose -f mongo.compose.yaml --env-file compose.env up -d
+```
+
+**Current version:** v1.19.5 (stable). v2.0.0 is in dev/preview - not yet stable.
+
 ## Lessons Learned
 
 - **Alpine does not have `ss`:** The `iproute2` package (which includes `ss`) is not installed by default on Alpine. Use `netstat` from the `net-tools` package instead, or install `iproute2` with `apk add iproute2`.
 - **High RAM allocation:** 32 GB RAM is allocated to this LXC, but actual usage is lower. This may be intentional for MongoDB's working set cache or could be reduced after profiling.
 - **Swap is configured:** Unlike most other LXCs in this homelab, komodo has 8 GB swap - useful because MongoDB can have large memory requirements during indexing.
 - **Periphery on managed hosts:** Each host managed by Komodo must run the `periphery` agent. On docker-host this runs as `periphery.service`. The agent opens an outbound connection to Core - no inbound firewall rules are needed on the managed host.
+- **KOMODO_HOST must be set correctly:** The default value in the community script template is `https://demo.komo.do`. This must be changed to the actual host URL (`http://192.168.0.105:9120`), otherwise webhooks and OAuth redirects will be broken.
