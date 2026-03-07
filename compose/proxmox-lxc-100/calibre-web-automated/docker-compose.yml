@@ -3,8 +3,8 @@ services:
     image: crocodilestick/calibre-web-automated:latest
     container_name: calibre-web-automated
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=0
+      - PGID=0
       - TZ=Europe/Budapest
     volumes:
       - /srv/docker-data/calibrewebauto:/config

@@ -3,11 +3,11 @@ services:
     image: jellyfin/jellyfin
     container_name: jellyfin
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - UMASK=${UMASK}
-      - JELLYFIN_PublishedServerUrl=http://${HOMEPAGE_HOST}:8096
+      - PUID=0
+      - PGID=0
+      - TZ=Europe/Budapest
+      - UMASK=002
+      - JELLYFIN_PublishedServerUrl=http://192.168.0.110:8096
     network_mode: host
     volumes:
       - /srv/docker-data/jellyfin:/config

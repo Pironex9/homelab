@@ -3,7 +3,7 @@ services:
     container_name: notifiarr
     image: golift/notifiarr
     environment:
-      - TZ=${TZ}
+      - TZ=Europe/Budapest
       - NOTIFIARR_API_KEY=${NOTIFIARR_API_KEY}
     volumes:
       - /srv/docker-data/notifiarr:/config

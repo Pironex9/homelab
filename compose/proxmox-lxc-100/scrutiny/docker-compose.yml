@@ -4,8 +4,8 @@ services:
     container_name: scrutiny
     environment:
       - TZ=Europe/Budapest
-      - PUID=1000
-      - PGID=1000
+      - PUID=0
+      - PGID=0
     volumes:
       - /srv/docker-data/scrutiny/config:/opt/scrutiny/config
       - /srv/docker-data/scrutiny:/run/udev:ro

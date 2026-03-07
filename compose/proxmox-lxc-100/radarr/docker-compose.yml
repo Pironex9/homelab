@@ -3,10 +3,10 @@ services:
     image: ghcr.io/hotio/radarr:latest
     container_name: radarr
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - UMASK=${UMASK}
+      - PUID=0
+      - PGID=0
+      - TZ=Europe/Budapest
+      - UMASK=002
     volumes:
       - /srv/docker-data/radarr:/config
       - /mnt/storage/media/movies/hun:/movies/hun
