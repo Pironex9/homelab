@@ -36,8 +36,8 @@
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| karakeep | 0.30.0 | Main application (web + workers + browser) |
-| meilisearch | 1.31.0 | Full-text search backend |
+| karakeep | 0.31.0 | Main application (web + workers + browser) |
+| meilisearch | 1.37.0 | Full-text search backend |
 | chromium | 143.0.7499.169 | Headless browser for page snapshots |
 
 ## Configuration
