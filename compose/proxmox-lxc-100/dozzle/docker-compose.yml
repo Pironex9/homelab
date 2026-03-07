@@ -3,7 +3,7 @@ services:
     image: amir20/dozzle:latest
     container_name: dozzle
     environment:
-      - TZ=${TZ}
+      - TZ=Europe/Budapest
       # Extra funkciók bekapcsolása (szükség esetén vedd ki a kommentet):
       - DOZZLE_ENABLE_ACTIONS=true
       - DOZZLE_ENABLE_SHELL=true

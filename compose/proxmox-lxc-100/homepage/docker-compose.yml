@@ -3,10 +3,10 @@ services:
     image: ghcr.io/gethomepage/homepage:latest
     container_name: homepage
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=0
+      - PGID=0
       - TZ=Europe/Budapest
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.0.YOUR_DOCKER_IP:3002
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.0.110:3002
     volumes:
       - /srv/docker-data/homepage:/app/config
       - /srv/docker-data/homepage/images:/app/public/images

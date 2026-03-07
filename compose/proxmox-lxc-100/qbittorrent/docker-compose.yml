@@ -4,10 +4,10 @@ services:
     container_name: qbittorrent
     environment:
       - QBT_EULA=accept
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - UMASK=${UMASK}
+      - PUID=0
+      - PGID=0
+      - TZ=Europe/Budapest
+      - UMASK=002
       - WEBUI_PORT=8080
       - QBIT_PASS=${QBIT_PASS}
     volumes:
