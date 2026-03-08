@@ -60,7 +60,7 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
 | `calibre-web-automated` | `crocodilestick/calibre-web-automated` | 8085 | Calibre library with auto-import |
-| `bentopdf` | `bentopdf/bentopdf` | 3000 | PDF reader |
+| `bentopdf` | `bentopdfteam/bentopdf` | 3000 | PDF reader |
 
 ### Other Services
 
