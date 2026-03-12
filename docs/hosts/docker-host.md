@@ -70,6 +70,7 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 | `seerr` | `ghcr.io/seerr-team/seerr` | 5055 | Media request management |
 | `syncthing` | `lscr.io/linuxserver/syncthing` | 8384, 22000 | File synchronization |
 | `notifiarr` | `golift/notifiarr` | - | Notification hub |
+| `docuseal` | `docuseal/docuseal` | 3003 | Self-hosted e-signature platform |
 
 ### Management
 
@@ -110,6 +111,7 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 8384 | TCP | Syncthing web UI |
 | 8888 | TCP | Dozzle |
 | 8989 | TCP | Sonarr |
+| 3003 | TCP | DocuSeal |
 | 9696 | TCP | Prowlarr |
 | 21027 | UDP | Syncthing discovery |
 | 22000 | TCP/UDP | Syncthing sync |
