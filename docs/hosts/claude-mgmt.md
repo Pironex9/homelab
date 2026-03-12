@@ -71,6 +71,20 @@ Connects Claude Code to the n8n workflow automation instance.
 - **Scope:** project-scoped to `/root/homelab`
 - **Auth:** API key stored in `~/.secrets/n8n-api-key` (chmod 600)
 
+## SSHFS Access from Nobara
+
+The `/root` directory (containing `homelab`, `learning`, `youtube`) is accessible from Nobara via SSHFS.
+
+Nobara's root SSH key (`root@nex-pc`) is in `/root/.ssh/authorized_keys` on this LXC. Nobara mounts `/root` via a systemd automount unit - see [NFS Setup Documentation](../proxmox/15_NFS-Setup_Documentation.md) for the client-side config.
+
+### Authorized SSH keys on this LXC
+
+| Key | User | Notes |
+|-----|------|-------|
+| `xnex88@hotmail.com` | nex (Nobara) | Personal key |
+| `termux` | nex (Android/Termux) | Mobile access |
+| `root@nex-pc` | root (Nobara) | Used by systemd SSHFS automount |
+
 ## Lessons Learned
 
 - **No root password by default:** Community script-based LXC containers do not receive a root password during provisioning. SSH password login is also disabled. The only way to add SSH keys initially is via `pct exec` from the Proxmox host.

@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-03-12
+**Updated:** 2026-03-12 (added SSHFS section)
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -146,6 +146,79 @@ The first `ls` triggers the automount. All 5 shares should appear in `df -h`.
 - First access triggers the mount automatically
 - After 600 seconds (10 min) of inactivity it unmounts
 - If Proxmox is offline: `soft` + `timeo=30` + `retrans=3` means mount attempt times out after ~90 seconds - Nobara does not freeze
+
+---
+
+## Nobara SSHFS Mount (LXC 109 claude-mgmt)
+
+Nobara mounts `/root` from LXC 109 (claude-mgmt) via SSHFS. NFS server cannot run inside an unprivileged LXC, so SSHFS is used instead.
+
+### Prerequisites
+
+Root's SSH key on Nobara must be in LXC 109's `authorized_keys`. Since LXC 109 has password auth disabled, add it via the existing user key:
+
+```bash
+sudo ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519 -N ""
+sudo cat /root/.ssh/id_ed25519.pub | ssh root@192.168.0.204 "cat >> /root/.ssh/authorized_keys"
+```
+
+Also add LXC 109 to root's known_hosts on Nobara:
+
+```bash
+sudo ssh-keyscan 192.168.0.204 | sudo tee -a /root/.ssh/known_hosts
+```
+
+### Create mount point
+
+```bash
+sudo mkdir -p /mnt/claudemgmt
+```
+
+Note: no hyphen in `claudemgmt` - systemd unit file names encode hyphens as `\x2d` which causes shell escaping issues.
+
+### Create systemd mount + automount units
+
+```bash
+sudo tee /etc/systemd/system/mnt-claudemgmt.mount << 'EOF'
+[Unit]
+Description=SSHFS /root from LXC 109 claude-mgmt
+After=network-online.target
+Wants=network-online.target
+
+[Mount]
+What=root@192.168.0.204:/root
+Where=/mnt/claudemgmt
+Type=fuse.sshfs
+Options=noauto,_netdev,allow_other,IdentityFile=/root/.ssh/id_ed25519,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee /etc/systemd/system/mnt-claudemgmt.automount << 'EOF'
+[Unit]
+Description=Automount /mnt/claudemgmt
+After=network-online.target
+Wants=network-online.target
+
+[Automount]
+Where=/mnt/claudemgmt
+TimeoutIdleSec=600
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+### Enable and start
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now mnt-claudemgmt.automount
+ls /mnt/claudemgmt
+```
+
+Should show: `homelab  learning  youtube`
 
 ---
 
