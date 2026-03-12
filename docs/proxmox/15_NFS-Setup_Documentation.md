@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-03-04
+**Updated:** 2026-03-12
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -36,9 +36,16 @@ apt install nfs-kernel-server
 ### Apply and verify
 ```bash
 exportfs -a
-systemctl restart nfs-kernel-server
+systemctl restart nfs-server
 exportfs -v
 ```
+
+### Enable NFS server at boot
+```bash
+systemctl enable nfs-server
+```
+
+Note: the service name is `nfs-server` (not `nfs-kernel-server`) on recent Debian/Proxmox versions.
 
 ---
 
@@ -70,6 +77,8 @@ sudo exportfs -ra
 
 ## Nobara as NFS Client (mounts Proxmox storage)
 
+**Do not use `/etc/fstab` for these mounts.** Hard fstab NFS entries freeze Nobara's boot if Proxmox is offline. Use systemd automount instead.
+
 ### Install NFS client on Nobara
 ```bash
 sudo dnf install nfs-utils
@@ -80,14 +89,63 @@ sudo dnf install nfs-utils
 sudo mkdir -p /mnt/storage /mnt/disk1 /mnt/disk2 /mnt/disk3 /mnt/disk4
 ```
 
-### Nobara `/etc/fstab` entries
+### Create systemd mount + automount units
+
+Run as root (`sudo -i`) to avoid heredoc indentation issues:
+
+```bash
+for share in storage disk1 disk2 disk3 disk4; do
+cat > /etc/systemd/system/mnt-${share}.mount << EOF
+[Unit]
+Description=NFS /mnt/${share} from Proxmox
+After=network-online.target
+Wants=network-online.target
+
+[Mount]
+What=192.168.0.109:/mnt/${share}
+Where=/mnt/${share}
+Type=nfs
+Options=noauto,nfsvers=4,soft,timeo=30,retrans=3,_netdev
+
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/mnt-${share}.automount << EOF
+[Unit]
+Description=Automount /mnt/${share}
+After=network-online.target
+Wants=network-online.target
+
+[Automount]
+Where=/mnt/${share}
+TimeoutIdleSec=600
+
+[Install]
+WantedBy=multi-user.target
+EOF
+done
 ```
-192.168.0.109:/mnt/storage /mnt/storage nfs vers=3,defaults 0 0
-192.168.0.109:/mnt/disk1 /mnt/disk1 nfs vers=3,defaults 0 0
-192.168.0.109:/mnt/disk2 /mnt/disk2 nfs vers=3,defaults 0 0
-192.168.0.109:/mnt/disk3 /mnt/disk3 nfs vers=3,defaults 0 0
-192.168.0.109:/mnt/disk4 /mnt/disk4 nfs vers=3,defaults 0 0
+
+### Enable and start
+```bash
+systemctl daemon-reload
+systemctl enable --now mnt-storage.automount mnt-disk1.automount mnt-disk2.automount mnt-disk3.automount mnt-disk4.automount
 ```
+
+### Verify
+```bash
+ls /mnt/storage
+df -h | grep mnt/
+```
+
+The first `ls` triggers the automount. All 5 shares should appear in `df -h`.
+
+### How it works
+
+- The `.automount` unit watches the directory
+- First access triggers the mount automatically
+- After 600 seconds (10 min) of inactivity it unmounts
+- If Proxmox is offline: `soft` + `timeo=30` + `retrans=3` means mount attempt times out after ~90 seconds - Nobara does not freeze
 
 ---
 
@@ -97,3 +155,4 @@ sudo mkdir -p /mnt/storage /mnt/disk1 /mnt/disk2 /mnt/disk3 /mnt/disk4
 - `no_root_squash` allows root access from the client
 - Nobara runs NFSv4 only (no rpcbind) - `showmount -e` will fail from Proxmox, but mounts work fine
 - Nobara is not always on - the soft mount on Proxmox ensures it never freezes the host
+- If NFS shares stop working after a Proxmox reboot: check `systemctl status nfs-server` on the Proxmox host - it may need `systemctl start nfs-server`
