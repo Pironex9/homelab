@@ -2,8 +2,7 @@
 **Companion to: jellyfin-pangolin-setup-guide.md**
 
 **Date:** 2026-01-11  
-**Status:** Production Security Complete  
-**Security Score:** 90/100 ⭐⭐⭐⭐⭐
+**Status:** Production Security Complete
 
 ---
 
@@ -66,18 +65,6 @@
 │  - Isolated Network (192.168.0.0/24)                     │
 │  - Access via Tunnel Only                                │
 └──────────────────────────────────────────────────────────┘
-```
-
-### Security Score Breakdown
-
-```
-Layer 1 (Edge):         90/100 ⭐⭐⭐⭐⭐
-Layer 2 (VPS):         100/100 ⭐⭐⭐⭐⭐
-Layer 3 (Application):  95/100 ⭐⭐⭐⭐⭐
-Layer 4 (Tunnel):      100/100 ⭐⭐⭐⭐⭐
-Layer 5 (Backend):     100/100 ⭐⭐⭐⭐⭐
-─────────────────────────────────────
-OVERALL:                90/100 ⭐⭐⭐⭐⭐
 ```
 
 ---
@@ -1645,65 +1632,26 @@ Documentation:
 
 ### 10.3 Security Scorecard
 
-```
-═══════════════════════════════════════════════════════
-CURRENT SECURITY SCORE: 90/100 ⭐⭐⭐⭐⭐
-═══════════════════════════════════════════════════════
+| Area | Score | Notes |
+|---|---|---|
+| Layer 1 - Cloudflare Edge | 90/100 | HSTS not enabled |
+| Layer 2 - VPS Security | 100/100 | SSH keys, UFW, Fail2ban |
+| Layer 3 - Pangolin | 95/100 | 2FA + GeoIP |
+| Layer 4 - WireGuard Tunnel | 100/100 | |
+| Layer 5 - Backend | 100/100 | LAN-only access |
+| Authentication | 100/100 | 2FA on Pangolin + Hetzner |
+| Access Control | 100/100 | GeoIP + resource rules |
+| Encryption | 93/100 | HSTS not yet enabled |
+| Monitoring | 82/100 | No security event monitoring (Wazuh/Falco) |
+| Backup & Recovery | 85/100 | Automated backups not configured |
+| Documentation | 100/100 | |
+| **Overall** | **90/100** | |
 
-Layer 1 (Cloudflare Edge):      90/100 ⭐⭐⭐⭐⭐
-Layer 2 (VPS Security):        100/100 ⭐⭐⭐⭐⭐
-Layer 3 (Pangolin):             95/100 ⭐⭐⭐⭐⭐
-Layer 4 (WireGuard Tunnel):    100/100 ⭐⭐⭐⭐⭐
-Layer 5 (Backend):             100/100 ⭐⭐⭐⭐⭐
+**Free improvements available:**
 
-Authentication:                100/100 ⭐⭐⭐⭐⭐
-- Password: Strong ✓
-- 2FA: Enabled (Pangolin + Hetzner) ✓
-- Recovery codes: Saved ✓
-
-Access Control:                100/100 ⭐⭐⭐⭐⭐
-- GeoIP filtering ✓
-- Rule-based access ✓
-- Resource-level auth ✓
-
-Encryption:                     93/100 ⭐⭐⭐⭐⭐
-- HTTPS enforced (redirect) ✓
-- TLS 1.2+ ✓
-- WireGuard tunnel ✓
-- HSTS: Not enabled (SSL-stripping risk on first visit)
-
-Monitoring:                     82/100 ⭐⭐⭐⭐
-- Fail2ban active ✓
-- Log monitoring ✓
-- Uptime Kuma monitoring ✓
-- Netdata (performance/infrastructure observability) ✓
-- Security event monitoring (Wazuh/Falco): Not configured
-- File integrity monitoring: Not configured
-
-Backup & Recovery:              85/100 ⭐⭐⭐⭐
-- Configs documented ✓
-- Manual backups possible ✓
-- Automated backups: Not configured
-- Disaster recovery: Documented ✓
-
-Documentation:                 100/100 ⭐⭐⭐⭐⭐
-- Complete setup guide ✓
-- Security documentation ✓
-- Troubleshooting guide ✓
-- Incident response plan ✓
-
-═══════════════════════════════════════════════════════
-
-To reach 100/100:
-Free wins:
-→ Enable HSTS in Cloudflare (+4 points: Encryption + Layer 1)
-→ Security event monitoring - Wazuh/osquery (+4 points, open source)
-Paid/complex:
-→ Automated VPS backup system (+2 points)
-
-Current recommendation: STAY AT 90/100!
-Solid homelab security. Free wins available when ready.
-```
+- Enable HSTS in Cloudflare (eliminates SSL-stripping risk on first visit)
+- Security event monitoring - Wazuh or osquery (open source)
+- Automated VPS config backup
 
 ---
 

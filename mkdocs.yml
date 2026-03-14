@@ -64,7 +64,6 @@ nav:
       - 09 - Scanopy + Vaultwarden: proxmox/09_Scanopy_Vaultwarden.md
       - 10 - Helper Script LXCs: proxmox/10_Helper_Script_LXCs.md
       - 11 - Jellyfin Hardware Transcoding: proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md
-      - 12 - Security Configuration: proxmox/12_Security_Configuration_Guide.md
       - 13 - Karakeep AI Tagging: proxmox/13_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
       - 14 - USB Disk Troubleshooting: proxmox/14_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md
       - 15 - NFS Setup: proxmox/15_NFS-Setup_Documentation.md
@@ -77,6 +76,7 @@ nav:
       - 22 - MkDocs Portfolio Site: proxmox/22_MkDocs_Portfolio_Site_Setup.md
   - VPS:
       - Hetzner VPS + Pangolin + Jellyfin: vps/Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md
+      - Security Configuration: vps/12_Security_Configuration_Guide.md
 
 plugins:
   - search
