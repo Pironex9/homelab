@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-03-12 (added SSHFS section)
+**Updated:** 2026-03-14 (fix ordering cycle in automount units)
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -113,8 +113,6 @@ EOF
 cat > /etc/systemd/system/mnt-${share}.automount << EOF
 [Unit]
 Description=Automount /mnt/${share}
-After=network-online.target
-Wants=network-online.target
 
 [Automount]
 Where=/mnt/${share}
@@ -198,8 +196,6 @@ EOF
 sudo tee /etc/systemd/system/mnt-claudemgmt.automount << 'EOF'
 [Unit]
 Description=Automount /mnt/claudemgmt
-After=network-online.target
-Wants=network-online.target
 
 [Automount]
 Where=/mnt/claudemgmt
@@ -229,3 +225,4 @@ Should show: `homelab  learning  youtube`
 - Nobara runs NFSv4 only (no rpcbind) - `showmount -e` will fail from Proxmox, but mounts work fine
 - Nobara is not always on - the soft mount on Proxmox ensures it never freezes the host
 - If NFS shares stop working after a Proxmox reboot: check `systemctl status nfs-server` on the Proxmox host - it may need `systemctl start nfs-server`
+- **Automount units must not have `After=network-online.target`** - this creates an ordering cycle with `local-fs.target` on Fedora/Nobara and causes the unit to silently fail at boot. Network dependency belongs only in the `.mount` unit, not the `.automount` unit. Access-triggered automounts work correctly without it since the network is already up when the user first accesses the path.
