@@ -33,7 +33,7 @@ update_komodo
 - **Port:** 9120
 - **LXC ID:** 105
 - **IP:** 192.168.0.105
-- **See also:** [17_Komodo_complete_setup.md](17_Komodo_complete_setup.md)
+- **See also:** [16_Komodo_complete_setup.md](16_Komodo_complete_setup.md)
 
 ---
 

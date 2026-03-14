@@ -75,7 +75,7 @@ Connects Claude Code to the n8n workflow automation instance.
 
 The `/root` directory (containing `homelab`, `learning`, `youtube`) is accessible from Nobara via SSHFS.
 
-Nobara's root SSH key (`root@nex-pc`) is in `/root/.ssh/authorized_keys` on this LXC. Nobara mounts `/root` via a systemd automount unit - see [NFS Setup Documentation](../proxmox/15_NFS-Setup_Documentation.md) for the client-side config.
+Nobara's root SSH key (`root@nex-pc`) is in `/root/.ssh/authorized_keys` on this LXC. Nobara mounts `/root` via a systemd automount unit - see [NFS Setup Documentation](../proxmox/14_NFS-Setup_Documentation.md) for the client-side config.
 
 ### Authorized SSH keys on this LXC
 
