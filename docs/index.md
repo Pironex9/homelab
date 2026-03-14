@@ -16,7 +16,7 @@ Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch
 | Containers | Docker, LXC |
 | Management | Komodo |
 | Storage | MergerFS + SnapRAID (8.1TB) |
-| Backup | Restic (local, NFS, Backblaze B2) |
+| Backup | Restic (local disk + NFS to Nobara PC) |
 | Reverse Proxy | Pangolin (self-hosted tunnel) |
 | VPN | Tailscale |
 | DNS | AdGuard Home |
