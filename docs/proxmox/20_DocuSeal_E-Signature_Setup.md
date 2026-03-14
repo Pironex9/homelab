@@ -18,27 +18,30 @@ Self-hosted e-signature platform. Allows sending documents to recipients who sig
 | Port | 3003 |
 | Public URL | https://sign.homelabor.net |
 | Data | `/srv/docker-data/docuseal` |
-| SMTP relay | Brevo (smtp-relay.brevo.com) |
+| SMTP relay | Resend (smtp.resend.com) |
 
 ---
 
 ## Prerequisites
 
-### Brevo SMTP Account
+### Resend SMTP Account
 
-DocuSeal requires an SMTP relay to send signing invitation emails to recipients.
+DocuSeal requires an SMTP relay to send signing invitation emails to recipients. Resend is used over Brevo because it has better transactional email deliverability and allows disabling click tracking (Brevo wraps all links in tracking URLs which look suspicious in signing emails).
 
-1. Register at [brevo.com](https://brevo.com)
-2. Go to **Senders & IPs -> Domains** and authenticate your domain:
-   - Select "Authenticate the domain yourself"
-   - Add the 4 DNS records to Cloudflare (Brevo code TXT, DKIM 1 CNAME, DKIM 2 CNAME, DMARC TXT)
+1. Register at [resend.com](https://resend.com)
+2. Go to **Domains** and add `homelabor.net`, select Ireland region, manual setup
+3. Add the DNS records to Cloudflare:
+   - TXT `resend._domainkey` - DKIM record
+   - MX `send` - SPF enable sending
+   - TXT `send` - SPF record
+   - TXT `_dmarc` - `v=DMARC1; p=none;` (optional but recommended)
    - All records must use **DNS only** (gray cloud) proxy status
-   - Wait for "Authenticated" status
-3. Go to **SMTP & API -> SMTP** and generate a new **Standard** SMTP key
-4. Note the SMTP credentials:
-   - Server: `smtp-relay.brevo.com`
+4. Click **Verify** in Resend dashboard - wait for "Verified" status
+5. Go to **API Keys** and create a new key with **Sending access** (not full access)
+6. Note the SMTP credentials:
+   - Server: `smtp.resend.com`
    - Port: `587`
-   - Login: `xxxxxx@smtp-brevo.com` (displayed on the SMTP page)
+   - Username: `resend` (literal string, not your email)
    - Password: the generated API key
 
 ### Cloudflare DNS
@@ -96,10 +99,10 @@ Set the following in Komodo Stack Environment (not in the compose file):
 
 ```
 DOCUSEAL_SECRET_KEY=<output of: openssl rand -hex 32>
-SMTP_ADDRESS=smtp-relay.brevo.com
+SMTP_ADDRESS=smtp.resend.com
 SMTP_PORT=587
-SMTP_USERNAME=<login from Brevo SMTP page>
-SMTP_PASSWORD=<generated Brevo SMTP key>
+SMTP_USERNAME=resend
+SMTP_PASSWORD=<Resend API key with Sending access>
 SMTP_FROM=noreply@homelabor.net
 ```
 
@@ -150,10 +153,10 @@ Note: DocuSeal requires `SMTP_FROM` specifically - `SMTP_FROM_EMAIL` is not reco
 
 If DocuSeal says sent but no email arrives:
 
-1. Check spam folder
-2. Check Brevo dashboard -> Transactional -> Logs
+1. Check spam folder - Outlook/Hotmail is very strict with new domains, Gmail is more reliable
+2. Check Resend dashboard -> Emails for delivery status
 3. Verify SMTP env vars in container: `docker exec docuseal printenv | grep SMTP`
-4. Test SMTP connectivity: `docker exec docuseal sh -c 'nc -zv smtp-relay.brevo.com 587'`
+4. Test SMTP connectivity: `docker exec docuseal sh -c 'nc -zv smtp.resend.com 587'`
 5. Common mistake: using `SMTP_FROM_EMAIL` instead of `SMTP_FROM` - DocuSeal's interceptor only reads `SMTP_FROM`
 
 ### Sign button not visible on signing page
