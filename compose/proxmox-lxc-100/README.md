@@ -44,6 +44,11 @@
 |---------|-------------|------|
 | notifiarr | Notification hub | 5454 |
 
+### Documents & Signing
+| Service | Description | Port |
+|---------|-------------|------|
+| docuseal | Self-hosted e-signature platform | 3003 |
+
 ## Storage Mounts
 
 - `/srv/docker-data/` - service configs
