@@ -1,0 +1,5 @@
+/* Fix: ensure code block wrappers never collapse and hide subsequent content */
+.md-typeset .highlight {
+  overflow: visible !important;
+  height: auto !important;
+}
