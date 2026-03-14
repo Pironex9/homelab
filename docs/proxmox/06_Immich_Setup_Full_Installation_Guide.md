@@ -19,7 +19,7 @@
 9. [ML settings](#ml-settings)
 10. [Partner Sharing](#partner-sharing)
 11. [Mobile App setup](#mobile-app-setup)
-12. [TV App + API Key](#tv-app--api-key)
+12. [TV App + API Key](#tv-app-api-key)
 13. [Troubleshooting](#troubleshooting)
 
 ---

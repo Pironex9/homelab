@@ -28,6 +28,9 @@ tmp/
 temp/
 *.tmp
 
+# MkDocs build output
+site/
+
 # Docker
 docker-compose.override.yml
 

@@ -9,11 +9,11 @@
 
 1. [System overview](#system-overview)
 2. [Why a dedicated LXC?](#why-a-dedicated-lxc)
-3. [Avoiding port conflicts](#avoiding-port-conflicts)
+3. [Avoiding port conflicts](#why-a-dedicated-lxc)
 4. [Creating the LXC](#creating-the-lxc)
 5. [Installing AdGuard Home](#installing-adguard-home)
 6. [AdGuard configuration](#adguard-configuration)
-7. [Quad9 DoH/DoT setup](#quad9-doh-dot-setup)
+7. [Quad9 DoH/DoT setup](#quad9-dohdot-setup)
 8. [Setting DNS on network devices](#setting-dns-on-network-devices)
 9. [Tailscale DNS integration](#tailscale-dns-integration)
 10. [Testing and verification](#testing-and-verification)

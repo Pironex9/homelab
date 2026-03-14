@@ -37,6 +37,8 @@ Chronological setup guides - how the homelab was built, step by step.
 - [18 - SuggestArr Setup](./proxmox/18_SuggestArr_Setup_Troubleshooting_Guide.md) - SuggestArr media suggestion automation
 - [19 - Recommendarr Setup](./proxmox/19_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (DEPRECATED - removed due to security concerns, Mar 2026)
 - [20 - Claude Code Management LXC](./proxmox/20_Claude_Code_Management_LXC_Setup.md) - Claude Code management LXC, SSH key infrastructure, GitHub MCP server
+- [21 - DocuSeal E-Signature](./proxmox/21_DocuSeal_E-Signature_Setup.md) - DocuSeal self-hosted e-signature platform
+- [22 - MkDocs Portfolio Site](./proxmox/22_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain
 
 ## vps/
 

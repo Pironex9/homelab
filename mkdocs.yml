@@ -1,0 +1,91 @@
+site_name: Norbert Csicsay - Homelab
+site_description: Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
+site_author: Norbert Csicsay
+site_url: https://docs.homelabor.net/
+repo_url: https://github.com/Pironex9/homelab
+repo_name: Pironex9/homelab
+
+docs_dir: docs
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Pironex9
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/norbert-csicsay-497195334
+
+nav:
+  - Home: index.md
+  - Hosts:
+      - Docker Host (LXC 100): hosts/docker-host.md
+      - Home Assistant (VM 101): hosts/haos.md
+      - AdGuard Home (LXC 102): hosts/adguard.md
+      - Komodo (LXC 105): hosts/komodo.md
+      - Karakeep (LXC 106): hosts/karakeep.md
+      - n8n (LXC 107): hosts/n8n.md
+      - Ollama (LXC 108): hosts/ollama.md
+      - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
+  - Setup Guides:
+      - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md
+      - 02 - Docker LXC Setup: proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md
+      - 03 - USB HDD + SnapRAID Sync: proxmox/03_USB_HDD_Integration_SnapRAID_Sync_and_Media_Structure_Fix.md
+      - 04 - Home Assistant + Zigbee2MQTT: proxmox/04_Home_Assistant_OS_VM_Zigbee2MQTT_Backup_Strategy_Setup.md
+      - 05 - AdGuard Home + Tailscale DNS: proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md
+      - 06 - Immich Photo Management: proxmox/06_Immich_Setup_Full_Installation_Guide.md
+      - 07 - Scrutiny Disk Health: proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md
+      - 08 - Netdata Monitoring: proxmox/08_Netdata_System_Monitoring_Setup_Guide.md
+      - 09 - Scanopy + Vaultwarden: proxmox/09_Scanopy_Vaultwarden.md
+      - 10 - Helper Script LXCs: proxmox/10_Helper_Script_LXCs.md
+      - 11 - Jellyfin Hardware Transcoding: proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md
+      - 12 - Security Configuration: proxmox/12_Security_Configuration_Guide.md
+      - 13 - Karakeep AI Tagging: proxmox/13_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
+      - 14 - USB Disk Troubleshooting: proxmox/14_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md
+      - 15 - NFS Setup: proxmox/15_NFS-Setup_Documentation.md
+      - 16 - Backup System: proxmox/16_Proxmox_Backup_System_Documentation.md
+      - 17 - Komodo Setup: proxmox/17_Komodo_complete_setup.md
+      - 18 - SuggestArr: proxmox/18_SuggestArr_Setup_Troubleshooting_Guide.md
+      - 19 - Recommendarr (deprecated): proxmox/19_Recommendarr_Setup_Troubleshooting_Guide.md
+      - 20 - Claude Code Mgmt LXC: proxmox/20_Claude_Code_Management_LXC_Setup.md
+      - 21 - DocuSeal E-Signature: proxmox/21_DocuSeal_E-Signature_Setup.md
+      - 22 - MkDocs Portfolio Site: proxmox/22_MkDocs_Portfolio_Site_Setup.md
+  - VPS:
+      - Hetzner VPS + Pangolin + Jellyfin: vps/Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
