@@ -59,7 +59,7 @@ K3s Cluster (Planned)
 ### Automated Docker Stack Migration
 Migrated 20 Docker Compose stacks from Dockge to Komodo with zero downtime. Built an automated import workflow (Docker → TOML → Komodo) for centralized management and Git-based version control of all stack configs.
 
-📖 [Full Documentation →](./docs/proxmox/17_Komodo_complete_setup.md)
+📖 [Full Documentation →](./docs/proxmox/16_Komodo_complete_setup.md)
 
 ### Resilient Storage Architecture
 Pooled 4 disks into a single MergerFS volume with SnapRAID parity protection. Automated sync and scrub via systemd timers. Can survive 1 disk failure with no data loss.
@@ -79,10 +79,10 @@ All services version-controlled as Docker Compose files. Secrets in gitignored `
 **Setup guides** (how it was built):
 - [Proxmox Initial Setup + Storage](./docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 - [LXC & Docker Setup](./docs/proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
-- [Komodo Installation & Configuration](./docs/proxmox/17_Komodo_complete_setup.md)
-- [Backup System](./docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
-- [VPS + Pangolin Reverse Proxy](./docs/vps/Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md)
-- [Security Configuration](./docs/proxmox/12_Security_Configuration_Guide.md)
+- [Komodo Installation & Configuration](./docs/proxmox/16_Komodo_complete_setup.md)
+- [Backup System](./docs/proxmox/15_Proxmox_Backup_System_Documentation.md)
+- [VPS + Pangolin Reverse Proxy](./docs/vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md)
+- [Security Configuration](./docs/vps/02_Security_Configuration_Guide.md)
 - [Immich Photo Management](./docs/proxmox/06_Immich_Setup_Full_Installation_Guide.md)
 - [Jellyfin Hardware Transcoding](./docs/proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md)
 - [AdGuard Home + Tailscale DNS](./docs/proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md)
