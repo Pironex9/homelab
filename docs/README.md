@@ -28,27 +28,27 @@ Chronological setup guides - how the homelab was built, step by step.
 - [09 - Scanopy + Vaultwarden](./proxmox/09_Scanopy_Vaultwarden.md) - Scanopy + Vaultwarden password manager
 - [10 - Helper Script LXCs](./proxmox/10_Helper_Script_LXCs.md) - Karakeep, n8n, Ollama via Proxmox helper scripts
 - [11 - Jellyfin Hardware Transcoding](./proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md) - Jellyfin GPU hardware transcoding
-- [12 - Security Configuration](./proxmox/12_Security_Configuration_Guide.md) - Security hardening and firewall
-- [13 - Karakeep AI Tagging with Ollama](./proxmox/13_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md) - Karakeep AI tagging with Ollama
-- [14 - USB Disk Unmount Problem Resolution](./proxmox/14_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md) - USB disk troubleshooting
-- [15 - NFS Setup](./proxmox/15_NFS-Setup_Documentation.md) - NFS share configuration
-- [16 - Backup System](./proxmox/16_Proxmox_Backup_System_Documentation.md) - Backup system and schedules
-- [17 - Komodo Complete Setup](./proxmox/17_Komodo_complete_setup.md) - Komodo container management platform
-- [18 - SuggestArr Setup](./proxmox/18_SuggestArr_Setup_Troubleshooting_Guide.md) - SuggestArr media suggestion automation
-- [19 - Recommendarr Setup](./proxmox/19_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (DEPRECATED - removed due to security concerns, Mar 2026)
-- [20 - Claude Code Management LXC](./proxmox/20_Claude_Code_Management_LXC_Setup.md) - Claude Code management LXC, SSH key infrastructure, GitHub MCP server
-- [21 - DocuSeal E-Signature](./proxmox/21_DocuSeal_E-Signature_Setup.md) - DocuSeal self-hosted e-signature platform
-- [22 - MkDocs Portfolio Site](./proxmox/22_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain
+- [12 - Karakeep AI Tagging with Ollama](./proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md) - Karakeep AI tagging with Ollama
+- [13 - USB Disk Unmount Problem Resolution](./proxmox/13_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md) - USB disk troubleshooting
+- [14 - NFS Setup](./proxmox/14_NFS-Setup_Documentation.md) - NFS share configuration
+- [15 - Backup System](./proxmox/15_Proxmox_Backup_System_Documentation.md) - Backup system and schedules
+- [16 - Komodo Complete Setup](./proxmox/16_Komodo_complete_setup.md) - Komodo container management platform
+- [17 - SuggestArr Setup](./proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md) - SuggestArr media suggestion automation
+- [18 - Recommendarr Setup](./proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (DEPRECATED - removed due to security concerns, Mar 2026)
+- [19 - Claude Code Management LXC](./proxmox/19_Claude_Code_Management_LXC_Setup.md) - Claude Code management LXC, SSH key infrastructure, GitHub MCP server
+- [20 - DocuSeal E-Signature](./proxmox/20_DocuSeal_E-Signature_Setup.md) - DocuSeal self-hosted e-signature platform
+- [21 - MkDocs Portfolio Site](./proxmox/21_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain
 
 ## vps/
 
-- [Hetzner VPS + Pangolin + Jellyfin](./vps/Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md) - Hetzner VPS, Pangolin reverse proxy, public Jellyfin access
+- [01 - Hetzner VPS + Pangolin + Jellyfin](./vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md) - Hetzner VPS, Pangolin reverse proxy, public Jellyfin access
+- [02 - Security Configuration](./vps/02_Security_Configuration_Guide.md) - Cloudflare, Pangolin 2FA, GeoIP rules, incident response
 
 ## Quick Start
 
 1. [Proxmox Setup + Storage](./proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 2. [LXC & Docker Setup](./proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md)
-3. [Komodo Management](./proxmox/17_Komodo_complete_setup.md)
+3. [Komodo Management](./proxmox/16_Komodo_complete_setup.md)
 
 ## External Resources
 

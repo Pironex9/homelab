@@ -64,19 +64,19 @@ nav:
       - 09 - Scanopy + Vaultwarden: proxmox/09_Scanopy_Vaultwarden.md
       - 10 - Helper Script LXCs: proxmox/10_Helper_Script_LXCs.md
       - 11 - Jellyfin Hardware Transcoding: proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md
-      - 13 - Karakeep AI Tagging: proxmox/13_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
-      - 14 - USB Disk Troubleshooting: proxmox/14_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md
-      - 15 - NFS Setup: proxmox/15_NFS-Setup_Documentation.md
-      - 16 - Backup System: proxmox/16_Proxmox_Backup_System_Documentation.md
-      - 17 - Komodo Setup: proxmox/17_Komodo_complete_setup.md
-      - 18 - SuggestArr: proxmox/18_SuggestArr_Setup_Troubleshooting_Guide.md
-      - 19 - Recommendarr (deprecated): proxmox/19_Recommendarr_Setup_Troubleshooting_Guide.md
-      - 20 - Claude Code Mgmt LXC: proxmox/20_Claude_Code_Management_LXC_Setup.md
-      - 21 - DocuSeal E-Signature: proxmox/21_DocuSeal_E-Signature_Setup.md
-      - 22 - MkDocs Portfolio Site: proxmox/22_MkDocs_Portfolio_Site_Setup.md
+      - 12 - Karakeep AI Tagging: proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
+      - 13 - USB Disk Troubleshooting: proxmox/13_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md
+      - 14 - NFS Setup: proxmox/14_NFS-Setup_Documentation.md
+      - 15 - Backup System: proxmox/15_Proxmox_Backup_System_Documentation.md
+      - 16 - Komodo Setup: proxmox/16_Komodo_complete_setup.md
+      - 17 - SuggestArr: proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md
+      - 18 - Recommendarr (deprecated): proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md
+      - 19 - Claude Code Mgmt LXC: proxmox/19_Claude_Code_Management_LXC_Setup.md
+      - 20 - DocuSeal E-Signature: proxmox/20_DocuSeal_E-Signature_Setup.md
+      - 21 - MkDocs Portfolio Site: proxmox/21_MkDocs_Portfolio_Site_Setup.md
   - VPS:
-      - Hetzner VPS + Pangolin + Jellyfin: vps/Hetzner_VPS_+_Pangolin_+_Jellyfin_Complete_Setup_Guide.md
-      - Security Configuration: vps/12_Security_Configuration_Guide.md
+      - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
+      - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md
 
 plugins:
   - search
