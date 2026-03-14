@@ -81,28 +81,81 @@ Key settings in `mkdocs.yml`:
 
 ```yaml
 site_name: Norbert Csicsay - Homelab
+site_description: Self-hosted infrastructure running 27 services on Proxmox VE.
+site_author: Norbert Csicsay
 site_url: https://docs.homelabor.net/
 repo_url: https://github.com/Pironex9/homelab
+repo_name: Pironex9/homelab
 
+docs_dir: docs
 theme:
   name: material
   palette:
-    # Light/dark mode toggle
     - scheme: default
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - scheme: slate
+      primary: indigo
+      accent: indigo
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
   features:
-    - navigation.tabs       # Top-level nav as tabs
-    - navigation.sections   # Grouped sections in sidebar
-    - navigation.top        # Back to top button
-    - search.highlight      # Highlight search terms
-    - search.suggest        # Search autocomplete
-    - content.code.copy     # Copy button on code blocks
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Pironex9
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/norbert-csicsay-497195334
+
+nav:
+  - Home: index.md
+  - Hosts:
+      - Docker Host (LXC 100): hosts/docker-host.md
+      - Home Assistant (VM 101): hosts/haos.md
+      - AdGuard Home (LXC 102): hosts/adguard.md
+      - Komodo (LXC 105): hosts/komodo.md
+      - Karakeep (LXC 106): hosts/karakeep.md
+      - n8n (LXC 107): hosts/n8n.md
+      - Ollama (LXC 108): hosts/ollama.md
+      - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
+  - Setup Guides:
+      - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_...md
+      - 02 - Docker LXC Setup: proxmox/02_...md
+      - ...
+      - 22 - MkDocs Portfolio Site: proxmox/22_MkDocs_Portfolio_Site_Setup.md
+  - VPS:
+      - Hetzner VPS + Pangolin + Jellyfin: vps/Hetzner_VPS_...md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
 ```
 
 The `nav:` section explicitly maps all docs to human-readable titles. Any file not listed in `nav:` is excluded from the site.
