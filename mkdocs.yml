@@ -27,6 +27,7 @@ theme:
     - navigation.top
     - search.highlight
     - search.suggest
+    - content.code.copy
   icon:
     repo: fontawesome/brands/github
 
@@ -82,11 +83,12 @@ plugins:
 
 markdown_extensions:
   - admonition
-  - pymdownx.superfences
   - pymdownx.highlight:
-      use_pygments: true
-      anchor_linenums: false
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
+  - pymdownx.superfences
   - tables
   - toc:
       permalink: true
