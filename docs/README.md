@@ -38,6 +38,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [19 - Claude Code Management LXC](./proxmox/19_Claude_Code_Management_LXC_Setup.md) - Claude Code management LXC, SSH key infrastructure, GitHub MCP server
 - [20 - DocuSeal E-Signature](./proxmox/20_DocuSeal_E-Signature_Setup.md) - DocuSeal self-hosted e-signature platform
 - [21 - MkDocs Portfolio Site](./proxmox/21_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain
+- [22 - Public Form E-Signature Automation](./proxmox/22_Public_Form_E-Signature_Automation.md) - Public web form with Turnstile bot protection, n8n webhook validation, DocuSeal e-signature automation
 
 ## vps/
 

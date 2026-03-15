@@ -74,6 +74,7 @@ nav:
       - 19 - Claude Code Mgmt LXC: proxmox/19_Claude_Code_Management_LXC_Setup.md
       - 20 - DocuSeal E-Signature: proxmox/20_DocuSeal_E-Signature_Setup.md
       - 21 - MkDocs Portfolio Site: proxmox/21_MkDocs_Portfolio_Site_Setup.md
+      - 22 - Public Form E-Signature Automation: proxmox/22_Public_Form_E-Signature_Automation.md
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md
