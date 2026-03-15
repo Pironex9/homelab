@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beleegyező nyilatkozat - Aláírás</title>
+  <title>Consent Form - E-Signature</title>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,6 +26,26 @@
       max-width: 480px;
       width: 100%;
     }
+
+    .lang-toggle {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1.25rem;
+    }
+
+    .lang-btn {
+      background: none;
+      border: 1.5px solid #d1d5db;
+      border-radius: 6px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #6b7280;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .lang-btn:hover { border-color: #1a56db; color: #1a56db; }
 
     .logo {
       text-align: center;
@@ -60,9 +80,7 @@
       margin-bottom: 2rem;
     }
 
-    .field {
-      margin-bottom: 1.25rem;
-    }
+    .field { margin-bottom: 1.25rem; }
 
     label {
       display: block;
@@ -153,14 +171,18 @@
 </head>
 <body>
 <div class="card">
+  <div class="lang-toggle">
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">HU</button>
+  </div>
+
   <div class="logo">
     <div class="logo-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
       </svg>
     </div>
-    <h1>Beleegyező nyilatkozat</h1>
-    <p class="subtitle">Az aláírási linket e-mailben küldjük el Önnek.</p>
+    <h1 id="t-title">Consent Form</h1>
+    <p class="subtitle" id="t-subtitle">We will send the signing link to your email address.</p>
   </div>
 
   <form id="signForm">
@@ -171,19 +193,19 @@
     </div>
 
     <div class="field">
-      <label for="name">Teljes név</label>
-      <input type="text" id="name" name="name" placeholder="Pl. Kiss János" required>
+      <label for="name" id="t-name-label">Full name</label>
+      <input type="text" id="name" name="name" placeholder="e.g. John Smith" required>
     </div>
 
     <div class="field">
-      <label for="email">E-mail cím</label>
-      <input type="email" id="email" name="email" placeholder="Pl. kiss.janos@email.com" required>
+      <label for="email" id="t-email-label">Email address</label>
+      <input type="email" id="email" name="email" placeholder="e.g. john.smith@email.com" required>
     </div>
 
     <div class="checkbox-row">
       <input type="checkbox" id="agree" name="agree" required>
-      <label for="agree">
-        Elolvastam és elfogadom a tájékoztatóban foglaltakat, és hozzájárulok az elektronikus aláíráshoz.
+      <label for="agree" id="t-agree-label">
+        I have read and accept the terms of the disclosure and consent to the electronic signature.
       </label>
     </div>
 
@@ -191,7 +213,7 @@
       <div class="cf-turnstile" data-sitekey="0x4AAAAAACrP3i0_9HpJincP" data-theme="light"></div>
     </div>
 
-    <button type="submit" id="submitBtn">Aláírási link küldése</button>
+    <button type="submit" id="submitBtn">Send signing link</button>
   </form>
 
   <div class="status" id="statusMsg"></div>
@@ -201,26 +223,83 @@
   const WEBHOOK_URL = 'https://n8n.homelabor.net/webhook/docuseal-form';
   const WEBHOOK_SECRET = '658c0784df7018180f3525b223df775134d468f5bfc2446d';
 
+  const translations = {
+    en: {
+      title: 'Consent Form',
+      subtitle: 'We will send the signing link to your email address.',
+      nameLabel: 'Full name',
+      namePlaceholder: 'e.g. John Smith',
+      emailLabel: 'Email address',
+      emailPlaceholder: 'e.g. john.smith@email.com',
+      agreeLabel: 'I have read and accept the terms of the disclosure and consent to the electronic signature.',
+      submitBtn: 'Send signing link',
+      submitting: 'Sending...',
+      successMsg: '✓ Thank you! The signing link has been sent to your email address.',
+      errorMsg: 'An error occurred. Please try again.',
+      turnstileWait: 'Please wait for the security check to complete.',
+      langSwitch: 'HU',
+      htmlLang: 'en'
+    },
+    hu: {
+      title: 'Beleegyező nyilatkozat',
+      subtitle: 'Az aláírási linket e-mailben küldjük el Önnek.',
+      nameLabel: 'Teljes név',
+      namePlaceholder: 'Pl. Kiss János',
+      emailLabel: 'E-mail cím',
+      emailPlaceholder: 'Pl. kiss.janos@email.com',
+      agreeLabel: 'Elolvastam és elfogadom a tájékoztatóban foglaltakat, és hozzájárulok az elektronikus aláíráshoz.',
+      submitBtn: 'Aláírási link küldése',
+      submitting: 'Küldés...',
+      successMsg: '✓ Köszönjük! Az aláírási linket elküldtük az e-mail címére.',
+      errorMsg: 'Hiba történt a küldés során. Kérjük próbálja újra.',
+      turnstileWait: 'Kérem várjon, amíg a biztonsági ellenőrzés befejez.',
+      langSwitch: 'EN',
+      htmlLang: 'hu'
+    }
+  };
+
+  let lang = 'en';
+
+  function applyLang() {
+    const t = translations[lang];
+    document.documentElement.lang = t.htmlLang;
+    document.getElementById('t-title').textContent = t.title;
+    document.getElementById('t-subtitle').textContent = t.subtitle;
+    document.getElementById('t-name-label').textContent = t.nameLabel;
+    document.getElementById('name').placeholder = t.namePlaceholder;
+    document.getElementById('t-email-label').textContent = t.emailLabel;
+    document.getElementById('email').placeholder = t.emailPlaceholder;
+    document.getElementById('t-agree-label').textContent = t.agreeLabel;
+    document.getElementById('submitBtn').textContent = t.submitBtn;
+    document.getElementById('langBtn').textContent = t.langSwitch;
+  }
+
+  function toggleLang() {
+    lang = lang === 'en' ? 'hu' : 'en';
+    applyLang();
+  }
+
   const form = document.getElementById('signForm');
   const submitBtn = document.getElementById('submitBtn');
   const statusMsg = document.getElementById('statusMsg');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const t = translations[lang];
 
     const name = document.getElementById('name').value.trim();
     const email = document.getElementById('email').value.trim();
     const agree = document.getElementById('agree').checked;
-    const website = document.getElementById('website').value; // honeypot
+    const website = document.getElementById('website').value;
     const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
 
     if (!turnstileToken) {
-      showStatus('error', 'Kérem várjon, amíg a biztonsági ellenőrzés befejez.');
+      showStatus('error', t.turnstileWait);
       return;
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Küldés...';
+    submitBtn.textContent = t.submitting;
     statusMsg.className = 'status';
     statusMsg.style.display = 'none';
 
@@ -236,14 +315,14 @@
 
       if (res.ok) {
         form.style.display = 'none';
-        showStatus('success', '✓ Köszönjük! Az aláírási linket elküldtük az e-mail címére.');
+        showStatus('success', t.successMsg);
       } else {
         throw new Error('Server error');
       }
     } catch {
-      showStatus('error', 'Hiba történt a küldés során. Kérjük próbálja újra.');
+      showStatus('error', t.errorMsg);
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Aláírási link küldése';
+      submitBtn.textContent = t.submitBtn;
     }
   });
 
