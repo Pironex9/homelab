@@ -1,0 +1,9 @@
+services:
+  form:
+    image: caddy:alpine
+    container_name: form
+    volumes:
+      - ./html:/usr/share/caddy
+    ports:
+      - 3004:80
+    restart: unless-stopped
