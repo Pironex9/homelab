@@ -204,7 +204,7 @@ curl -X POST http://192.168.0.112:5678/webhook/docuseal-form \
 ### Telegram
 
 - Bot: `@n8n_teacher_bot`
-- Chat ID: `6458965215`
+- Chat ID: stored in n8n Telegram node (get via `https://api.telegram.org/bot<TOKEN>/getUpdates`)
 - Credential: "Telegram account 2" in n8n
 
 ### Notes
