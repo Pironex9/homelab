@@ -173,6 +173,48 @@ Check for conflicts: `ss -tlnp | grep 300`
 
 ---
 
+## n8n Automation
+
+Workflow: **DocuSeal - Form to E-Signature** (n8n LXC 107)
+
+### Flow
+
+```
+POST /webhook/docuseal-form
+    → DocuSeal API (create submission)
+    → Telegram notification
+    → Webhook response
+```
+
+### Trigger
+
+```bash
+curl -X POST http://192.168.0.112:5678/webhook/docuseal-form \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com", "agree": true}'
+```
+
+### DocuSeal API call
+
+- `POST https://sign.homelabor.net/api/submissions`
+- Header: `X-Auth-Token` (DocuSeal API key from Settings → API)
+- Body: `template_id`, `submitters` array with `name`, `email`, `role: "First Party"`
+- Template ID 3 by default - change in the HTTP Request node to use a different template
+
+### Telegram
+
+- Bot: `@n8n_teacher_bot`
+- Chat ID: `6458965215`
+- Credential: "Telegram account 2" in n8n
+
+### Notes
+
+- `sent_at` in DocuSeal response confirms the email was queued - check spam if not received
+- To swap the document: upload a new template in DocuSeal, update `template_id` in the HTTP Request node
+- Role name must match exactly what's set in the template submitters (default: "First Party")
+
+---
+
 ## Notes
 
 - DocuSeal uses SQLite by default - no separate database container needed
