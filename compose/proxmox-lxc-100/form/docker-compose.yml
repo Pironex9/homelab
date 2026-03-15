@@ -3,6 +3,7 @@ services:
     image: caddy:alpine
     container_name: form
     volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
       - ./html:/usr/share/caddy
     ports:
       - 3004:80

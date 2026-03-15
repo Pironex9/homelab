@@ -1,0 +1,14 @@
+:80 {
+    # Proxy webhook submissions to n8n internally
+    handle /api/submit {
+        reverse_proxy http://192.168.0.112:5678/webhook/docuseal-form {
+            header_up X-Form-Token "658c0784df7018180f3525b223df775134d468f5bfc2446d"
+        }
+    }
+
+    # Serve static files
+    handle {
+        root * /usr/share/caddy
+        file_server
+    }
+}
