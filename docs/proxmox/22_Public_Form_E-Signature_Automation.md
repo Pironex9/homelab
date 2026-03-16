@@ -100,7 +100,7 @@ File: `compose/proxmox-lxc-100/form/Caddyfile`
     handle /api/submit {
         rewrite * /webhook/docuseal-form
         reverse_proxy http://192.168.0.112:5678 {
-            header_up X-Form-Token "<webhook secret>"
+            header_up X-Form-Token "{env.FORM_TOKEN}"
         }
     }
 
@@ -113,7 +113,7 @@ File: `compose/proxmox-lxc-100/form/Caddyfile`
 
 - `/api/submit` - rewrites the path and proxies to n8n with the secret header added
 - Everything else - served as static files from `html/`
-- The webhook secret is stored only in the Caddyfile, never in the HTML
+- The token is injected from the `FORM_TOKEN` environment variable - set it in Komodo Stack Environment, never commit it to git
 
 ---
 
