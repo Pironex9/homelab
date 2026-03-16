@@ -2,6 +2,8 @@ services:
   form:
     image: caddy:alpine
     container_name: form
+    environment:
+      - FORM_TOKEN=${FORM_TOKEN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./html:/usr/share/caddy
