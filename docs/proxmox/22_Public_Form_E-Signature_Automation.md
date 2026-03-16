@@ -123,7 +123,7 @@ File: `compose/proxmox-lxc-100/form/html/index.html`
 
 Features:
 - EN/HU language toggle (top right corner, default English)
-- Name + email fields
+- Full name, email address, phone number fields
 - Consent checkbox
 - Cloudflare Turnstile widget (bot protection)
 - Honeypot field (hidden from real users, CSS off-screen)
@@ -135,15 +135,31 @@ The Turnstile site key is embedded in the HTML (it is public by design). The web
 
 ## DocuSeal Template
 
-Template ID: 3
+Template ID: 9
 
-Fields in the template (set up in the template editor):
-- **Signature** - signer fills this in
-- **Full Name** - pre-filled from form, readonly
-- **Email** - pre-filled from form, readonly
-- **Date** - pre-filled with submission date, readonly
+### Signing workflow
 
-Field names must match exactly what is configured in the DocuSeal template editor.
+The Provider (operator) signs the document once in advance using DocuSeal's "Sign Yourself" feature, then downloads the signed PDF and uploads it as a new template. This means every client receives a document that already contains the Provider's signature - no waiting for the Provider to sign each submission.
+
+Steps to set up a new pre-signed template:
+1. Upload the PDF to DocuSeal - Templates - New Template
+2. In the template editor, place the fields and add both roles (Provider + Client)
+3. Click **Sign Yourself** and complete the Provider signature
+4. Download the signed PDF
+5. Upload the signed PDF as a new template (Client fields only - no Provider signature field needed)
+6. Update the template ID in the n8n Send to DocuSeal node
+
+### Fields in the template
+
+Set up in the DocuSeal template editor (field names are case-sensitive):
+
+| Field name | Type | Filled by |
+|------------|------|-----------|
+| Signature | Signature | Client (signer) |
+| Full Name | Text | Pre-filled from form, readonly |
+| Email | Text | Pre-filled from form, readonly |
+| Phone Number | Text | Pre-filled from form, readonly |
+| Date | Date | Pre-filled with submission date, readonly |
 
 ---
 
@@ -189,15 +205,16 @@ IF node with two conditions (AND):
 
 ```json
 {
-  "template_id": 3,
+  "template_id": 9,
   "submitters": [{
     "name": "<from form>",
     "role": "First Party",
     "email": "<from form>",
     "fields": [
-      { "name": "Full Name", "default_value": "<from form>", "readonly": true },
-      { "name": "Email",     "default_value": "<from form>", "readonly": true },
-      { "name": "Date",      "default_value": "<today YYYY-MM-DD>", "readonly": true }
+      { "name": "Full Name",    "default_value": "<from form>", "readonly": true },
+      { "name": "Email",        "default_value": "<from form>", "readonly": true },
+      { "name": "Phone Number", "default_value": "<from form>", "readonly": true },
+      { "name": "Date",         "default_value": "<today YYYY-MM-DD>", "readonly": true }
     ]
   }]
 }
@@ -275,4 +292,4 @@ The `X-Form-Token` header is missing or wrong. Check the value in the Caddyfile 
 ### Document fields not pre-filled
 
 - Field names in the n8n `fields` array must match exactly what is set in the DocuSeal template editor (case-sensitive)
-- Current fields: `Full Name`, `Email`, `Date`
+- Current fields: `Full Name`, `Email`, `Phone Number`, `Date`
