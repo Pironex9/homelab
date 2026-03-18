@@ -135,6 +135,24 @@ PTR records use the `in-addr.arpa` format in the rewrites section (e.g. `109.0.1
 | BadBlock Whitelist | Commonly false-positive domains |
 | HaGeZi's URL Shorteners | Whitelist for legitimate URL shorteners |
 
+## Tailscale Integration
+
+AdGuard serves `.lan` DNS for all Tailscale nodes via split DNS configured in the Tailscale admin panel (tailscale.com → DNS):
+
+| Setting | Value |
+|---------|-------|
+| Split DNS domain | `lan` |
+| Nameserver | `192.168.0.111` |
+| Global nameservers | Cloudflare `1.1.1.1`, `1.0.0.1` (fallback for non-`.lan` queries) |
+| MagicDNS | enabled |
+
+This makes `.lan` hostnames resolve correctly on all Tailscale-connected devices - both local (e.g. Proxmox, which uses `100.100.100.100` as its DNS via Tailscale) and remote (e.g. laptop, phone over Tailscale). AdGuard is reachable from remote Tailscale nodes via Proxmox's subnet router (`192.168.0.0/24` advertised).
+
+DNS query flow:
+- `.lan` queries (any Tailscale node) → AdGuard (192.168.0.111) → Quad9 (DoH/DoT)
+- All other queries (Tailscale nodes) → Cloudflare 1.1.1.1 (via encrypted Tailscale tunnel)
+- LAN devices without Tailscale → AdGuard (192.168.0.111) → Quad9 (DoH/DoT)
+
 ## Lessons Learned
 
 - **Quad9 over multiple protocols:** Using DoH and DoT simultaneously with load balancing provides both redundancy and privacy. If one protocol is blocked or slow, the others handle the load.
