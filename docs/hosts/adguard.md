@@ -28,7 +28,9 @@
 |------|----------|---------|
 | 22 | TCP | SSH |
 | 53 | TCP/UDP | DNS |
-| 80 | TCP | AdGuard Home web UI |
+| 80 | TCP | AdGuard Home web UI (HTTP) |
+| 443 | TCP | AdGuard Home web UI (HTTPS) |
+| 853 | TCP | DNS-over-TLS (DoT) client endpoint |
 
 ## AdGuard Home
 
@@ -48,7 +50,7 @@ Quad9 - privacy-focused, malware-blocking resolver, using all three protocols wi
 | `tls://dns.quad9.net` | DNS-over-TLS |
 
 **Mode:** load balance
-**DNSSEC:** disabled
+**DNSSEC:** enabled (AdGuard validates, in addition to Quad9 upstream validation)
 **Upstream timeout:** 10s
 
 ### Cache
@@ -57,7 +59,7 @@ Quad9 - privacy-focused, malware-blocking resolver, using all three protocols wi
 |---------|-------|
 | Cache enabled | yes |
 | Cache size | 32 MB |
-| Optimistic caching | disabled |
+| Optimistic caching | enabled (30s TTL, 12h max age) |
 
 ### Statistics & Query Log
 
@@ -137,7 +139,8 @@ PTR records use the `in-addr.arpa` format in the rewrites section (e.g. `109.0.1
 
 - **Quad9 over multiple protocols:** Using DoH and DoT simultaneously with load balancing provides both redundancy and privacy. If one protocol is blocked or slow, the others handle the load.
 - **Allowlists are essential with aggressive blocking:** With 15+ blocklists active, false positives are inevitable. Pairing HaGeZi's Pro++ with its own allowlist (Allowlist Referral) and BadBlock's whitelist significantly reduces breakage.
-- **Web UI runs on port 80:** The AdGuard Home UI is accessible at `http://192.168.0.111` (no HTTPS by default). Access should be restricted to the local network only.
+- **Web UI runs on port 80 and 443:** HTTP at `http://192.168.0.111`, HTTPS at `https://192.168.0.111`. HTTPS uses a self-signed cert (10-year validity, SAN for `adguard.lan` and `192.168.0.111`, stored at `/opt/AdGuardHome/certs/`). Browsers will warn unless the cert is installed as trusted. `force_https` is off - both protocols work. Access should be restricted to the local network only.
+- **Router DHCP must hand out only AdGuard as DNS:** If the router also hands out a secondary DNS (e.g. 1.1.1.1), systemd-resolved on Linux clients picks the fastest responder and may bypass AdGuard entirely, breaking `.lan` resolution. Set only `192.168.0.111` as Primary DNS in the router DHCP settings and leave Secondary DNS empty.
 - **Low resource usage:** 1 GB RAM and 1 core is sufficient. Actual memory usage stays around 415 MB even with the full blocklist set loaded.
 - **PTR rewrites require `enabled: true`:** AdGuard Home v0.107.71 automatically adds `enabled: false` to rewrite entries when it serializes the config. New rewrites added directly to the YAML must explicitly include `enabled: true`, otherwise they are silently ignored.
 - **PTR via `in-addr.arpa` rewrites:** AdGuard Home does not have a dedicated PTR record UI. Reverse DNS is handled by adding entries like `109.0.168.192.in-addr.arpa → proxmox.lan` to the rewrites section. Requires `private_networks` to include the local subnet so AdGuard handles PTR queries locally instead of forwarding to upstream.
