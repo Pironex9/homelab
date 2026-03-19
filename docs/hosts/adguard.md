@@ -153,6 +153,16 @@ DNS query flow:
 - All other queries (Tailscale nodes) → Cloudflare 1.1.1.1 (via encrypted Tailscale tunnel)
 - LAN devices without Tailscale → AdGuard (192.168.0.111) → Quad9 (DoH/DoT)
 
+### Subnet Router Note
+
+Any host running Tailscale as a subnet router on the same network it advertises (e.g. Proxmox advertising `192.168.0.0/24`) must have stateful filtering disabled, otherwise direct LAN connections to that host are dropped by Tailscale's nftables layer:
+
+```bash
+tailscale set --stateful-filtering=false
+```
+
+Applied on: Proxmox (`192.168.0.109`). Also needed on any other subnet router (e.g. Orange Pi at remote site advertising `192.168.2.0/24`).
+
 ## Lessons Learned
 
 - **Quad9 over multiple protocols:** Using DoH and DoT simultaneously with load balancing provides both redundancy and privacy. If one protocol is blocked or slow, the others handle the load.
