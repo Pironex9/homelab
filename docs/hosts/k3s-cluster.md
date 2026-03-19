@@ -151,10 +151,13 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 
 | Property | Value |
 |----------|-------|
-| OS | Armbian 25.8.1 Noble Minimal |
-| Role | WoL server + Tailscale node |
+| OS | Armbian 25.8.1 Noble |
+| Role | WoL server + Tailscale exit node |
 | Interface | end0 |
-| Tailscale | Yes (same network as cluster nodes) |
+| Local IP | 192.168.0.102 |
+| Tailscale IP | 100.120.73.44 |
+| Tailscale hostname | orangepione |
+| User | nex |
 
 ### WoL script
 
@@ -176,14 +179,19 @@ sudo etherwake -i $INTERFACE $MAC3
 echo "Wake packets sent to all nodes"
 ```
 
-**Auto-start on boot** (`/etc/cron.d/` or root crontab):
+**Auto-start on boot** (`nex` user crontab):
 ```
 @reboot sleep 60 && /usr/local/bin/wakeonlan.sh
 ```
 
+The script uses `sudo etherwake` - passwordless sudo is configured:
+```
+/etc/sudoers.d/etherwake: nex ALL=(ALL) NOPASSWD: /usr/sbin/etherwake
+```
+
 **Remote trigger from any Tailscale node:**
 ```bash
-ssh nex@opi-one "sudo /usr/local/bin/wakeonlan.sh"
+ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"
 ```
 
 ### WoL persistence on K3s nodes
