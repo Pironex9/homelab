@@ -12,6 +12,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [n8n](./hosts/n8n.md) - n8n (LXC 107) - workflow automation, Claude Code MCP integration
 - [ollama](./hosts/ollama.md) - Ollama (LXC 108) - local LLM inference, Intel GPU via SYCL
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
+- [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
 
 ## proxmox/
 
