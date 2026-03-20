@@ -93,6 +93,6 @@ Get-ChildItem -Path $sourceDir -Filter *.csv | ForEach-Object {
 
 ## Result
 
-The script ran via Windows Task Scheduler. Technologists dropped defect map files into the watched folder and the import happened automatically without manual intervention. Failed imports were flagged with `_FAILED` and logged, making them visible instead of silently skipped.
+The script was never deployed. The same centrally managed, locked-down environment that prevented installing software also made running an unsanctioned PowerShell script a non-starter.
 
-Nobody asked for this. I built it because the workaround was slowing people down and the root cause was fixable.
+It remained a proof of concept - built to demonstrate that the problem was solvable and to practice scripting against a real problem I could see in front of me every day.
