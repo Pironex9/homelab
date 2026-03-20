@@ -8,9 +8,9 @@
 
 The factory used an industrial laser cutter controlled by EuroLaser LaserScout Connect. The machine processed defect map files - CSV files describing material flaws that the cutter needs to route around.
 
-The software had a built-in import function, but it was unreliable: it would silently fail to copy files into the import directory, or copy them in a broken state, causing the machine to skip the defect map entirely and cut through flawed material.
+The software had a built-in import function, but it was unreliable: it frequently failed to copy defect map files into the import directory correctly. When a file wasn't imported properly, the entire textile roll associated with it couldn't be used - it was blocked until the import succeeded. Technologists had to manually copy the file back and forth multiple times before the machine would accept it.
 
-Nobody investigated it. The operators worked around it manually - re-copying files by hand, re-running imports, hoping it worked. I wrote a script to fix it.
+The machines are centrally managed and locked down - no arbitrary software can be installed. So the technologists just kept doing it by hand. I wrote a script to fix it.
 
 ## What the Script Does
 
@@ -93,6 +93,6 @@ Get-ChildItem -Path $sourceDir -Filter *.csv | ForEach-Object {
 
 ## Result
 
-The script ran via Windows Task Scheduler. Operators dropped defect map files into the watched folder and the import happened automatically without manual intervention. Failed imports were flagged with `_FAILED` and logged, making them visible instead of silently skipped.
+The script ran via Windows Task Scheduler. Technologists dropped defect map files into the watched folder and the import happened automatically without manual intervention. Failed imports were flagged with `_FAILED` and logged, making them visible instead of silently skipped.
 
 Nobody asked for this. I built it because the workaround was slowing people down and the root cause was fixable.
