@@ -27,15 +27,15 @@ All results are written to a timestamped log file.
 ## The Script
 
 ```powershell
-# Beállítások
-$sourceDir      = "C:\Users\operator\Desktop\to be backed up"           # A mappa, ahonnan a fájlokat vesszük
-$importDir      = "C:\Program Files (x86)\CutterSoftware\Import"        # Ide másoljuk be a fájlokat importáláshoz
-$processedDir   = "C:\Program Files (x86)\CutterSoftware\Backup"        # A program ide menti az eredményt
+# Configuration
+$sourceDir      = "C:\Users\operator\Desktop\to be backed up"           # Source folder where defect map files are placed
+$importDir      = "C:\Program Files (x86)\CutterSoftware\Import"        # Software import directory
+$processedDir   = "C:\Program Files (x86)\CutterSoftware\Backup"        # Software writes results here
 $logFile        = Join-Path $sourceDir "Import_log.txt"
 $MaxRetry       = 10
 $WaitSeconds    = 10
 
-# Csak .csv fájlok feldolgozása
+# Process only .csv files
 Get-ChildItem -Path $sourceDir -Filter *.csv | ForEach-Object {
 
     $originalFile = $_.FullName
@@ -44,49 +44,49 @@ Get-ChildItem -Path $sourceDir -Filter *.csv | ForEach-Object {
     $success      = $false
 
     do {
-        # Másolás az import mappába
+        # Copy file into the import directory
         Copy-Item -Path $originalFile -Destination (Join-Path $importDir $filename) -Force
 
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Add-Content -Path $logFile -Value "Másolás: $filename (próbálkozás: $($retry + 1)) - $timestamp"
+        Add-Content -Path $logFile -Value "Copying: $filename (attempt: $($retry + 1)) - $timestamp"
 
-        # Várjuk, hogy a program feldolgozza
+        # Wait for the software to process the file
         Start-Sleep -Seconds $WaitSeconds
 
-        # Ellenőrzés a feldolgozott mappában
+        # Check the processed output directory
         $successPath = Join-Path $processedDir $filename
         $errorPath   = Join-Path $processedDir ("csv_format_error_" + $filename)
 
         if (Test-Path $successPath) {
-            # Sikeres feldolgozás
+            # Successfully processed
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            Add-Content -Path $logFile -Value "Sikeresen importálva: $filename - $timestamp"
+            Add-Content -Path $logFile -Value "Successfully imported: $filename - $timestamp"
             Remove-Item -Path $originalFile -Force
             $success = $true
             break
         }
         elseif (Test-Path $errorPath) {
-            # Hibás feldolgozás
+            # CSV format error
             Remove-Item -Path $errorPath -Force
             $retry++
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            Add-Content -Path $logFile -Value "Hiba történt: újrapróbálás ($filename) - $timestamp"
+            Add-Content -Path $logFile -Value "Format error, retrying: $filename - $timestamp"
         }
         else {
-            # Fájl nincs feldolgozva
+            # File not yet processed - unknown state
             $retry++
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            Add-Content -Path $logFile -Value "Ismeretlen állapot: $filename - újrapróbálás - $timestamp"
+            Add-Content -Path $logFile -Value "Unknown state: $filename - retrying - $timestamp"
         }
 
     } while ($retry -lt $MaxRetry)
 
     if (-Not $success) {
-        # 5 próbálkozás után sem sikerült: _FAILED-re nevezzük
+        # All retries exhausted - rename to _FAILED for investigation
         $failedPath = [System.IO.Path]::ChangeExtension($originalFile, "FAILED")
         Rename-Item -Path $originalFile -NewName $failedPath -Force
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Add-Content -Path $logFile -Value "Sikertelen import, átnevezve: $filename → $($Split-Path $failedPath -Leaf) - $timestamp"
+        Add-Content -Path $logFile -Value "Import failed, renamed: $filename -> $($Split-Path $failedPath -Leaf) - $timestamp"
     }
 }
 ```
