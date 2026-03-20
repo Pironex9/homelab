@@ -53,6 +53,7 @@ nav:
       - Ollama (LXC 108): hosts/ollama.md
       - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
+      - Raspberry Pi 4 (retired): hosts/raspberry-pi.md
   - Setup Guides:
       - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md
       - 02 - Docker LXC Setup: proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md

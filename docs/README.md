@@ -13,6 +13,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [ollama](./hosts/ollama.md) - Ollama (LXC 108) - local LLM inference, Intel GPU via SYCL
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
+- [raspberry-pi](./hosts/raspberry-pi.md) - Raspberry Pi 4 (retired, Aug 2024 - Dec 2025) - origin homelab, 20+ Docker services
 
 ## proxmox/
 
