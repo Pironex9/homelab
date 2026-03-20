@@ -42,6 +42,12 @@ Chronological setup guides - how the homelab was built, step by step.
 - [21 - MkDocs Portfolio Site](./proxmox/21_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain
 - [22 - Public Form E-Signature Automation](./proxmox/22_Public_Form_E-Signature_Automation.md) - Public web form with Turnstile bot protection, n8n webhook validation, DocuSeal e-signature automation
 
+## other/
+
+Side projects outside the homelab.
+
+- [factory-copy-script](./other/factory-copy-script.md) - PowerShell script to fix broken defect map imports on an industrial laser cutter (self-initiated, factory job)
+
 ## vps/
 
 - [01 - Hetzner VPS + Pangolin + Jellyfin](./vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md) - Hetzner VPS, Pangolin reverse proxy, public Jellyfin access
