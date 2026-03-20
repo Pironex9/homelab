@@ -55,33 +55,37 @@ nav:
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
       - Raspberry Pi 4 (retired): hosts/raspberry-pi.md
   - Setup Guides:
-      - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md
-      - 02 - Docker LXC Setup: proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md
-      - 03 - USB HDD + SnapRAID Sync: proxmox/03_USB_HDD_Integration_SnapRAID_Sync_and_Media_Structure_Fix.md
-      - 04 - Home Assistant + Zigbee2MQTT: proxmox/04_Home_Assistant_OS_VM_Zigbee2MQTT_Backup_Strategy_Setup.md
-      - 05 - AdGuard Home + Tailscale DNS: proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md
-      - 06 - Immich Photo Management: proxmox/06_Immich_Setup_Full_Installation_Guide.md
-      - 07 - Scrutiny Disk Health: proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md
-      - 08 - Netdata Monitoring: proxmox/08_Netdata_System_Monitoring_Setup_Guide.md
-      - 09 - Scanopy + Vaultwarden: proxmox/09_Scanopy_Vaultwarden.md
-      - 10 - Helper Script LXCs: proxmox/10_Helper_Script_LXCs.md
-      - 11 - Jellyfin Hardware Transcoding: proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md
-      - 12 - Karakeep AI Tagging: proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
-      - 13 - USB Disk Troubleshooting: proxmox/13_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md
-      - 14 - NFS Setup: proxmox/14_NFS-Setup_Documentation.md
-      - 15 - Backup System: proxmox/15_Proxmox_Backup_System_Documentation.md
-      - 16 - Komodo Setup: proxmox/16_Komodo_complete_setup.md
-      - 17 - SuggestArr: proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md
-      - 18 - Recommendarr (deprecated): proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md
-      - 19 - Claude Code Mgmt LXC: proxmox/19_Claude_Code_Management_LXC_Setup.md
-      - 20 - DocuSeal E-Signature: proxmox/20_DocuSeal_E-Signature_Setup.md
-      - 21 - MkDocs Portfolio Site: proxmox/21_MkDocs_Portfolio_Site_Setup.md
-      - 22 - Public Form E-Signature Automation: proxmox/22_Public_Form_E-Signature_Automation.md
-  - Other Projects:
-      - Factory Defect Map Import Script: other/factory-copy-script.md
+      - Core Infrastructure:
+          - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md
+          - 02 - Docker LXC Setup: proxmox/02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md
+          - 03 - USB HDD + SnapRAID Sync: proxmox/03_USB_HDD_Integration_SnapRAID_Sync_and_Media_Structure_Fix.md
+          - 04 - Home Assistant + Zigbee2MQTT: proxmox/04_Home_Assistant_OS_VM_Zigbee2MQTT_Backup_Strategy_Setup.md
+          - 05 - AdGuard Home + Tailscale DNS: proxmox/05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md
+      - Services:
+          - 06 - Immich Photo Management: proxmox/06_Immich_Setup_Full_Installation_Guide.md
+          - 07 - Scrutiny Disk Health: proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md
+          - 08 - Netdata Monitoring: proxmox/08_Netdata_System_Monitoring_Setup_Guide.md
+          - 09 - Scanopy + Vaultwarden: proxmox/09_Scanopy_Vaultwarden.md
+          - 10 - Helper Script LXCs: proxmox/10_Helper_Script_LXCs.md
+          - 11 - Jellyfin Hardware Transcoding: proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md
+          - 12 - Karakeep AI Tagging: proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
+      - Operations:
+          - 13 - USB Disk Troubleshooting: proxmox/13_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md
+          - 14 - NFS Setup: proxmox/14_NFS-Setup_Documentation.md
+          - 15 - Backup System: proxmox/15_Proxmox_Backup_System_Documentation.md
+      - Platform & Automation:
+          - 16 - Komodo Setup: proxmox/16_Komodo_complete_setup.md
+          - 17 - SuggestArr: proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md
+          - 18 - Recommendarr (deprecated): proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md
+          - 19 - Claude Code Mgmt LXC: proxmox/19_Claude_Code_Management_LXC_Setup.md
+          - 20 - DocuSeal E-Signature: proxmox/20_DocuSeal_E-Signature_Setup.md
+          - 21 - MkDocs Portfolio Site: proxmox/21_MkDocs_Portfolio_Site_Setup.md
+          - 22 - Public Form E-Signature Automation: proxmox/22_Public_Form_E-Signature_Automation.md
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md
+  - Projects:
+      - Factory Defect Map Import Script: other/factory-copy-script.md
 
 plugins:
   - search

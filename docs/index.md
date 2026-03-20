@@ -84,8 +84,13 @@ Restic backups to local disk, NFS share, and Backblaze B2. Automated via shell s
 ## Navigation
 
 - **Hosts** - Current configuration, running services, and notes for each LXC/VM
-- **Setup Guides** - Chronological guides documenting how the homelab was built
+- **Setup Guides** - Chronological guides documenting how the homelab was built, grouped by topic:
+  - *Core Infrastructure* - Proxmox, Docker, storage, HAOS, DNS
+  - *Services* - Individual service setups (Immich, Jellyfin, Karakeep...)
+  - *Operations* - Troubleshooting, NFS, backup
+  - *Platform & Automation* - Komodo, DocuSeal, n8n, MkDocs
 - **VPS** - Hetzner VPS and Pangolin reverse proxy setup
+- **Projects** - Side projects outside the homelab
 
 ## Contact
 
