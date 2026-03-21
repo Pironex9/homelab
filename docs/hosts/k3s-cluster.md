@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-19
 **Location:** Separate physical location (remote, Tailscale access only)
-**Network:** 192.168.0.0/24 (separate router from Proxmox network)
+**Network:** 192.168.2.0/24 (separate router from Proxmox network, gateway 192.168.2.1)
 
 ---
 
@@ -26,9 +26,9 @@
 
 | Node | Model | Role | CPU | RAM | Disk | Local IP | Tailscale IP | Interface |
 |------|-------|------|-----|-----|------|----------|--------------|-----------|
-| opt5060-i5 | Dell OptiPlex 5060 | control-plane | Intel i5-8500 @ 3.00GHz | 16 GB | 57 GB (35% used) | 192.168.0.104 | 100.68.209.53 | eno1 |
-| opt3060-i3 | Dell OptiPlex 3060 | worker | Intel i3-8100 @ 3.60GHz | 8 GB | 98 GB (10% used) | 192.168.0.105 | 100.124.149.16 | enp1s0 |
-| opt3050-i5 | Dell OptiPlex 3050 | worker | Intel i5-7500 @ 3.40GHz | 8 GB | 98 GB (10% used) | 192.168.0.106 | 100.102.92.89 | enp1s0 |
+| opt5060-i5 | Dell OptiPlex 5060 | control-plane | Intel i5-8500 @ 3.00GHz | 16 GB | 57 GB (35% used) | 192.168.2.101 | 100.68.209.53 | eno1 |
+| opt3060-i3 | Dell OptiPlex 3060 | worker | Intel i3-8100 @ 3.60GHz | 8 GB | 98 GB (10% used) | 192.168.2.102 | 100.124.149.16 | enp1s0 |
+| opt3050-i5 | Dell OptiPlex 3050 | worker | Intel i5-7500 @ 3.40GHz | 8 GB | 98 GB (10% used) | 192.168.2.103 | 100.102.92.89 | enp1s0 |
 
 **OS:** Ubuntu 24.04.3 LTS, kernel 6.8.0-101-generic
 **User:** `nex` (sudo access)
@@ -55,11 +55,10 @@
 
 | MAC Address | Hostname | Reserved IP |
 |-------------|----------|-------------|
-| `54:bf:64:68:a0:30` | opt5060-i5 | 192.168.0.104 |
-| `54:bf:64:a2:ff:77` | opt3060-i3 | 192.168.0.105 |
-| `d8:9e:f3:13:4d:97` | opt3050-i5 | 192.168.0.106 |
-
-> Note: The cluster was originally set up on a 192.168.2.0/24 network (documented in the portfolio doc). After a router replacement in early 2026, all nodes moved to 192.168.0.0/24. K3s was reinstalled fresh with the correct IPs on 2026-03-19.
+| `54:bf:64:68:a0:30` | opt5060-i5 | 192.168.2.101 |
+| `54:bf:64:a2:ff:77` | opt3060-i3 | 192.168.2.102 |
+| `d8:9e:f3:13:4d:97` | opt3050-i5 | 192.168.2.103 |
+| Orange Pi MAC | orangepione | 192.168.2.100 |
 
 ---
 
@@ -154,7 +153,7 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 | OS | Armbian 25.8.1 Noble |
 | Role | WoL server + Tailscale exit node |
 | Interface | end0 |
-| Local IP | 192.168.0.102 |
+| Local IP | 192.168.2.100 |
 | Tailscale IP | 100.120.73.44 |
 | Tailscale hostname | orangepione |
 | User | nex |
@@ -222,10 +221,10 @@ Status: all 3 nodes have `wol.service` enabled and active.
 ### Nodes
 
 ```
-NAME         STATUS   ROLES           AGE   VERSION        INTERNAL-IP     KERNEL
-opt5060-i5   Ready    control-plane   -     v1.34.5+k3s1   192.168.0.104   6.8.0-101-generic
-opt3060-i3   Ready    <none>          -     v1.34.5+k3s1   192.168.0.105   6.8.0-101-generic
-opt3050-i5   Ready    <none>          -     v1.34.5+k3s1   192.168.0.106   6.8.0-101-generic
+NAME         STATUS   ROLES           VERSION        INTERNAL-IP     KERNEL
+opt5060-i5   Ready    control-plane   v1.34.5+k3s1   192.168.2.101   6.8.0-106-generic
+opt3060-i3   Ready    <none>          v1.34.5+k3s1   192.168.2.102   6.8.0-106-generic
+opt3050-i5   Ready    <none>          v1.34.5+k3s1   192.168.2.103   6.8.0-106-generic
 ```
 
 ### Resource usage (idle)
@@ -252,7 +251,7 @@ opt3050-i5   Ready    <none>          -     v1.34.5+k3s1   192.168.0.106   6.8.0
 |---------|------|-------------|-------|
 | kubernetes | ClusterIP | - | 443 |
 | kube-dns | ClusterIP | - | 53 |
-| traefik | LoadBalancer | 192.168.0.104/105/106 | 80, 443 |
+| traefik | LoadBalancer | 192.168.2.101/102/103 | 80, 443 |
 
 ---
 
