@@ -53,7 +53,7 @@ K3s Cluster (planned)
 
 ## Docker Services (LXC 100)
 
-18 active stacks: bentopdf, calibre-web-automated, dockge, dozzle, docuseal, freshrss, homepage, immich, jellyfin, notifiarr, prowlarr, qbittorrent, radarr, scrutiny, seerr, sonarr, suggestarr, syncthing, uptime-kuma
+18 active stacks: bentopdf, calibre-web-automated, docuseal, form, freshrss, homepage, immich, jellyfin, notifiarr, prowlarr, qbittorrent, radarr, scrutiny, seerr, sonarr, suggestarr, syncthing, uptime-kuma
 
 ## Dashboard
 

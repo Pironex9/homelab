@@ -76,8 +76,6 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
-| `dockge` | `louislam/dockge:1` | 5001 | Docker Compose stack manager |
-| `dozzle` | `amir20/dozzle` | 8888 | Real-time Docker log viewer |
 | `homepage` | `ghcr.io/gethomepage/homepage` | 3002 | Self-hosted dashboard |
 | `uptime-kuma` | `louislam/uptime-kuma` | - | Service uptime monitoring |
 | `scrutiny` | `ghcr.io/analogj/scrutiny` | 8082 | Hard drive S.M.A.R.T. monitoring |
