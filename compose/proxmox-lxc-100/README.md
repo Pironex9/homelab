@@ -34,8 +34,6 @@
 ### Monitoring & Management
 | Service | Description | Port |
 |---------|-------------|------|
-| dockge | Docker stack manager | 5001 |
-| dozzle | Log viewer | 8888 |
 | uptime-kuma | Uptime monitoring | 3001 |
 | scrutiny | Disk health (SMART) | 8082 |
 
