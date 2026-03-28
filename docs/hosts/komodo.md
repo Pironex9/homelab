@@ -85,13 +85,11 @@ In v2, Core generates a PKI keypair on startup (`/config/keys/core.key` + `core.
 
 ### Periphery PKI configuration (v2)
 
-Core public key: `MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM=`
-
-Each managed host must have this key in its periphery config:
+Each managed host must have the Core public key in its periphery config. Retrieve it from the Core startup log or from **Settings** in the Komodo UI.
 
 **docker-host and nobara** (`/etc/komodo/periphery.config.toml`):
 ```toml
-core_public_keys = ["MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM="]
+core_public_keys = ["your_core_public_key_here"]
 ```
 
 **Local periphery container** - configured via `/etc/komodo/periphery.config.toml` on LXC 105, mounted into the container at `/config/config.toml`.
