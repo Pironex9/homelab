@@ -38,9 +38,9 @@ All three Komodo components run as Docker containers from a single Compose stack
 
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
-| `komodo-core-1` | `ghcr.io/moghtech/komodo-core:latest` | 9120 | Core API server and web UI |
+| `komodo-core-1` | `ghcr.io/moghtech/komodo-core:2` | 9120 | Core API server and web UI |
 | `komodo-mongo-1` | `mongo` | 27017 (internal) | MongoDB - stores all Komodo state |
-| `komodo-periphery-1` | `ghcr.io/moghtech/komodo-periphery:latest` | 8120 (internal) | Local periphery agent |
+| `komodo-periphery-1` | `ghcr.io/moghtech/komodo-periphery:2` | 8120 (internal) | Local periphery agent |
 
 ### Docker Volumes
 
@@ -48,6 +48,7 @@ All three Komodo components run as Docker containers from a single Compose stack
 |--------|-------------|
 | `komodo_mongo-data` | MongoDB data directory |
 | `komodo_mongo-config` | MongoDB configuration |
+| `komodo_keys` | Core/Periphery PKI key storage (v2) |
 
 ## Komodo Configuration
 
@@ -72,37 +73,74 @@ Komodo is a self-hosted alternative to tools like Portainer or Dockge with a foc
 - **Periphery** - Lightweight agent installed on each managed server. Executes actions on behalf of Core (deploy stacks, restart containers, collect stats).
 - **MongoDB** - Stores all state: servers, stacks, alerts, resource definitions.
 
-The `periphery.service` systemd unit on **docker-host** connects outward to Komodo Core, allowing Komodo to manage Docker stacks on docker-host remotely.
+In v2, Core generates a PKI keypair on startup (`/config/keys/core.key` + `core.pub`). Each Periphery must be configured with the Core's public key (`core_public_keys`) to accept incoming connections.
 
 ## Managed Servers
 
-| Server | Address | Notes |
-|--------|---------|-------|
-| Local | `https://periphery:8120` | Built-in local agent on the komodo LXC itself |
-| docker-host | via `periphery.service` on docker-host | Main Docker host managed via Komodo |
+| Server | Address | Periphery type | Notes |
+|--------|---------|----------------|-------|
+| Local | `https://periphery:8120` | Docker container (komodo-periphery-1) | Built-in local agent on the komodo LXC |
+| docker-host | `https://192.168.0.110:8120` | systemd `periphery.service` | Main Docker host - 18 stacks |
+| nobara | `https://192.168.0.100:8120` | systemd `periphery.service` | Desktop PC, not 24/7 |
+
+### Periphery PKI configuration (v2)
+
+Core public key: `MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM=`
+
+Each managed host must have this key in its periphery config:
+
+**docker-host and nobara** (`/etc/komodo/periphery.config.toml`):
+```toml
+core_public_keys = ["MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM="]
+```
+
+**Local periphery container** - configured via `/etc/komodo/periphery.config.toml` on LXC 105, mounted into the container at `/config/config.toml`.
 
 ## Updating
 
-The Komodo community script was migrated to an addon in March 2026. After running the one-time migration prompt, use:
+Use the community addon script (already set up as a shell command):
 
 ```bash
 update_komodo
 ```
 
-For manual updates (or if `update_komodo` is unavailable):
+This downloads the latest upstream `mongo.compose.yaml`, migrates `compose.env` as needed, pulls new images, and restarts the stack. Backups of both files are created before any changes.
+
+For manual updates:
 
 ```bash
 cd /opt/komodo
-docker compose -f mongo.compose.yaml --env-file compose.env pull
-docker compose -f mongo.compose.yaml --env-file compose.env up -d
+docker compose -p komodo -f mongo.compose.yaml --env-file compose.env pull
+docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 ```
 
-**Current version:** v1.19.5 (stable). v2.0.0 is in dev/preview - not yet stable.
+**Current version:** v2.0.0
+
+## Adding a new managed server
+
+1. Install periphery on the target host:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/moghtech/komodo/main/scripts/setup-periphery.py | sudo python3
+   ```
+2. Add the Core public key to `/etc/komodo/periphery.config.toml`:
+   ```toml
+   core_public_keys = ["MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM="]
+   ```
+3. Restart and enable the service:
+   ```bash
+   sudo systemctl restart periphery && sudo systemctl enable periphery
+   ```
+4. Add the server in Komodo UI: **Servers → New Server → `https://<ip>:8120`**
 
 ## Lessons Learned
 
-- **Alpine does not have `ss`:** The `iproute2` package (which includes `ss`) is not installed by default on Alpine. Use `netstat` from the `net-tools` package instead, or install `iproute2` with `apk add iproute2`.
+- **Alpine does not have `ss`:** Use `netstat` from the `net-tools` package instead, or install `iproute2` with `apk add iproute2`.
 - **High RAM allocation:** 32 GB RAM is allocated to this LXC, but actual usage is lower. This may be intentional for MongoDB's working set cache or could be reduced after profiling.
 - **Swap is configured:** Unlike most other LXCs in this homelab, komodo has 8 GB swap - useful because MongoDB can have large memory requirements during indexing.
-- **Periphery on managed hosts:** Each host managed by Komodo must run the `periphery` agent. On docker-host this runs as `periphery.service`. The agent opens an outbound connection to Core - no inbound firewall rules are needed on the managed host.
+- **Periphery on managed hosts:** Each host managed by Komodo must run the `periphery` agent. The agent opens an outbound connection to Core - no inbound firewall rules are needed on the managed host.
 - **KOMODO_HOST must be set correctly:** The default value in the community script template is `https://demo.komo.do`. This must be changed to the actual host URL (`http://192.168.0.105:9120`), otherwise webhooks and OAuth redirects will be broken.
+- **v2 PKI auth:** v2 removed passkey auth in favour of PKI. The Core public key must be added to every periphery config. The local container periphery needs the key via a mounted config file (`/etc/komodo/periphery.config.toml:/config/config.toml`) since env vars are not picked up for this field.
+- **`restart` vs `up -d`:** `docker compose restart` does not recreate containers - new volume mounts require `up -d`.
+- **Port conflict on Nobara:** Nobara had an old v1 periphery container running on port 8120. Stop and remove it before starting the systemd service.
+- **Nobara periphery install needs sudo:** The installer writes to `/usr/local/bin` - run with `sudo python3`, not as a regular user.
+- **`update_komodo` needs a TTY:** Running it via plain SSH fails. Use `type=update bash <(curl -fsSL ...)` for non-interactive execution, or SSH with `-t`.
