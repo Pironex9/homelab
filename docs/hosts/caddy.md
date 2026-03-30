@@ -64,6 +64,30 @@ pct exec 110 -- chmod 640 /etc/caddy/certs/lan-key.pem
 pct exec 110 -- rc-service caddy restart
 ```
 
+### Adding a new service
+
+1. **AdGuard** - add DNS rewrite: `newservice.lan` → `192.168.0.208`
+
+2. **Caddyfile** - add a new block inside the `*.lan { }` block:
+```bash
+ssh root@192.168.0.109 "pct exec 110 -- vi /etc/caddy/Caddyfile"
+# Add before the final "handle { respond 404 }" block:
+#
+#     @newservice host newservice.lan
+#     handle @newservice {
+#         reverse_proxy 192.168.0.110:PORT
+#     }
+#
+pct exec 110 -- rc-service caddy restart
+```
+
+3. **Cert** - regenerate with the new domain added to the list (see "Regenerating the cert" above)
+
+4. **DNS cache** - flush on the client:
+```bash
+resolvectl flush-caches
+```
+
 ### Installing the root CA on a new device
 
 ```bash
