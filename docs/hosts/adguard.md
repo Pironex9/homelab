@@ -155,6 +155,20 @@ DNS query flow:
 - All other queries (Tailscale devices) → AdGuard (192.168.0.111) → Quad9 (DoH/DoT, encrypted)
 - LAN devices without Tailscale → AdGuard (192.168.0.111) → Quad9 (DoH/DoT, encrypted)
 
+### Auto-update
+
+Tailscale auto-update is enabled on all nodes (`tailscale set --auto-update=true`):
+
+| Node | Method |
+|------|--------|
+| pve (192.168.0.109) | `tailscale set --auto-update=true` |
+| claude-mgmt (lxc109) | via `pct exec 109` |
+| opt5060-i5, opt3060-i3, opt3050-i5 | via SSH (nex@, passwordless sudo) |
+| orangepione | manual (no passwordless sudo) |
+| nex-pc (Nobara) | manual |
+
+Manual update command: `tailscale update --yes`
+
 ### Subnet Router Note
 
 Any host running Tailscale as a subnet router on the same network it advertises (e.g. Proxmox advertising `192.168.0.0/24`) must have stateful filtering disabled, otherwise direct LAN connections to that host are dropped by Tailscale's nftables layer:
