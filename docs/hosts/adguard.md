@@ -143,15 +143,17 @@ AdGuard serves `.lan` DNS for all Tailscale nodes via split DNS configured in th
 |---------|-------|
 | Split DNS domain | `lan` |
 | Nameserver | `192.168.0.111` |
-| Global nameservers | Cloudflare `1.1.1.1`, `1.0.0.1` (fallback for non-`.lan` queries) |
+| Global nameserver | `192.168.0.111` (Override DNS servers: on) |
 | MagicDNS | enabled |
 
 This makes `.lan` hostnames resolve correctly on all Tailscale-connected devices - both local (e.g. Proxmox, which uses `100.100.100.100` as its DNS via Tailscale) and remote (e.g. laptop, phone over Tailscale). AdGuard is reachable from remote Tailscale nodes via Proxmox's subnet router (`192.168.0.0/24` advertised).
 
+All DNS queries from all devices go through AdGuard → Quad9 (DoH/DoT). No third-party resolver (e.g. Cloudflare) sees any queries. If AdGuard or Proxmox goes down, remote Tailscale devices lose DNS - acceptable tradeoff for a homelab.
+
 DNS query flow:
-- `.lan` queries (any Tailscale node) → AdGuard (192.168.0.111) → Quad9 (DoH/DoT)
-- All other queries (Tailscale nodes) → Cloudflare 1.1.1.1 (via encrypted Tailscale tunnel)
-- LAN devices without Tailscale → AdGuard (192.168.0.111) → Quad9 (DoH/DoT)
+- `.lan` queries (any device) → AdGuard (192.168.0.111) → local rewrites
+- All other queries (Tailscale devices) → AdGuard (192.168.0.111) → Quad9 (DoH/DoT, encrypted)
+- LAN devices without Tailscale → AdGuard (192.168.0.111) → Quad9 (DoH/DoT, encrypted)
 
 ### Subnet Router Note
 
