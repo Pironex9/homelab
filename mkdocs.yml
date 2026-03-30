@@ -52,6 +52,7 @@ nav:
       - n8n (LXC 107): hosts/n8n.md
       - Ollama (LXC 108): hosts/ollama.md
       - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
+      - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
       - Raspberry Pi 4 (retired): hosts/raspberry-pi.md
   - Setup Guides:
