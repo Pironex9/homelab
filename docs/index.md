@@ -38,7 +38,7 @@ Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
 ├── LXC 109  claude-mgmt     192.168.0.204   Claude Code management node
 ├── LXC 110  caddy           192.168.0.208   Caddy reverse proxy + mkcert local CA
 └── Storage
-    ├── MergerFS pool   8.1TB usable (4x USB HDD)
+    ├── MergerFS pool   8.1TB usable (2x internal HDD + 2x USB HDD)
     └── SnapRAID        1 parity drive, automated sync + scrub
 
 Nobara PC (192.168.0.100)
@@ -49,9 +49,10 @@ Hetzner VPS (FSN1)
 └── Traefik + WireGuard tunnel to homelab
 
 K3s Cluster (192.168.2.x)
-├── opt5060-i5  192.168.2.101  master
-├── opt3060-i3  192.168.2.102  worker
-└── opt3050-i5  192.168.2.103  worker
+├── opt5060-i5    192.168.2.101  master
+├── opt3060-i3    192.168.2.102  worker
+├── opt3050-i5    192.168.2.103  worker
+└── orangepione   192.168.2.100  WoL server + Tailscale exit node
 ```
 
 ## Docker Services (LXC 100)
