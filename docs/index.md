@@ -17,10 +17,10 @@ Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch
 | Management | Komodo |
 | Storage | MergerFS + SnapRAID (8.1TB) |
 | Backup | Restic (local disk + NFS to Nobara PC) |
-| Reverse Proxy | Pangolin (self-hosted tunnel) |
+| Reverse Proxy | Pangolin (public), Caddy (local .lan HTTPS) |
 | VPN | Tailscale |
 | DNS | AdGuard Home |
-| Monitoring | Scrutiny, Uptime Kuma, Dozzle |
+| Monitoring | Scrutiny, Uptime Kuma, Netdata |
 
 ## Architecture
 
@@ -36,6 +36,7 @@ Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
 ├── LXC 107  n8n             192.168.0.112   n8n workflow automation
 ├── LXC 108  ollama          192.168.0.231   Ollama local LLM (CPU, always on)
 ├── LXC 109  claude-mgmt     192.168.0.204   Claude Code management node
+├── LXC 110  caddy           192.168.0.208   Caddy reverse proxy + mkcert local CA
 └── Storage
     ├── MergerFS pool   8.1TB usable (4x USB HDD)
     └── SnapRAID        1 parity drive, automated sync + scrub
@@ -47,8 +48,10 @@ Hetzner VPS (FSN1)
 ├── Pangolin reverse proxy  (public access)
 └── Traefik + WireGuard tunnel to homelab
 
-K3s Cluster (planned)
-└── 3x Dell OptiPlex nodes (5060, 3060, 3050)
+K3s Cluster (192.168.2.x)
+├── opt5060-i5  192.168.2.101  master
+├── opt3060-i3  192.168.2.102  worker
+└── opt3050-i5  192.168.2.103  worker
 ```
 
 ## Docker Services (LXC 100)
@@ -77,7 +80,7 @@ Public access to self-hosted services via Pangolin on a Hetzner VPS - no Cloudfl
 [VPS + Pangolin Guide](vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md)
 
 ### Backup System
-Restic backups to local disk, NFS share, and Backblaze B2. Automated via shell script + systemd timers. Multiple retention policies.
+Restic backups to local disk and NFS share (Nobara PC). Automated via shell script + cron. Multiple retention policies.
 
 [Backup System Documentation](proxmox/15_Proxmox_Backup_System_Documentation.md)
 
