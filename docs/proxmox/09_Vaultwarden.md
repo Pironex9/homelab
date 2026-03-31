@@ -36,7 +36,7 @@ bash -c "$(wget -qO - https://github.com/community-scripts/ProxmoxVE/raw/main/ct
 
 ## Notes
 
-- SSH access is intentionally disabled - see [Claude Code Mgmt LXC](./19_Claude_Code_Management_LXC_Setup.md) for context
+- SSH access is intentionally disabled - see [Claude Code Mgmt LXC](./18_Claude_Code_Management_LXC_Setup.md) for context
 - Vaultwarden requires HTTPS for mobile clients - serve via Caddy reverse proxy (`.lan` domain)
 
 ---

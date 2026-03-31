@@ -50,7 +50,7 @@ for dir in */; do
 done
 ```
 
-Services are managed via [Komodo](../docs/proxmox/17_Komodo_complete_setup.md).
+Services are managed via [Komodo](../docs/proxmox/16_Komodo_complete_setup.md).
 
 ## Troubleshooting
 
@@ -73,6 +73,6 @@ docker compose down && docker network prune && docker compose up -d
 
 ## Related Documentation
 
-- [Komodo Setup](../docs/proxmox/17_Komodo_complete_setup.md)
+- [Komodo Setup](../docs/proxmox/16_Komodo_complete_setup.md)
 - [Storage Configuration](../docs/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
-- [Backup Procedures](../docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
+- [Backup Procedures](../docs/proxmox/15_Proxmox_Backup_System_Documentation.md)

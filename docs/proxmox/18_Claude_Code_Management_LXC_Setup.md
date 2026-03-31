@@ -129,7 +129,7 @@ for VMID in 100 102 106 107 108; do
 done
 ```
 
-The `alpine-komodo` container (105) required a different approach because it runs Alpine Linux, which uses `apk` and `rc-service` instead of `apt` and `systemctl`. See [Doc 17 - Komodo Setup](./17_Komodo_complete_setup.md) for more on Alpine-specific differences.
+The `alpine-komodo` container (105) required a different approach because it runs Alpine Linux, which uses `apk` and `rc-service` instead of `apt` and `systemctl`. See [Doc 16 - Komodo Setup](./16_Komodo_complete_setup.md) for more on Alpine-specific differences.
 
 ```bash
 pct exec 105 -- bash -c "apk add openssh && rc-update add sshd && rc-service sshd start && \

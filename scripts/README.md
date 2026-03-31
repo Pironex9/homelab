@@ -30,4 +30,4 @@ Logs to `/var/log/homelab/backup.log`.
 
 ## Related Documentation
 
-- [Backup Strategy](../docs/proxmox/16_Proxmox_Backup_System_Documentation.md)
+- [Backup Strategy](../docs/proxmox/15_Proxmox_Backup_System_Documentation.md)

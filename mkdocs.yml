@@ -78,12 +78,13 @@ nav:
       - Platform & Automation:
           - 16 - Komodo Setup: proxmox/16_Komodo_complete_setup.md
           - 17 - SuggestArr: proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md
+          - 18 - Claude Code Mgmt LXC: proxmox/18_Claude_Code_Management_LXC_Setup.md
+          - 19 - DocuSeal E-Signature: proxmox/19_DocuSeal_E-Signature_Setup.md
+          - 20 - MkDocs Portfolio Site: proxmox/20_MkDocs_Portfolio_Site_Setup.md
+          - 21 - Public Form E-Signature Automation: proxmox/21_Public_Form_E-Signature_Automation.md
       - Deprecated:
-          - 18 - Recommendarr: proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md
-          - 19 - Claude Code Mgmt LXC: proxmox/19_Claude_Code_Management_LXC_Setup.md
-          - 20 - DocuSeal E-Signature: proxmox/20_DocuSeal_E-Signature_Setup.md
-          - 21 - MkDocs Portfolio Site: proxmox/21_MkDocs_Portfolio_Site_Setup.md
-          - 22 - Public Form E-Signature Automation: proxmox/22_Public_Form_E-Signature_Automation.md
+          - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
+          - Scanopy: proxmox/deprecated/Scanopy.md
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md

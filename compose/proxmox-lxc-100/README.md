@@ -2,7 +2,7 @@
 
 - **OS**: Ubuntu 22.04 LTS
 - **Resources**: 8 CPU cores, 16GB RAM, 48GB disk
-- **Management**: [Komodo](../../docs/proxmox/17_Komodo_complete_setup.md)
+- **Management**: [Komodo](../../docs/proxmox/16_Komodo_complete_setup.md)
 
 ## Services
 
