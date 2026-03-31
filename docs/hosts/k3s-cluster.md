@@ -1,6 +1,6 @@
 # K3s Cluster
 
-**Date:** 2026-03-19
+**Date:** 2026-03-31
 **Location:** Separate physical location (remote, Tailscale access only)
 **Network:** 192.168.2.0/24 (separate router from Proxmox network, gateway 192.168.2.1)
 
@@ -252,6 +252,21 @@ opt3050-i5   Ready    <none>          v1.34.5+k3s1   192.168.2.103   6.8.0-106-g
 | kubernetes | ClusterIP | - | 443 |
 | kube-dns | ClusterIP | - | 53 |
 | traefik | LoadBalancer | 192.168.2.101/102/103 | 80, 443 |
+
+---
+
+## DNS Configuration
+
+All K3s nodes use `--accept-dns=false` - Tailscale does not manage DNS on these nodes. The local router (192.168.2.1) handles all DNS resolution.
+
+**Why:** Tailscale pushes a `~.` catch-all routing domain via systemd-resolved which redirects all DNS queries through 100.100.100.100. On the 192.168.2.x network this caused external DNS resolution to fail (e.g. `apt` could not reach `archive.ubuntu.com`).
+
+**Applied on all 3 nodes (2026-03-31):**
+```bash
+sudo tailscale set --accept-dns=false
+```
+
+This setting persists across reboots.
 
 ---
 
