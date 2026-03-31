@@ -54,7 +54,8 @@ nav:
       - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
       - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
-      - Raspberry Pi 4 (retired): hosts/raspberry-pi.md
+      - Retired:
+          - Raspberry Pi 4: hosts/raspberry-pi.md
   - Setup Guides:
       - Core Infrastructure:
           - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md
@@ -66,7 +67,7 @@ nav:
           - 06 - Immich Photo Management: proxmox/06_Immich_Setup_Full_Installation_Guide.md
           - 07 - Scrutiny Disk Health: proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md
           - 08 - Netdata Monitoring: proxmox/08_Netdata_System_Monitoring_Setup_Guide.md
-          - 09 - Scanopy + Vaultwarden: proxmox/09_Scanopy_Vaultwarden.md
+          - 09 - Vaultwarden: proxmox/09_Vaultwarden.md
           - 10 - Helper Script LXCs: proxmox/10_Helper_Script_LXCs.md
           - 11 - Jellyfin Hardware Transcoding: proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md
           - 12 - Karakeep AI Tagging: proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md
@@ -77,7 +78,8 @@ nav:
       - Platform & Automation:
           - 16 - Komodo Setup: proxmox/16_Komodo_complete_setup.md
           - 17 - SuggestArr: proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md
-          - 18 - Recommendarr (deprecated): proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md
+      - Deprecated:
+          - 18 - Recommendarr: proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md
           - 19 - Claude Code Mgmt LXC: proxmox/19_Claude_Code_Management_LXC_Setup.md
           - 20 - DocuSeal E-Signature: proxmox/20_DocuSeal_E-Signature_Setup.md
           - 21 - MkDocs Portfolio Site: proxmox/21_MkDocs_Portfolio_Site_Setup.md

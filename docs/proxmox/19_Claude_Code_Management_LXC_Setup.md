@@ -24,8 +24,8 @@ The following LXC containers and VMs are under management. For individual servic
 |------|--------------------|----------------|---------------------------------------------------|-----|
 | 100  | docker-host        | 192.168.0.110  | Docker containers (Jellyfin, Immich, etc.)        | [02](./02_Proxmox_Docker_LXC_Setup_-_Detailed_Process.md) |
 | 102  | adguard-home       | 192.168.0.111  | DNS-level ad blocking                             | [05](./05_AdGuard_Home_Setup_Dedicated_LXC_Tailscale_DNS_Integration.md) |
-| 103  | alpine-vaultwarden | -              | Password manager (excluded from SSH intentionally)| [09](./09_Scanopy_Vaultwarden.md) |
-| 104  | scanopy            | -              | Network scanner and topology visualizer           | [09](./09_Scanopy_Vaultwarden.md) |
+| 103  | alpine-vaultwarden | -              | Password manager (excluded from SSH intentionally)| [09](./09_Vaultwarden.md) |
+| 104  | scanopy            | -              | Deprecated - being replaced                       | - |
 | 105  | alpine-komodo      | 192.168.0.105  | Komodo deployment manager (Alpine Linux)          | [16](./16_Komodo_complete_setup.md) |
 | 106  | karakeep           | 192.168.0.128  | Bookmarking service                               | [10](./10_Helper_Script_LXCs.md) |
 | 107  | n8n                | 192.168.0.112  | Workflow automation                               | [10](./10_Helper_Script_LXCs.md) |
@@ -142,7 +142,7 @@ The Proxmox host itself was added via standard `ssh-copy-id` from within the cla
 
 ### Security decision - Vaultwarden excluded
 
-The `alpine-vaultwarden` container (VMID 103) was deliberately excluded from SSH access. It stores all passwords and secrets for the homelab. Granting any automated tool access to it would be an unnecessary risk - documentation for that container is written manually. See [Doc 09 - Vaultwarden](./09_Scanopy_Vaultwarden.md) and [VPS 02 - Security Configuration](../vps/02_Security_Configuration_Guide.md) for background on the security posture.
+The `alpine-vaultwarden` container (VMID 103) was deliberately excluded from SSH access. It stores all passwords and secrets for the homelab. Granting any automated tool access to it would be an unnecessary risk - documentation for that container is written manually. See [Doc 09 - Vaultwarden](./09_Vaultwarden.md) and [VPS 02 - Security Configuration](../vps/02_Security_Configuration_Guide.md) for background on the security posture.
 
 ### Verification
 

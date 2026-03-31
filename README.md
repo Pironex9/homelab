@@ -29,7 +29,6 @@ Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
 ├── VM  101  haos            192.168.0.202   Home Assistant OS
 ├── LXC 102  adguard         192.168.0.111   AdGuard Home + Tailscale DNS
 ├── LXC 103  vaultwarden     -               Vaultwarden password manager
-├── LXC 104  scanopy         -               Scanopy document scanner
 ├── LXC 105  komodo          192.168.0.105   Komodo GitOps management
 ├── LXC 106  karakeep        192.168.0.128   Karakeep bookmarking + AI tagging
 ├── LXC 107  n8n             192.168.0.112   n8n workflow automation

@@ -14,6 +14,9 @@ Per-host reference documentation - current configuration, running services, and 
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
+
+### Retired
+
 - [raspberry-pi](./hosts/raspberry-pi.md) - Raspberry Pi 4 (retired, Aug 2024 - Dec 2025) - origin homelab, 20+ Docker services
 
 ## proxmox/
@@ -28,7 +31,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [06 - Immich Photo Management](./proxmox/06_Immich_Setup_Full_Installation_Guide.md) - Immich photo management
 - [07 - Scrutiny Disk Health Monitoring](./proxmox/07_Scrutiny_Disk_Health_Monitoring_Setup_Guide.md) - Scrutiny disk health monitoring
 - [08 - Netdata System Monitoring](./proxmox/08_Netdata_System_Monitoring_Setup_Guide.md) - Netdata system metrics
-- [09 - Scanopy + Vaultwarden](./proxmox/09_Scanopy_Vaultwarden.md) - Scanopy + Vaultwarden password manager
+- [09 - Vaultwarden](./proxmox/09_Vaultwarden.md) - Vaultwarden password manager
 - [10 - Helper Script LXCs](./proxmox/10_Helper_Script_LXCs.md) - Karakeep, n8n, Ollama via Proxmox helper scripts
 - [11 - Jellyfin Hardware Transcoding](./proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md) - Jellyfin GPU hardware transcoding
 - [12 - Karakeep AI Tagging with Ollama](./proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md) - Karakeep AI tagging with Ollama
@@ -37,7 +40,10 @@ Chronological setup guides - how the homelab was built, step by step.
 - [15 - Backup System](./proxmox/15_Proxmox_Backup_System_Documentation.md) - Backup system and schedules
 - [16 - Komodo Complete Setup](./proxmox/16_Komodo_complete_setup.md) - Komodo container management platform
 - [17 - SuggestArr Setup](./proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md) - SuggestArr media suggestion automation
-- [18 - Recommendarr Setup](./proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (DEPRECATED - removed due to security concerns, Mar 2026)
+
+### Deprecated
+
+- [18 - Recommendarr](./proxmox/18_Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (removed due to security concerns, Mar 2026)
 - [19 - Claude Code Management LXC](./proxmox/19_Claude_Code_Management_LXC_Setup.md) - Claude Code management LXC, SSH key infrastructure, GitHub MCP server
 - [20 - DocuSeal E-Signature](./proxmox/20_DocuSeal_E-Signature_Setup.md) - DocuSeal self-hosted e-signature platform
 - [21 - MkDocs Portfolio Site](./proxmox/21_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain

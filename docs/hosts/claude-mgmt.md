@@ -64,6 +64,24 @@ Connects Claude Code to the GitHub API for repository management.
 }
 ```
 
+### Karakeep MCP
+
+Connects Claude Code to the Karakeep bookmark manager.
+
+- **Auth:** API key stored in `~/.secrets/karakeep-api-key` (chmod 600)
+- **Package:** `@karakeep/mcp` (official)
+
+```json
+{
+  "mcpServers": {
+    "karakeep": {
+      "command": "bash",
+      "args": ["-c", "KARAKEEP_API_ADDR=http://192.168.0.128:3000 KARAKEEP_API_KEY=$(cat ~/.secrets/karakeep-api-key) npx -y @karakeep/mcp"]
+    }
+  }
+}
+```
+
 ### n8n MCP
 
 Connects Claude Code to the n8n workflow automation instance.
