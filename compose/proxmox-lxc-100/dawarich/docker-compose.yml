@@ -36,7 +36,7 @@ services:
   dawarich_app:
     image: freikin/dawarich:latest
     container_name: dawarich_app
-    command: bin/rails server -p 3000 -b ::
+    command: "bin/rails server -p 3000 -b ::"
     volumes:
       - ${DOCKER_DATA}/dawarich-public:/var/app/public
       - ${DOCKER_DATA}/dawarich-storage:/var/app/storage
