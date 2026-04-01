@@ -62,6 +62,15 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 | `calibre-web-automated` | `crocodilestick/calibre-web-automated` | 8085 | Calibre library with auto-import |
 | `bentopdf` | `bentopdfteam/bentopdf` | 3000 | PDF reader |
 
+### Location Tracking
+
+| Container | Image | Port | Description |
+|-----------|-------|------|-------------|
+| `dawarich_app` | `freikin/dawarich` | 3005 | Self-hosted GPS location history and family tracking |
+| `dawarich_sidekiq` | `freikin/dawarich` | - | Background job worker for Dawarich |
+| `dawarich_db` | `postgis/postgis:17-3.5-alpine` | - | PostGIS database for Dawarich |
+| `dawarich_redis` | `redis:7.4-alpine` | - | Redis cache for Dawarich |
+
 ### Other Services
 
 | Container | Image | Port | Description |
@@ -110,6 +119,7 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 8888 | TCP | Dozzle |
 | 8989 | TCP | Sonarr |
 | 3003 | TCP | DocuSeal |
+| 3005 | TCP | Dawarich |
 | 9696 | TCP | Prowlarr |
 | 21027 | UDP | Syncthing discovery |
 | 22000 | TCP/UDP | Syncthing sync |

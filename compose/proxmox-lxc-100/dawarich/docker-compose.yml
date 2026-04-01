@@ -42,7 +42,7 @@ services:
       - ${DOCKER_DATA}/dawarich-imports:/var/app/tmp/imports
       - ${DOCKER_DATA}/dawarich-watched:/var/app/tmp/watched
     ports:
-      - "3004:3000"
+      - "3005:3000"
     environment:
       RAILS_ENV: production
       SECRET_KEY_BASE: ${DAWARICH_SECRET_KEY_BASE}
