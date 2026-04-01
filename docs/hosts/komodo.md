@@ -22,6 +22,7 @@
 | `sshd` | OpenSSH server |
 | `crond` | Scheduled tasks |
 | Docker daemon | Container runtime |
+| `tailscaled` | Tailscale daemon (Tailscale IP: 100.86.108.33) |
 
 ## Open Ports
 
@@ -82,6 +83,7 @@ In v2, Core generates a PKI keypair on startup (`/config/keys/core.key` + `core.
 | Local | `https://periphery:8120` | Docker container (komodo-periphery-1) | Built-in local agent on the komodo LXC |
 | docker-host | `https://192.168.0.110:8120` | systemd `periphery.service` | Main Docker host - 18 stacks |
 | nobara | `https://192.168.0.100:8120` | systemd `periphery.service` | Desktop PC, not 24/7 |
+| vps | outbound via Tailscale → `100.86.108.33:9120` | systemd `periphery.service` | Hetzner VPS - Pangolin stack |
 
 ### Periphery PKI configuration (v2)
 
@@ -142,3 +144,5 @@ docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 - **Port conflict on Nobara:** Nobara had an old v1 periphery container running on port 8120. Stop and remove it before starting the systemd service.
 - **Nobara periphery install needs sudo:** The installer writes to `/usr/local/bin` - run with `sudo python3`, not as a regular user.
 - **`update_komodo` needs a TTY:** Running it via plain SSH fails. Use `type=update bash <(curl -fsSL ...)` for non-interactive execution, or SSH with `-t`.
+- **Tailscale on LXC 105 (Alpine):** Requires TUN device in `/etc/pve/lxc/105.conf` (same as LXC 109). Install via `apk add tailscale`, start with `rc-service tailscale start`, enable with `rc-update add tailscale default`. Use `--accept-dns=false` to avoid DNS conflicts.
+- **VPS periphery outbound mode:** The VPS periphery connects outbound to Core via Tailscale (`core_address = "http://100.86.108.33:9120"`). No inbound port needs to be opened on the VPS. Requires an onboarding key generated in Settings → Onboarding.

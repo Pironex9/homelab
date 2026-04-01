@@ -14,6 +14,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
+- [vps](./hosts/vps.md) - Hetzner VPS (CX23) - Pangolin reverse proxy, Komodo managed via Tailscale
 
 ### Retired
 

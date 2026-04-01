@@ -54,6 +54,7 @@ nav:
       - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
       - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
+      - Hetzner VPS: hosts/vps.md
       - Retired:
           - Raspberry Pi 4: hosts/raspberry-pi.md
   - Setup Guides:
