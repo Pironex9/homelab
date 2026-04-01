@@ -18,49 +18,52 @@ On the VPS, Uptime Kuma runs independently. It monitors homelab services from ou
 ## Architecture
 
 ```
-Internet
+Firefox
    |
 Cloudflare DNS (uptime.homelabor.net → VPS IP, gray cloud)
    |
 Hetzner VPS
    |
-gerbil:443 → traefik → uptime-kuma:3001 (pangolin Docker network)
-   |
-Pangolin auth (login required before accessing Uptime Kuma)
+gerbil:443 → Traefik → 172.18.0.1:3001 (pangolin bridge gateway → VPS host)
+                |
+          Pangolin Badger auth (login required)
+                |
+          uptime-kuma (host network)
+                |
+          Tailscale → pve subnet router → 192.168.0.0/24 (homelab LAN)
 ```
 
-Uptime Kuma is on the `pangolin` Docker network. Traefik (which shares gerbil's network namespace) can reach it by container name. Pangolin manages the Traefik dynamic config via its UI.
+Key networking decisions:
+- Uptime Kuma runs with `network_mode: host` so it can use the VPS host's Tailscale routes to reach 192.168.0.x
+- Traefik reaches Uptime Kuma via the Docker bridge gateway IP (`172.18.0.1:3001`) - not by container name
+- VPS has `--accept-routes` enabled on Tailscale, accepting the `192.168.0.0/24` subnet route advertised by `pve`
 
 ---
 
 ## 1. Pre-Migration: Backup Data from LXC 100
 
-On LXC 100 (192.168.0.110):
+Stop Uptime Kuma in Komodo first (http://192.168.0.105:9120), then on LXC 100:
 
 ```bash
-# Stop Uptime Kuma first for a clean backup
-cd /opt/stacks/uptime-kuma   # or wherever Komodo keeps it
-docker compose down
-
-# Create a tarball of the data
 tar -czf /tmp/uptime-kuma-backup.tar.gz -C /srv/docker-data uptime-kuma
-
-# Verify
 ls -lh /tmp/uptime-kuma-backup.tar.gz
 ```
 
-Copy to VPS:
+Copy to VPS. If there is no direct SSH key from LXC 100 to the VPS, route through an intermediate machine (e.g. Nobara):
 
 ```bash
-# From LXC 109 or any machine with SSH access to VPS
-scp root@192.168.0.110:/tmp/uptime-kuma-backup.tar.gz root@YOUR_VPS_IP:/tmp/
+# Step 1 - LXC 100 to Nobara
+scp /tmp/uptime-kuma-backup.tar.gz nex@192.168.0.100:/tmp/
+
+# Step 2 - Nobara to VPS (using the correct key name if non-default)
+scp -i ~/.ssh/YOUR_KEY /tmp/uptime-kuma-backup.tar.gz root@YOUR_VPS_IP:/tmp/
 ```
 
 ---
 
 ## 2. DNS Record (Cloudflare)
 
-Add a new A record:
+Add a new A record **before** deploying - this avoids Let's Encrypt getting a NXDOMAIN and AdGuard caching it:
 
 ```
 Type:          A
@@ -70,105 +73,109 @@ Proxy status:  DNS only (Gray cloud) ← required for Pangolin/Traefik TLS
 TTL:           Auto
 ```
 
+> **Note:** If you add the DNS record after Uptime Kuma is already running and someone queries the domain, AdGuard will cache the NXDOMAIN. You'll need to clear the AdGuard DNS cache manually (Settings → DNS settings → Clear DNS cache).
+
 ---
 
-## 3. Deploy on VPS
+## 3. Tailscale Accept Routes
 
-SSH into the VPS:
+The VPS needs to accept the `192.168.0.0/24` subnet route that `pve` advertises. Without this, Uptime Kuma cannot reach homelab services.
 
 ```bash
-ssh root@YOUR_VPS_IP
+tailscale set --accept-routes
+
+# Verify: LAN should now be reachable
+ping -c 2 192.168.0.110
 ```
 
-Create data directory and restore backup:
+---
+
+## 4. Restore Data on VPS
 
 ```bash
 mkdir -p /opt/uptime-kuma
-
-# Restore data from backup
 tar -xzf /tmp/uptime-kuma-backup.tar.gz -C /opt/
-# This extracts to /opt/uptime-kuma/
-
-# Verify
-ls /opt/uptime-kuma/
-```
-
-Deploy the compose stack:
-
-```bash
-mkdir -p /opt/stacks/uptime-kuma
-# Copy or clone the compose file from the repo
-# compose/vps/uptime-kuma/docker-compose.yml
-
-cd /opt/stacks/uptime-kuma
-docker compose up -d
-
-# Verify container is running
-docker ps | grep uptime-kuma
-
-# Check logs
-docker logs uptime-kuma
+ls -la /opt/uptime-kuma/
 ```
 
 ---
 
-## 4. Pangolin Resource Configuration
+## 5. Deploy via Komodo
 
-### 4a. Add Resource in Pangolin UI
+In Komodo (http://192.168.0.105:9120) → **Stacks** → **New Stack**:
+
+- **Name:** `uptime-kuma`
+- **Server:** `vps`
+- **Repo:** `Pironex9/homelab`
+- **Branch:** `main`
+- **Compose File Path:** `compose/vps/uptime-kuma/docker-compose.yml`
+
+Deploy. The data at `/opt/uptime-kuma` is already in place.
+
+---
+
+## 6. UFW Rule for Traefik Access
+
+Uptime Kuma runs on host networking and listens on port 3001. UFW blocks Docker bridge → host traffic by default. Add a scoped rule so only Traefik (on the pangolin bridge) can reach it:
+
+```bash
+ufw allow from 172.18.0.0/16 to any port 3001 proto tcp comment 'Uptime Kuma - Traefik internal'
+ufw status | grep 3001
+```
+
+> `172.18.0.0/16` is the pangolin Docker bridge subnet. Port 3001 remains closed to the internet.
+
+---
+
+## 7. Pangolin Resource Configuration
+
+### 7a. Create a Local Site
+
+Uptime Kuma runs on the VPS itself - not behind a Newt tunnel. In Pangolin UI, create a **local** site (no Newt client needed). Do not add it under the homelab tunnel site - Pangolin would try to route the request through the tunnel to a container that does not exist there.
+
+### 7b. Add Resource
 
 1. Open Pangolin dashboard (https://pangolin.homelabor.net)
-2. Navigate to the site/org → **Resources**
-3. Click **New Resource**
-4. Fill in:
+2. Under the local site → **Resources** → **New Resource**
+3. Fill in:
    - **Name:** Uptime Kuma
    - **Subdomain:** `uptime`
-   - **Target:** `http://uptime-kuma:3001`
+   - **Target:** `http://172.18.0.1:3001`
    - **Resource Type:** HTTP
 
-> `uptime-kuma` resolves by container name because both containers are on the `pangolin` Docker network.
+> `172.18.0.1` is the pangolin Docker bridge gateway - the host IP as seen from Traefik's network namespace.
 
-### 4b. Enable Pangolin Authentication
+### 7c. Enable Pangolin Authentication
 
-On the resource settings:
-
-1. Enable **Authentication** (toggle on)
-2. This requires users to log in to Pangolin before the request is forwarded to Uptime Kuma
-3. Choose which users/roles can access it
-
-This adds a second auth layer on top of Uptime Kuma's own login.
+On the resource settings, enable **Authentication**. This requires users to log in to Pangolin (Badger) before accessing Uptime Kuma.
 
 ---
 
-## 5. Verify
+## 8. Verify
 
 ```bash
-# Test that the container responds locally on VPS
-docker exec uptime-kuma curl -s http://localhost:3001
+# From VPS - should return HTTP 401 (Badger auth working)
+curl -s https://uptime.homelabor.net
 
-# Check logs for errors
-docker logs uptime-kuma --tail 50
+# From VPS - verify container reaches LAN
+docker exec uptime-kuma curl -s --connect-timeout 3 http://192.168.0.110:3000 | head -1
 ```
 
 Open https://uptime.homelabor.net in a browser:
-- Should prompt for Pangolin login first
-- After login, redirects to Uptime Kuma login
-- All monitors and history should be intact (from restored backup)
+1. Pangolin login prompt
+2. After login, Uptime Kuma dashboard loads with all monitors intact
 
 ---
 
-## 6. Post-Migration: Remove from LXC 100
+## 9. Post-Migration: Remove from LXC 100
 
-### Remove from Komodo
+In Komodo (http://192.168.0.105:9120):
+1. Find the `uptime-kuma` stack (LXC 100 server)
+2. **Stop** → **Delete**
 
-1. Open Komodo (http://192.168.0.105:9120)
-2. Find the `uptime-kuma` stack
-3. **Stop** the stack
-4. **Delete** the stack from Komodo (removes management, not the data)
-
-### Clean up data on LXC 100 (optional, after verifying VPS works)
+Clean up data on LXC 100 (optional, after verifying VPS is stable):
 
 ```bash
-# On LXC 100
 rm -rf /srv/docker-data/uptime-kuma
 ```
 
@@ -188,36 +195,55 @@ services:
     volumes:
       - /opt/uptime-kuma:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - pangolin
+    network_mode: host
     restart: unless-stopped
-
-networks:
-  pangolin:
-    external: true
-    name: pangolin
 ```
 
 Key differences from LXC 100 version:
-- `network_mode: host` removed - uses `pangolin` bridge network instead
-- Volume path changed from `/srv/docker-data/uptime-kuma` to `/opt/uptime-kuma`
-- `docker.sock` kept read-only - monitors VPS containers (Pangolin stack)
-- No exposed ports - Traefik handles routing via the pangolin network
+- `network_mode: host` - container uses the VPS host network stack, including Tailscale routes
+- Volume path: `/opt/uptime-kuma` (VPS convention, vs `/srv/docker-data/` on LXC 100)
+- `docker.sock` read-only - allows monitoring VPS Docker containers (Pangolin stack)
+- No `networks:` section - host networking does not use Docker bridges
+- No exposed ports - Traefik reaches it via `172.18.0.1:3001` (bridge gateway)
+
+---
+
+## Monitor Configuration
+
+After migration, update monitors to use reachable addresses from the VPS:
+
+| Service | Old target (LAN) | New target |
+|---------|-----------------|------------|
+| Jellyfin | 192.168.0.110:8096 | https://jellyfin.homelabor.net or 192.168.0.110:8096 |
+| Home Assistant | 192.168.0.202:8123 | https://ha.homelabor.net or 192.168.0.202:8123 |
+| DocuSeal | 192.168.0.110:... | https://sign.homelabor.net or LAN IP |
+| Internal services | 192.168.0.110:port | Same - VPS can reach LAN via Tailscale |
+
+Both LAN IPs and public URLs work. Using public URLs tests the full Pangolin stack end-to-end.
 
 ---
 
 ## Troubleshooting
 
-**Uptime Kuma not reachable after Pangolin resource setup:**
-- Verify the container is on the `pangolin` network: `docker inspect uptime-kuma | grep -A 20 Networks`
-- Check Pangolin logs: `docker logs pangolin`
-- Ensure target is `http://uptime-kuma:3001` (not localhost or IP)
+**504 Gateway Timeout:**
+- UFW is blocking Docker bridge → host on port 3001
+- Fix: `ufw allow from 172.18.0.0/16 to any port 3001 proto tcp`
+- Verify from VPS: `docker exec gerbil wget -qO- http://172.18.0.1:3001`
 
-**Data not restored correctly:**
-- Check permissions: `ls -la /opt/uptime-kuma/`
-- Uptime Kuma runs as UID 1000 inside the container, but the data directory needs to be writable
-- Fix: `chown -R 1000:1000 /opt/uptime-kuma`
+**"no available server" from Pangolin:**
+- Resource was added under the homelab tunnel site instead of a local site
+- Create a new local site in Pangolin and move the resource there
 
-**Docker socket monitoring not working:**
-- The `docker.sock` mount allows Uptime Kuma to use the Docker monitor type
-- Verify: `docker exec uptime-kuma ls -la /var/run/docker.sock`
+**DNS not resolving (AdGuard):**
+- AdGuard cached NXDOMAIN before the DNS record was created
+- Fix: AdGuard UI → Settings → DNS settings → Clear DNS cache
+
+**Monitors show DOWN for LAN services:**
+- VPS cannot reach 192.168.0.x
+- Check: `ping 192.168.0.110` from VPS
+- Fix: `tailscale set --accept-routes` and verify pve is advertising the subnet
+
+**Let's Encrypt cert not issued (NXDOMAIN error in Traefik logs):**
+- DNS was not propagated when Traefik first tried
+- Fix: delete `/opt/pangolin/config/letsencrypt/acme.json` and restart Traefik
+- Trigger cert issuance: `curl -k https://uptime.homelabor.net`

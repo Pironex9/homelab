@@ -61,7 +61,7 @@ Side projects outside the homelab.
 
 - [01 - Hetzner VPS + Pangolin + Jellyfin](./vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md) - Hetzner VPS, Pangolin reverse proxy, public Jellyfin access
 - [02 - Security Configuration](./vps/02_Security_Configuration_Guide.md) - Cloudflare, Pangolin 2FA, GeoIP rules, incident response
-- [03 - Uptime Kuma Migration to VPS](./vps/03_Uptime_Kuma_VPS_Migration.md) - Migrate Uptime Kuma to VPS for external monitoring, Pangolin auth
+- [03 - Uptime Kuma Migration to VPS](./vps/03_Uptime_Kuma_VPS_Migration.md) - Migrate Uptime Kuma to VPS for external monitoring, host networking, Tailscale accept-routes, Pangolin local site, UFW bridge rule
 
 ## Quick Start
 
