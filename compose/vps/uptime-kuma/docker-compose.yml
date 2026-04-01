@@ -1,0 +1,17 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    environment:
+      - TZ=Europe/Budapest
+    volumes:
+      - /opt/uptime-kuma:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - pangolin
+    restart: unless-stopped
+
+networks:
+  pangolin:
+    external: true
+    name: pangolin

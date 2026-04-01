@@ -89,6 +89,7 @@ nav:
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md
+      - 03 - Uptime Kuma Migration to VPS: vps/03_Uptime_Kuma_VPS_Migration.md
   - Projects:
       - Factory Defect Map Import Script: other/factory-copy-script.md
 
