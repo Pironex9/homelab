@@ -74,13 +74,43 @@ There is no default demo user - the account must be created manually.
 
 ## Mobile App Setup
 
-Dawarich supports several mobile apps for location tracking:
+### Recommended: Colota (Android)
 
-- **Overland** (iOS/Android) - recommended, simple HTTP API
-- **OwnTracks** (iOS/Android) - MQTT or HTTP protocol
-- **Dawarich mobile app** - official companion app
+[Colota](https://colota.app) is the recommended GPS tracking client for Android. It sends location data directly to Dawarich with smart battery profiles and GPS accuracy filtering.
 
-Connect the mobile app to `http://192.168.0.110:3005` using the API key from your Dawarich profile settings.
+**Why Colota over alternatives:**
+- Intelligent tracking profiles - faster updates when moving/in car, slower when stationary
+- GPS accuracy filtering - discards bad GPS points automatically
+- Offline queue - stores points when offline, syncs later
+- Open source (AGPL), no telemetry
+
+**Setup:**
+1. Install Colota from Google Play or IzzyOnDroid
+2. In Dawarich: Settings - API Keys - copy your API key
+3. In Colota: Settings - API Settings - select **Dawarich** template
+4. Enter the full endpoint URL:
+   ```
+   https://dawarich.homelabor.net/api/v1/owntracks/points?api_key=YOUR_API_KEY
+   ```
+5. Tap Test Connection to verify
+
+**Note:** The full endpoint path `/api/v1/owntracks/points?api_key=...` is required - the base URL alone returns 404.
+
+### Home Assistant Companion App
+
+Use the HA Companion App alongside Colota for zone-based presence detection (home/away automations). These serve different purposes and run simultaneously without conflict:
+
+| App | Purpose |
+|-----|---------|
+| Colota | Continuous GPS history in Dawarich |
+| HA Companion App | Zone entry/exit detection for HA automations |
+
+### Other Supported Apps
+
+Dawarich also supports OwnTracks, Overland, GPSLogger, and Traccar Client via these endpoints:
+
+- OwnTracks / Colota: `https://dawarich.homelabor.net/api/v1/owntracks/points?api_key=KEY`
+- Overland: `https://dawarich.homelabor.net/api/v1/overland/batches?api_key=KEY`
 
 ## Deployment Troubleshooting
 
@@ -91,8 +121,10 @@ Issues encountered during setup and their fixes:
 | Port conflict on 3004 | `form` container already uses 3004 | Changed to port 3005 |
 | `bundler: exec needs a command to run` | Missing `command:` in compose | Added `bin/rails server -p 3000 -b ::` |
 | YAML parse error on `::` | Unquoted `::` is invalid YAML | Quoted the command string |
-| `Blocked hosts: 192.168.0.110` | Rails host authorization | Added `APPLICATION_HOSTS: 192.168.0.110,localhost` |
+| `Blocked hosts: 192.168.0.110` | Rails host authorization | Added `APPLICATION_HOSTS` with LAN IP |
+| `Blocked hosts: dawarich.homelabor.net` | Public domain not in allowed hosts | Added domain to `APPLICATION_HOSTS` |
 | Socket connection instead of TCP | Wrong env var names | Use `DATABASE_HOST`/`USERNAME`/`NAME`, not `POSTGRES_*` |
 | App crashes on startup | `DATABASE_URL` not supported | Use individual `DATABASE_*` vars instead |
 | White page on sign in | Migrations not run | Run `docker exec dawarich_app bin/rails db:migrate` |
 | No default login | No demo user exists | Create user via `rails runner` command above |
+| Colota 404 on test connection | Base URL entered instead of full endpoint | Use full `/api/v1/owntracks/points?api_key=...` URL |
