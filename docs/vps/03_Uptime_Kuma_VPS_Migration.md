@@ -210,16 +210,55 @@ Key differences from LXC 100 version:
 
 ## Monitor Configuration
 
-After migration, update monitors to use reachable addresses from the VPS:
+### Converting Docker-type monitors to HTTP
 
-| Service | Old target (LAN) | New target |
-|---------|-----------------|------------|
-| Jellyfin | 192.168.0.110:8096 | https://jellyfin.homelabor.net or 192.168.0.110:8096 |
-| Home Assistant | 192.168.0.202:8123 | https://ha.homelabor.net or 192.168.0.202:8123 |
-| DocuSeal | 192.168.0.110:... | https://sign.homelabor.net or LAN IP |
-| Internal services | 192.168.0.110:port | Same - VPS can reach LAN via Tailscale |
+The original monitors used the Docker type, which checks container status via the local Docker socket. On the VPS, `docker.sock` only has VPS containers - homelab service containers are not visible. All Docker-type monitors must be converted to HTTP.
 
-Both LAN IPs and public URLs work. Using public URLs tests the full Pangolin stack end-to-end.
+**Important:** When inserting monitors directly into the SQLite database, always set `user_id=1`. Monitors with `user_id=NULL` are not shown in the GUI.
+
+**Important:** Uptime Kuma v2 only accepts status codes as strings in range format (e.g. `"200-299"`). Individual codes like `"401"` must also be strings, not integers. The `accepted_statuscodes_json` column stores a JSON array. Avoid constructing this via bash heredoc as the shell strips double quotes - use a Python script file instead.
+
+### Homelab LAN monitors
+
+All homelab services are monitored via their LAN IPs. The VPS can reach `192.168.0.x` via Tailscale (`--accept-routes` must be enabled, `pve` advertises `192.168.0.0/24`).
+
+| Monitor | Type | Target | Notes |
+|---------|------|--------|-------|
+| Sonarr | HTTP | http://192.168.0.110:8989 | |
+| Radarr | HTTP | http://192.168.0.110:7878 | |
+| qBittorrent | HTTP | http://192.168.0.110:8080 | |
+| AdGuard Home | Ping | 192.168.0.111 | |
+| Scrutiny | HTTP | http://192.168.0.110:8082 | |
+| Home Assistant | HTTP | http://192.168.0.202:8123 | |
+| Calibre Web Automated | HTTP | http://192.168.0.110:8085 | |
+| Homepage | HTTP | http://192.168.0.110:3002 | |
+| Jellyfin | HTTP | http://192.168.0.110:8096 | |
+| Prowlarr | HTTP | http://192.168.0.110:9696 | |
+| Seerr | HTTP | http://192.168.0.110:5055 | |
+| Notifiarr | HTTP | http://192.168.0.110:5454 | host network on LXC 100 |
+| BentoPDF | HTTP | http://192.168.0.110:3000 | |
+| Immich | HTTP | http://192.168.0.110:2283 | |
+| Syncthing | HTTP | http://192.168.0.110:8384 | |
+| NetData | HTTP | http://192.168.0.109:19999 | on Proxmox host |
+| DocuSeal | HTTP | http://192.168.0.110:3003 | |
+| Form | HTTP | http://192.168.0.110:3004 | |
+
+### VPS / Pangolin public monitors
+
+These test the full external path: Cloudflare DNS → VPS → Traefik → Badger → backend tunnel → homelab service.
+
+Services behind Badger auth return 401 when no session is active - this is expected and means the stack is healthy. Accepted codes: `["200-299", "401"]`.
+
+| Monitor | Type | Target | Notes |
+|---------|------|--------|-------|
+| Pangolin | HTTP | https://pangolin.homelabor.net | Badger auth, returns 401 |
+| Jellyfin (public) | HTTP | https://jellyfin.homelabor.net | Tests full tunnel path |
+| Home Assistant (public) | HTTP | https://ha.homelabor.net | Tests full tunnel path |
+| DocuSeal (public) | HTTP | https://sign.homelabor.net | Tests full tunnel path |
+| Form (public) | HTTP | https://form.homelabor.net | Tests full tunnel path |
+| Uptime Kuma (public) | HTTP | https://uptime.homelabor.net | Self-monitoring via Pangolin |
+
+**Gerbil and Traefik are not monitored separately.** Gerbil only exposes UDP ports (WireGuard) - no HTTP endpoint. Traefik is a router, not a service. If either goes down, all VPS public monitors fail simultaneously, which serves as the alert.
 
 ---
 
