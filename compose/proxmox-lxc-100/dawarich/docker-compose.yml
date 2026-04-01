@@ -56,6 +56,7 @@ services:
       TIME_ZONE: ${TZ}
       DAWARICH_APP_PROTOCOL: http
       SIDEKIQ_CONCURRENCY: 5
+      APPLICATION_HOSTS: 192.168.0.110,localhost
     depends_on:
       dawarich_db:
         condition: service_healthy
