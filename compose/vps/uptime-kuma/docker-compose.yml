@@ -7,11 +7,5 @@ services:
     volumes:
       - /opt/uptime-kuma:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - pangolin
+    network_mode: host
     restart: unless-stopped
-
-networks:
-  pangolin:
-    external: true
-    name: pangolin
