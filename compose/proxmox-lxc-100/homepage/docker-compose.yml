@@ -8,7 +8,7 @@ services:
       - PUID=0
       - PGID=0
       - TZ=Europe/Budapest
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.0.110:3002
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.0.110:3002,homepage.lan
     volumes:
       - /srv/docker-data/homepage:/app/config
       - /srv/docker-data/homepage/images:/app/public/images
