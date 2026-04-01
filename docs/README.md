@@ -45,6 +45,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [19 - DocuSeal E-Signature](./proxmox/19_DocuSeal_E-Signature_Setup.md) - DocuSeal self-hosted e-signature platform
 - [20 - MkDocs Portfolio Site](./proxmox/20_MkDocs_Portfolio_Site_Setup.md) - MkDocs Material theme, GitHub Actions auto-deploy, custom domain
 - [21 - Public Form E-Signature Automation](./proxmox/21_Public_Form_E-Signature_Automation.md) - Public web form with Turnstile bot protection, n8n webhook validation, DocuSeal e-signature automation
+- [22 - Dawarich GPS Tracking](./proxmox/22_Dawarich_GPS_Tracking_Setup.md) - Self-hosted GPS location history and family tracking, PostGIS, mobile app integration
 
 ### Deprecated
 
