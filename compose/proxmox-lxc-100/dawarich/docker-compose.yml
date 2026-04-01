@@ -47,11 +47,7 @@ services:
     environment:
       RAILS_ENV: production
       SECRET_KEY_BASE: ${DAWARICH_SECRET_KEY_BASE}
-      POSTGRES_DB: dawarich
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DAWARICH_DB_PASSWORD}
-      POSTGRES_HOST: dawarich_db
-      POSTGRES_PORT: 5432
+      DATABASE_URL: postgresql://postgres:${DAWARICH_DB_PASSWORD}@dawarich_db:5432/dawarich
       REDIS_URL: redis://dawarich_redis:6379/0
       TIME_ZONE: ${TZ}
       DAWARICH_APP_PROTOCOL: http
@@ -88,11 +84,7 @@ services:
     environment:
       RAILS_ENV: production
       SECRET_KEY_BASE: ${DAWARICH_SECRET_KEY_BASE}
-      POSTGRES_DB: dawarich
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DAWARICH_DB_PASSWORD}
-      POSTGRES_HOST: dawarich_db
-      POSTGRES_PORT: 5432
+      DATABASE_URL: postgresql://postgres:${DAWARICH_DB_PASSWORD}@dawarich_db:5432/dawarich
       REDIS_URL: redis://dawarich_redis:6379/0
       TIME_ZONE: ${TZ}
       SIDEKIQ_CONCURRENCY: 5
