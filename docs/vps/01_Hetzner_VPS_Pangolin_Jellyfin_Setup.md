@@ -754,6 +754,26 @@ Log all access attempts: ON
 Log configuration changes: ON
 ```
 
+### Docker Bridge Bypass Rule (all resources)
+
+Traffic arriving through the Newt/Gerbil tunnel from the homelab side appears to Traefik with source IP `172.18.0.1` (the VPS Docker bridge gateway). Without a bypass rule, Pangolin blocks these requests with "Dropped by Rule" - which causes Uptime Kuma health checks and other internal monitoring to always fail.
+
+**Apply this rule to every protected resource:**
+
+```
+Resources → <resource> → Rules tab → Enable Rules: ON
+
+Rule (add first, highest priority):
+  Action: Allow
+  Match Type: CIDR
+  Value: 172.18.0.0/16
+  Enabled: ON
+```
+
+This is safe - `172.18.0.0/16` is a non-routable private range (RFC 1918). External internet traffic cannot arrive with this source IP; only processes running inside Docker on the VPS can have it.
+
+---
+
 ### Jellyfin Resource Rules ✅ (completed - see Doc 12: Security Configuration Guide)
 
 **Resources → Jellyfin → Rules tab:**
