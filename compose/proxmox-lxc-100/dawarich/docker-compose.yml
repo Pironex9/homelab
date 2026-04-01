@@ -61,6 +61,7 @@ services:
       DOMAIN: dawarich.homelabor.net
       SMTP_SERVER: smtp.resend.com
       SMTP_PORT: 587
+      SMTP_DOMAIN: ${DAWARICH_SMTP_DOMAIN}
       SMTP_USERNAME: resend
       SMTP_PASSWORD: ${DAWARICH_SMTP_PASSWORD}
       SMTP_FROM: ${DAWARICH_SMTP_FROM}
@@ -105,6 +106,13 @@ services:
       TIME_ZONE: ${TZ}
       BACKGROUND_PROCESSING_CONCURRENCY: 5
       SELF_HOSTED: "true"
+      SMTP_SERVER: smtp.resend.com
+      SMTP_PORT: 587
+      SMTP_DOMAIN: ${DAWARICH_SMTP_DOMAIN}
+      SMTP_USERNAME: resend
+      SMTP_PASSWORD: ${DAWARICH_SMTP_PASSWORD}
+      SMTP_FROM: ${DAWARICH_SMTP_FROM}
+      SMTP_STARTTLS: "true"
     depends_on:
       dawarich_db:
         condition: service_healthy
