@@ -5,7 +5,7 @@ services:
     container_name: pangolin
     restart: unless-stopped
     volumes:
-      - ./config:/app/config
+      - /opt/pangolin/config:/app/config
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/"]
       interval: "10s"
@@ -24,7 +24,7 @@ services:
       - --generateAndSaveKeyTo=/var/config/key
       - --remoteConfig=http://pangolin:3001/api/v1/
     volumes:
-      - ./config/:/var/config
+      - /opt/pangolin/config/:/var/config
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
@@ -47,9 +47,9 @@ services:
     command:
       - --configFile=/etc/traefik/traefik_config.yml
     volumes:
-      - ./config/traefik:/etc/traefik:ro # Volume to store the Traefik configuration
-      - ./config/letsencrypt:/letsencrypt # Volume to store the Let's Encrypt certificates
-      - ./config/traefik/logs:/var/log/traefik # Volume to store Traefik logs
+      - /opt/pangolin/config/traefik:/etc/traefik:ro # Volume to store the Traefik configuration
+      - /opt/pangolin/config/letsencrypt:/letsencrypt # Volume to store the Let's Encrypt certificates
+      - /opt/pangolin/config/traefik/logs:/var/log/traefik # Volume to store Traefik logs
 
 networks:
   default:
