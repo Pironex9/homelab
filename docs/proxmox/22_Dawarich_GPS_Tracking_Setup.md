@@ -8,7 +8,8 @@
 
 Dawarich is a self-hosted GPS location history and family tracking platform. It replaces cloud-based location tracking apps (e.g. Locator 24) with a fully private, self-hosted solution. It stores location history, shows maps, supports family sharing, and accepts data from multiple mobile apps.
 
-- **URL:** http://192.168.0.110:3005
+- **URL (LAN):** http://192.168.0.110:3005
+- **URL (public):** https://dawarich.homelabor.net (via Pangolin)
 - **Stack location:** `compose/proxmox-lxc-100/dawarich/`
 - **Managed via:** Komodo (Stack: `dawarich`, LXC 100)
 
@@ -39,7 +40,7 @@ Generate `SECRET_KEY_BASE` with: `openssl rand -hex 64`
 ## Key Configuration Notes
 
 - Dawarich uses `DATABASE_HOST` / `DATABASE_USERNAME` / `DATABASE_NAME` env vars - NOT `POSTGRES_HOST` or `DATABASE_URL`
-- `APPLICATION_HOSTS` must include the LAN IP (`192.168.0.110`) to avoid Rails host authorization blocking
+- `APPLICATION_HOSTS` must include all hostnames used to access the app - LAN IP, localhost, and any public domain (e.g. `dawarich.homelabor.net`)
 - The `bin/rails server` command must be specified explicitly - the image has no default entrypoint command for the app service
 - Migrations do NOT run automatically on startup - run manually after first deploy (see below)
 
