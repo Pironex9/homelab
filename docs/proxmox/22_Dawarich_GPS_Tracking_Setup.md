@@ -34,6 +34,8 @@ Set in Komodo Stack Environment:
 | `TZ` | `Europe/Budapest` |
 | `DAWARICH_DB_PASSWORD` | PostgreSQL password for the `dawarich` database |
 | `DAWARICH_SECRET_KEY_BASE` | 64-character random secret for Rails session encryption |
+| `DAWARICH_SMTP_PASSWORD` | Resend API key (used as SMTP password) |
+| `DAWARICH_SMTP_FROM` | From address for invitation emails (e.g. `noreply@yourdomain.com`) |
 
 Generate `SECRET_KEY_BASE` with: `openssl rand -hex 64`
 
@@ -41,8 +43,26 @@ Generate `SECRET_KEY_BASE` with: `openssl rand -hex 64`
 
 - Dawarich uses `DATABASE_HOST` / `DATABASE_USERNAME` / `DATABASE_NAME` env vars - NOT `POSTGRES_HOST` or `DATABASE_URL`
 - `APPLICATION_HOSTS` must include all hostnames used to access the app - LAN IP, localhost, and any public domain (e.g. `dawarich.homelabor.net`)
+- `APPLICATION_PROTOCOL` must be `http` - Pangolin handles TLS termination. Setting `https` causes Rails to force-redirect HTTP to HTTPS, creating a redirect loop through the Pangolin tunnel.
 - The `bin/rails server` command must be specified explicitly - the image has no default entrypoint command for the app service
 - Migrations do NOT run automatically on startup - run manually after first deploy (see below)
+
+## SMTP Setup (Family Invitations)
+
+Dawarich uses SMTP to send family invitation emails. Configured with Resend:
+
+| Variable | Value |
+|----------|-------|
+| `SMTP_SERVER` | `smtp.resend.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USERNAME` | `resend` |
+| `SMTP_PASSWORD` | Resend API key (set in Komodo env) |
+| `SMTP_STARTTLS` | `true` |
+| `SMTP_FROM` | From address configured in Resend |
+
+To invite family members:
+1. Settings - Users - Invite User (or use the Family Group feature)
+2. The invited user receives an email with a registration link
 
 ## First-Time Setup
 
@@ -128,3 +148,4 @@ Issues encountered during setup and their fixes:
 | White page on sign in | Migrations not run | Run `docker exec dawarich_app bin/rails db:migrate` |
 | No default login | No demo user exists | Create user via `rails runner` command above |
 | Colota 404 on test connection | Base URL entered instead of full endpoint | Use full `/api/v1/owntracks/points?api_key=...` URL |
+| `dawarich.homelabor.net` returns 503 / no available server | `APPLICATION_PROTOCOL: https` causes Rails force_ssl redirect loop through Pangolin | Set `APPLICATION_PROTOCOL: http` - Pangolin handles TLS |
