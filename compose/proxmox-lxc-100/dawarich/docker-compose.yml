@@ -106,6 +106,7 @@ services:
       TIME_ZONE: ${TZ}
       BACKGROUND_PROCESSING_CONCURRENCY: 5
       SELF_HOSTED: "true"
+      DOMAIN: dawarich.homelabor.net
       SMTP_SERVER: smtp.resend.com
       SMTP_PORT: 587
       SMTP_DOMAIN: ${DAWARICH_SMTP_DOMAIN}
