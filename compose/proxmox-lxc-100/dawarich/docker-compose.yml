@@ -54,7 +54,7 @@ services:
       DATABASE_NAME: dawarich
       REDIS_URL: redis://dawarich_redis:6379/0
       TIME_ZONE: ${TZ}
-      APPLICATION_HOSTS: 192.168.0.110,localhost
+      APPLICATION_HOSTS: 192.168.0.110,localhost,dawarich.homelabor.net
       APPLICATION_PROTOCOL: http
       BACKGROUND_PROCESSING_CONCURRENCY: 5
       SELF_HOSTED: "true"
