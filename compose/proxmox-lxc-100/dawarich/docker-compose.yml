@@ -1,0 +1,113 @@
+services:
+  dawarich_db:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: dawarich_db
+    shm_size: 1gb
+    volumes:
+      - ${DOCKER_DATA}/dawarich-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: dawarich
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DAWARICH_DB_PASSWORD}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dawarich"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - dawarich
+
+  dawarich_redis:
+    image: redis:7.4-alpine
+    container_name: dawarich_redis
+    command: redis-server --save 900 1 --save 300 10
+    volumes:
+      - ${DOCKER_DATA}/dawarich-redis:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - dawarich
+
+  dawarich_app:
+    image: freikin/dawarich:latest
+    container_name: dawarich_app
+    volumes:
+      - ${DOCKER_DATA}/dawarich-public:/var/app/public
+      - ${DOCKER_DATA}/dawarich-storage:/var/app/storage
+      - ${DOCKER_DATA}/dawarich-imports:/var/app/tmp/imports
+      - ${DOCKER_DATA}/dawarich-watched:/var/app/tmp/watched
+    ports:
+      - "3004:3000"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${DAWARICH_SECRET_KEY_BASE}
+      POSTGRES_DB: dawarich
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DAWARICH_DB_PASSWORD}
+      POSTGRES_HOST: dawarich_db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://dawarich_redis:6379/0
+      TIME_ZONE: ${TZ}
+      DAWARICH_APP_PROTOCOL: http
+      SIDEKIQ_CONCURRENCY: 5
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+      dawarich_redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/up"]
+      interval: 30s
+      retries: 3
+      start_period: 60s
+    networks:
+      - dawarich
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  dawarich_sidekiq:
+    image: freikin/dawarich:latest
+    container_name: dawarich_sidekiq
+    command: bundle exec sidekiq
+    volumes:
+      - ${DOCKER_DATA}/dawarich-public:/var/app/public
+      - ${DOCKER_DATA}/dawarich-storage:/var/app/storage
+      - ${DOCKER_DATA}/dawarich-imports:/var/app/tmp/imports
+      - ${DOCKER_DATA}/dawarich-watched:/var/app/tmp/watched
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${DAWARICH_SECRET_KEY_BASE}
+      POSTGRES_DB: dawarich
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DAWARICH_DB_PASSWORD}
+      POSTGRES_HOST: dawarich_db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://dawarich_redis:6379/0
+      TIME_ZONE: ${TZ}
+      SIDEKIQ_CONCURRENCY: 5
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+      dawarich_redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dawarich
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+networks:
+  dawarich:
+    driver: bridge
