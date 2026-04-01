@@ -55,9 +55,16 @@ services:
       REDIS_URL: redis://dawarich_redis:6379/0
       TIME_ZONE: ${TZ}
       APPLICATION_HOSTS: 192.168.0.110,localhost,dawarich.homelabor.net
-      APPLICATION_PROTOCOL: http
+      APPLICATION_PROTOCOL: https
       BACKGROUND_PROCESSING_CONCURRENCY: 5
       SELF_HOSTED: "true"
+      DOMAIN: dawarich.homelabor.net
+      SMTP_SERVER: smtp.resend.com
+      SMTP_PORT: 587
+      SMTP_USERNAME: resend
+      SMTP_PASSWORD: ${DAWARICH_SMTP_PASSWORD}
+      SMTP_FROM: ${DAWARICH_SMTP_FROM}
+      SMTP_STARTTLS: "true"
     depends_on:
       dawarich_db:
         condition: service_healthy
