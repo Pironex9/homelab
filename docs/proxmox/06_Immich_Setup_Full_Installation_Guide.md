@@ -1,8 +1,8 @@
 
-**Version:** Immich v2.4.1  
-**Date:** 2025-12-26  
-**Platform:** Proxmox VE 9.1.2 / LXC 100 (Docker)  
-**Hardware:** Intel i5-8400, 16GB RAM, NVMe + HDD
+**Version:** Immich v2.6.3  
+**Date:** 2026-04-02  
+**Platform:** Proxmox VE 9.1 / LXC 100 (Docker)  
+**Hardware:** Intel i5-8400, 32GB RAM, NVMe + HDD
 
 ---
 
@@ -53,7 +53,7 @@ LXC 100 - Docker (192.168.0.110)
 
 ```
 CPU: Intel CPU with iGPU (Quick Sync) - i5-8400 ✅
-RAM: 16GB (minimum), 32GB recommended
+RAM: 32GB
   Immich usage: ~4-6GB
   
 Storage:
@@ -86,16 +86,9 @@ ls -la /mnt/storage/
 ### **Why is swap needed?**
 
 ```
-On a 16GB RAM system, Immich ML processing:
-  - Face recognition: +2-4GB RAM
-  - CLIP indexing: +1-2GB RAM
-  - PostgreSQL: +500MB RAM
-  - Redis: +200MB RAM
-  ────────────────────────────
-  Peak usage: ~16-18GB → OVERFLOW! ⚠️
+On a 32GB RAM system swap is not strictly required, but still useful as a safety net during heavy ML indexing.
 
-Swap solution:
-  4GB swap = protection against OOM Killer ✅
+  4GB swap = protection against unexpected OOM spikes ✅
 ```
 
 ### **Setting up swap:**
@@ -382,7 +375,7 @@ services:
     depends_on:
       - redis
       - database
-    restart: always
+    restart: unless-stopped
     healthcheck:
       disable: false
 
@@ -399,7 +392,7 @@ services:
       - model-cache:/cache
     env_file:
       - .env
-    restart: always
+    restart: unless-stopped
     healthcheck:
       disable: false
 
@@ -412,7 +405,7 @@ services:
           memory: 256M
     healthcheck:
       test: redis-cli ping || exit 1
-    restart: always
+    restart: unless-stopped
 
   database:
     container_name: immich_postgres
@@ -430,7 +423,7 @@ services:
     volumes:
       - /mnt/storage/immich/pgdata:/var/lib/postgresql/data
     shm_size: 128mb
-    restart: always
+    restart: unless-stopped
 
 volumes:
   model-cache:
@@ -521,7 +514,7 @@ docker compose logs --tail=50
 
 ```
 immich_postgres          | database system is ready to accept connections  ✅
-immich_server            | Immich Microservices is running [v2.4.1]  ✅
+immich_server            | Immich Microservices is running [v2.6.3]  ✅
 immich_machine_learning  | Application startup complete.  ✅
 immich_redis             | Ready to accept connections tcp  ✅
 ```
@@ -1360,5 +1353,5 @@ Proxmox Host (192.168.0.109):
 ---
 
 **Created:** 2025-12-26  
-**Version:** 1.0  
-**System:** Proxmox VE 9.1.2 / Immich v2.4.1 / Docker
+**Version:** 1.1  
+**System:** Proxmox VE 9.1 / Immich v2.6.3 / Docker

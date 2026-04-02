@@ -144,7 +144,33 @@ mountpoint /mnt/pve/nobara-backup
 
 ---
 
-## 5. Disk Layout
+## 5. Immich Database Backup
+
+Immich stores its data outside `/srv/docker-data/`, so it is not covered by the standard Docker volume backup. A dedicated routine runs `pg_dumpall` before the main restic sweep.
+
+### How it works
+
+1. `pg_dumpall` dumps the entire Immich Postgres instance to `/tmp/immich-db-dump/`
+2. Restic backs up the dump to `$BACKUP_DEST_NFS/immich-db`
+3. Temp dump is deleted after backup
+
+### Usage
+
+```bash
+# Run Immich DB backup only
+./scripts/backup.sh immich-db
+
+# Runs automatically as part of full backup
+./scripts/backup.sh --all
+```
+
+### What is NOT backed up by this
+
+The photo library at `/mnt/storage/immich/library` is on the MergerFS pool, protected by SnapRAID parity. Thumbnails and encoded videos are excluded from any offsite backup - they are regenerable via Administration > Jobs in the Immich UI.
+
+---
+
+## 6. Disk Layout
 
 ### Proxmox
 ```
