@@ -83,6 +83,10 @@ Forward (name → IP) and reverse PTR (IP → name) records for all homelab host
 | `ollama.lan` | `192.168.0.231` |
 | `claude.lan` | `192.168.0.204` |
 | `nobara.lan` | `192.168.0.100` |
+| `netdata.lan` | `192.168.0.208` |
+| `haos.lan` | `192.168.0.208` |
+| `vaultwarden.lan` | `192.168.0.208` |
+| `syncthing-nex.lan` | `192.168.0.208` |
 
 PTR records use the `in-addr.arpa` format in the rewrites section (e.g. `109.0.168.192.in-addr.arpa` → `proxmox.lan`).
 `private_networks` is set to `192.168.0.0/24` so AdGuard handles PTR queries for the local subnet locally.
