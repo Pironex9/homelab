@@ -11,7 +11,7 @@
 | CPU | 1 core |
 | RAM | 256 MB |
 | Disk | 3 GB (local-lvm) |
-| Purpose | Reverse proxy for all .lan services with HTTPS |
+| Purpose | Reverse proxy for all .lan services (HTTP + HTTPS) |
 
 ## Running Services
 
@@ -24,8 +24,8 @@
 | Port | Protocol | Service |
 |------|----------|---------|
 | 22 | TCP | SSH |
-| 80 | TCP | HTTP (currently unused, auto_https off) |
-| 443 | TCP | HTTPS reverse proxy |
+| 80 | TCP | HTTP - same handlers as HTTPS, for devices without the CA cert |
+| 443 | TCP | HTTPS reverse proxy with TLS |
 
 ## Caddy
 
@@ -65,21 +65,43 @@ pct exec 110 -- chmod 640 /etc/caddy/certs/lan-key.pem
 pct exec 110 -- rc-service caddy restart
 ```
 
+### Caddyfile structure
+
+All service handlers are defined once in a `(lan_services)` snippet and imported by both the HTTPS and HTTP blocks. This avoids duplication:
+
+```
+(lan_services) {
+    @service host service.lan
+    handle @service { reverse_proxy ... }
+    ...
+    handle { respond 404 }
+}
+
+*.lan {
+    tls /etc/caddy/certs/lan.pem /etc/caddy/certs/lan-key.pem
+    import lan_services
+}
+
+http://*.lan {
+    import lan_services
+}
+```
+
 ### Adding a new service
 
 1. **AdGuard** - add DNS rewrite: `newservice.lan` → `192.168.0.208`
 
-2. **Caddyfile** - add a new block inside the `*.lan { }` block:
+2. **Caddyfile** - add a new handler inside the `(lan_services)` snippet, before the final `handle { respond 404 }`:
 ```bash
 ssh root@192.168.0.109 "pct exec 110 -- vi /etc/caddy/Caddyfile"
-# Add before the final "handle { respond 404 }" block:
+# Add before the final "handle { respond 404 }" line:
 #
 #     @newservice host newservice.lan
 #     handle @newservice {
 #         reverse_proxy 192.168.0.110:PORT
 #     }
 #
-pct exec 110 -- rc-service caddy restart
+pct exec 110 -- rc-service caddy reload
 ```
 
 3. **Cert** - regenerate with the new domain added to the list (see "Regenerating the cert" above)
@@ -97,9 +119,11 @@ ssh root@192.168.0.109 "pct pull 110 /etc/caddy/certs/rootCA.pem /tmp/rootCA.pem
 scp root@192.168.0.109:/tmp/rootCA.pem ~/mkcert-rootCA.pem
 ```
 
-**Firefox:** Settings → Privacy & Security → View Certificates → Authorities → Import → select `mkcert-rootCA.pem` → check "Trust this CA to identify websites"
+**Firefox (desktop):** Settings → Privacy & Security → View Certificates → Authorities → Import → select `mkcert-rootCA.pem` → check "Trust this CA to identify websites"
 
-**Android:** Copy the .pem file to the device → Settings → Security → Install certificate → CA certificate
+**Android (system cert):** Copy the .pem file to the device → Settings → Security → Install certificate → CA certificate. This enables HTTPS in Chrome and regular Firefox, but **not** Firefox Nightly (which ignores user certs).
+
+**Firefox Nightly on Android:** Nightly does not trust Android user-installed CA certs. Use `http://service.lan` (port 80) instead - the HTTP listener serves identical content without TLS. The Tailscale mesh provides transport encryption so plain HTTP is acceptable over Tailscale.
 
 ### Proxied Services
 
@@ -118,7 +142,7 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | immich.lan | http://192.168.0.110:2283 |
 | bentopdf.lan | http://192.168.0.110:3000 |
 | docuseal.lan | http://192.168.0.110:3003 |
-| qbit.lan | http://192.168.0.110:8080 |
+| qbit.lan | http://192.168.0.110:8080 (X-Forwarded-Proto: https) |
 | sonarr.lan | http://192.168.0.110:8989 |
 | form.lan | http://192.168.0.110:3004 |
 | uptime-kuma.lan | http://192.168.0.110:3001 |
@@ -136,6 +160,8 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | vaultwarden.lan | https://192.168.0.219:8000 (tls_insecure_skip_verify) |
 | syncthing-nex.lan | http://192.168.0.100:8384 |
 
+**Note on qbit.lan:** qBittorrent 5.1+ reads `X-Forwarded-Proto: https` from trusted proxies to automatically set the `Secure` flag on its session cookie. The Caddy block explicitly sets this header even on HTTP requests so the behavior is consistent.
+
 ## Lessons Learned
 
 - **Wildcard `*.lan` rejected by Firefox:** Firefox does not accept second-level wildcard certs (e.g. `*.lan`). All domains must be listed explicitly as SANs. mkcert warns about this during generation.
@@ -143,3 +169,5 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 - **DNS cache on Linux clients:** After adding new AdGuard rewrites, Linux clients may need `resolvectl flush-caches` before the new domain resolves.
 - **mkcert not in Alpine apk:** mkcert is not available in Alpine's package repos. Install the binary directly from GitHub releases.
 - **Installation:** Deployed via community-scripts Alpine LXC script (successor to tteck/Proxmox scripts).
+- **HTTP + HTTPS in one Caddyfile:** Caddy does not allow a `tls` directive in a block that matches both HTTP and HTTPS. Solution: define handlers once in a named snippet `(lan_services)` and `import` it from both the `*.lan` (HTTPS) and `http://*.lan` (HTTP) blocks.
+- **Firefox Nightly Android cannot trust user CAs:** Android user-installed CA certificates are ignored by Firefox Nightly regardless of `security.enterprise_roots.enabled`. The workaround is HTTP access on port 80.

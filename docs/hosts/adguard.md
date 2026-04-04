@@ -70,25 +70,64 @@ Quad9 - privacy-focused, malware-blocking resolver, using all three protocols wi
 
 ### Local DNS Rewrites
 
-Forward (name → IP) and reverse PTR (IP → name) records for all homelab hosts:
+All service domains resolve to `192.168.0.208` (Caddy reverse proxy). Direct host records for SSH and management access:
+
+**Service domains (via Caddy):**
 
 | Hostname | IP |
 |----------|----|
-| `proxmox.lan` | `192.168.0.109` |
-| `docker.lan` | `192.168.0.110` |
-| `adguard.lan` | `192.168.0.111` |
-| `komodo.lan` | `192.168.0.105` |
-| `karakeep.lan` | `192.168.0.128` |
-| `n8n.lan` | `192.168.0.112` |
-| `ollama.lan` | `192.168.0.231` |
-| `claude.lan` | `192.168.0.204` |
-| `nobara.lan` | `192.168.0.100` |
+| `proxmox.lan` | `192.168.0.208` |
+| `adguard.lan` | `192.168.0.208` |
+| `komodo.lan` | `192.168.0.208` |
+| `karakeep.lan` | `192.168.0.208` |
+| `n8n.lan` | `192.168.0.208` |
+| `ollama.lan` | `192.168.0.208` |
+| `jellyfin.lan` | `192.168.0.208` |
+| `homepage.lan` | `192.168.0.208` |
+| `immich.lan` | `192.168.0.208` |
+| `bentopdf.lan` | `192.168.0.208` |
+| `docuseal.lan` | `192.168.0.208` |
+| `qbit.lan` | `192.168.0.208` |
+| `sonarr.lan` | `192.168.0.208` |
+| `form.lan` | `192.168.0.208` |
+| `uptime-kuma.lan` | `192.168.0.208` |
+| `syncthing.lan` | `192.168.0.208` |
+| `suggestarr.lan` | `192.168.0.208` |
+| `notifiarr.lan` | `192.168.0.208` |
+| `calibre.lan` | `192.168.0.208` |
+| `seerr.lan` | `192.168.0.208` |
+| `radarr.lan` | `192.168.0.208` |
+| `scrutiny.lan` | `192.168.0.208` |
+| `prowlarr.lan` | `192.168.0.208` |
+| `freshrss.lan` | `192.168.0.208` |
 | `netdata.lan` | `192.168.0.208` |
 | `haos.lan` | `192.168.0.208` |
 | `vaultwarden.lan` | `192.168.0.208` |
 | `syncthing-nex.lan` | `192.168.0.208` |
+| `nobara.lan` | `192.168.0.208` |
 
-PTR records use the `in-addr.arpa` format in the rewrites section (e.g. `109.0.168.192.in-addr.arpa` → `proxmox.lan`).
+**Direct host records (management):**
+
+| Hostname | IP |
+|----------|----|
+| `docker.lan` | `192.168.0.208` |
+| `claude.lan` | `192.168.0.208` |
+
+**PTR records** (reverse DNS):
+
+| PTR | Resolves to |
+|-----|-------------|
+| `109.0.168.192.in-addr.arpa` | `proxmox.lan` |
+| `110.0.168.192.in-addr.arpa` | `docker.lan` |
+| `111.0.168.192.in-addr.arpa` | `adguard.lan` |
+| `105.0.168.192.in-addr.arpa` | `komodo.lan` |
+| `128.0.168.192.in-addr.arpa` | `karakeep.lan` |
+| `112.0.168.192.in-addr.arpa` | `n8n.lan` |
+| `204.0.168.192.in-addr.arpa` | `claude.lan` |
+| `231.0.168.192.in-addr.arpa` | `ollama.lan` |
+| `100.0.168.192.in-addr.arpa` | `nobara.lan` |
+
+PTR records use the `in-addr.arpa` format in the rewrites section.
 `private_networks` is set to `192.168.0.0/24` so AdGuard handles PTR queries for the local subnet locally.
 
 ### Blocklists
