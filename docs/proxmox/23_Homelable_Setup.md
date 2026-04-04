@@ -132,9 +132,16 @@ Note: Use `"type": "http"` not `"type": "sse"` - SSE transport is deprecated in 
 
 ## Update Procedure
 
-Since the MCP image is built from source, updates require pulling the upstream repo before redeploying. A Komodo Procedure (`homelable-update`) automates this:
+Backend and frontend update automatically via Komodo's nightly image pull (03:00). The MCP service is different - it has no prebuilt image and is built from source, so the upstream repo must be pulled before redeploying.
 
-**Stage 1** - Komodo Action `homelable-git-pull`:
+### Why a separate procedure is needed
+
+All other stacks use prebuilt Docker images. Komodo's auto-update just pulls the latest image and restarts the container. Homelable MCP has no published image - it is built locally from `/opt/homelable/mcp`. Without pulling the upstream repo first, Komodo would rebuild the same old source every time.
+
+### Komodo Action: `homelable-git-pull`
+
+Action File contents:
+
 ```typescript
 await komodo.execute_server_terminal({
   server: "LXC 100",
@@ -146,9 +153,28 @@ await komodo.execute_server_terminal({
 });
 ```
 
-**Stage 2** - Deploy Stack: `homelable`
+### Komodo Procedure: `homelable-update`
 
-To update: Komodo > Procedures > `homelable-update` > Run.
+| Stage | Type | Target |
+|-------|------|--------|
+| Stage 1 | Run Action | `homelable-git-pull` |
+| Stage 2 | Deploy Stack | `homelable` |
+
+Stages run sequentially - Stage 2 only starts after the git pull completes.
+
+### Schedule
+
+The procedure is scheduled to run daily at **03:10** (after Komodo's 03:00 auto-update):
+
+```
+Cron: 0 10 3 * * *
+```
+
+Full nightly flow:
+- **03:00** - Komodo auto-update pulls new `homelable-backend` and `homelable-frontend` images
+- **03:10** - `homelable-update` procedure: git pull MCP source → redeploy (rebuilds MCP + re-pulls images)
+
+To update manually: Komodo > Procedures > `homelable-update` > Run.
 
 ## Data
 
