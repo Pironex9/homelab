@@ -88,6 +88,9 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 | `homepage` | `ghcr.io/gethomepage/homepage` | 3002 | Self-hosted dashboard |
 | `uptime-kuma` | `louislam/uptime-kuma` | - | Service uptime monitoring |
 | `scrutiny` | `ghcr.io/analogj/scrutiny` | 8082 | Hard drive S.M.A.R.T. monitoring |
+| `homelable-backend` | `ghcr.io/pouzor/homelable-backend` | - | Network topology backend (internal) |
+| `homelable-frontend` | `ghcr.io/pouzor/homelable-frontend` | 3001 | Network diagram and live status UI |
+| `homelable-mcp` | built from `/opt/homelable/mcp` | 8001 | MCP server - Claude Code integration |
 
 ## Docker Volumes
 
@@ -118,8 +121,10 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 8384 | TCP | Syncthing web UI |
 | 8888 | TCP | Dozzle |
 | 8989 | TCP | Sonarr |
+| 3001 | TCP | Homelable web UI |
 | 3003 | TCP | DocuSeal |
 | 3005 | TCP | Dawarich |
+| 8001 | TCP | Homelable MCP server |
 | 9696 | TCP | Prowlarr |
 | 21027 | UDP | Syncthing discovery |
 | 22000 | TCP/UDP | Syncthing sync |

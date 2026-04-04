@@ -84,6 +84,7 @@ nav:
           - 20 - MkDocs Portfolio Site: proxmox/20_MkDocs_Portfolio_Site_Setup.md
           - 21 - Public Form E-Signature Automation: proxmox/21_Public_Form_E-Signature_Automation.md
           - 22 - Dawarich GPS Tracking: proxmox/22_Dawarich_GPS_Tracking_Setup.md
+          - 23 - Homelable Network Visualization + MCP: proxmox/23_Homelable_Setup.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md

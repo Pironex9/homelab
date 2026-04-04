@@ -1,5 +1,5 @@
 **Date:** 2026-01-04
-**Status:** DEPRECATED - replaced by a different network topology tool
+**Status:** DEPRECATED - replaced by [Homelable](../23_Homelable_Setup.md)
 **LXC ID:** 104 (decommissioned)
 
 ---
