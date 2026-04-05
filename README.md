@@ -23,35 +23,7 @@ Self-hosted infrastructure running 18 Docker stacks + 11 LXC/VMs on Proxmox VE. 
 
 ## 🏗️ Architecture
 
-```
-Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
-├── LXC 100  docker-host     192.168.0.110   18 Docker Compose stacks
-├── VM  101  haos            192.168.0.202   Home Assistant OS
-├── LXC 102  adguard         192.168.0.111   AdGuard Home + Tailscale DNS
-├── LXC 103  vaultwarden     -               Vaultwarden password manager
-├── LXC 105  komodo          192.168.0.105   Komodo GitOps management
-├── LXC 106  karakeep        192.168.0.128   Karakeep bookmarking + AI tagging
-├── LXC 107  n8n             192.168.0.112   n8n workflow automation
-├── LXC 108  ollama          192.168.0.231   Ollama local LLM (CPU, always on)
-├── LXC 109  claude-mgmt     192.168.0.204   Claude Code management node
-├── LXC 110  caddy           192.168.0.208   Caddy reverse proxy + mkcert local CA
-└── Storage
-    ├── MergerFS pool   8.1TB usable (2x internal HDD + 2x USB HDD)
-    └── SnapRAID        1 parity drive, automated sync + scrub
-
-Nobara PC (192.168.0.100)
-└── Open WebUI + AnythingLLM + Ollama (GPU, not 24/7)
-
-Hetzner VPS (FSN1)
-├── Pangolin reverse proxy  (public access)
-└── Traefik + WireGuard tunnel to homelab
-
-K3s Cluster (192.168.2.x)
-├── opt5060-i5    192.168.2.101  master
-├── opt3060-i3    192.168.2.102  worker
-├── opt3050-i5    192.168.2.103  worker
-└── orangepione   192.168.2.100  WoL server + Tailscale exit node
-```
+![Network Topology](./assets/topology.png)
 
 ## 📸 Dashboard
 
