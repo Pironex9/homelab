@@ -105,6 +105,7 @@ All service domains resolve to `192.168.0.208` (Caddy reverse proxy). Direct hos
 | `vaultwarden.lan` | `192.168.0.208` |
 | `syncthing-nex.lan` | `192.168.0.208` |
 | `nobara.lan` | `192.168.0.208` |
+| `homelable.lan` | `192.168.0.208` |
 
 **Direct host records (management):**
 

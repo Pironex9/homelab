@@ -59,7 +59,7 @@ pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   qbit.lan sonarr.lan form.lan uptime-kuma.lan syncthing.lan \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
   scrutiny.lan prowlarr.lan freshrss.lan \
-  netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan'
+  netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan homelable.lan'
 pct exec 110 -- chown root:caddy /etc/caddy/certs/lan-key.pem
 pct exec 110 -- chmod 640 /etc/caddy/certs/lan-key.pem
 pct exec 110 -- rc-service caddy restart
@@ -159,6 +159,7 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | haos.lan | http://192.168.0.202:8123 |
 | vaultwarden.lan | https://192.168.0.219:8000 (tls_insecure_skip_verify) |
 | syncthing-nex.lan | http://192.168.0.100:8384 |
+| homelable.lan | http://192.168.0.110:3001 |
 
 **Note on qbit.lan:** qBittorrent 5.1+ reads `X-Forwarded-Proto: https` from trusted proxies to automatically set the `Secure` flag on its session cookie. The Caddy block explicitly sets this header even on HTTP requests so the behavior is consistent.
 
