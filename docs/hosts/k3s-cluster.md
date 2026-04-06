@@ -1,6 +1,6 @@
 # K3s Cluster
 
-**Date:** 2026-03-31
+**Date:** 2026-04-06
 **Location:** Separate physical location (remote, Tailscale access only)
 **Network:** 192.168.2.0/24 (separate router from Proxmox network, gateway 192.168.2.1)
 
@@ -69,7 +69,7 @@
 ```bash
 curl -sfL https://get.k3s.io | \
   K3S_NODE_NAME=opt5060-i5 \
-  INSTALL_K3S_EXEC='server --node-ip=192.168.0.104 --advertise-address=192.168.0.104 --flannel-iface=eno1' \
+  INSTALL_K3S_EXEC='server --node-ip=192.168.2.101 --advertise-address=192.168.2.101 --flannel-iface=eno1' \
   sh -
 ```
 
@@ -84,17 +84,17 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 # opt3060-i3
 curl -sfL https://get.k3s.io | \
   K3S_NODE_NAME=opt3060-i3 \
-  K3S_URL=https://192.168.0.104:6443 \
+  K3S_URL=https://192.168.2.101:6443 \
   K3S_TOKEN=<node-token> \
-  INSTALL_K3S_EXEC='agent --node-ip=192.168.0.105 --flannel-iface=enp1s0' \
+  INSTALL_K3S_EXEC='agent --node-ip=192.168.2.102 --flannel-iface=enp1s0' \
   sh -
 
 # opt3050-i5
 curl -sfL https://get.k3s.io | \
   K3S_NODE_NAME=opt3050-i5 \
-  K3S_URL=https://192.168.0.104:6443 \
+  K3S_URL=https://192.168.2.101:6443 \
   K3S_TOKEN=<node-token> \
-  INSTALL_K3S_EXEC='agent --node-ip=192.168.0.106 --flannel-iface=enp1s0' \
+  INSTALL_K3S_EXEC='agent --node-ip=192.168.2.103 --flannel-iface=enp1s0' \
   sh -
 ```
 
@@ -106,7 +106,7 @@ curl -sfL https://get.k3s.io | \
 
 LXC 109 manages the K3s cluster via Tailscale + kubectl.
 
-### Setup done (2026-03-19)
+### Setup done (2026-03-19, updated 2026-04-06)
 
 1. **Tailscale on LXC 109** - requires TUN device in LXC config:
    ```bash
@@ -128,7 +128,13 @@ LXC 109 manages the K3s cluster via Tailscale + kubectl.
 
 4. **SSH key auth** from LXC 109 root to `nex@` on all 3 nodes (no password)
 
-5. **Passwordless sudo** for kubeconfig on master:
+5. **Tailscale accept-routes** on LXC 109 - accepts 192.168.2.0/24 subnet route advertised by Orange Pi:
+   ```bash
+   tailscale set --accept-routes=true
+   ```
+   The Orange Pi's subnet route must also be approved in Tailscale admin console (Machines > orangepione > Edit route settings).
+
+6. **Passwordless sudo** for kubeconfig on master:
    ```
    /etc/sudoers.d/k3s-kubeconfig: nex ALL=(ALL) NOPASSWD: /bin/cat /etc/rancher/k3s/k3s.yaml
    ```
@@ -164,17 +170,21 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 
 ```bash
 #!/bin/bash
+# K3s Cluster wake up script
+
 MAC1="54:bf:64:68:a0:30"  # opt5060-i5
 MAC2="54:bf:64:a2:ff:77"  # opt3060-i3
 MAC3="d8:9e:f3:13:4d:97"  # opt3050-i5
 INTERFACE="end0"
 
-echo "Waking up K3s cluster nodes..."
-sudo etherwake -i $INTERFACE $MAC1
-sleep 2
-sudo etherwake -i $INTERFACE $MAC2
-sleep 2
-sudo etherwake -i $INTERFACE $MAC3
+echo "Waking up nodes (3x retry each)..."
+for MAC in $MAC1 $MAC2 $MAC3; do
+    for i in 1 2 3; do
+        sudo etherwake -i $INTERFACE $MAC
+        sleep 1
+    done
+    echo "Sent 3x to $MAC"
+done
 echo "Wake packets sent to all nodes"
 ```
 
@@ -183,15 +193,25 @@ echo "Wake packets sent to all nodes"
 @reboot sleep 60 && /usr/local/bin/wakeonlan.sh
 ```
 
-The script uses `sudo etherwake` - passwordless sudo is configured:
+Passwordless sudo configured for both `etherwake` and the script:
 ```
-/etc/sudoers.d/etherwake: nex ALL=(ALL) NOPASSWD: /usr/sbin/etherwake
+/etc/sudoers.d/etherwake:  nex ALL=(ALL) NOPASSWD: /usr/sbin/etherwake
+/etc/sudoers.d/wakeonlan:  nex ALL=(ALL) NOPASSWD: /usr/local/bin/wakeonlan.sh
 ```
 
 **Remote trigger from any Tailscale node:**
 ```bash
 ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"
 ```
+
+### WoL reliability notes
+
+WoL is unreliable after extended offline periods (hours/days). Known causes:
+
+- **GS305 Green Ethernet (IEEE 802.3az)** - the switch puts ports into low-power idle when a device disconnects. Unmanaged - cannot be disabled.
+- **NIC WoL state** - `ethtool wol g` is re-applied on each boot via `wol.service`. If the machine was power-cut before booting, the state may be lost.
+
+**Workaround:** If WoL fails, power-cycle the node physically or via a smart PDU. BIOS should be set to `AC Power Recovery = Power On` so the node boots automatically on power restore.
 
 ### WoL persistence on K3s nodes
 
@@ -284,16 +304,44 @@ This setting persists across reboots.
 
 ---
 
+## Longhorn Storage
+
+Dedicated HDDs formatted and labeled for Longhorn. Mount point: `/var/lib/longhorn`.
+
+| Node | Device | Label | UUID | Size | Type |
+|------|--------|-------|------|------|------|
+| opt5060-i5 | /dev/sda1 | longhorn-sdb | `1d358359-cb60-4974-93b3-df15e49741ec` | 931 GB | SATA internal |
+| opt3060-i3 | /dev/sda1 | longhorn-sdd | `297b57c3-2ff7-4c7b-b821-2e2cb3e2c5e0` | 931 GB | SATA internal |
+| opt3050-i5 | /dev/sdb1 | longhorn-sdc | `e1623077-2dcc-44d2-acf8-8df8242ea481` | 465 GB | USB external |
+
+Filesystem: ext4. Formatted 2026-04-06.
+
+**Excluded:** Toshiba MK5055GSXN (33 reallocated sectors + 2 pending) - bad health, not used.
+
+**fstab entries (TODO - not yet applied):**
+```
+# opt5060-i5 /etc/fstab
+UUID=1d358359-cb60-4974-93b3-df15e49741ec /var/lib/longhorn ext4 defaults,nofail 0 2
+
+# opt3060-i3 /etc/fstab
+UUID=297b57c3-2ff7-4c7b-b821-2e2cb3e2c5e0 /var/lib/longhorn ext4 defaults,nofail 0 2
+
+# opt3050-i5 /etc/fstab (USB - extra timeout)
+UUID=e1623077-2dcc-44d2-acf8-8df8242ea481 /var/lib/longhorn ext4 defaults,nofail,x-systemd.device-timeout=30s 0 2
+```
+
+---
+
 ## Planned
 
-- [ ] DHCP reservations on router (prevent IP drift)
-- [ ] Longhorn storage - 1 TB + 2x500 GB HDDs
+- [x] DHCP reservations on router (prevent IP drift)
+- [ ] fstab entries for Longhorn HDDs on all 3 nodes
+- [ ] Longhorn install via Helm
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL
 - [ ] RBAC policies
 - [ ] Network policies
 - [ ] Velero backup
-- [ ] Passwordless sudo on all nodes (for full remote management from LXC 109)
 - [ ] First workload deployment
 
 ---
