@@ -81,15 +81,22 @@ In v2, Core generates a PKI keypair on startup (`/config/keys/core.key` + `core.
 | Server | Address | Periphery type | Notes |
 |--------|---------|----------------|-------|
 | Local | `https://periphery:8120` | Docker container (komodo-periphery-1) | Built-in local agent on the komodo LXC |
-| docker-host | `https://192.168.0.110:8120` | systemd `periphery.service` | Main Docker host - 18 stacks |
+| LXC 100 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | Main Docker host - 18 stacks |
 | nobara | `https://192.168.0.100:8120` | systemd `periphery.service` | Desktop PC, not 24/7 |
-| vps | outbound via Tailscale → `100.86.108.33:9120` | systemd `periphery.service` | Hetzner VPS - Pangolin stack |
+| VPS | outbound via Tailscale → `http://100.86.108.33:9120` | systemd `periphery.service` | Hetzner VPS - Pangolin stack |
 
 ### Periphery PKI configuration (v2)
 
 Each managed host must have the Core public key in its periphery config. Retrieve it from the Core startup log or from **Settings** in the Komodo UI.
 
-**docker-host and nobara** (`/etc/komodo/periphery.config.toml`):
+**LXC 100 (outbound mode)** (`/etc/komodo/periphery.config.toml`):
+```toml
+core_public_keys = ["MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM="]
+core_addresses = ["http://192.168.0.105:9120"]
+connect_as = "LXC 100"
+```
+
+**Nobara** (`/etc/komodo/periphery.config.toml`):
 ```toml
 core_public_keys = ["your_core_public_key_here"]
 ```
@@ -114,7 +121,7 @@ docker compose -p komodo -f mongo.compose.yaml --env-file compose.env pull
 docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 ```
 
-**Current version:** v2.0.0
+**Current version:** v2.1.1
 
 ## Adding a new managed server
 
@@ -149,3 +156,6 @@ docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 - **Onboarding key is one-time use:** After the periphery successfully onboards, comment out the `onboarding_key` line in the periphery config. If left in, the next periphery restart will attempt to re-onboard and may create a duplicate server entry.
 - **`connect_as` is case-sensitive:** The value must exactly match the server name in Komodo (e.g. `connect_as = "VPS"` not `"vps"`). A mismatch causes the onboarding flow to create a NEW server instead of connecting to the existing one. If this happens, a duplicate server entry will appear in the database and the original server will show as unreachable even though periphery reports "Logged in". Fix: correct the case in the config, delete the duplicate from MongoDB (`db.Server.deleteOne({_id: ObjectId("...")})`), restart periphery.
 - **Periphery backoff after network outage:** After a network outage, periphery on managed hosts (e.g. LXC 100) enters exponential backoff and may not reconnect automatically. If a server shows as unreachable in Komodo after a network event, SSH to the host and run `systemctl restart periphery`. The services themselves keep running - only Komodo visibility is lost.
+- **Inbound vs outbound periphery mode:** In inbound mode, Core connects to periphery via HTTP/WebSocket. A known issue (likely reqwest connection pool poisoning) causes Core to stop retrying after a connection drop - only a Core restart recovers it. Solution: switch to outbound mode where periphery initiates the connection and reconnects automatically. LXC 100 was migrated to outbound mode on 2026-04-06.
+- **Migrating existing server from inbound to outbound mode:** (1) In Komodo UI, clear the server's Address field and set Periphery Public Key to the periphery's public key (from its startup log). (2) In periphery config, add `core_addresses` and `connect_as = "<exact server name>"`. (3) Restart periphery - it connects without an onboarding key. Do NOT use an onboarding key for existing servers - it creates a duplicate entry. If a duplicate was created, delete it from MongoDB: `db.Server.deleteOne({_id: ObjectId("...")})`.
+- **LXC 100 periphery public key:** `MCowBQYDK2VuAyEA9sCPWCwh2XNxmYdmWMKvOiWv729oZmBo+uuVsDqoxk4=`
