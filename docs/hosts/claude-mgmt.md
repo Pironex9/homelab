@@ -103,9 +103,31 @@ Nobara's root SSH key (`root@nex-pc`) is in `/root/.ssh/authorized_keys` on this
 | `termux` | nex (Android/Termux) | Mobile access |
 | `root@nex-pc` | root (Nobara) | Used by systemd SSHFS automount |
 
+## Incidents
+
+### 2026-04-08 - SSH/NFS outage after Proxmox + LXC update
+
+**Symptom:** After updating Proxmox and all LXCs, SSH to LXC 109 hung (no error, no refused - just timeout). NFS/SSHFS from Nobara also failed. All other LXCs were fine. Ping from outside showed 100% packet loss, but from inside LXC 109, ping to LAN hosts worked fine.
+
+**Root cause:** `tailscale set --accept-routes=true` had been set on LXC 109 for k3s cluster access. pve advertises `192.168.0.0/24` as a Tailscale subnet route. After the LXC restart (update), Tailscale re-applied the route: `192.168.0.0/24 dev tailscale0` appeared in routing table 52. Policy rule `5270: from all lookup 52` runs before the main table (32766), so all outbound packets to LAN IPs were routed through Tailscale instead of eth0. TCP SYN-ACK replies went via Tailscale → pve subnet router → back to originator, which broke the TCP handshake. ICMP ping appeared to work asymmetrically (roundabout via Tailscale), masking the problem.
+
+**Fix:**
+```bash
+ip route del 192.168.0.0/24 table 52          # immediate fix
+tailscale set --accept-routes=false           # permanent fix
+systemctl restart tailscaled
+```
+
+Also removed `firewall=1` from LXC 109's Proxmox config (`/etc/pve/lxc/109.conf`) as part of diagnosis - this had no effect on the issue but the fwbr is no longer needed.
+
+**Prevention:** Never use `accept-routes=true` on LXC 109. Use `/etc/hosts` entries for Tailscale hostname resolution instead. See k3s-cluster.md step 5.
+
+---
+
 ## Lessons Learned
 
 - **No root password by default:** Community script-based LXC containers do not receive a root password during provisioning. SSH password login is also disabled. The only way to add SSH keys initially is via `pct exec` from the Proxmox host.
 - **`pct exec` interactive commands fail:** Running interactive commands like `passwd` via `pct exec` does not work because there is no TTY. Use `chpasswd` for non-interactive password setting: `echo 'root:password' | chpasswd`.
 - **Key-based SSH is the right approach:** Rather than enabling password auth, it's cleaner to inject the public key directly via `pct exec` and keep `PasswordAuthentication` at its default.
 - **MCP token security:** Store API tokens in `~/.secrets/` with chmod 600, and use wrapper scripts to pass them as environment variables - never put tokens directly in config files.
+- **Tailscale accept-routes breaks LAN SSH:** If pve advertises the homelab LAN subnet (`192.168.0.0/24`) via Tailscale and a container has `accept-routes=true`, all LAN traffic routes through Tailscale (table 52 takes priority). Use `/etc/hosts` entries with Tailscale IPs instead.

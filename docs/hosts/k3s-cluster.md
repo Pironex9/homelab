@@ -1,6 +1,6 @@
 # K3s Cluster
 
-**Date:** 2026-04-06
+**Date:** 2026-04-08
 **Location:** Separate physical location (remote, Tailscale access only)
 **Network:** 192.168.2.0/24 (separate router from Proxmox network, gateway 192.168.2.1)
 
@@ -128,11 +128,16 @@ LXC 109 manages the K3s cluster via Tailscale + kubectl.
 
 4. **SSH key auth** from LXC 109 root to `nex@` on all 3 nodes (no password)
 
-5. **Tailscale accept-routes** on LXC 109 - accepts 192.168.2.0/24 subnet route advertised by Orange Pi:
-   ```bash
-   tailscale set --accept-routes=true
+5. **Hostname resolution** for k3s nodes on LXC 109 - add entries to `/etc/hosts` (Tailscale IP → hostname):
    ```
-   The Orange Pi's subnet route must also be approved in Tailscale admin console (Machines > orangepione > Edit route settings).
+   100.68.209.53   opt5060-i5
+   100.124.149.16  opt3060-i3
+   100.102.92.89   opt3050-i5
+   100.120.73.44   orangepione
+   ```
+   Tailscale already adds individual peer routes to table 52 for each 100.x IP, so kubectl and SSH work over Tailscale without any additional routing config.
+
+   > **WARNING: do NOT use `tailscale set --accept-routes=true` on LXC 109.** pve advertises `192.168.0.0/24` as a subnet route. If LXC 109 accepts it, all outbound traffic to the homelab LAN gets routed through Tailscale (table 52, rule 5270 runs before the main table). TCP reply packets take an asymmetric path and connections hang. SSH and NFS become unreachable. This caused a full SSH/NFS outage on 2026-04-08 after a Proxmox + LXC update restarted Tailscale and re-applied the route. See also: `docs/proxmox/deprecated/Scanopy.md` which had the identical issue.
 
 6. **Passwordless sudo** for kubeconfig on master:
    ```
