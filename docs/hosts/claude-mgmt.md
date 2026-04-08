@@ -19,11 +19,21 @@
 | git | 2.39.5 | Version control |
 | ripgrep | - | Fast code search, used by Claude Code |
 
+## Network Configuration
+
+| Property | Value |
+|----------|-------|
+| IP | 192.168.0.204/24 (static) |
+| Gateway | 192.168.0.1 |
+| DNS | 192.168.0.111 (AdGuard), 192.168.0.1 |
+| Config | `/etc/network/interfaces` - `inet static` |
+| Proxmox config | `/etc/pve/lxc/109.conf` - `ip=192.168.0.204/24,gw=192.168.0.1` |
+
 ## Running Services
 
 | Service | Status | Description |
 |---------|--------|-------------|
-| ssh.service | active | OpenSSH server |
+| ssh.service | active | OpenSSH server (Restart=always, RestartSec=5) |
 | cron.service | active | Scheduled tasks |
 
 ## Open Ports
