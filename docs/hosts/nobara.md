@@ -1,6 +1,7 @@
 # Nobara PC
 
 **Date:** 2026-04-09
+**SSH access from LXC 109:** `ssh nex@192.168.0.100` (key: claude-mgmt)
 **Hostname:** nex-pc
 **IP address:** 192.168.0.100
 **User:** nex
