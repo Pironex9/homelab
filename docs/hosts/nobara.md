@@ -80,6 +80,29 @@ Karakeep AI tagging uses Ollama via `http://192.168.0.100:11434/`.
 
 ---
 
+## TCP Keepalive Configuration
+
+Applied 2026-04-09 to speed up dead connection detection (relevant for NFS, SSHFS, Ollama, Docker):
+
+File: `/etc/sysctl.d/99-tcp-keepalive.conf`
+
+```
+net.ipv4.tcp_keepalive_time=60
+net.ipv4.tcp_keepalive_intvl=10
+net.ipv4.tcp_keepalive_probes=3
+```
+
+Apply without reboot:
+```bash
+sudo sysctl -p /etc/sysctl.d/99-tcp-keepalive.conf
+```
+
+**What it does:** System-wide TCP keepalive settings. After 60 seconds of idle, sends keepalive probes every 10 seconds, 3 times. If no response, the connection is declared dead. Default Linux values are 7200s/75s/9 - meaning a dead connection can hang for ~2.5 hours before being detected.
+
+**Scope:** All TCP connections on the system (NFS, SSHFS, Ollama, Docker, Steam, browser, etc.). No functional impact - connections just fail faster when the remote end is unreachable instead of hanging indefinitely.
+
+---
+
 ## NVIDIA + Wayland Configuration
 
 ### nvidia_drm.fbdev=1 kernel parameter
