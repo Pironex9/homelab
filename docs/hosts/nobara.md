@@ -3,23 +3,80 @@
 **Date:** 2026-04-09
 **SSH access from LXC 109:** `ssh nex@192.168.0.100` (key: claude-mgmt)
 **Hostname:** nex-pc
-**IP address:** 192.168.0.100
+**IP address:** 192.168.0.100 (Ethernet, enp39s0)
+**Tailscale IP:** 100.109.197.79
 **User:** nex
 
 ---
 
-## Overview
+## Hardware
+
+| Component | Detail |
+|-----------|--------|
+| CPU | AMD Ryzen 7 3700X (8-core, 16 threads) |
+| RAM | 32 GB |
+| GPU | NVIDIA GeForce RTX 2060 SUPER, 8 GB VRAM |
+| Storage | 1.8 TB NVMe (OS/home) + 465 GB NVMe (NTFS, /mnt/nvme) + 3.6 TB HDD (NTFS, /mnt/hdd) |
+| Network | Ethernet via TP-Link RE605X wireless backhaul to main router |
+
+## Software
 
 | Property | Value |
 |----------|-------|
-| OS | Nobara Linux (Fedora-based) |
+| OS | Nobara Linux 43 (KDE Plasma Desktop Edition) |
 | Kernel | 6.19.11-201.nobara.fc43.x86_64 |
-| GPU | NVIDIA RTX 2060 (driver 595.58.03) |
+| NVIDIA driver | 595.58.03 |
 | Desktop | KDE Plasma / Wayland |
-| Network | Ethernet via TP-Link RE605X wireless backhaul |
-| Role | Desktop PC, Ollama GPU node (not 24/7) |
 
-Not always on. Hosts Open WebUI + AnythingLLM + Ollama (GPU inference).
+Not always on. GPU inference node for the homelab.
+
+---
+
+## Storage Layout
+
+| Device | Size | FS | Mount | Notes |
+|--------|------|----|-------|-------|
+| nvme0n1p3 | 1.8 TB | btrfs | /home | Main OS drive |
+| nvme1n1p2 | 465 GB | ntfs | /mnt/nvme | Secondary NVMe |
+| sda1 | 3.6 TB | ntfs | /mnt/hdd | External HDD, backup target |
+| zram0 | 8 GB | swap | [SWAP] | Compressed RAM swap |
+
+---
+
+## Running Services
+
+| Service | Description |
+|---------|-------------|
+| ollama.service | Local LLM inference (GPU) |
+| docker.service | AnythingLLM + Open WebUI containers |
+| periphery.service | Komodo Periphery agent (outbound to Komodo Core) |
+| sshd.service | SSH server |
+| mnt-claudemgmt.service | SSHFS mount from LXC 109 |
+| mnt-storage/disk1-4 automount | NFS from Proxmox host |
+| firewalld.service | Firewall |
+| smartd.service | SMART disk monitoring |
+
+---
+
+## Docker Containers
+
+| Container | Image | Status |
+|-----------|-------|--------|
+| open-webui | ghcr.io/open-webui/open-webui:main | running |
+| anythingllm | mintplexlabs/anythingllm:latest | running |
+
+---
+
+## Ollama
+
+Service: `ollama.service` (active, GPU)
+
+| Model | Size |
+|-------|------|
+| qwen2.5:7b | 4.7 GB |
+| nomic-embed-text:latest | 274 MB |
+
+Karakeep AI tagging uses Ollama via `http://192.168.0.100:11434/`.
 
 ---
 
@@ -55,27 +112,21 @@ rm -rf ~/.local/share/kscreen/
 
 ### Proxmox storage (NFS automount)
 
-5 shares from Proxmox host (192.168.0.109): storage, disk1-4.
-Managed via systemd automount units. See [NFS Setup Documentation](../proxmox/14_NFS-Setup_Documentation.md).
-
-| Mount | Source | Type |
-|-------|--------|------|
-| /mnt/storage | 192.168.0.109:/mnt/storage | NFS automount |
-| /mnt/disk1-4 | 192.168.0.109:/mnt/disk1-4 | NFS automount |
+| Mount | Source | State |
+|-------|--------|-------|
+| /mnt/storage | 192.168.0.109:/mnt/storage | automount |
+| /mnt/disk1 | 192.168.0.109:/mnt/disk1 | automount |
+| /mnt/disk2 | 192.168.0.109:/mnt/disk2 | automount |
+| /mnt/disk3 | 192.168.0.109:/mnt/disk3 | automount |
+| /mnt/disk4 | 192.168.0.109:/mnt/disk4 | automount |
 
 ### LXC 109 claude-mgmt (SSHFS service)
-
-Mounts `/root` from LXC 109 via SSHFS as a systemd service (not automount).
 
 ```
 /mnt/claudemgmt  ←  root@192.168.0.204:/root
 ```
 
-Service: `/etc/systemd/system/mnt-claudemgmt.service`
-
-```bash
-sudo systemctl status mnt-claudemgmt.service
-```
+Managed by `mnt-claudemgmt.service` (not automount). See [NFS Setup Documentation](../proxmox/14_NFS-Setup_Documentation.md).
 
 **Why service and not automount:** The automount approach caused KDE desktop freezes when LXC 109 was offline - every directory access blocked D-Bus via systemd-hostnamed for 15+ seconds. The service mounts once at boot and uses `reconnect` to re-establish automatically without blocking the desktop.
 
