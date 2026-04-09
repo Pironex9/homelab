@@ -17,7 +17,7 @@
 | RAM | 32 GB |
 | GPU | NVIDIA GeForce RTX 2060 SUPER, 8 GB VRAM |
 | Storage | 1.8 TB NVMe (OS/home) + 465 GB NVMe (NTFS, /mnt/nvme) + 3.6 TB HDD (NTFS, /mnt/hdd) |
-| Network | Ethernet via TP-Link RE605X wireless backhaul to main router |
+| Network | Ethernet (enp39s0) → TP-Link RE605X extender → wireless backhaul → TP-Link Archer C6 (main router, 192.168.0.1) |
 
 ## Software
 
