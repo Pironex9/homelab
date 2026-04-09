@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-03-14 (fix ordering cycle in automount units)
+**Updated:** 2026-04-08 (replace SSHFS automount with systemd service)
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -174,32 +174,30 @@ sudo mkdir -p /mnt/claudemgmt
 
 Note: no hyphen in `claudemgmt` - systemd unit file names encode hyphens as `\x2d` which causes shell escaping issues.
 
-### Create systemd mount + automount units
+### Create systemd service
+
+A service unit is used instead of mount+automount. The automount approach caused Dolphin and the KDE desktop to lag/freeze for up to 15 seconds on each access attempt when LXC 109 was offline (the mount unit blocked D-Bus via systemd-hostnamed). The service approach with `reconnect` mounts once and maintains the connection in the background.
 
 ```bash
-sudo tee /etc/systemd/system/mnt-claudemgmt.mount << 'EOF'
+sudo tee /etc/systemd/system/mnt-claudemgmt.service << 'EOF'
 [Unit]
 Description=SSHFS /root from LXC 109 claude-mgmt
 After=network-online.target
 Wants=network-online.target
 
-[Mount]
-What=root@192.168.0.204:/root
-Where=/mnt/claudemgmt
-Type=fuse.sshfs
-Options=noauto,_netdev,allow_other,IdentityFile=/root/.ssh/id_ed25519,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo tee /etc/systemd/system/mnt-claudemgmt.automount << 'EOF'
-[Unit]
-Description=Automount /mnt/claudemgmt
-
-[Automount]
-Where=/mnt/claudemgmt
-TimeoutIdleSec=600
+[Service]
+Type=simple
+ExecStartPre=/bin/bash -c 'ssh -o ConnectTimeout=3 -o BatchMode=yes root@192.168.0.204 exit 2>/dev/null'
+ExecStart=/usr/bin/sshfs root@192.168.0.204:/root /mnt/claudemgmt \
+    -f \
+    -o allow_other \
+    -o IdentityFile=/home/nex/.ssh/id_ed25519 \
+    -o reconnect \
+    -o ServerAliveInterval=5 \
+    -o ServerAliveCountMax=2
+ExecStop=/bin/fusermount3 -u /mnt/claudemgmt
+Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
@@ -210,11 +208,19 @@ EOF
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now mnt-claudemgmt.automount
+sudo systemctl enable --now mnt-claudemgmt.service
 ls /mnt/claudemgmt
 ```
 
 Should show: `homelab  learning  youtube`
+
+### How it works
+
+- At boot: `ExecStartPre` checks SSH connectivity (3s timeout). If LXC 109 is down, fails fast and retries every 30 seconds.
+- When connected: SSHFS runs in foreground (`-f`), systemd owns the process.
+- If LXC 109 goes down: `reconnect` + `ServerAliveInterval=5, ServerAliveCountMax=2` detects the drop in 10 seconds, retries in background. File accesses return I/O errors immediately - no desktop freeze.
+- When LXC 109 comes back: reconnect re-establishes automatically, no manual intervention needed.
+- If reconnect gives up: process exits, `Restart=on-failure` restarts the service after 30 seconds.
 
 ---
 
