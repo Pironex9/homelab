@@ -35,22 +35,6 @@ services:
     restart: unless-stopped
     healthcheck:
       disable: false
-  immich-machine-learning:
-    container_name: immich_machine_learning
-    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
-    devices:
-      - /dev/dri:/dev/dri
-      #deploy:
-      #resources:
-      #limits:
-      #memory: 2G
-    volumes:
-      - model-cache:/cache
-    env_file:
-      - .env
-    restart: unless-stopped
-    healthcheck:
-      disable: false
   redis:
     container_name: immich_redis
     image: docker.io/valkey/valkey:9@sha256:fb8d272e529ea567b9bf1302245796f21a2672b8368ca3fcb938ac334e613c8f
@@ -80,6 +64,5 @@ services:
       - /mnt/storage/immich/pgdata:/var/lib/postgresql/data
     shm_size: 128mb
     restart: unless-stopped
-volumes:
-  model-cache: null
+volumes: {}
 networks: {}
