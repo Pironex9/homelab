@@ -1,0 +1,21 @@
+services:
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v2.7.4-cuda
+    container_name: immich_machine_learning_remote
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - model-cache:/cache
+    ports:
+      - "3003:3003"
+    restart: unless-stopped
+
+volumes:
+  model-cache:
+    driver: local
+    name: immich-ml-remote-cache
