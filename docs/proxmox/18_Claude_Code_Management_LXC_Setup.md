@@ -311,6 +311,86 @@ This writes to `~/.claude.json` scoped to the project directory - the MCP server
 
 ---
 
+## Step 8 - Additional MCP Servers
+
+Over time, additional MCP servers were added to extend Claude Code's reach across the homelab.
+
+### Important: MCP config lives in `~/.claude.json`, not `settings.json`
+
+MCP servers must be registered with `claude mcp add`. They are stored per-project in `~/.claude.json` under `projects["/root/homelab"].mcpServers`. Adding entries directly to `~/.claude/settings.json` has no effect - they will not appear in `claude mcp list` and Claude Code will not load them.
+
+```bash
+claude mcp list   # always verify here
+```
+
+### Karakeep MCP
+
+```bash
+claude mcp add karakeep -- bash -c \
+  "KARAKEEP_API_ADDR=http://192.168.0.128:3000 KARAKEEP_API_KEY=\$(cat ~/.secrets/karakeep-api-key) karakeep-mcp"
+```
+
+### n8n MCP
+
+```bash
+# Create wrapper script first (reads API key at runtime)
+cat > ~/.secrets/n8n-mcp.sh << 'EOF'
+#!/bin/bash
+export N8N_API_KEY=$(cat /root/.secrets/n8n-api-key)
+exec npx -y @n8n/mcp-server
+EOF
+chmod 700 ~/.secrets/n8n-mcp.sh
+
+claude mcp add n8n -- /root/.secrets/n8n-mcp.sh
+```
+
+### Homelable MCP (HTTP transport)
+
+```bash
+claude mcp add --transport http homelable http://192.168.0.110:8001/mcp \
+  --header "X-API-Key: your_homelable_api_key_here"
+```
+
+### Home Assistant MCP
+
+Provides 92+ tools for direct HA control: entity states, service calls, automation management, dashboards, system health.
+
+```bash
+# Install uvx (Python package runner)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# uvx installs to ~/.local/bin/uvx
+
+# Create wrapper script
+cat > ~/.secrets/ha-mcp.sh << 'EOF'
+#!/bin/bash
+export HOMEASSISTANT_URL=http://192.168.0.202:8123
+export HOMEASSISTANT_TOKEN=$(cat /root/.secrets/haos-api-key)
+exec /root/.local/bin/uvx ha-mcp@latest
+EOF
+chmod 700 ~/.secrets/ha-mcp.sh
+
+claude mcp add home-assistant -- /root/.secrets/ha-mcp.sh
+```
+
+Verify with `claude mcp list` - all servers should show `✓ Connected`.
+
+---
+
+## Step 9 - Claude Code Skills
+
+Skills are Markdown knowledge packs that activate automatically when relevant context is detected. They live in `~/.claude/skills/<name>/SKILL.md`.
+
+```bash
+# Install Home Assistant best-practices skill
+mkdir -p ~/.claude/skills/home-assistant-best-practices
+curl -s "https://raw.githubusercontent.com/homeassistant-ai/skills/main/skills/home-assistant-best-practices/SKILL.md" \
+  -o ~/.claude/skills/home-assistant-best-practices/SKILL.md
+```
+
+Verify: restart Claude Code and check that the skill appears in `/mcp` or in the skills list shown at session start.
+
+---
+
 ## Container Reference
 
 Current state of the `claude-mgmt` container, auto-documented by Claude Code running inside it.
@@ -329,8 +409,9 @@ Current state of the `claude-mgmt` container, auto-documented by Claude Code run
 
 | Package     | Version | Notes                                 |
 |-------------|---------|---------------------------------------|
-| Claude Code | 2.1.50  | Installed via native installer        |
+| Claude Code | 2.1.101 | Installed via native installer        |
 | Node.js     | 20.20.0 | Required by Claude Code MCP servers   |
+| uv / uvx    | 0.11.6  | Python package runner for ha-mcp      |
 | git         | 2.39.5  | Version control                       |
 | ripgrep     | latest  | Fast code search, used by Claude Code |
 
@@ -364,12 +445,15 @@ ssh proxmox "pct exec 109 -- bash -c 'echo \"<public-key>\" >> /root/.ssh/author
 
 ### MCP Servers
 
-| Server   | Scope   | Description                                      |
-|----------|---------|--------------------------------------------------|
-| github   | project | GitHub API - 26 tools (issues, PRs, commits)    |
-| n8n-mcp  | project | Connects to the n8n workflow automation instance |
+All servers are project-scoped to `/root/homelab` and stored in `~/.claude.json`.
 
-Config stored in `/root/.claude.json` under the project's `mcpServers` key.
+| Server          | Transport | Description                                        |
+|-----------------|-----------|----------------------------------------------------|
+| github          | stdio     | GitHub API - 26 tools (issues, PRs, commits)      |
+| karakeep        | stdio     | Karakeep bookmark manager                          |
+| n8n             | stdio     | n8n workflow automation                            |
+| homelable       | HTTP      | Network topology visualizer (LXC 100, port 8001)  |
+| home-assistant  | stdio     | Home Assistant - 92+ tools via uvx ha-mcp@latest  |
 
 ---
 
@@ -388,6 +472,8 @@ Config stored in `/root/.claude.json` under the project's `mcpServers` key.
 ```bash
 ssh proxmox "pct exec 109 -- bash -c 'echo \"<public-key>\" >> /root/.ssh/authorized_keys'"
 ```
+
+**MCP servers must be registered via `claude mcp add`, not `settings.json`.** Adding entries to `~/.claude/settings.json` under `mcpServers` has no effect. Claude Code stores project-scoped MCP configuration in `~/.claude.json` under `projects["/path"].mcpServers`. Always use `claude mcp add <name> -- <command>` and verify with `claude mcp list`. Never pass `--env TOKEN=$(cat ...)` to `claude mcp add` - the token gets evaluated and stored as plaintext. Instead, use a wrapper script in `~/.secrets/` that reads the token at runtime.
 
 **`pct exec` cannot run interactive commands.** Running `passwd` via `pct exec` fails because there is no TTY attached. Use `chpasswd` for non-interactive password setting if a password is ever needed:
 

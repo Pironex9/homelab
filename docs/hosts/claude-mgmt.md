@@ -14,8 +14,9 @@
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| Claude Code | 2.1.50 | Installed via native installer |
-| Node.js | 20.20.0 | Required by Claude Code |
+| Claude Code | 2.1.101 | Installed via native installer |
+| Node.js | 20.20.0 | Required by Claude Code MCP servers |
+| uv / uvx | 0.11.6 | Python package runner, used for ha-mcp |
 | git | 2.39.5 | Version control |
 | ripgrep | - | Fast code search, used by Claude Code |
 
@@ -56,48 +57,101 @@ ssh proxmox "pct exec 109 -- bash -c 'echo \"<public-key>\" >> /root/.ssh/author
 
 ## MCP Servers
 
+MCP servers are registered via `claude mcp add` and stored in `~/.claude.json` under the project's `mcpServers` key - NOT in `~/.claude/settings.json`. Use `claude mcp list` to verify.
+
+API tokens are never stored in config files. All secrets live in `~/.secrets/` (chmod 600) and are read at runtime by wrapper scripts.
+
 ### GitHub MCP
 
 Connects Claude Code to the GitHub API for repository management.
 
-- **Auth:** Personal access token stored in `~/.secrets/github-token` (chmod 600)
-- **Config:** bash wrapper script to avoid plaintext token in config file
+- **Auth:** Personal access token at `~/.secrets/github-token` (chmod 600)
+- **Tools:** 26 (issues, PRs, commits, file contents)
 
-```json
-{
-  "mcpServers": {
-    "github": {
-      "command": "bash",
-      "args": ["-c", "GITHUB_PERSONAL_ACCESS_TOKEN=$(cat ~/.secrets/github-token) npx -y @modelcontextprotocol/server-github"]
-    }
-  }
-}
+```bash
+claude mcp add github -- bash -c \
+  "GITHUB_PERSONAL_ACCESS_TOKEN=\$(cat ~/.secrets/github-token) npx -y @modelcontextprotocol/server-github"
 ```
 
 ### Karakeep MCP
 
 Connects Claude Code to the Karakeep bookmark manager.
 
-- **Auth:** API key stored in `~/.secrets/karakeep-api-key` (chmod 600)
+- **Auth:** API key at `~/.secrets/karakeep-api-key` (chmod 600)
 - **Package:** `@karakeep/mcp` (official)
 
-```json
-{
-  "mcpServers": {
-    "karakeep": {
-      "command": "bash",
-      "args": ["-c", "KARAKEEP_API_ADDR=http://192.168.0.128:3000 KARAKEEP_API_KEY=$(cat ~/.secrets/karakeep-api-key) npx -y @karakeep/mcp"]
-    }
-  }
-}
+```bash
+claude mcp add karakeep -- bash -c \
+  "KARAKEEP_API_ADDR=http://192.168.0.128:3000 KARAKEEP_API_KEY=\$(cat ~/.secrets/karakeep-api-key) karakeep-mcp"
 ```
 
 ### n8n MCP
 
 Connects Claude Code to the n8n workflow automation instance.
 
-- **Scope:** project-scoped to `/root/homelab`
-- **Auth:** API key stored in `~/.secrets/n8n-api-key` (chmod 600)
+- **Auth:** API key at `~/.secrets/n8n-api-key` (chmod 600)
+- **Wrapper:** `~/.secrets/n8n-mcp.sh` (chmod 700)
+
+```bash
+claude mcp add n8n -- /root/.secrets/n8n-mcp.sh
+```
+
+### Homelable MCP
+
+Connects Claude Code to the Homelable network topology visualizer (HTTP transport).
+
+- **Transport:** HTTP (not stdio)
+- **Endpoint:** `http://192.168.0.110:8001/mcp`
+- **Auth:** API key in X-API-Key header
+
+```bash
+claude mcp add --transport http homelable http://192.168.0.110:8001/mcp \
+  --header "X-API-Key: your_homelable_api_key_here"
+```
+
+### Home Assistant MCP
+
+Connects Claude Code directly to Home Assistant with 92+ tools (entity control, automation management, dashboard editing, system health, etc.).
+
+- **Auth:** Long-lived access token at `~/.secrets/haos-api-key` (chmod 600)
+- **Wrapper:** `~/.secrets/ha-mcp.sh` (chmod 700) - reads token dynamically, runs `uvx ha-mcp@latest`
+- **Requires:** `uv`/`uvx` at `~/.local/bin/uvx`
+
+```bash
+# Install uvx first (one-time)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create wrapper script
+cat > ~/.secrets/ha-mcp.sh << 'EOF'
+#!/bin/bash
+export HOMEASSISTANT_URL=http://192.168.0.202:8123
+export HOMEASSISTANT_TOKEN=$(cat /root/.secrets/haos-api-key)
+exec /root/.local/bin/uvx ha-mcp@latest
+EOF
+chmod 700 ~/.secrets/ha-mcp.sh
+
+# Register
+claude mcp add home-assistant -- /root/.secrets/ha-mcp.sh
+```
+
+## Claude Code Skills
+
+Skills are domain-specific knowledge packs loaded automatically when relevant. They live in `~/.claude/skills/<name>/SKILL.md`.
+
+| Skill | Source | Activates when |
+|-------|--------|----------------|
+| `system-check` | local | running homelab health checks |
+| `home-assistant-best-practices` | homeassistant-ai/skills | writing HA automations, helpers, dashboards |
+
+Install a skill manually:
+
+```bash
+mkdir -p ~/.claude/skills/home-assistant-best-practices
+curl -s "https://raw.githubusercontent.com/homeassistant-ai/skills/main/skills/home-assistant-best-practices/SKILL.md" \
+  -o ~/.claude/skills/home-assistant-best-practices/SKILL.md
+```
+
+---
 
 ## SSHFS Access from Nobara
 
