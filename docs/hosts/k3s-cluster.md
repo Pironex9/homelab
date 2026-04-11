@@ -323,7 +323,7 @@ Filesystem: ext4. Formatted 2026-04-06.
 
 **Excluded:** Toshiba MK5055GSXN (33 reallocated sectors + 2 pending) - bad health, not used.
 
-**fstab entries (TODO - not yet applied):**
+**fstab entries (applied 2026-04-11):**
 ```
 # opt5060-i5 /etc/fstab
 UUID=1d358359-cb60-4974-93b3-df15e49741ec /var/lib/longhorn ext4 defaults,nofail 0 2
@@ -335,13 +335,63 @@ UUID=297b57c3-2ff7-4c7b-b821-2e2cb3e2c5e0 /var/lib/longhorn ext4 defaults,nofail
 UUID=e1623077-2dcc-44d2-acf8-8df8242ea481 /var/lib/longhorn ext4 defaults,nofail,x-systemd.device-timeout=30s 0 2
 ```
 
+All 3 nodes: `/var/lib/longhorn` mounted and verified (870GB/870GB/435GB free).
+
+### Prerequisites (installed 2026-04-11)
+
+Every node requires:
+- `open-iscsi` - already present; Longhorn uses iSCSI to attach block devices to pods over the network
+- `nfs-common` - installed; required for Longhorn NFS backup targets
+
+```bash
+sudo apt-get install -y open-iscsi nfs-common
+```
+
+### Longhorn installation (2026-04-11)
+
+Helm v3.20.2 installed on LXC 109 (`/usr/local/bin/helm`).
+
+```bash
+helm repo add longhorn https://charts.longhorn.io
+helm repo update
+
+kubectl create namespace longhorn-system
+
+helm upgrade --install longhorn longhorn/longhorn \
+  --namespace longhorn-system \
+  --set defaultSettings.defaultDataPath=/var/lib/longhorn \
+  --wait --timeout 10m
+```
+
+Installed version: **v1.11.1**
+
+After install, `local-path` was removed from default to avoid dual-default conflict:
+```bash
+kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+```
+
+**Storage classes:**
+```
+NAME                 PROVISIONER             DEFAULT
+local-path           rancher.io/local-path   -
+longhorn             driver.longhorn.io      yes
+longhorn-static      driver.longhorn.io      -
+```
+
+**Longhorn UI** is available via port-forward (no ingress yet):
+```bash
+kubectl port-forward -n longhorn-system svc/longhorn-frontend 8080:80
+# then open http://localhost:8080
+```
+
 ---
 
 ## Planned
 
 - [x] DHCP reservations on router (prevent IP drift)
-- [ ] fstab entries for Longhorn HDDs on all 3 nodes
-- [ ] Longhorn install via Helm
+- [x] fstab entries for Longhorn HDDs on all 3 nodes
+- [x] Longhorn install via Helm
+- [ ] Verify Longhorn UI + test PVC
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL
 - [ ] RBAC policies
@@ -378,4 +428,13 @@ sudo journalctl -u k3s-agent -f    # worker logs
 /usr/local/bin/k3s-uninstall.sh         # master
 /usr/local/bin/k3s-agent-uninstall.sh   # workers
 sudo rm -rf /etc/rancher /var/lib/rancher
+
+# Longhorn
+kubectl get pods -n longhorn-system
+kubectl get volumes -n longhorn-system
+kubectl port-forward -n longhorn-system svc/longhorn-frontend 8080:80  # UI
+
+# Helm
+helm list -n longhorn-system
+helm upgrade longhorn longhorn/longhorn --namespace longhorn-system --reuse-values
 ```
