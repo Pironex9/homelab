@@ -7,7 +7,7 @@ services:
     environment:
       - LLM_PROVIDER=ollama
       - OLLAMA_BASE_PATH=http://192.168.0.100:11434
-      - OLLAMA_MODEL_PREF=qwen2.5:7b
+      - OLLAMA_MODEL_PREF=qwen3:8b
       - EMBEDDING_ENGINE=ollama
       - EMBEDDING_MODEL_PREF=nomic-embed-text
       - VECTOR_DB=lancedb
@@ -35,7 +35,7 @@ services:
     environment:
       - OLLAMA_BASE_URL=http://192.168.0.100:11434
       - WEBUI_NAME=Homelab AI Assistant
-      - DEFAULT_MODELS=qwen2.5:7b
+      - DEFAULT_MODELS=qwen3:8b
       - ENABLE_RAG_WEB_SEARCH=true
       - RAG_EMBEDDING_MODEL=nomic-embed-text
     volumes:
