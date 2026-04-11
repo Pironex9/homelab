@@ -48,12 +48,21 @@ Not always on. GPU inference node for the homelab.
 | Service | Description |
 |---------|-------------|
 | ollama.service | Local LLM inference (GPU) |
+| docker.service | Immich remote ML container |
 | periphery.service | Komodo Periphery agent (outbound to Komodo Core) |
 | sshd.service | SSH server |
 | mnt-claudemgmt.service | SSHFS mount from LXC 109 |
 | mnt-storage/disk1-4 automount | NFS from Proxmox host |
 | firewalld.service | Firewall |
 | smartd.service | SMART disk monitoring |
+
+---
+
+## Docker Containers
+
+| Container | Image | Port | Description |
+|-----------|-------|------|-------------|
+| `immich_machine_learning_remote` | `ghcr.io/immich-app/immich-machine-learning:v2.7.4-cuda` | 3003 | Immich remote ML (face recognition, smart search) - GPU accelerated |
 
 ---
 
@@ -69,6 +78,8 @@ Service: `ollama.service` (active, GPU)
 Ollama API: `http://192.168.0.100:11434/`
 
 Services using this instance: Karakeep (`INFERENCE_TEXT_MODEL`), Suggestarr (`OPENAI_BASE_URL`).
+
+**Note:** Nobara is not 24/7. When offline, Karakeep AI tagging, Suggestarr LLM, and Immich ML (smart search, face recognition) are unavailable.
 
 ---
 

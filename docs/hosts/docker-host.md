@@ -51,9 +51,10 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
 | `immich_server` | `ghcr.io/immich-app/immich-server:v2` | 2283 | Photo/video backup and management |
-| `immich_machine_learning` | `ghcr.io/immich-app/immich-machine-learning:v2` | - | ML backend (face recognition, CLIP) |
 | `immich_postgres` | `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` | 5432 | PostgreSQL with pgvectors extension |
 | `immich_redis` | `valkey/valkey:9` | 6379 | Redis-compatible cache |
+
+ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.168.0.100:3003` (CLIP model: `nllb-clip-large-siglip__mrl`).
 
 ### Books
 
@@ -94,10 +95,6 @@ All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in
 
 ## Docker Volumes
 
-| Volume | Used by | Description |
-|--------|---------|-------------|
-| `immich_model-cache` | immich_machine_learning | CLIP and face recognition models |
-
 Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 
 ## Open Ports
@@ -109,7 +106,6 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 3000 | TCP | BentoPDF |
 | 3002 | TCP | Homepage |
 | 5000 | TCP | Suggestarr |
-| 5001 | TCP | Dockge |
 | 5055 | TCP | Seerr |
 | 6881 | TCP/UDP | qBittorrent torrent |
 | 7878 | TCP | Radarr |
