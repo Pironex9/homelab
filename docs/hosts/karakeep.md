@@ -76,7 +76,7 @@ Karakeep can auto-tag and summarize bookmarks using an LLM. Currently configured
 |---------|-------|
 | `OLLAMA_BASE_URL` | `http://192.168.0.100:11434/` |
 | `OLLAMA_KEEP_ALIVE` | `5m` |
-| `INFERENCE_TEXT_MODEL` | `qwen2.5:7b` |
+| `INFERENCE_TEXT_MODEL` | `qwen3:8b` |
 
 Meilisearch listens only on `127.0.0.1:7700` - not exposed externally.
 

@@ -48,7 +48,6 @@ Not always on. GPU inference node for the homelab.
 | Service | Description |
 |---------|-------------|
 | ollama.service | Local LLM inference (GPU) |
-| docker.service | AnythingLLM + Open WebUI containers |
 | periphery.service | Komodo Periphery agent (outbound to Komodo Core) |
 | sshd.service | SSH server |
 | mnt-claudemgmt.service | SSHFS mount from LXC 109 |
@@ -58,25 +57,18 @@ Not always on. GPU inference node for the homelab.
 
 ---
 
-## Docker Containers
-
-| Container | Image | Status |
-|-----------|-------|--------|
-| open-webui | ghcr.io/open-webui/open-webui:main | running |
-| anythingllm | mintplexlabs/anythingllm:latest | running |
-
----
-
 ## Ollama
 
 Service: `ollama.service` (active, GPU)
 
-| Model | Size |
-|-------|------|
-| qwen2.5:7b | 4.7 GB |
-| nomic-embed-text:latest | 274 MB |
+| Model | Size | Used by |
+|-------|------|---------|
+| qwen3:8b | ~5.2 GB | Karakeep AI tagging, Suggestarr LLM |
+| nomic-embed-text:latest | 274 MB | Karakeep embedding |
 
-Karakeep AI tagging uses Ollama via `http://192.168.0.100:11434/`.
+Ollama API: `http://192.168.0.100:11434/`
+
+Services using this instance: Karakeep (`INFERENCE_TEXT_MODEL`), Suggestarr (`OPENAI_BASE_URL`).
 
 ---
 

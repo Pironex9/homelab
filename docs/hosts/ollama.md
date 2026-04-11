@@ -39,7 +39,7 @@
 
 | Model | Size |
 |-------|------|
-| `llama3.1:8b` | 4.9 GB |
+| `nomic-embed-text:latest` | 274 MB |
 
 ### Service Configuration
 
@@ -77,12 +77,12 @@ This homelab runs two separate Ollama endpoints:
 
 | Instance | Address | GPU | Use case |
 |----------|---------|-----|----------|
-| Nobara workstation | `192.168.0.100:11434` | RTX 2060 Super | Heavy/fast inference (Karakeep AI tagging) |
-| This LXC | `192.168.0.231:11434` | Intel integrated (SYCL) | Lightweight / secondary endpoint |
+| Nobara workstation | `192.168.0.100:11434` | RTX 2060 Super | Primary AI inference - Karakeep tagging, Suggestarr LLM (qwen3:8b + nomic-embed-text) |
+| This LXC | `192.168.0.231:11434` | Intel integrated (SYCL) | Backup / secondary endpoint (nomic-embed-text only) |
 
 ## Lessons Learned
 
 - **Ubuntu instead of Debian:** This LXC runs Ubuntu 24.04 rather than Debian 12. Ubuntu's wider hardware support package ecosystem made it easier to set up Intel GPU drivers and oneAPI toolkits.
 - **Intel GPU acceleration in an LXC:** Requires passing through `/dev/dri/card0` and `/dev/dri/renderD128` in the Proxmox config, plus the `SYCL_CACHE_PERSISTENT` and `ZES_ENABLE_SYSMAN` environment variables for the Intel SYCL backend. Without these, Ollama falls back to CPU-only inference.
-- **Disk usage at 77%:** With a 4.9 GB model and 35 GB disk, there is room for 1-2 more medium-sized models before the disk fills up. Each additional 7B model requires ~4-5 GB.
+- **Disk usage:** Previously at 77% with llama3.1:8b (4.9 GB). After removing it and keeping only nomic-embed-text (274 MB), disk usage dropped significantly.
 - **`OLLAMA_ORIGINS=*` is permissive:** Allowing all CORS origins is convenient for local development but means any page loaded in a browser on the LAN can make requests to the Ollama API. Acceptable for a homelab but worth noting.
