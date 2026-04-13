@@ -34,7 +34,7 @@ bash -c "$(wget -qO - https://github.com/community-scripts/ProxmoxVE/raw/main/ct
 | URL | Context |
 |-----|---------|
 | `https://vaultwarden.lan` | LAN access via Caddy reverse proxy (LXC 110) |
-| `https://vault.homelabor.net` | Public access via Pangolin (Hetzner VPS) |
+| `https://vault.yourdomain.com` | Public access via Pangolin (Hetzner VPS) |
 
 ---
 
@@ -64,7 +64,7 @@ export SIGNUPS_ALLOWED=false
 
 Vaultwarden runs HTTP-only internally (port 8000). TLS is terminated by:
 - Caddy (LXC 110) for `vaultwarden.lan`
-- Pangolin (Hetzner VPS) for `vault.homelabor.net`
+- Pangolin (Hetzner VPS) for `vault.yourdomain.com`
 
 The built-in Rocket TLS is intentionally disabled - it is not production-ready and causes issues with mobile clients.
 
