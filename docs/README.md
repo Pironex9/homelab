@@ -14,6 +14,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
 - [nobara](./hosts/nobara.md) - Desktop PC - NVIDIA RTX 2060, Ollama GPU node, NFS/SSHFS client
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
+- [minecraft](./hosts/minecraft.md) - Minecraft server (LXC 111) - PaperMC + GeyserMC + Floodgate, Java + Bedrock cross-play
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
 - [vps](./hosts/vps.md) - Hetzner VPS (CX23) - Pangolin reverse proxy, Komodo managed via Tailscale
 
@@ -48,6 +49,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [21 - Public Form E-Signature Automation](./proxmox/21_Public_Form_E-Signature_Automation.md) - Public web form with Turnstile bot protection, n8n webhook validation, DocuSeal e-signature automation
 - [22 - Dawarich GPS Tracking](./proxmox/22_Dawarich_GPS_Tracking_Setup.md) - Self-hosted GPS location history and family tracking, PostGIS, mobile app integration
 - [23 - Homelable Network Visualization + MCP](./proxmox/23_Homelable_Setup.md) - Interactive homelab topology canvas, live status checks, nmap scanning, Claude Code MCP integration
+- [24 - Minecraft Server Setup](./proxmox/24_Minecraft_Server_Setup.md) - PaperMC + GeyserMC + Floodgate on dedicated LXC, Pangolin raw TCP/UDP public access
 
 ### Deprecated
 
