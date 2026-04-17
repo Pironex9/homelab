@@ -3,7 +3,7 @@
 **Date:** 2026-04-15
 **Hostname:** minecraft
 **IP address:** 192.168.0.213
-**VMID:** 111
+**VMID:** 112
 **System:** Proxmox VE 9.1
 
 ---
@@ -26,7 +26,7 @@ Java client (PC)  ──────── TCP 25565 ──┐
 Bedrock client                          ├── Hetzner VPS (Pangolin)
 (phone/console)   ── UDP 19132 ─────────┤     │ Newt tunnel
                                         │     ▼
-                                   LXC 111 (192.168.0.213)
+                                   LXC 112 (192.168.0.213)
                                         │
                                Docker: itzg/minecraft-server
                                         │
@@ -55,8 +55,8 @@ In the Proxmox web UI, create a new Debian 12 container.
 Start the container and enter it:
 
 ```bash
-pct start 111
-pct enter 111
+pct start 112
+pct enter 112
 ```
 
 ---
@@ -99,7 +99,7 @@ systemctl start ssh
 
 # Add SSH key from Proxmox host
 # Run this on the Proxmox host, not inside the LXC:
-# pct exec 111 -- bash -c 'mkdir -p /root/.ssh && echo "YOUR_PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys'
+# pct exec 112 -- bash -c 'mkdir -p /root/.ssh && echo "YOUR_PUBLIC_KEY" >> /root/.ssh/authorized_keys && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys'
 ```
 
 SSH watchdog (auto-restart on crash):
@@ -137,7 +137,7 @@ Copy the compose file from the repo (or paste manually):
 
 ```bash
 # From LXC 109 (claude-mgmt) or any host with repo access:
-# scp /root/homelab/compose/proxmox-lxc-111/minecraft/docker-compose.yml root@192.168.0.213:/opt/minecraft/
+# scp /root/homelab/compose/proxmox-lxc-112/minecraft/docker-compose.yml root@192.168.0.213:/opt/minecraft/
 
 # Or create it directly on the LXC
 cat > /opt/minecraft/docker-compose.yml << 'EOF'
@@ -267,7 +267,7 @@ SSH to the VPS and install a Newt client for this LXC, or reuse the existing New
 
 In the **Pangolin web UI**:
 
-1. Go to **Sites** - select (or create) the site for LXC 111
+1. Go to **Sites** - select (or create) the site for LXC 112
 2. **Resources - New Resource - Raw**
 
 **Resource 1 - Java Edition:**
@@ -297,9 +297,9 @@ ufw allow 25565/tcp comment "Minecraft Java"
 ufw allow 19132/udp comment "Minecraft Bedrock"
 ```
 
-### Newt on LXC 111
+### Newt on LXC 112
 
-Install Newt on LXC 111 to establish the tunnel:
+Install Newt on LXC 112 to establish the tunnel:
 
 ```bash
 # Get the install command from Pangolin UI (Sites - your site - Install Newt)

@@ -14,7 +14,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
 - [nobara](./hosts/nobara.md) - Desktop PC - NVIDIA RTX 2060, Ollama GPU node, NFS/SSHFS client
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
-- [minecraft](./hosts/minecraft.md) - Minecraft server (LXC 111) - PaperMC + GeyserMC + Floodgate, Java + Bedrock cross-play
+- [minecraft](./hosts/minecraft.md) - Minecraft server (LXC 112) - PaperMC + GeyserMC + Floodgate, Java + Bedrock cross-play
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
 - [vps](./hosts/vps.md) - Hetzner VPS (CX23) - Pangolin reverse proxy, Komodo managed via Tailscale
 

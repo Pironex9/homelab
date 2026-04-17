@@ -6,7 +6,7 @@
 |----------|-------|
 | Hostname | minecraft |
 | IP Address | 192.168.0.213 |
-| VMID | 111 |
+| VMID | 112 |
 | OS | Debian GNU/Linux 12 (bookworm) |
 | CPU | 2 cores |
 | RAM | 6 GB |
@@ -77,7 +77,7 @@ ssh root@192.168.0.213
 To add a new key from the Proxmox host:
 
 ```bash
-pct exec 111 -- bash -c 'echo "YOUR_PUBLIC_KEY" >> /root/.ssh/authorized_keys'
+pct exec 112 -- bash -c 'echo "YOUR_PUBLIC_KEY" >> /root/.ssh/authorized_keys'
 ```
 
 ## Common Operations
