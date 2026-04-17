@@ -152,7 +152,14 @@ The daily reboot is configured in the Proxmox host crontab (`crontab -e` as root
 
 ### Memory leak in HA Core 2026.4.x (active as of 2026-04-17)
 
-HA Core 2026.4.0-2026.4.2 has a memory leak that causes RAM to fill up over hours and eventually crash the VM. The balloon driver reports ~208 MB free out of 6144 MB after a few hours of uptime. A daily full VM reboot at 04:10 is the current workaround.
+HA Core 2026.4.0-2026.4.2 has a memory leak that causes RAM to fill up over hours and eventually crash the VM. The leak fills 6 GB in ~13-15 hours. Symptoms:
+
+- Python GC pauses cause HA to stop responding for >30s - Newt marks the target unhealthy, Pangolin returns 503 for public URLs
+- After ~13h memory is exhausted, HA crashes entirely (OOM)
+
+Diagnosis: check `journalctl -u newt` on the Proxmox host for `context deadline exceeded` (freeze) vs `connection refused` (crash).
+
+Workaround: daily full VM reboot via Proxmox cron at 04:10 (`qm reboot 101` in root crontab on 192.168.0.109). The old HA-internal "Nightly HA Restart" automation (`automation.nightly_ha_restart`) is **disabled** - it only restarted the core process which did not clear RAM.
 
 References:
 - [GitHub issue #167401](https://github.com/home-assistant/core/issues/167401) - memory leak + crash in 2026.4.0/4.1
