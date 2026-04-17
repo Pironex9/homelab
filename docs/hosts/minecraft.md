@@ -42,8 +42,7 @@ Single compose stack at `/opt/minecraft/`.
 | Plugin | Purpose |
 |--------|---------|
 | GeyserMC | Translates Bedrock protocol to Java - allows phone/console players |
-
-> Floodgate is NOT used - incompatible with offline mode. GeyserMC runs with `auth-type: offline`.
+| Floodgate | Microsoft account auth for Bedrock players (no Java licence needed) |
 
 ### Volumes
 
@@ -101,7 +100,7 @@ docker attach minecraft
 
 ## Lessons Learned
 
-- **GeyserMC auth-type:** After the first start, edit `/opt/minecraft/data/plugins/Geyser-Spigot/config.yml` and set `auth-type: offline`. This matches the server's `online-mode=false` setting and allows Bedrock clients without a Java licence.
+- **GeyserMC auth-type:** After the first start, edit `/opt/minecraft/data/plugins/Geyser-Spigot/config.yml` and set `auth-type: floodgate`. Without this, Bedrock players also need a Java Edition account.
 - **UDP through Pangolin:** Pangolin raw UDP resources can have higher latency for Bedrock players compared to direct port forwarding. If Bedrock feels laggy, consider adding a direct UDP port forward on the router as an alternative path.
 - **EULA:** `EULA: "TRUE"` must be set - the server refuses to start without accepting the Minecraft EULA.
 - **Memory:** The `MEMORY: 4G` env var sets both `-Xms` and `-Xmx`. 4G is comfortable for up to ~10 players with vanilla Paper. Increase to 6G for modpacks.

@@ -150,11 +150,9 @@ services:
       TYPE: PAPER
       MEMORY: 4G
       TZ: Europe/Budapest
-      ONLINE_MODE: "FALSE"
       PLUGINS: |
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
-      WHITELIST: "Player1,Player2"
-      ENFORCE_WHITELIST: "TRUE"
+        https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
       MOTD: "Homelab Minecraft"
       MAX_PLAYERS: "10"
       DIFFICULTY: normal
@@ -178,11 +176,11 @@ Wait for the message `Done! For help, type "help"` - this confirms the server is
 
 ---
 
-## Step 6 - Configure GeyserMC
+## Step 6 - Configure GeyserMC + Floodgate
 
-The server runs in offline mode (`ONLINE_MODE: FALSE`) - no Mojang account needed for Java clients. Floodgate is NOT used (incompatible with offline mode).
+The server runs in online mode (default) - Java players need a valid Mojang account, Bedrock players authenticate via Microsoft account through Floodgate.
 
-After the first successful start, set GeyserMC to offline auth:
+After the first successful start, set GeyserMC to use Floodgate for Bedrock auth:
 
 ```bash
 nano /opt/minecraft/data/plugins/Geyser-Spigot/config.yml
@@ -197,7 +195,7 @@ auth-type: online
 To:
 
 ```yaml
-auth-type: offline
+auth-type: floodgate
 ```
 
 Restart the server:
@@ -206,17 +204,20 @@ Restart the server:
 docker compose restart
 ```
 
-Now both Java (cracked) and Bedrock clients can connect without account verification.
+Bedrock players can now join using their Microsoft/Xbox account without needing a Java Edition licence.
 
-### Whitelist setup
+### Optional: whitelist
 
-Since there is no auth, the whitelist is the only access control. Edit `WHITELIST` in the compose file with friends' in-game names, then apply:
+If you want to restrict the server to specific players only:
 
 ```bash
+# Edit compose file - uncomment and fill:
+# WHITELIST: "Player1,Player2"
+# ENFORCE_WHITELIST: "TRUE"
 docker compose up -d
 ```
 
-To add a player on the fly via server console:
+Or add players on the fly via server console:
 
 ```bash
 docker attach minecraft
@@ -224,8 +225,6 @@ docker attach minecraft
 whitelist add PlayerName
 # Detach: Ctrl+P then Ctrl+Q
 ```
-
-> **Note:** In offline mode, a player's "name" is whatever their client is set to. The whitelist blocks unknown names, but someone could set their client to a whitelisted name and join. For a private friends-only server this is acceptable - the VPS IP is not publicly advertised.
 
 ---
 

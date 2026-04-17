@@ -7,18 +7,17 @@ services:
       TYPE: PAPER
       MEMORY: 4G
       TZ: Europe/Budapest
-      # Offline mode - no Mojang auth required (cracked Java + any Bedrock client)
-      ONLINE_MODE: "FALSE"
-      # Auto-install GeyserMC only (no Floodgate - incompatible with offline mode)
+      # Auto-install GeyserMC + Floodgate on every start
       PLUGINS: |
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
-      # Whitelist - restricts who can join (add friends' in-game names)
-      WHITELIST: "Player1,Player2"
-      ENFORCE_WHITELIST: "TRUE"
+        https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
       # Server settings
       MOTD: "Homelab Minecraft"
       MAX_PLAYERS: "10"
       DIFFICULTY: normal
+      # Optional whitelist - uncomment to restrict to specific players:
+      # WHITELIST: "Player1,Player2"
+      # ENFORCE_WHITELIST: "TRUE"
     ports:
       - "25565:25565"       # Java Edition (TCP)
       - "19132:19132/udp"   # Bedrock Edition via GeyserMC (UDP)
