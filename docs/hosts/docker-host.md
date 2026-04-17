@@ -140,8 +140,8 @@ The `periphery.service` agent connects this host to Komodo Core (LXC 105). This 
 
 ## Lessons Learned
 
-- **LVM thin pool vs filesystem usage:** The Proxmox LVM thin pool `Data%` for this LXC showed 96.51% while the actual filesystem was only 70% full. Thin pool percentages track historically allocated blocks, not current usage - old Docker images and deleted files leave "phantom" allocations until TRIM runs.
-- **fstrim must run from the Proxmox host via nsenter:** Running `fstrim` from inside an unprivileged LXC fails with "Operation not permitted". Running it on the host at `/var/lib/lxc/100/rootfs` also doesn't work because LVM-backed containers are not mounted there. The correct method is: `nsenter --target $(pgrep -a lxc-start | grep '\\b100\\b' | awk '{print $1}') --mount -- fstrim -v /`
+- **LVM thin pool vs filesystem usage:** The Proxmox LVM thin pool `Data%` tracks historically allocated blocks, not current usage. Old Docker images, deleted files, and rotated logs leave "phantom" allocations until TRIM runs. In one incident LXC 100 showed 99.73% thin pool usage while `df` only showed 72% filesystem usage - `pct fstrim 100` freed 14 GB instantly and dropped it to 74%.
+- **fstrim: use `pct fstrim <id>` from the Proxmox host:** Running `fstrim` inside an unprivileged LXC fails with "Operation not permitted". The correct method is `pct fstrim <vmid>` run as root on the Proxmox host. A weekly cron runs this for all LXCs automatically: `/etc/cron.weekly/lxc-fstrim`.
 - **Docker image pruning is essential:** With 20+ containers, dangling images accumulate quickly. `docker image prune -f` reclaimed ~390 MB in one session. Schedule this regularly.
 - **Swap is not configured:** Neither the LXC nor Docker containers have swap. A heavily memory-loaded container (e.g., postgres during Immich indexing) will be OOM-killed instead of swapping. Monitor memory headroom.
 - **GPU passthrough for Jellyfin requires `dev0`/`dev1` in LXC config:** The `/dev/dri/card0` and `/dev/dri/renderD128` devices must be explicitly passed through in the Proxmox LXC config for hardware transcoding to work.

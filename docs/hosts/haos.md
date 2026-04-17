@@ -12,7 +12,7 @@
 | Kernel       | 6.12.67-haos                        |
 | Purpose      | Home automation platform            |
 | Web UI       | http://192.168.0.202:8123           |
-| HA Version   | 2026.2.3                            |
+| HA Version   | 2026.4.2                            |
 
 > **Note:** HAOS is a full KVM VM, not an LXC container. It is listed here for consistency. The SSH shell runs inside the Advanced SSH & Web Terminal add-on sandbox (Alpine Linux), not on the host HAOS system directly.
 
@@ -35,9 +35,9 @@ KVM VM (VMID 101)
 
 | Resource | Value                |
 |----------|----------------------|
-| RAM      | 3902 MB total |
-| Swap     | 1287 MB             |
-| Disk     | 30.8G total, 5.7G used (19%) |
+| RAM      | 6144 MB (allocated in Proxmox) |
+| Swap     | none                |
+| Disk     | 32 GB (local-lvm, LVM thin)  |
 
 ## Installed Add-ons
 
@@ -139,6 +139,26 @@ curl -s -X POST \
   -d '{"entity_id": "light.example"}' \
   http://192.168.0.202:8123/api/services/light/turn_on
 ```
+
+## Scheduled Maintenance
+
+| Task | Schedule | Command (Proxmox host) | Reason |
+|------|----------|------------------------|--------|
+| Full VM reboot | Daily 04:10 | `qm reboot 101` | Workaround for memory leak in 2026.4.x |
+
+The daily reboot is configured in the Proxmox host crontab (`crontab -e` as root on 192.168.0.109). Remove once the memory leak is fixed upstream.
+
+## Known Issues
+
+### Memory leak in HA Core 2026.4.x (active as of 2026-04-17)
+
+HA Core 2026.4.0-2026.4.2 has a memory leak that causes RAM to fill up over hours and eventually crash the VM. The balloon driver reports ~208 MB free out of 6144 MB after a few hours of uptime. A daily full VM reboot at 04:10 is the current workaround.
+
+References:
+- [GitHub issue #167401](https://github.com/home-assistant/core/issues/167401) - memory leak + crash in 2026.4.0/4.1
+- [GitHub issue #168088](https://github.com/home-assistant/core/issues/168088) - severe memory pressure during 2026.4.x update
+
+If reverting is needed: Settings - About - ... - Version History - select 2026.3.4.
 
 ## Lessons Learned
 
