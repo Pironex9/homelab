@@ -82,8 +82,10 @@ In v2, Core generates a PKI keypair on startup (`/config/keys/core.key` + `core.
 |--------|---------|----------------|-------|
 | Local | `https://periphery:8120` | Docker container (komodo-periphery-1) | Built-in local agent on the komodo LXC |
 | LXC 100 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | Main Docker host - 18 stacks |
-| nobara | `https://192.168.0.100:8120` | systemd `periphery.service` | Desktop PC, not 24/7 |
+| Nobara | `https://192.168.0.100:8120` | systemd `periphery.service` | Desktop PC, not 24/7 |
 | VPS | outbound via Tailscale → `http://100.86.108.33:9120` | systemd `periphery.service` | Hetzner VPS - Pangolin stack |
+| Minecraft | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | LXC 112 - Minecraft server |
+| HAOS | - | Not supported | Home Assistant OS is a locked-down Alpine VM - no periphery install possible |
 
 ### Periphery PKI configuration (v2)
 
