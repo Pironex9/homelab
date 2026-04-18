@@ -98,6 +98,46 @@ docker attach minecraft
 # Detach: Ctrl+P then Ctrl+Q
 ```
 
+## Admin (OP) Management
+
+```bash
+# Op a player (Java - use Java profile name visible in tab list)
+ssh root@192.168.0.213 "docker exec minecraft rcon-cli op PlayerName"
+
+# Op a Bedrock player (GeyserMC adds a dot prefix to Xbox gamertag)
+ssh root@192.168.0.213 "docker exec minecraft rcon-cli op .XboxGamertag"
+
+# Remove op
+ssh root@192.168.0.213 "docker exec minecraft rcon-cli deop PlayerName"
+
+# Interactive console (run multiple commands)
+ssh root@192.168.0.213 "docker exec -i minecraft rcon-cli"
+```
+
+Useful in-game admin commands (after getting op):
+```
+gamemode creative PlayerName   # creative mode
+gamemode survival PlayerName   # survival mode
+time set day                   # set daytime
+weather clear                  # clear weather
+whitelist add PlayerName       # add to whitelist
+tp PlayerName1 PlayerName2     # teleport
+```
+
+**Note:** Use the name exactly as shown in the in-game Tab list - that is how the server identifies the player. Java profile name and Xbox gamertag can differ.
+
+## New World Generation
+
+```bash
+ssh root@192.168.0.213
+cd /opt/minecraft
+docker stop minecraft
+rm -rf data/world data/world_nether data/world_the_end
+docker start minecraft
+```
+
+> Warning: the old world is permanently deleted. Back up `/opt/minecraft/data/world/` first if needed.
+
 ## Lessons Learned
 
 - **GeyserMC auth-type:** After the first start, edit `/opt/minecraft/data/plugins/Geyser-Spigot/config.yml` and set `auth-type: floodgate`. Without this, Bedrock players also need a Java Edition account.
