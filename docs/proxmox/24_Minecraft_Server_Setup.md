@@ -403,3 +403,21 @@ Common cause: `EULA: "TRUE"` not set, or insufficient memory.
 ```bash
 ss -tlnup | grep -E "25565|19132"
 ```
+
+**"Multiplayer disabled" on Java launcher:**
+
+Go to `account.xbox.com/settings` - under Privacy, enable "You can join multiplayer games". This is triggered by age restrictions on the Microsoft/Xbox account.
+
+**"Outdated server" version mismatch:**
+
+Mojang switched from 1.x.x versioning to year-based versioning (26.x) in March 2026. Paper labels the new versions as "1.21.11" internally for API compatibility. Use the latest Minecraft launcher client - it connects fine. Do not downgrade the client or set a specific `VERSION` in the compose file.
+
+**Pangolin health check shows offline:**
+
+Pangolin sends HTTP requests to check port health. Minecraft TCP returns EOF (not HTTP) and UDP is unreachable via HTTP, so both resources show offline in the UI. This is a false negative - the tunnel works correctly. Verify with:
+
+```bash
+nc -z pangolin.homelabor.net 25565
+```
+
+Disable health checks in the Pangolin resource settings to avoid confusion.
