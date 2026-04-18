@@ -121,7 +121,7 @@ docker compose -p komodo -f mongo.compose.yaml --env-file compose.env pull
 docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 ```
 
-**Current version:** v2.1.1
+**Current version:** v2.1.2
 
 ## Adding a new managed server
 

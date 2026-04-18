@@ -242,7 +242,7 @@ Add the Core public key to the periphery config:
 cat > /etc/komodo/periphery.config.toml << 'EOF'
 core_public_keys = ["MCowBQYDK2VuAyEAanLhSIyYAQmX7NLhn1PH+fiTClnhp+jrv5BPAnKgdCM="]
 core_addresses = ["http://192.168.0.105:9120"]
-connect_as = "minecraft"
+connect_as = "Minecraft"
 EOF
 ```
 
