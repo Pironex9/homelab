@@ -259,59 +259,103 @@ Add the server in Komodo UI: **Servers - New Server** - the server will self-reg
 
 ## Step 8 - Pangolin Public Access (VPS)
 
-Minecraft needs two raw resources in Pangolin: one TCP (Java), one UDP (Bedrock).
+Pangolin három komponensből áll:
+- **Gerbil** - WireGuard tunnel menedzser, fogadja a Newt klienseket
+- **Traefik** - reverse proxy, irányítja a bejövő forgalmat a megfelelő tunnelbe
+- **Pangolin** - vezérlőpanel (UI + API)
 
-### On the Hetzner VPS
+Raw TCP/UDP resource létrehozásakor Traefik-nek tudnia kell melyik porton figyeljen, és Gerbil Docker containerének ki kell nyitnia azt a portot. Pangolin az UI-ban megmutatja a szükséges config snippeteket.
 
-SSH to the VPS and install a Newt client for this LXC, or reuse the existing Newt if already tunneling the homelab network.
+### 1. Newt telepítése LXC 112-re
 
-In the **Pangolin web UI**:
+```bash
+curl -fsSL https://static.pangolin.net/get-newt.sh | bash
+```
 
-1. Go to **Sites** - select (or create) the site for LXC 112
-2. **Resources - New Resource - Raw**
+Systemd service létrehozása (`/etc/systemd/system/newt.service`):
 
-**Resource 1 - Java Edition:**
+```ini
+[Unit]
+Description=Newt Pangolin Tunnel
+After=network-online.target
+Wants=network-online.target
 
-| Field | Value |
-|-------|-------|
-| Name | Minecraft Java |
-| Protocol | TCP |
-| VPS Port | 25565 |
-| Target Host | 192.168.0.213 |
-| Target Port | 25565 |
+[Service]
+ExecStart=/usr/local/bin/newt --id YOUR_NEWT_ID --secret YOUR_NEWT_SECRET --endpoint https://pangolin.homelabor.net
+Restart=always
+RestartSec=5
 
-**Resource 2 - Bedrock Edition:**
+[Install]
+WantedBy=multi-user.target
+```
 
-| Field | Value |
-|-------|-------|
-| Name | Minecraft Bedrock |
-| Protocol | UDP |
-| VPS Port | 19132 |
-| Target Host | 192.168.0.213 |
-| Target Port | 19132 |
+```bash
+systemctl daemon-reload
+systemctl enable newt
+systemctl start newt
+```
 
-### Open ports on VPS (UFW)
+> A `--id` és `--secret` értékeket a Pangolin UI-ból kell kiszedni: **Sites → Site → Install Newt**.
+
+### 2. Raw resource-ok létrehozása (Pangolin UI)
+
+**Sites → New Site → "Minecraft"**, majd a siteban:
+
+**Resources → New Resource → Raw TCP/UDP Resource**
+
+| Resource | Protocol | External Port | Target |
+|----------|----------|---------------|--------|
+| Minecraft Java | TCP | 25565 | localhost:25565 |
+| Minecraft Bedrock | UDP | 19132 | localhost:19132 |
+
+> Target = `localhost` mert a Newt ugyanazon az LXC-n fut mint a Minecraft.
+
+Mindkét resource létrehozása után Pangolin megmutatja a szükséges VPS config snippeteket.
+
+### 3. Traefik entrypoints hozzáadása (VPS)
+
+Fájl: `/opt/pangolin/config/traefik/traefik_config.yml`
+
+Az `entryPoints:` szekcióhoz adjuk hozzá:
+
+```yaml
+entryPoints:
+  tcp-25565:
+    address: ":25565/tcp"
+  udp-19132:
+    address: ":19132/udp"
+  # ... meglévő entrypoints (web, websecure) maradnak
+```
+
+### 4. Gerbil portok hozzáadása (VPS)
+
+Fájl: `/opt/pangolin/docker-compose.yml` - a gerbil service `ports:` szekciójába:
+
+```yaml
+ports:
+  - 25565:25565
+  - 19132:19132/udp
+  # ... meglévő portok maradnak
+```
+
+### 5. Pangolin stack újraindítása (VPS)
+
+```bash
+cd /opt/pangolin
+docker compose up -d
+```
+
+Ellenőrzés:
+
+```bash
+ss -tlnup | grep -E "25565|19132"
+```
+
+### 6. UFW portok nyitása (VPS)
 
 ```bash
 ufw allow 25565/tcp comment "Minecraft Java"
 ufw allow 19132/udp comment "Minecraft Bedrock"
-```
-
-### Newt on LXC 112
-
-Install Newt on LXC 112 to establish the tunnel:
-
-```bash
-# Get the install command from Pangolin UI (Sites - your site - Install Newt)
-# It looks like:
-curl -fsSL https://your-vps-ip/newt/install.sh | bash -s -- --secret YOUR_NEWT_SECRET
-```
-
-Enable Newt to start on boot:
-
-```bash
-systemctl enable newt
-systemctl start newt
 ```
 
 ---
@@ -323,19 +367,13 @@ systemctl start newt
 From any PC with Minecraft Java installed:
 
 ```
-Server address: YOUR_VPS_IP:25565
-```
-
-or if you have a domain pointing to the VPS:
-
-```
-Server address: mc.yourdomain.com
+Server address: pangolin.homelabor.net:25565
 ```
 
 ### Bedrock Edition (phone/console)
 
 ```
-Server address: YOUR_VPS_IP
+Server address: pangolin.homelabor.net
 Port: 19132
 ```
 
