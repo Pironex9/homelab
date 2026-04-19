@@ -21,6 +21,7 @@ services:
     ports:
       - "25565:25565"       # Java Edition (TCP)
       - "19132:19132/udp"   # Bedrock Edition via GeyserMC (UDP)
+      - "8100:8100"         # BlueMap web interface (LAN only)
     volumes:
       - /opt/minecraft/data:/data
     restart: unless-stopped
