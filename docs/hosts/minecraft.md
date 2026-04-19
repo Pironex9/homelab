@@ -28,6 +28,7 @@
 | 22 | TCP | SSH |
 | 25565 | TCP | Minecraft Java Edition |
 | 19132 | UDP | Minecraft Bedrock Edition (GeyserMC) |
+| 8100 | TCP | BlueMap web map (LAN only) |
 
 ## Docker Stack
 
@@ -43,6 +44,16 @@ Single compose stack at `/opt/minecraft/`.
 |--------|---------|
 | GeyserMC | Translates Bedrock protocol to Java - allows phone/console players |
 | Floodgate | Microsoft account auth for Bedrock players (no Java licence needed) |
+
+### Plugins (manually placed in `/opt/minecraft/data/plugins/`)
+
+| Plugin | Version | Purpose |
+|--------|---------|---------|
+| EssentialsX | 2.21.2 | 130+ extra commands: /home, /tpa, /warp, /spawn, /kit, /afk |
+| EssentialsXSpawn | 2.21.2 | Spawn management addon for EssentialsX |
+| WorldEdit | 7.4.2 | Bulk block editing, copy/paste, area fills |
+| WorldGuard | 7.0.15 | Region protection - restrict building in defined areas |
+| BlueMap | 5.16 | Live 3D web map, accessible at `http://192.168.0.213:8100` |
 
 ### Volumes
 
@@ -148,4 +159,8 @@ docker start minecraft
 - **Paper version naming:** Paper labels the current Minecraft 26.1.x releases as "1.21.11" internally (for API compatibility). This is not an old version - the build date in the logs confirms it. Use the latest launcher client; it connects fine despite the name difference.
 - **Multiplayer disabled on Java launcher:** If the launcher shows "Multiplayer disabled - please check your Microsoft account settings", go to `account.xbox.com/settings` and enable "You can join multiplayer games" under Privacy settings. This is triggered by age restrictions on the Microsoft/Xbox account.
 - **Bedrock players cannot chat (enforce-secure-profile):** By default Paper has `enforce-secure-profile=true` in `server.properties`. Bedrock players (via GeyserMC) don't have a Java chat signing key, so they cannot chat. Fix: edit `/opt/minecraft/data/server.properties` and set `enforce-secure-profile=false`, then restart the container. Note: the `ENFORCE_SECURE_PROFILE` env var in the compose file does NOT override an existing `server.properties` value - direct file edit is required.
+- **BlueMap requires accept-download:** On first start BlueMap needs `accept-download: true` in `/opt/minecraft/data/plugins/BlueMap/core.conf`, then reload with `/bluemap reload`. Without this it starts but the webserver doesn't serve the map. BlueMap uses port 8100, not 8123 like dynmap.
+- **dynmap incompatible with 1.21.11:** dynmap 3.2.1 (latest GitHub release) cannot find internal Minecraft classes on 1.21.11. The 3.8 version that supports it is only on SpigotMC (requires login). Use BlueMap instead - actively maintained, supports 1.21.11, available on Modrinth.
+- **EssentialsX unsupported version warning:** EssentialsX 2.21.2 logs "You are running an unsupported server version!" on 1.21.11. The plugin loads and works despite the warning - commands function normally.
+- **Komodo GitOps for compose changes:** Always edit the repo compose file and deploy via Komodo (Pull + Deploy). Do not edit `/opt/minecraft/docker-compose.yml` directly on the server - it will be overwritten on the next Komodo deploy.
 - **Pangolin health check false negatives:** Pangolin's built-in health check sends HTTP requests to ports 25565 and 19132. Minecraft TCP returns EOF (not HTTP) and UDP is unreachable via HTTP, so both show as offline in the UI. The actual tunnel works - verify with `nc -z pangolin.homelabor.net 25565`. Disable health checks in the Pangolin resource settings to avoid confusion.
