@@ -149,6 +149,104 @@ docker start minecraft
 
 > Warning: the old world is permanently deleted. Back up `/opt/minecraft/data/world/` first if needed.
 
+## Second Server (Planned - Not Yet Implemented)
+
+Run a second Minecraft server on the same LXC 112 for a separate group of players.
+
+### Resource requirements
+
+Before adding the second server, increase LXC 112 RAM in Proxmox from 6 GB to 10 GB:
+
+- Server 1 (family): 4G
+- Server 2 (friends): 2G
+- OS overhead: ~1G buffer
+
+In Proxmox web UI: LXC 112 - Resources - Memory - set to 10240 MB. No restart needed if done while container is running (hot-add), or restart the LXC after.
+
+### Compose changes
+
+Add a second service to `/opt/minecraft/docker-compose.yml` (and the repo file at `compose/proxmox-lxc-112/minecraft/docker-compose.yml`):
+
+```yaml
+  minecraft2:
+    image: itzg/minecraft-server:latest
+    container_name: minecraft2
+    environment:
+      EULA: "TRUE"
+      TYPE: PAPER
+      MEMORY: 2G
+      TZ: Europe/Budapest
+      PLUGINS: |
+        https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
+        https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
+      MOTD: "Homelab Minecraft 2"
+      MAX_PLAYERS: "10"
+      DIFFICULTY: normal
+    ports:
+      - "25566:25565"
+      - "19133:19132/udp"
+      - "8101:8100"
+    volumes:
+      - /opt/minecraft/data2:/data
+    restart: unless-stopped
+```
+
+After adding, create the data dir and start:
+
+```bash
+mkdir -p /opt/minecraft/data2
+docker compose -f /opt/minecraft/docker-compose.yml up -d
+```
+
+Post-start: set `auth-type: floodgate` in `/opt/minecraft/data2/plugins/Geyser-Spigot/config.yml` and `enforce-secure-profile=false` in `/opt/minecraft/data2/server.properties`, then restart minecraft2.
+
+### Pangolin - new raw resources (VPS)
+
+Add to `/opt/pangolin/config/traefik/traefik_config.yml`:
+
+```yaml
+  tcp-25566:
+    address: ":25566/tcp"
+  udp-19133:
+    address: ":19133/udp"
+```
+
+Add to `/opt/pangolin/docker-compose.yml` gerbil ports:
+
+```yaml
+  - 25566:25566
+  - 19133:19133/udp
+```
+
+Add in Pangolin UI (Sites - Minecraft - New Resource):
+
+| Resource | Protocol | External Port | Target |
+|----------|----------|---------------|--------|
+| Minecraft Java 2 | TCP | 25566 | localhost:25566 |
+| Minecraft Bedrock 2 | UDP | 19133 | localhost:19133 |
+
+Open UFW on VPS:
+
+```bash
+ufw allow 25566/tcp comment "Minecraft Java 2"
+ufw allow 19133/udp comment "Minecraft Bedrock 2"
+```
+
+Restart Pangolin stack:
+
+```bash
+cd /opt/pangolin && docker compose up -d
+```
+
+### Connection addresses
+
+| Server | Java | Bedrock |
+|--------|------|---------|
+| Server 1 (family) | `pangolin.homelabor.net:25565` | `pangolin.homelabor.net:19132` |
+| Server 2 (friends) | `pangolin.homelabor.net:25566` | `pangolin.homelabor.net:19133` |
+
+---
+
 ## Lessons Learned
 
 - **GeyserMC auth-type:** After the first start, edit `/opt/minecraft/data/plugins/Geyser-Spigot/config.yml` and set `auth-type: floodgate`. Without this, Bedrock players also need a Java Edition account.
@@ -164,4 +262,6 @@ docker start minecraft
 - **Minecraft Flatpak on Nobara/KDE - use Prism Launcher:** The official `com.mojang.Minecraft` Flatpak has a token storage bug on KDE/non-GNOME desktops - it cannot save the Microsoft account token, causing "couldn't connect to Minecraft services" errors on every launch. Fix: install Prism Launcher instead (`flatpak install flathub org.prismlauncher.PrismLauncher`). Prism handles auth via browser login which bypasses the keyring issue. Remove the official Flatpak with `sudo flatpak uninstall com.mojang.Minecraft --delete-data`.
 - **EssentialsX unsupported version warning:** EssentialsX 2.21.2 logs "You are running an unsupported server version!" on 1.21.11. The plugin loads and works despite the warning - commands function normally.
 - **Komodo GitOps for compose changes:** Always edit the repo compose file and deploy via Komodo (Pull + Deploy). Do not edit `/opt/minecraft/docker-compose.yml` directly on the server - it will be overwritten on the next Komodo deploy.
+- **Powder Snow (puder hó):** In snowy biomes players fall through powder snow blocks and start freezing. Fix: wear leather boots - they allow walking on top of powder snow. Other boot materials (iron, diamond, etc.) fall through. Quick admin fix: `/give PlayerName leather_boots`.
+- **World seed:** Current world uses seed `-2350879005487267529` (cherry grove + snowy mountain + village near spawn). Set via `SEED` env var in compose file.
 - **Pangolin health check false negatives:** Pangolin's built-in health check sends HTTP requests to ports 25565 and 19132. Minecraft TCP returns EOF (not HTTP) and UDP is unreachable via HTTP, so both show as offline in the UI. The actual tunnel works - verify with `nc -z pangolin.homelabor.net 25565`. Disable health checks in the Pangolin resource settings to avoid confusion.

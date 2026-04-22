@@ -15,6 +15,7 @@ services:
       MOTD: "Homelab Minecraft"
       MAX_PLAYERS: "10"
       DIFFICULTY: normal
+      SEED: "-2350879005487267529"
       # Optional whitelist - uncomment to restrict to specific players:
       # WHITELIST: "Player1,Player2"
       # ENFORCE_WHITELIST: "TRUE"
