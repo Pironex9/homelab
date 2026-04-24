@@ -1698,7 +1698,33 @@ journalctl -u newt.service -f
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-01-11  
-**Status:** Production Security Complete  
-**Next Review:** 2026-02-11
+---
+
+## Security Audit Log
+
+### 2026-04-24 - Full VPS Audit
+
+**Result: Secure. No issues found.**
+
+Open ports verified - all intentional:
+
+| Port | Service | Note |
+|------|---------|------|
+| 22/tcp | SSH | Key-only, rate limited, fail2ban |
+| 80/443/tcp | Pangolin/Traefik | Normal web traffic |
+| 51820/21820 UDP | WireGuard (Pangolin tunnels) | Encrypted |
+| 25565/tcp | Minecraft Java | Microsoft account auth via Floodgate |
+| 19132/udp | Minecraft Bedrock | Added with Minecraft server setup |
+| 41641/udp | Tailscale | Encrypted, auth required |
+| 3001/tcp | Uptime Kuma | UFW restricts to 172.18.0.0/16 only (Docker internal) |
+
+SSH: `PasswordAuthentication no`, `PermitRootLogin prohibit-password`, fail2ban active (sshd + traefik-auth jails), unattended-upgrades running.
+
+**Pangolin incident (same day):** Gerbil container was recreated during Minecraft troubleshooting. Traefik uses `network_mode: service:gerbil` - recreating gerbil alone orphaned Traefik in the old network namespace, breaking all routing (443, 80, Minecraft ports). Fixed by force-recreating traefik. Lesson: always recreate the full Pangolin stack together (`docker compose up -d --force-recreate`), never gerbil alone.
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2026-04-24
+**Status:** Production Security Complete
+**Next Review:** 2026-07-24
