@@ -256,7 +256,7 @@ Check for conflicts: `ss -tlnp | grep 300`
 2. Check the Verify Turnstile node output - `success` must be `true`
 3. If Turnstile fails: token may have expired (5 min limit) or been reused
 4. If DocuSeal node fails: check the API key and template ID
-5. See [DocuSeal troubleshooting](19_DocuSeal_E-Signature_Setup.md#troubleshooting) for email delivery issues
+5. See [DocuSeal troubleshooting](./19_DocuSeal_E-Signature_Setup.md#troubleshooting) for email delivery issues
 
 ### Form returns "no available server" or Caddy won't start
 

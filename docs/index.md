@@ -1,4 +1,4 @@
-**Date:** 2026-03-14
+**Date:** 2026-04-26
 **Author:** Norbert Csicsay
 **GitHub:** [Pironex9/homelab](https://github.com/Pironex9/homelab)
 
@@ -6,7 +6,7 @@
 
 # Homelab Infrastructure
 
-Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
+Self-hosted infrastructure running 28 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
 
 ## Tech Stack
 
@@ -36,6 +36,7 @@ Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
 ├── LXC 108  ollama          192.168.0.231   Ollama local LLM (CPU, always on)
 ├── LXC 109  claude-mgmt     192.168.0.204   Claude Code management node
 ├── LXC 110  caddy           192.168.0.208   Caddy reverse proxy + mkcert local CA
+├── LXC 112  minecraft       192.168.0.213   PaperMC + GeyserMC (Java + Bedrock)
 └── Storage
     ├── MergerFS pool   8.1TB usable (2x internal HDD + 2x USB HDD)
     └── SnapRAID        1 parity drive, automated sync + scrub
@@ -70,7 +71,7 @@ Migrated 20 Docker Compose stacks from Dockge to Komodo with zero downtime. All 
 [Full Documentation](proxmox/16_Komodo_complete_setup.md)
 
 ### Resilient Storage
-Pooled 4 USB HDDs into a single MergerFS volume with SnapRAID parity. Can survive 1 disk failure with no data loss. Automated sync via systemd timers.
+Pooled 2 internal HDDs and 2 USB HDDs into a single MergerFS volume with SnapRAID parity. Can survive 1 disk failure with no data loss. Automated sync via systemd timers.
 
 [Storage Setup Guide](proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md)
 
@@ -86,13 +87,13 @@ Restic backups to local disk and NFS share (Nobara PC). Automated via shell scri
 
 ## Navigation
 
-- **Hosts** - Current configuration, running services, and notes for each LXC/VM
+- **Proxmox** - Current configuration, running services, and notes for each host (LXCs/VMs, Nobara PC, Hetzner VPS, K3s Cluster)
 - **Setup Guides** - Chronological guides documenting how the homelab was built, grouped by topic:
   - *Core Infrastructure* - Proxmox, Docker, storage, HAOS, DNS
   - *Services* - Individual service setups (Immich, Jellyfin, Karakeep...)
   - *Operations* - Troubleshooting, NFS, backup
   - *Platform & Automation* - Komodo, DocuSeal, n8n, MkDocs
-- **VPS** - Hetzner VPS and Pangolin reverse proxy setup
+- **VPS** - Hetzner VPS and Pangolin reverse proxy setup guides
 - **Projects** - Side projects outside the homelab
 
 ## Contact

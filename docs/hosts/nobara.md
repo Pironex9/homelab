@@ -210,4 +210,4 @@ sudo grubby --update-kernel=ALL --remove-args=rhgb
 - `rm -rf ~/.local/share/kscreen/` (fixed kwin crash loop)
 - `sudo grubby --update-kernel=ALL --args="nvidia_drm.fbdev=1"` (permanent NVIDIA fix)
 - Replaced automount with systemd service for SSHFS (permanent fix for LXC 109 outages)
-- Root cause of LXC 109 outage: Tailscale `accept-routes=true` on LXC 109 - see [claude-mgmt.md](claude-mgmt.md)
+- Root cause of LXC 109 outage: Tailscale `accept-routes=true` on LXC 109 - see [claude-mgmt.md](../hosts/claude-mgmt.md)
