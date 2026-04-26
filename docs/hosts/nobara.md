@@ -158,6 +158,36 @@ Managed by `mnt-claudemgmt.service` (not automount). See [NFS Setup Documentatio
 
 ---
 
+## Known Issues
+
+### Black screen on first boot (Plymouth → SDDM race condition)
+
+**Symptom:** After a cold boot, the system shows a black screen with only a mouse cursor - KDE/SDDM doesn't load. On second boot (reboot), the GUI loads normally.
+
+**Root cause:** Race condition between Plymouth (boot splash) and SDDM startup on Fedora 43 / Nobara fc43. SDDM starts before the GPU driver (NVIDIA in this case) fully initializes. This is a [known Fedora 43 KDE issue](https://discussion.fedoraproject.org/t/fedora-43-kde-sometimes-boots-to-a-black-screen/171080) - not kernel-version specific, affects older kernels too.
+
+**Workaround applied (2026-04-26):** Added a 3-second delay before SDDM starts:
+
+```bash
+sudo mkdir -p /etc/systemd/system/sddm.service.d/
+sudo tee /etc/systemd/system/sddm.service.d/delay.conf << 'EOF'
+[Service]
+ExecStartPre=/bin/sleep 3
+EOF
+sudo systemctl daemon-reload
+```
+
+File: `/etc/systemd/system/sddm.service.d/delay.conf`
+
+If 3 seconds is not enough, increase to 5. If still broken, disable Plymouth entirely:
+```bash
+sudo grubby --update-kernel=ALL --remove-args=rhgb
+```
+
+**Status:** Fix was included in kwin 6.5.2+ (system is on 6.6.4) but the race condition still appeared - the sleep delay is the active workaround.
+
+---
+
 ## Incidents
 
 ### 2026-04-08 - GUI freeze on boot + Dolphin hangs
