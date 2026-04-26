@@ -43,20 +43,21 @@ extra:
 
 nav:
   - Home: index.md
-  - Hosts:
-      - Docker Host (LXC 100): hosts/docker-host.md
-      - Home Assistant (VM 101): hosts/haos.md
-      - AdGuard Home (LXC 102): hosts/adguard.md
-      - Komodo (LXC 105): hosts/komodo.md
-      - Karakeep (LXC 106): hosts/karakeep.md
-      - n8n (LXC 107): hosts/n8n.md
-      - Ollama (LXC 108): hosts/ollama.md
-      - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
+  - Proxmox:
+      - LXCs & VMs:
+          - Docker Host (LXC 100): hosts/docker-host.md
+          - Home Assistant (VM 101): hosts/haos.md
+          - AdGuard Home (LXC 102): hosts/adguard.md
+          - Komodo (LXC 105): hosts/komodo.md
+          - Karakeep (LXC 106): hosts/karakeep.md
+          - n8n (LXC 107): hosts/n8n.md
+          - Ollama (LXC 108): hosts/ollama.md
+          - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
+          - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
+          - Minecraft Server (LXC 112): hosts/minecraft.md
       - Nobara PC: hosts/nobara.md
-      - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
-      - Minecraft Server (LXC 112): hosts/minecraft.md
-      - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
       - Hetzner VPS: hosts/vps.md
+      - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
       - Retired:
           - Raspberry Pi 4: hosts/raspberry-pi.md
   - Setup Guides:
