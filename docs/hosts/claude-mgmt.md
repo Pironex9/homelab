@@ -87,14 +87,21 @@ claude mcp add karakeep -- bash -c \
 
 ### n8n MCP
 
-Connects Claude Code to the n8n workflow automation instance.
+Connects Claude Code to the n8n workflow automation instance via n8n's built-in official MCP server (HTTP transport).
 
-- **Auth:** API key at `~/.secrets/n8n-api-key` (chmod 600)
-- **Wrapper:** `~/.secrets/n8n-mcp.sh` (chmod 700)
+- **Transport:** HTTP (not stdio)
+- **Endpoint:** `http://192.168.0.112:5678/mcp-server/http`
+- **Auth:** JWT access token at `~/.secrets/n8n-official-token` (chmod 600), sent as Bearer header
+- **Token generated in:** n8n UI - Settings > API > MCP Server
 
 ```bash
-claude mcp add n8n -- /root/.secrets/n8n-mcp.sh
+claude mcp add --transport http n8n http://192.168.0.112:5678/mcp-server/http \
+  --header "Authorization: Bearer $(cat ~/.secrets/n8n-official-token)"
 ```
+
+Available tools: `search_workflows`, `get_workflow_details`, `create_workflow_from_code`, `update_workflow`, `execute_workflow`, `get_execution`, `get_node_types`, `search_nodes`, `get_suggested_nodes`, `get_sdk_reference`, `publish_workflow`, `unpublish_workflow`, `archive_workflow`, `search_projects`, `search_folders`
+
+> **Note:** Previously used the unofficial `n8n-mcp` npm package (czlonkowski/n8n-mcp) via stdio wrapper `~/.secrets/n8n-mcp.sh`. Migrated 2026-05-01 to the official built-in MCP server which offers SDK-based workflow creation with type-safe node parameters.
 
 ### Homelable MCP
 

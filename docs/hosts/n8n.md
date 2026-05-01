@@ -106,7 +106,15 @@ journalctl -u n8n -n 100
 
 ## MCP Integration
 
-This n8n instance is connected to Claude Code via the **n8n-mcp** server. The MCP server communicates with n8n through its REST API, enabling Claude Code to create, read, and trigger workflows directly from the terminal.
+This n8n instance is connected to Claude Code via n8n's **built-in official MCP server** (HTTP transport). Claude Code can create, read, update, and trigger workflows directly from the terminal.
+
+- **Endpoint:** `http://192.168.0.112:5678/mcp-server/http`
+- **Auth:** JWT token generated in n8n UI under Settings > API > MCP Server
+- **Token stored:** `~/.secrets/n8n-official-token` on LXC 109 (claude-mgmt), chmod 600
+
+The official MCP server uses an SDK-based workflow builder: Claude first reads node type definitions (`get_node_types`), then writes TypeScript workflow code, validates it, and only then saves it - avoiding invalid parameter names that the old unofficial package was prone to.
+
+See [claude-mgmt.md](claude-mgmt.md) for the `claude mcp add` registration command.
 
 ## Lessons Learned
 
