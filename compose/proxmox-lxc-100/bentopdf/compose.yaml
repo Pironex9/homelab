@@ -1,6 +1,6 @@
 services:
   bentopdf:
-    image: bentopdfteam/bentopdf:latest
+    image: ghcr.io/alam00000/bentopdf:latest
     container_name: bentopdf
     ports:
       - 3000:8080
