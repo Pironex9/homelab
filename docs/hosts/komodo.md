@@ -123,7 +123,15 @@ docker compose -p komodo -f mongo.compose.yaml --env-file compose.env pull
 docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 ```
 
-**Current version:** v2.1.2
+For managed host periphery binary updates (run on each host):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/moghtech/komodo/main/scripts/setup-periphery.py | python3 -
+```
+
+Note: On Nobara, `sudo python3 -` is required (writes to `/usr/local/bin`). Use a TTY or run from the Nobara desktop terminal.
+
+**Current version:** v2.2.0
 
 ## Adding a new managed server
 
@@ -161,3 +169,4 @@ docker compose -p komodo -f mongo.compose.yaml --env-file compose.env up -d
 - **Inbound vs outbound periphery mode:** In inbound mode, Core connects to periphery via HTTP/WebSocket. A known issue (likely reqwest connection pool poisoning) causes Core to stop retrying after a connection drop - only a Core restart recovers it. Solution: switch to outbound mode where periphery initiates the connection and reconnects automatically. LXC 100 was migrated to outbound mode on 2026-04-06.
 - **Migrating existing server from inbound to outbound mode:** (1) In Komodo UI, clear the server's Address field and set Periphery Public Key to the periphery's public key (from its startup log). (2) In periphery config, add `core_addresses` and `connect_as = "<exact server name>"`. (3) Restart periphery - it connects without an onboarding key. Do NOT use an onboarding key for existing servers - it creates a duplicate entry. If a duplicate was created, delete it from MongoDB: `db.Server.deleteOne({_id: ObjectId("...")})`.
 - **LXC 100 periphery public key:** `MCowBQYDK2VuAyEA9sCPWCwh2XNxmYdmWMKvOiWv729oZmBo+uuVsDqoxk4=`
+- **RE605X bridge loop causes periodic WebSocket disconnects:** When Nobara PC is offline, the TP-Link RE605X wireless extender (in bridge/extender mode) re-broadcasts frames back upstream, corrupting the Archer C6 MAC table. This causes ~16-minute LAN outages at night, dropping the LXC 100 periphery WebSocket connection. Symptom: `Timed out waiting for Ping` logs at ~02:00 CEST. Mitigation: gratuitous ARP script on Proxmox host (`/usr/local/bin/arping-keepalive.sh`) runs every 5 minutes via cron, keeping the MAC table fresh. Tailscale-based connections (VPS periphery) are unaffected since they bypass Layer 2.
