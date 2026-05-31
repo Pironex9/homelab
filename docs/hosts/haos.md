@@ -50,18 +50,20 @@ KVM VM (VMID 101)
 
 ## Integrations
 
-| Domain          | Description                         |
-|-----------------|-------------------------------------|
-| zha             | Sonoff Zigbee 3.0 USB Dongle Plus V2 |
-| mqtt            | Mosquitto broker                    |
-| go2rtc          | go2rtc camera proxy                 |
-| cast            | Google Cast                         |
-| dlna_dmr        | DLNA media renderer (TV)            |
-| dlna_dms        | DLNA media server                   |
-| upnp            | Router UPnP                         |
-| met             | Home weather (Met.no)               |
-| google_translate | Text-to-speech                     |
-| radio_browser   | Radio Browser                       |
+| Domain           | Description                                          |
+|------------------|------------------------------------------------------|
+| mqtt             | Mosquitto broker (Zigbee2MQTT devices)               |
+| cast             | Google Cast - nappali TV + hálószobai TV             |
+| androidtv_remote | Android TV Remote - nappali TV vezérlés              |
+| go2rtc           | go2rtc camera proxy                                  |
+| upnp             | Router UPnP                                          |
+| met              | Home weather (Met.no)                                |
+| google_translate  | Text-to-speech                                      |
+| radio_browser    | Radio Browser                                        |
+
+**Eltávolított integrációk (2026-05-31):**
+- `dlna_dmr` - letiltva (nappali TV DLNA renderer, duplikátum volt a Cast/Android TV Remote mellett)
+- `dlna_dms` - törölve (NEX-PC DLNA médiaserver, Jellyfin miatt felesleges)
 
 ## Open Ports
 
@@ -166,6 +168,61 @@ References:
 - [GitHub issue #168088](https://github.com/home-assistant/core/issues/168088) - severe memory pressure during 2026.4.x update
 
 If reverting is needed: Settings - About - ... - Version History - select 2026.3.4.
+
+## Zigbee Devices (Zigbee2MQTT)
+
+| Eszköz | Terület | Típus | Gyártó | Megjegyzés |
+|--------|---------|-------|--------|------------|
+| Balkon_Lampa | Balkon | RGB+CCT lámpa | Philips | Hue Essential A60 |
+| Bejarati_Lampa | Kert | RGB+CCT lámpa | Tuya | Bejárati kültéri lámpa |
+| Folyoso_Fenti_Lampa | Folyoso | RGB+CCT lámpa | Philips | Hue Essential A60 |
+| Folyoso_Lenti_Lampa | Folyoso | RGB+CCT lámpa | Philips | Hue Essential A60 |
+| Stekker_Furdo | Furdo | Smart plug (power monitoring) | Tuya | Törölközőszárítóhoz |
+| Stekker_Kert | Kert | Smart plug (power monitoring) | Tuya | Zigbee mesh router (jelerősítő) |
+| Stekker_Konyha | Kitchen | Smart plug (power monitoring) | SONOFF | |
+| Szenzor_Bejarati | Kert | PIR mozgásérzékelő | SONOFF | |
+| Szenzor_Folyoso_Fent | Folyoso | PIR mozgásérzékelő | Tuya | |
+| Szenzor_Folyoso_Kozep | Folyoso | PIR mozgásérzékelő | Tuya | |
+| Szenzor_Folyoso_Lent | Folyoso | PIR mozgásérzékelő | Tuya | |
+| Ajto_Szenzor_Bejarati | Folyoso | Ajtószenzor | Aqara | |
+| Ajto_Szenzor_Fent | Folyoso | Ajtószenzor | Aqara | |
+| Leak sensor | Technikai | Vízszivárgás szenzor | Moes | |
+
+## Media Players
+
+A nappali TV három integráción keresztül volt regisztrálva - 2026-05-31-én rendszerezve:
+
+| Entitás | Platform | Név | Megjegyzés |
+|---------|----------|-----|------------|
+| `media_player.teve_a_nappaliban` | cast | Nappali TV - Cast | Mutatja mi megy (Jellyfin, stb.), valós állapot |
+| `media_player.tv_a_nappaliban` | androidtv_remote | Nappali TV - Android Remote | Teljes vezérlés, `assumed_state` |
+| `remote.tv_a_nappaliban` | androidtv_remote | Nappali TV - Távirányító | Nyers gombparancsok küldése |
+| `media_player.teve_a_haloszobaban` | cast | Hálószobai TV - Cast | Unavailable amikor a TV ki van kapcsolva (normális) |
+| ~~media_player.teve_a_nappaliban_192_168_0_236~~ | ~~dlna_dmr~~ | ~~Tévé a nappaliban(192.168.0.236)~~ | Letiltva 2026-05-31 |
+
+## Automations
+
+| Automation | Állapot | Leírás |
+|-----------|---------|--------|
+| `automation.vizerzekelo_riasztas` | ON | Vízszivárgás riasztás - ismétlődő push 10 percenként |
+| `automation.vizerzekelo_helyreallt` | ON | Vízszivárgás helyreállt - "all clear" értesítés (2 perces debounce) |
+| `automation.bejarati_lampa_be` | ON | Bejárati lámpa vezérlés |
+| `automation.folyoso_lampa_fenti_ajto_5mp` | ON | Folyosó lámpa - fenti ajtószenzor (5 mp) |
+| `automation.folyoso_lampa_bejarati_ajto_5mp` | ON | Folyosó lámpa - bejárati ajtószenzor (10 mp) |
+| `automation.folyoso_lampa_vezerles` | ON | Folyosó lámpa vezérlés |
+| `automation.torolkozoszarito_idozites_20_40_21_00_es_21_40_22_00` | ON | Törölközőszárító - 20:40-21:00 és 21:40-22:00 |
+| `automation.tobb_szaritas` | OFF | Régi törölközőszárító timing (19:25-19:45, 20:10-20:25) - megtartva |
+| `automation.nightly_ha_restart` | OFF | HA belső restart - nem hatékony a memory leak ellen, Proxmox cron váltja |
+| `automation.zona_notifikacio_gps` | OFF | GPS zóna értesítés - GPS bounce miatt letiltva |
+| `automation.legujjabb` | OFF | Teszt automation |
+| `automation.new_automation_2` | OFF | Teszt automation |
+
+### Vízérzékelő automations (2026-05-29)
+
+- **Trigger:** `binary_sensor.leak_sensor_water_leak` (on=vizes, off=száraz)
+- **Push célpontok:** `notify.mobile_app_norbi_telo`, `notify.mobile_app_ancsi_telo`
+- **Tag:** `leak_sensor_alert` - minden ismétlés felülírja az előző értesítést
+- **All-clear debounce:** 2 perc stabilan száraz kell az "OK" értesítéshez (GPS bounce-szerű false trigger ellen)
 
 ## Lessons Learned
 
