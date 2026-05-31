@@ -1191,6 +1191,22 @@ curl http://192.168.0.110:8096
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-01-11  
-**Status:** Complete - full security configuration documented in Doc 12
+## 13. Lessons Learned
+
+- **Docker Bridge Bypass Rule required for all protected resources** - traffic from Newt/Gerbil tunnel arrives at Traefik with source IP `172.18.0.1` (VPS Docker bridge). Without an Allow rule for `172.18.0.0/16`, Pangolin drops it. Apply this to every resource that uses SSO or resource-level rules.
+
+- **Health check threshold=1 causes false 503s** - the default `hcUnhealthyThreshold=1` means a single failed health check immediately marks a resource unhealthy. HAOS (and other services) can be briefly slow (>5s) during periodic internal tasks without actually being down. Set `hcUnhealthyThreshold=2` for services that have occasional latency spikes. Current HAOS config: `hcTimeout=10s, hcUnhealthyThreshold=2` (set 2026-05-31).
+
+- **Diagnosing public 503s** - the failure chain is: HAOS slow -> Newt timeout -> Pangolin marks unhealthy -> Traefik 503. Check in order: (1) `journalctl -u newt` on Proxmox host for `context deadline exceeded`, (2) `docker logs pangolin` for `Marking health check X unhealthy`, (3) if site goes fully offline look for `Marking site 3 offline: newt ... has no recent ping`.
+
+- **DB health check config** - Pangolin stores health check settings in `/opt/pangolin/config/db/db.sqlite` (table `targetHealthCheck`). Changes take effect after `docker compose restart pangolin`. Newt reconnects automatically within seconds.
+
+- **KOMODO_HOST must be set to actual host URL** - the community script template defaults to `https://demo.komo.do`. Change to the real URL before first start.
+
+- **Newt runs on Proxmox host, not an LXC** - systemd service at `/etc/systemd/system/newt.service`. Logs: `journalctl -u newt`. The Newt binary is at `/usr/local/bin/newt`.
+
+---
+
+**Document Version:** 1.1  
+**Last Updated:** 2026-05-31  
+**Status:** Complete - health check tuning and troubleshooting added

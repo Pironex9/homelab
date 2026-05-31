@@ -152,22 +152,35 @@ The daily reboot is configured in the Proxmox host crontab (`crontab -e` as root
 
 ## Known Issues
 
-### Memory leak in HA Core 2026.4.x (active as of 2026-04-17)
+### Memory leak in HA Core 2026.4.x (RESOLVED in 2026.5.x)
 
-HA Core 2026.4.0-2026.4.2 has a memory leak that causes RAM to fill up over hours and eventually crash the VM. The leak fills 6 GB in ~13-15 hours. Symptoms:
+HA Core 2026.4.0-2026.4.2 had a memory leak that caused RAM to fill up over hours and eventually crash the VM. The leak filled 6 GB in ~13-15 hours. HAOS was updated to 2026.5.4 on 2026-05-31, which resolves the leak.
 
-- Python GC pauses cause HA to stop responding for >30s - Newt marks the target unhealthy, Pangolin returns 503 for public URLs
-- After ~13h memory is exhausted, HA crashes entirely (OOM)
-
-Diagnosis: check `journalctl -u newt` on the Proxmox host for `context deadline exceeded` (freeze) vs `connection refused` (crash).
-
-Workaround: daily full VM reboot via Proxmox cron at 04:10 (`qm reboot 101` in root crontab on 192.168.0.109). The old HA-internal "Nightly HA Restart" automation (`automation.nightly_ha_restart`) is **disabled** - it only restarted the core process which did not clear RAM.
+Workaround that is still active (can be removed once 2026.5.x is confirmed stable): daily full VM reboot via Proxmox cron at 04:10 (`qm reboot 101` in root crontab on 192.168.0.109).
 
 References:
 - [GitHub issue #167401](https://github.com/home-assistant/core/issues/167401) - memory leak + crash in 2026.4.0/4.1
-- [GitHub issue #168088](https://github.com/home-assistant/core/issues/168088) - severe memory pressure during 2026.4.x update
 
-If reverting is needed: Settings - About - ... - Version History - select 2026.3.4.
+### Periodic public 503 errors via Pangolin (diagnosed 2026-05-31)
+
+Symptom: Uptime Kuma reports `ha.homelabor.net` down for ~1 minute every ~10 minutes. Error: HTTP 503.
+
+Root cause: Newt (running on Proxmox host 192.168.0.109) health-checks HAOS at `http://192.168.0.202:8123/` on a ~10-minute interval with a 5-second timeout. HAOS occasionally takes longer than 5 seconds to respond (periodic internal task - exact cause unknown, possibly Recorder WAL flush or Supervisor health poll). With the default `hcUnhealthyThreshold=1`, a single failed check immediately marks the resource unhealthy and Traefik returns 503.
+
+Fix applied 2026-05-31 (via direct DB update on VPS + Pangolin restart):
+- `hcTimeout`: 5s -> 10s (more time for HAOS to respond)
+- `hcUnhealthyThreshold`: 1 -> 2 (two consecutive failures needed; HAOS always recovers within 30 seconds so the second check succeeds)
+
+To verify or update these settings: Pangolin UI -> Resources -> Home Assistant -> Edit -> Health Check tab. DB location: `/opt/pangolin/config/db/db.sqlite` on the VPS (table `targetHealthCheck`, row where `targetHealthCheckId=6`).
+
+Diagnosis commands:
+```bash
+# Check Newt health check failures on Proxmox host
+journalctl -u newt --since "1 hour ago" | grep -E "(WARN|deadline|health check)"
+
+# Check Pangolin for site offline events
+docker logs pangolin 2>&1 | grep -E "(offline|unhealthy|healthcheck)"
+```
 
 ## Zigbee Devices (Zigbee2MQTT)
 
@@ -232,3 +245,5 @@ A nappali TV három integráción keresztül volt regisztrálva - 2026-05-31-én
 - **The `ha` CLI requires Supervisor API token** - commands like `ha core info` fail from the SSH add-on shell; use the REST API instead.
 - **Protection mode** blocks Docker access - to run `docker ps` or interact with containers, Protection Mode must be disabled in the add-on settings. Leave it enabled unless absolutely needed.
 - **Alpine Linux inside, HAOS outside** - the SSH session runs in an Alpine 3.23 container sandbox, not on the HAOS host. Some host-level commands are unavailable or proxied.
+- **Newt health check vs. actual downtime** - `context deadline exceeded` in `journalctl -u newt` means HAOS was slow (>timeout), not unreachable. `connection refused` means HAOS is actually down. Brief periodic 503s on the public URL almost always mean Newt's health check timed out, not a real outage.
+- **Pangolin hcUnhealthyThreshold should be 2 for HAOS** - with threshold=1, a single slow health check response (e.g. during a recorder flush) immediately causes 503. Set to 2 so two consecutive failures are required. HAOS recovers within 30 seconds so the second check always succeeds. Current config: `hcTimeout=10, hcUnhealthyThreshold=2` (set 2026-05-31).
