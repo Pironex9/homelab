@@ -1,0 +1,52 @@
+services:
+  kan-migrate:
+    image: ghcr.io/kanbn/kan-migrate:latest
+    container_name: kan-migrate
+    environment:
+      - POSTGRES_URL=postgresql://kan:${KAN_POSTGRES_PASSWORD}@kan-db:5432/kan_db
+    depends_on:
+      kan-db:
+        condition: service_healthy
+    networks:
+      - arr_stack
+    restart: "no"
+
+  kan:
+    image: ghcr.io/kanbn/kan:latest
+    container_name: kan
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+      - NEXT_PUBLIC_BASE_URL=${KAN_BASE_URL}
+      - BETTER_AUTH_SECRET=${KAN_AUTH_SECRET}
+      - POSTGRES_URL=postgresql://kan:${KAN_POSTGRES_PASSWORD}@kan-db:5432/kan_db
+      - NEXT_PUBLIC_DISABLE_EMAIL=true
+    ports:
+      - 3006:3000
+    depends_on:
+      kan-migrate:
+        condition: service_completed_successfully
+    networks:
+      - arr_stack
+
+  kan-db:
+    image: postgres:15
+    container_name: kan-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=kan_db
+      - POSTGRES_USER=kan
+      - POSTGRES_PASSWORD=${KAN_POSTGRES_PASSWORD}
+    volumes:
+      - ${DOCKER_DATA}/kan/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kan -d kan_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - arr_stack
+
+networks:
+  arr_stack:
+    external: true
