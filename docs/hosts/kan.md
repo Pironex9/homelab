@@ -49,3 +49,7 @@ docker compose up -d
 ```
 
 Or via Komodo: Pull -> Deploy after committing changes.
+
+## Komodo shows "unhealthy"
+
+Normal. `kan-migrate` is a one-shot container - it runs the DB migrations, then exits `0`. Komodo counts any exited container as unhealthy even though this one is *meant* to exit. The app is fine as long as `kan` and `kan-db` are `Up`. Every Pull/Deploy re-runs (and re-creates) the migrate container, so the status returns; clear it with `docker rm kan-migrate` if the red status bothers you.
