@@ -21,6 +21,7 @@ services:
       - BETTER_AUTH_SECRET=${KAN_AUTH_SECRET}
       - POSTGRES_URL=postgresql://kan:${KAN_POSTGRES_PASSWORD}@kan-db:5432/kan_db
       - NEXT_PUBLIC_DISABLE_EMAIL=true
+      - NEXT_PUBLIC_ALLOW_CREDENTIALS=true
     ports:
       - 3006:3000
     depends_on:
