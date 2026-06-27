@@ -17,7 +17,7 @@ services:
       - /mnt/storage/media/tv/hun:/tv/hun
       - /mnt/storage/media/tv/eng:/tv/eng
       - /mnt/storage/media/movies/hun:/movies/hun
-      - /mnt/storage/media/movies/hun:/movies/hun
+      - /mnt/storage/media/movies/eng:/movies/eng
       - /mnt/storage/media/konyvek:/konyvek
     ports:
       - 8080:8080
