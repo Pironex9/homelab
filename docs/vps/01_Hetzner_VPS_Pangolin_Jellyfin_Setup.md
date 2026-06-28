@@ -1207,6 +1207,33 @@ curl http://192.168.0.110:8096
 
 ---
 
-**Document Version:** 1.1  
-**Last Updated:** 2026-05-31  
-**Status:** Complete - health check tuning and troubleshooting added
+## 14. Enterprise Edition Upgrade
+
+**Date:** 2026-06-28 - Upgraded from Community Edition to Enterprise Edition.
+
+### Why EE
+
+Enterprise Edition is **free for personal use** (organizations under $100,000 USD gross annual revenue). It unlocks additional features (SSO/IdP, branding, RBAC, etc.) with a license key on the `ee` Docker image.
+
+### Steps Taken
+
+1. Applied for a free license at [app.pangolin.net](https://app.pangolin.net/) - received key immediately.
+2. Changed the Docker image in `compose/vps/pangolin/docker-compose.yml`:
+   ```yaml
+   image: docker.io/fosrl/pangolin:ee-latest
+   ```
+3. Deployed via Komodo: Pull + Deploy on the pangolin stack.
+4. Activated license key at `https://pangolin.your-domain.com/admin/license` (Server Admin panel → License section).
+
+### Notes
+
+- CE and EE share the same database schema - no data migration needed.
+- The License section in the admin panel only appears when running the `ee` image.
+- One license key per server instance (cannot share across multiple servers).
+- Free license does not expire as long as revenue stays under threshold.
+
+---
+
+**Document Version:** 1.2  
+**Last Updated:** 2026-06-28  
+**Status:** Complete - Enterprise Edition upgrade documented
