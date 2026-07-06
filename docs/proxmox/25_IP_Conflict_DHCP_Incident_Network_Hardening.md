@@ -6,7 +6,7 @@
 
 ## Summary
 
-A day of intermittent, seemingly random service outages (public 503 flapping, internal timeouts, "connection error" from LAN clients) turned out to be a stack of eight independent problems, all rooted in two design weaknesses:
+A day of intermittent, seemingly random service outages (public 503 flapping, internal timeouts, "connection error" from LAN clients) turned out to be a stack of independent problems rooted in two design weaknesses:
 
 1. Two devices on the LAN were claiming infrastructure IP addresses via ARP (a rogue phone on 192.168.0.110, a family phone with a stale router binding on 192.168.0.105).
 2. Most LXCs and the HAOS VM were silently running on DHCP. They had held their "well-known" addresses for months only because the router kept renewing the same lease. When the DHCP pool was changed, they all started migrating to new addresses.
@@ -120,3 +120,22 @@ Remember this after any router reboot. A systemd watchdog automating this is a p
 - Router IP/MAC bindings guarantee your device gets that IP - they do not prevent the router from handing the same IP to someone else while your device is offline. Keep the DHCP pool disjoint from the server range (pool is now 192.168.0.20-99).
 - After any router reboot: `systemctl restart newt` on pve, or all public services stay 503.
 - An unknown device on the WiFi is a security incident, not just a network nuisance.
+
+## Follow-ups (same evening)
+
+### 8. Caddy fell back to DHCP once more
+
+All re-IP'd LXCs were rebooted so their internal DHCP client would stop - except LXC 110, which only got the static address hotplugged. The still-running DHCP client reclaimed .78 on the next lease renewal and every `*.lan` site died again (AdGuard rewrites point to .208). Lesson: `pct set --net0 ip=...` alone is not enough on a running container - always `pct reboot` afterwards so the guest network config is regenerated and the DHCP client goes away.
+
+### 9. Homepage scroll lag on the Nobara PC (Flatpak/NVIDIA mismatch)
+
+The homepage dashboard scrolled with heavy jank on the Nobara PC but was smooth on a phone - so the server was innocent. Root cause: Firefox runs as a Flatpak, and Flatpak apps use their own containerized NVIDIA userspace driver. The host driver had been updated to 595.71.05 while the newest installed Flatpak GL runtime was 595.58.03; on a version mismatch the Flatpak app silently falls back to software rendering. Fix:
+
+```bash
+flatpak install --user -y flathub \
+  org.freedesktop.Platform.GL.nvidia-595-71-05 \
+  org.freedesktop.Platform.GL32.nvidia-595-71-05
+# then fully restart Firefox; verify in about:support -> Graphics -> Compositing = WebRender (not Software)
+```
+
+Lesson: after every NVIDIA driver update on Nobara, run `flatpak update` too, or all Flatpak apps lose GPU acceleration. (A dead BlueMap tile pointing at the stopped Minecraft LXC was also removed from homepage's services.yaml along the way - it was flooding the logs with EHOSTUNREACH.)
