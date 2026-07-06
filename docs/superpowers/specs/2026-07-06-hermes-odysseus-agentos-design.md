@@ -33,7 +33,7 @@ LXC 113 "agentos" (new, Debian, 2 core / 4GB RAM / 20GB disk)
   +-- Hermes Agent (native install, no Docker)
         - providers: Nobara Ollama (primary) -> DeepSeek API (fallback)
         - Telegram gateway (new dedicated bot, DM-pairing mode)
-        - SSH backend -> LXC 109 for delegated coding tasks
+        - delegation skill -> uses its own ask-first shell tool to SSH into LXC 109 for delegated coding tasks (not Hermes's "terminal backend" feature, which would relocate its entire shell environment rather than delegate specific tasks)
        |
        | SSH, restricted key (forced command only)
        v
@@ -57,7 +57,7 @@ LXC 109 "claude-mgmt" (existing)
 - Native install (`curl ... | bash`), no Docker - it's the lightweight orchestration layer
 - Providers configured in order: Nobara Ollama endpoint (`http://192.168.0.100:11434`) as primary, `DEEPSEEK_API_KEY` as fallback via `~/.hermes/.env`
 - New, dedicated Telegram bot (separate from the existing Form/DocuSeal bot) registered via BotFather, DM-pairing mode enabled so unknown senders only get a pairing code
-- SSH backend targets LXC 109 using a dedicated key pair generated on LXC 113
+- A Hermes skill documents delegating to LXC 109 over SSH (via Hermes's own shell tool, not its "terminal backend" setting) using a dedicated key pair generated on LXC 113
 - Agent toolset starts in a cautious sandbox posture: file-modifying/bash tools default to `always_ask` until proven trustworthy, then can be loosened per-tool
 
 ### Odysseus

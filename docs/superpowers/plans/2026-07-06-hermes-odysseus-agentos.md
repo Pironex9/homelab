@@ -10,7 +10,8 @@
 
 ## Global Constraints
 
-- **Execution host:** every command in this plan is run from LXC 109 (`claude-mgmt`, 192.168.0.204 - this Claude Code host), which already holds passwordless root SSH to every other LXC and to the Proxmox host. Proxmox-only commands (`pct ...`) are wrapped as `ssh root@192.168.0.109 "pct ..."`; nothing runs directly on the Proxmox console.
+- **Execution host:** every command in this plan is run from LXC 109 (`claude-mgmt`, 192.168.0.204 - this Claude Code host), which already holds passwordless root SSH to every other LXC and to the Proxmox host. Proxmox-only commands (`pct ...`) are wrapped as `ssh root@192.168.0.109 "pct ..."`; nothing runs directly on the Proxmox console. Commands targeting something *on* LXC 113 or LXC 109 are wrapped as `ssh root@<that host> "..."` from LXC 109 - including when a step needs to run a command "from LXC 113" (e.g. testing the LXC 113->109 key), which means `ssh root@<LXC113_IP> "<command that itself may include another ssh call>"`.
+- **Exception - the Nobara PC:** it isn't part of this plan's SSH-reachable fleet. Steps that say "on the Nobara PC" (pulling models, stopping/starting Ollama) are done directly at that machine's own keyboard/terminal, not remoted into from LXC 109.
 - LXC 113: Debian 12 (`debian-12-standard_12.12-1_amd64.tar.zst`), 2 cores, 4096MB RAM, 20GB disk on `local-lvm`, unprivileged, `features: nesting=1,keyctl=1` (required for Docker-in-LXC, matching the Komodo LXC 105 pattern), bridge `vmbr0`, DHCP.
 - Nobara Ollama endpoint: `http://192.168.0.100:11434` (existing, already used by Karakeep).
 - DeepSeek provider: `DEEPSEEK_API_KEY` env var, model `deepseek-v4-flash`.
@@ -450,11 +451,11 @@ This is the security-critical task. Three layers, not one: (1) the SSH key can o
 {
   "permissions": {
     "allow": [
-      "Read(/root/homelab/**)",
-      "Grep(/root/homelab/**)",
-      "Glob(/root/homelab/**)",
-      "Edit(/root/homelab/**)",
-      "Write(/root/homelab/**)",
+      "Read(//root/homelab/**)",
+      "Grep(//root/homelab/**)",
+      "Glob(//root/homelab/**)",
+      "Edit(//root/homelab/**)",
+      "Write(//root/homelab/**)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git status:*)",
@@ -466,7 +467,7 @@ This is the security-critical task. Three layers, not one: (1) the SSH key can o
 }
 ```
 
-Save as `scripts/hermes-delegate-settings.json`. No raw shell (`Bash` is denied by default; only the five specific `git` subcommands above are carved out), no network tools, and file access is scoped to the homelab repo path. This lets a delegated task read/edit/commit within that repo and nothing else. Spot-check this permission-pattern syntax against `claude --help` / the current settings schema before relying on it - path-scoped and subcommand-scoped permission syntax has changed across Claude Code versions.
+Save as `scripts/hermes-delegate-settings.json`. No raw shell (`Bash` is denied by default; only the five specific `git` subcommands above are carved out), no network tools, and file access is scoped to the homelab repo path. This lets a delegated task read/edit/commit within that repo and nothing else. The `//root/homelab/**` double-slash-prefixed absolute-path pattern and the `Bash(git add:*)` subcommand-wildcard pattern both match real, currently-working entries already in this repo's own `.claude/settings.local.json` (e.g. `Read(//root/.secrets/**)`, `Bash(git:*)`) - this isn't a guess.
 
 - [ ] **Step 2: Write the wrapper script**
 
@@ -540,10 +541,10 @@ The `from="<LXC113_IP>"` clause means this key is refused outright from any othe
 
 - [ ] **Step 7: Verify the restriction works**
 
-From LXC 113, confirm a plain interactive shell is refused:
+The key lives on LXC 113, not on this execution host, so every command in this step runs *from* LXC 113 by wrapping it in an outer `ssh root@<LXC113_IP>`. First, confirm a plain interactive shell is refused:
 
 ```bash
-ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204
+ssh root@<LXC113_IP> "ssh -o BatchMode=yes -o StrictHostKeyChecking=no -i /root/.ssh/hermes-to-109 root@192.168.0.204"
 ```
 
 Expected: the connection runs the wrapper (which will exit with `no task provided` since no command was passed) rather than dropping into a shell prompt - it must NOT show a `root@claude-mgmt:~#` prompt.
@@ -551,24 +552,26 @@ Expected: the connection runs the wrapper (which will exit with `no task provide
 Then confirm a bounded task actually runs Claude Code, and that the shell tool is genuinely denied (not just "asked"):
 
 ```bash
-ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 "Say the word banana and nothing else"
-ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 "Run 'whoami' using your shell tool"
+ssh root@<LXC113_IP> "ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 'Say the word banana and nothing else'"
+ssh root@<LXC113_IP> "ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 \"Run 'whoami' using your shell tool\""
 ```
 
 Expected: the first prints a response containing "banana". The second must show Claude Code refusing/declining to use the shell tool (no command output, no approval prompt either - there's no interactive channel for one to appear on) since `Bash` is denied outright in the delegate settings, with only the specific `git` subcommands allowed. If `whoami` actually runs, the `--settings` flag isn't being picked up and needs debugging before continuing.
 
 - [ ] **Step 8: Confirm the source-address lock actually blocks other hosts (mandatory, not optional)**
 
-This must be tested directly, not inferred from the log:
+This must be tested directly, not inferred from the log. Pull the private key from LXC 113 (where it was generated in Step 5) onto this execution host temporarily, push it to the Proxmox host, attempt the connection from there, then delete both temporary copies:
 
 ```bash
-scp /root/.ssh/hermes-to-109 root@192.168.0.109:/root/hermes-to-109-test
-ssh root@192.168.0.109 "ssh -i /root/hermes-to-109-test -o StrictHostKeyChecking=no root@192.168.0.204 'echo should not reach here'"
+scp root@<LXC113_IP>:/root/.ssh/hermes-to-109 /tmp/hermes-to-109-test
+scp /tmp/hermes-to-109-test root@192.168.0.109:/root/hermes-to-109-test
+ssh root@192.168.0.109 "chmod 600 /root/hermes-to-109-test && ssh -o BatchMode=yes -o StrictHostKeyChecking=no -i /root/hermes-to-109-test root@192.168.0.204 'echo should not reach here'"
 ```
 
-Expected: the connection from the Proxmox host is refused (permission denied / connection closed), proving the `from=` restriction actually blocks a source address other than LXC 113 even when the correct private key is presented. Then delete the temporary copy immediately:
+Expected: the connection from the Proxmox host is refused (permission denied / connection closed), proving the `from=` restriction actually blocks a source address other than LXC 113 even when the correct private key is presented. Then delete both temporary copies immediately:
 
 ```bash
+rm -f /tmp/hermes-to-109-test
 ssh root@192.168.0.109 "rm -f /root/hermes-to-109-test"
 ```
 
