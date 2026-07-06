@@ -13,6 +13,8 @@
 | Disk | 20 GB (local-lvm) |
 | Purpose | Minecraft Java + Paper server with Bedrock cross-play via GeyserMC |
 
+> **Status (2026-07-05): stopped.** The `minecraft` container was stopped after causing a host-wide CPU contention incident (see Lessons Learned). Scheduled for deletion - not currently running.
+
 ## Running Services
 
 | Service | Description |
@@ -266,3 +268,13 @@ cd /opt/pangolin && docker compose up -d
 - **World seed:** Current world uses seed `-2350879005487267529` (cherry grove + snowy mountain + village near spawn). Set via `SEED` env var in compose file.
 - **Pangolin gerbil restart breaks Traefik:** Traefik uses `network_mode: service:gerbil` - it shares gerbil's network namespace. If only gerbil is recreated, Traefik stays attached to the old (deleted) namespace and stops routing all traffic - port 443 goes dark, newt tunnels disconnect, Minecraft ports stop working. Fix: always recreate the full stack together: `cd /opt/pangolin && docker compose up -d --force-recreate`. Never restart gerbil alone.
 - **Pangolin health check false negatives:** Pangolin's built-in health check sends HTTP requests to ports 25565 and 19132. Minecraft TCP returns EOF (not HTTP) and UDP is unreachable via HTTP, so both show as offline in the UI. The actual tunnel works - verify with `nc -z pangolin.homelabor.net 25565`. Disable health checks in the Pangolin resource settings to avoid confusion.
+
+### Incident: BlueMap render thread starved the whole Proxmox host (2026-07-05)
+
+**Symptom:** After a Proxmox host reboot at 21:08 CEST, several unrelated public services on LXC 100 (Jellyfin, DocuSeal, Form, Kan) started flapping between healthy/unhealthy every 1-3 minutes via Pangolin/Newt (`context deadline exceeded` on health checks), continuing for 2+ hours - long after the reboot itself. Initial suspicion was a problem specific to Jellyfin or a Komodo-related issue (Komodo's `mongo` container was separately crash-looping the same night, on a different LXC - unrelated coincidence).
+
+**Diagnosis:** Proxmox host load average sat at 5.8-6.3 with only 6 physical cores. Per-thread CPU accounting on the `minecraft` container's Java process (`for t in /proc/<pid>/task/*/; do ... done`) showed the `BlueMap-MapUpdate` thread had burned ~20x more CPU ticks than any other thread - BlueMap was continuously re-rendering the world map at ~100%+ of a full core, non-stop, since server startup. With only 6 cores total on the host, this single sustained hog was enough to cause scheduling delays for other LXCs sharing the same physical CPU, which showed up as intermittent slow HTTP responses (and thus health-check timeouts) on completely unrelated services on LXC 100.
+
+**Fix:** Stopped the `minecraft` container entirely (`docker stop minecraft` on LXC 112), which also stops BlueMap. Host load average dropped from ~6.0 to ~4.1 within seconds. Server and BlueMap are marked for deletion later - not currently planned to be restarted as-is.
+
+**Lesson:** A single CPU-hungry container on ANY LXC can starve every other LXC on the same Proxmox host if the host is near its core count - it is not sandboxed away by the LXC boundary. BlueMap in particular does full-world background rendering on every restart (not just first install) and has no default rate limit. If BlueMap is used again, throttle it via `render-thread-count` in `plugins/BlueMap/core.conf`, and don't assume a "healthy 2 hours uptime" container status means it isn't degrading other services on the same host - check host-wide `uptime`/load average, not just per-container health.
