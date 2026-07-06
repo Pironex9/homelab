@@ -4,26 +4,28 @@
 
 **Goal:** Stand up a background "agentic OS" layer (Hermes + Odysseus) on a new dedicated LXC, wired to a local Ollama model on the Nobara GPU box, a DeepSeek fallback, and a security-scoped SSH channel into LXC 109 for delegated Claude Code work.
 
-**Architecture:** New LXC 113 hosts Hermes (native install) and Odysseus (its own upstream Docker Compose checkout). Both point their model provider at the Nobara Ollama endpoint first, DeepSeek API second. Hermes reaches LXC 109 through a dedicated SSH key restricted by a forced command and source-address lock, invoking a bounded wrapper that runs Claude Code under a deliberately reduced permission set. Odysseus is reverse-proxied through the existing Caddy instance as `agentos.lan`.
+**Architecture:** New LXC 113 hosts Hermes (native install) and Odysseus (its own upstream Docker Compose checkout). Both point their model provider at the Nobara Ollama endpoint first, DeepSeek API second. Hermes delegates bounded coding/doc tasks to LXC 109 via its own (ask-first-gated) shell tool running `ssh` with a dedicated key that's forced-command- and source-IP-locked, invoking a wrapper that runs Claude Code under a reduced, repo-scoped permission set. Odysseus is reverse-proxied through the existing Caddy instance as `agentos.lan`.
 
 **Tech Stack:** Proxmox LXC (Debian 12), Docker + Docker Compose, Hermes Agent (Python/uv installer), Odysseus (upstream Docker Compose web app), Caddy (existing), Ollama (existing, Nobara + LXC 108), DeepSeek API.
 
 ## Global Constraints
 
+- **Execution host:** every command in this plan is run from LXC 109 (`claude-mgmt`, 192.168.0.204 - this Claude Code host), which already holds passwordless root SSH to every other LXC and to the Proxmox host. Proxmox-only commands (`pct ...`) are wrapped as `ssh root@192.168.0.109 "pct ..."`; nothing runs directly on the Proxmox console.
 - LXC 113: Debian 12 (`debian-12-standard_12.12-1_amd64.tar.zst`), 2 cores, 4096MB RAM, 20GB disk on `local-lvm`, unprivileged, `features: nesting=1,keyctl=1` (required for Docker-in-LXC, matching the Komodo LXC 105 pattern), bridge `vmbr0`, DHCP.
 - Nobara Ollama endpoint: `http://192.168.0.100:11434` (existing, already used by Karakeep).
 - DeepSeek provider: `DEEPSEEK_API_KEY` env var, model `deepseek-v4-flash`.
 - No public/Pangolin exposure anywhere in this plan - LAN + Tailscale only.
-- Never commit real secrets (Telegram bot token, DeepSeek API key) to git - only `.env.example` placeholders.
+- Never commit real secrets (Telegram bot token, DeepSeek API key) to git - only `.env.example`-style placeholders.
 - Every reverse-proxied `*.lan` host follows the existing Caddyfile snippet pattern on LXC 110 (`@name host name.lan` / `handle @name { reverse_proxy IP:PORT }` inside the `lan_services` snippet).
-- Real credentials (Telegram bot token, DeepSeek API key, the LXC 113→109 SSH key) are obtained/generated during execution - they cannot be known in advance, so steps that need them say exactly where to get them and what to do with them.
+- Real credentials (Telegram bot token, DeepSeek API key, the LXC 113->109 SSH key) are obtained/generated during execution - they cannot be known in advance, so steps that need them say exactly where to get them and what to do with them.
 
 ---
 
 ## File Structure
 
 - Create: `scripts/hermes-claude-code-wrapper.sh` - version-controlled copy of the forced-command wrapper deployed to LXC 109
-- Create: `scripts/hermes-delegate-settings.json` - version-controlled copy of the restricted Claude Code permission settings used by the wrapper
+- Create: `scripts/hermes-delegate-settings.json` - version-controlled copy of the restricted, repo-scoped Claude Code permission settings used by the wrapper
+- Create: `scripts/hermes-delegate-skill/SKILL.md` - a Hermes skill teaching it how and when to delegate to LXC 109
 - Create: `docs/hosts/agentos.md` - per-host reference doc for LXC 113, matching the existing `docs/hosts/*.md` pattern
 - Modify: `docs/README.md` - add the new host doc to the index
 - Modify: `mkdocs.yml` - add nav entry for `hosts/agentos.md`
@@ -43,17 +45,15 @@ Odysseus is not repo-tracked: it ships its own multi-service Docker Compose file
 - [ ] **Step 1: Confirm there's enough disk space**
 
 ```bash
-pvesm status | grep local-lvm
+ssh root@192.168.0.109 "pvesm status | grep local-lvm"
 ```
 
 Expected: the `Available` column shows at least ~20GB free (as of this plan being written, deleting the unused Minecraft LXC 112 brought this to ~24.4GB). If it's lower, free up space before continuing - don't shrink the requested rootfs below 20GB to work around it.
 
 - [ ] **Step 2: Create the container**
 
-Run on the Proxmox host (192.168.0.109):
-
 ```bash
-pct create 113 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
+ssh root@192.168.0.109 "pct create 113 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --hostname agentos \
   --cores 2 \
   --memory 4096 \
@@ -61,7 +61,7 @@ pct create 113 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp \
   --features nesting=1,keyctl=1 \
   --unprivileged 1 \
-  --onboot 1
+  --onboot 1"
 ```
 
 Expected: `Formatting '...vm-113-disk-0.raw'...` then no error, prompt returns.
@@ -69,21 +69,18 @@ Expected: `Formatting '...vm-113-disk-0.raw'...` then no error, prompt returns.
 - [ ] **Step 3: Start it and capture the IP**
 
 ```bash
-pct start 113
-sleep 10
-pct exec 113 -- ip -4 -o addr show eth0
+ssh root@192.168.0.109 "pct start 113 && sleep 10 && pct exec 113 -- ip -4 -o addr show eth0"
 ```
 
 Expected: a line like `2: eth0    inet 192.168.0.XXX/24 ...`. Record this as `LXC113_IP` - every later task's commands substitute it in place of `<LXC113_IP>`.
 
-- [ ] **Step 4: Authorize root SSH access**
+- [ ] **Step 4: Authorize root SSH access from this host (LXC 109)**
 
-Every other LXC in this homelab accepts passwordless root SSH from the key already in use on this host (LXC 109). New containers don't get it automatically - install it explicitly before any later step tries `ssh root@<LXC113_IP>`:
+Every other LXC in this homelab accepts passwordless root SSH from LXC 109's key. New containers don't get it automatically - install it explicitly (the public key file being read below, `~/.ssh/id_ed25519.pub`, is read on LXC 109, since that's where this whole plan is executed from) before any later step tries `ssh root@<LXC113_IP>`:
 
 ```bash
-pct exec 113 -- bash -c "mkdir -p /root/.ssh && chmod 700 /root/.ssh"
-pct exec 113 -- bash -c "cat >> /root/.ssh/authorized_keys" < ~/.ssh/id_ed25519.pub
-pct exec 113 -- chmod 600 /root/.ssh/authorized_keys
+MY_PUBKEY=$(cat ~/.ssh/id_ed25519.pub)
+ssh root@192.168.0.109 "pct exec 113 -- bash -c 'mkdir -p /root/.ssh && chmod 700 /root/.ssh && echo \"$MY_PUBKEY\" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys'"
 ```
 
 - [ ] **Step 5: Verify reachability**
@@ -127,7 +124,7 @@ Expected: script completes with `Client: Docker Engine ... Server: Docker Engine
 ssh root@<LXC113_IP> "docker run --rm hello-world"
 ```
 
-Expected: output contains `Hello from Docker!`. If this fails with a cgroup/nesting error, re-check `features: nesting=1,keyctl=1` was applied (`pct config 113 | grep features` on the Proxmox host) and `pct reboot 113`, then retry.
+Expected: output contains `Hello from Docker!`. If this fails with a cgroup/nesting error, re-check `features: nesting=1,keyctl=1` was applied (`ssh root@192.168.0.109 "pct config 113 | grep features"`) and `ssh root@192.168.0.109 "pct reboot 113"`, then retry.
 
 ---
 
@@ -243,7 +240,7 @@ ssh root@<LXC113_IP> "hermes chat -q 'Reply with exactly: fallback online'"
 Expected: the request still succeeds (response contains `fallback online`) even though the primary endpoint is down, and the logs confirm which provider actually served it:
 
 ```bash
-ssh root@<LXC113_IP> "hermes logs --tail 20 | grep -i deepseek"
+ssh root@<LXC113_IP> "hermes logs agent -n 20 | grep -i deepseek"
 ```
 
 Expected: at least one line showing the DeepSeek provider handled the request. Restart Ollama on Nobara afterwards.
@@ -310,7 +307,7 @@ Then send another message. Expected: this time you get a real reply from Hermes 
 ssh -t root@<LXC113_IP> hermes tools
 ```
 
-In the UI, set the bash/shell tool and the file-write/edit tools to their ask-first/confirm mode (rather than always-allow). Leave read-only tools (file read, search) on allow. Exit and save when done.
+In the UI, set the bash/shell tool and the file-write/edit tools to their ask-first/confirm mode (rather than always-allow). Leave read-only tools (file read, search) on allow. Exit and save when done. (Task 9's delegation skill relies on the shell tool being invokable-with-approval, not fully denied, since Hermes needs to actually run an `ssh` command to delegate - "ask-first" is the right setting here, not "deny".)
 
 - [ ] **Step 2: Confirm the summary reflects this**
 
@@ -336,7 +333,7 @@ Expected: Hermes's response indicates it is waiting for approval before running 
 
 **Interfaces:**
 - Consumes: Docker from Task 2, Ollama endpoint `http://192.168.0.100:11434`
-- Produces: Odysseus reachable at `<LXC113_IP>:7000`
+- Produces: Odysseus reachable at `<LXC113_IP>:7000` from other hosts on the LAN, not just from inside the container
 
 - [ ] **Step 1: Clone and configure**
 
@@ -345,13 +342,18 @@ ssh root@<LXC113_IP> "git clone https://github.com/pewdiepie-archdaemon/odysseus
 ssh root@<LXC113_IP> "cd /opt/odysseus && cp .env.example .env"
 ```
 
-- [ ] **Step 2: Point it at the Nobara Ollama endpoint**
+- [ ] **Step 2: Point it at the Nobara Ollama endpoint and bind to all interfaces**
 
-Odysseus discovers local models the same way the Ollama-connected apps in this homelab already do (Karakeep points at the same endpoint) - add the URL to its `.env`:
+Odysseus discovers local models the same way the Ollama-connected apps in this homelab already do (Karakeep points at the same endpoint). Two settings matter here - the model endpoint, and the app's own bind address, since upstream's `.env.example` defaults `APP_BIND` to loopback-only, which would work when curling from inside the container but silently fail once Caddy (on a different host) tries to reach it:
 
 ```bash
-ssh root@<LXC113_IP> "echo 'OLLAMA_BASE_URL=http://192.168.0.100:11434' >> /opt/odysseus/.env"
+ssh root@<LXC113_IP> "cat >> /opt/odysseus/.env" <<'EOF'
+OLLAMA_BASE_URL=http://192.168.0.100:11434/v1
+APP_BIND=0.0.0.0
+EOF
 ```
+
+Spot-check `/opt/odysseus/.env.example` after cloning for the exact key names before running this - upstream may have renamed either variable since this plan was written.
 
 - [ ] **Step 3: Build and start it**
 
@@ -361,13 +363,15 @@ ssh root@<LXC113_IP> "cd /opt/odysseus && docker compose up -d --build"
 
 Expected: build completes and all services in Odysseus's compose file report `Started` (this includes any bundled services it ships alongside its main container, not just one).
 
-- [ ] **Step 4: Verify it's up**
+- [ ] **Step 4: Verify it's reachable from outside the container**
+
+Don't just check `localhost` from inside LXC 113 - that would pass even with the loopback-only default from Step 2. Check from LXC 109 (where this plan is being executed) instead, which is the same vantage point Caddy will have:
 
 ```bash
-ssh root@<LXC113_IP> "curl -s -o /dev/null -w '%{http_code}\n' http://localhost:7000"
+curl -s -o /dev/null -w '%{http_code}\n' http://<LXC113_IP>:7000
 ```
 
-Expected: `200`.
+Expected: `200`. If this hangs or refuses while a `localhost` check from inside the container succeeds, `APP_BIND` isn't taking effect - fix that before moving on to Task 7.
 
 - [ ] **Step 5: Get the first-run admin password and confirm login works**
 
@@ -385,7 +389,7 @@ Expected: a line containing the generated password. Save it in your password man
 - Modify: `docs/hosts/caddy.md`
 
 **Interfaces:**
-- Consumes: `<LXC113_IP>` from Task 1, Odysseus running on port 7000 from Task 6
+- Consumes: `<LXC113_IP>` from Task 1, Odysseus verified reachable from outside its container on port 7000 from Task 6
 
 - [ ] **Step 1: Add the site block**
 
@@ -403,8 +407,8 @@ Insert this block anywhere before the closing `handle { respond 404 }` block of 
 - [ ] **Step 2: Validate and reload Caddy**
 
 ```bash
-pct exec 110 -- caddy validate --config /etc/caddy/Caddyfile
-pct exec 110 -- caddy reload --config /etc/caddy/Caddyfile
+ssh root@192.168.0.109 "pct exec 110 -- caddy validate --config /etc/caddy/Caddyfile"
+ssh root@192.168.0.109 "pct exec 110 -- caddy reload --config /etc/caddy/Caddyfile"
 ```
 
 Expected: `Valid configuration` then reload with no errors.
@@ -436,23 +440,33 @@ git commit -m "docs(caddy): add agentos.lan proxy entry"
 
 **Interfaces:**
 - Consumes: `<LXC113_IP>`, existing `claude` CLI on LXC 109
-- Produces: a forced-command, source-locked SSH key pair that can only invoke the wrapper, which itself runs Claude Code under a reduced permission set
+- Produces: a forced-command, source-locked SSH key pair that can only invoke the wrapper, which itself runs Claude Code under a reduced, repo-scoped permission set
 
-This is the security-critical task. Three layers, not one: (1) the SSH key can only run one fixed command and only from LXC 113's own IP, (2) that command caps the task size and logs every invocation, (3) the Claude Code invocation itself runs with a restricted tool permission set rather than its normal full access - a compromised or manipulated Hermes can still only ask Claude Code to do bounded, logged work with fewer tools, not get an open shell or full unrestricted Claude Code on LXC 109.
+This is the security-critical task. Three layers, not one: (1) the SSH key can only run one fixed command and only from LXC 113's own IP, (2) that command caps the task size, sanitizes what it logs, and logs every invocation, (3) the Claude Code invocation itself runs scoped to `/root/homelab` with no raw shell access at all (only a handful of specific `git` subcommands are allowed) - a compromised or manipulated Hermes can still only ask Claude Code to read/edit files in one repo and commit, never get an open shell, touch anything outside that repo, or reach the network.
 
 - [ ] **Step 1: Write the restricted permission settings**
 
 ```json
 {
   "permissions": {
-    "allow": ["Read", "Grep", "Glob"],
-    "ask": ["Edit", "Write"],
+    "allow": [
+      "Read(/root/homelab/**)",
+      "Grep(/root/homelab/**)",
+      "Glob(/root/homelab/**)",
+      "Edit(/root/homelab/**)",
+      "Write(/root/homelab/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)"
+    ],
     "deny": ["Bash", "WebFetch", "WebSearch"]
   }
 }
 ```
 
-Save as `scripts/hermes-delegate-settings.json`. This is intentionally read-mostly - it lets a delegated task inspect and propose edits, but not run shell commands or reach the network. Loosen it later, deliberately, only for specific delegation use cases you've thought through - don't start from the full permission set Claude Code normally has interactively on this host.
+Save as `scripts/hermes-delegate-settings.json`. No raw shell (`Bash` is denied by default; only the five specific `git` subcommands above are carved out), no network tools, and file access is scoped to the homelab repo path. This lets a delegated task read/edit/commit within that repo and nothing else. Spot-check this permission-pattern syntax against `claude --help` / the current settings schema before relying on it - path-scoped and subcommand-scoped permission syntax has changed across Claude Code versions.
 
 - [ ] **Step 2: Write the wrapper script**
 
@@ -481,7 +495,10 @@ if [ "${#TASK}" -gt "$MAX_TASK_LEN" ]; then
   exit 1
 fi
 
-echo "$(date -u +%FT%TZ) from=${SSH_CLIENT%% *} task=${TASK}" >> "$LOG_FILE"
+# Strip newlines/control characters before logging so a crafted task can't
+# forge extra log lines or hide its real content across multiple entries.
+SAFE_TASK=$(printf '%s' "$TASK" | tr -d '\000-\037')
+echo "$(date -u +%FT%TZ) from=${SSH_CLIENT%% *} task=${SAFE_TASK}" >> "$LOG_FILE"
 
 cd /root/homelab
 claude -p "$TASK" --settings /usr/local/etc/hermes-delegate-settings.json
@@ -519,7 +536,7 @@ On LXC 109, append this line to `/root/.ssh/authorized_keys`, substituting the p
 echo 'from="<LXC113_IP>",command="/usr/local/bin/hermes-claude-code.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA...your-key-here... hermes-agentos-to-claude-mgmt' >> /root/.ssh/authorized_keys
 ```
 
-The `from="<LXC113_IP>"` clause means this key is refused outright from any other source address, even if the private key is ever copied elsewhere.
+The `from="<LXC113_IP>"` clause means this key is refused outright from any other source address, even if the private key is ever copied elsewhere - Step 8 below proves this rather than just asserting it.
 
 - [ ] **Step 7: Verify the restriction works**
 
@@ -531,66 +548,107 @@ ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204
 
 Expected: the connection runs the wrapper (which will exit with `no task provided` since no command was passed) rather than dropping into a shell prompt - it must NOT show a `root@claude-mgmt:~#` prompt.
 
-Then confirm a bounded task actually runs Claude Code, and that it's actually restricted:
+Then confirm a bounded task actually runs Claude Code, and that the shell tool is genuinely denied (not just "asked"):
 
 ```bash
 ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 "Say the word banana and nothing else"
 ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 "Run 'whoami' using your shell tool"
 ```
 
-Expected: the first prints a response containing "banana". The second should show Claude Code declining or asking for approval to use a shell tool, since `Bash` is denied in the delegate settings - if it just runs `whoami` without any pushback, the `--settings` flag isn't being picked up and needs debugging before continuing.
+Expected: the first prints a response containing "banana". The second must show Claude Code refusing/declining to use the shell tool (no command output, no approval prompt either - there's no interactive channel for one to appear on) since `Bash` is denied outright in the delegate settings, with only the specific `git` subcommands allowed. If `whoami` actually runs, the `--settings` flag isn't being picked up and needs debugging before continuing.
 
-- [ ] **Step 8: Confirm the source-address lock actually blocks other hosts**
+- [ ] **Step 8: Confirm the source-address lock actually blocks other hosts (mandatory, not optional)**
 
-From a different host that also holds the operator's normal SSH key but not this restricted one (e.g. attempt from the Proxmox host itself using the same private key copied there temporarily, or just check the log):
+This must be tested directly, not inferred from the log:
 
 ```bash
-ssh root@192.168.0.204 "tail -5 /var/log/hermes-delegate.log"
+scp /root/.ssh/hermes-to-109 root@192.168.0.109:/root/hermes-to-109-test
+ssh root@192.168.0.109 "ssh -i /root/hermes-to-109-test -o StrictHostKeyChecking=no root@192.168.0.204 'echo should not reach here'"
 ```
 
-Expected: shows the two test invocations from Step 7 with `from=<LXC113_IP>`. If you want to fully verify the address lock, temporarily copy `hermes-to-109` to any other host on the LAN and confirm the connection is refused - then delete that copy.
+Expected: the connection from the Proxmox host is refused (permission denied / connection closed), proving the `from=` restriction actually blocks a source address other than LXC 113 even when the correct private key is presented. Then delete the temporary copy immediately:
+
+```bash
+ssh root@192.168.0.109 "rm -f /root/hermes-to-109-test"
+```
 
 ---
 
-### Task 9: Wire Hermes's SSH backend to the delegation channel
+### Task 9: Give Hermes a delegation skill for LXC 109
 
-**Files:** none
+**Files:**
+- Create: `scripts/hermes-delegate-skill/SKILL.md`
 
 **Interfaces:**
-- Consumes: key pair from Task 8, Hermes install from Task 3
+- Consumes: key pair from Task 8, Hermes install from Task 3, ask-first shell tool from Task 5
 
-- [ ] **Step 1: Register the SSH backend (interactive)**
+Hermes's "terminal backend" setting (`terminal.backend: ssh`) moves its *entire* shell environment to a remote host - it is not a per-task delegation mechanism, and using it here would misconfigure Hermes to run everything on LXC 109 instead of occasionally delegating specific tasks there. Instead, give Hermes a skill (Hermes supports the same open Skills format Claude Code does) documenting the one `ssh` command it should run, via its own already-hardened, ask-first shell tool, whenever a coding/doc task belongs on LXC 109.
 
-Hermes's backend configuration (like its provider configuration) goes through its setup wizard rather than raw `config set` keys whose exact schema isn't guessed here - check the current backend/terminal-target documentation on the host itself before wiring this up, since it may be named "terminal backend," "SSH executor," or similar depending on the installed version:
+- [ ] **Step 1: Write the skill file**
 
-```bash
-ssh root@<LXC113_IP> "hermes --help | grep -i -E 'backend|terminal|ssh'"
+```markdown
+---
+name: delegate-to-claude-code
+description: Delegate a bounded coding or documentation task to the homelab's Claude Code environment on LXC 109 (claude-mgmt), which has the full homelab git repo checked out.
+---
+
+When a task involves reading, editing, or committing files in the
+`/root/homelab` git repository, delegate it - that repo lives on LXC 109,
+not here. Run this via your shell tool (it will ask for approval first,
+that's expected):
+
+    ssh -i /root/.ssh/hermes-to-109 root@192.168.0.204 "<one clear, self-contained task description>"
+
+The task description is the entire message the remote Claude Code instance
+will see - be specific and complete, it has no memory of this conversation
+and no access to anything outside `/root/homelab`. It can read, edit, and
+git-commit files in that repo, but cannot run arbitrary shell commands or
+reach the network - keep tasks to "read/find/fix/document" requests, never
+"install a package," "run this command," or "fetch this URL."
 ```
 
-Follow whatever subcommand that surfaces (e.g. `hermes backends add` or equivalent) and supply: host `192.168.0.204`, user `root`, identity file `/root/.ssh/hermes-to-109`, a name like `claude-mgmt`.
-
-- [ ] **Step 2: Confirm the backend is registered**
+- [ ] **Step 2: Commit it**
 
 ```bash
-ssh root@<LXC113_IP> "hermes config show | grep -A5 claude-mgmt"
+git add scripts/hermes-delegate-skill/SKILL.md
+git commit -m "feat(agentos): add Hermes skill for delegating to LXC 109"
 ```
 
-Expected: shows the host, user, and identity file recorded in the previous step.
+- [ ] **Step 3: Install the skill on LXC 113**
 
-- [ ] **Step 3: End-to-end delegation test with independent verification**
+```bash
+scp -r scripts/hermes-delegate-skill root@<LXC113_IP>:/root/hermes-delegate-skill
+ssh root@<LXC113_IP> "hermes skills install /root/hermes-delegate-skill"
+```
 
-Send Hermes a message through Telegram asking it to delegate a real, bounded task that leaves independently-checkable evidence, e.g.:
+If `hermes skills install` doesn't accept a local directory path in your installed version, copy it directly into Hermes's skills directory instead (skills are just a folder with a `SKILL.md`, same shape as Claude Code's):
 
-> "Use the claude-mgmt backend to create a file at /tmp/hermes-delegation-test.txt on that host containing the current UTC timestamp."
+```bash
+ssh root@<LXC113_IP> "mkdir -p ~/.hermes/skills/delegate-to-claude-code && cp /root/hermes-delegate-skill/SKILL.md ~/.hermes/skills/delegate-to-claude-code/"
+```
+
+- [ ] **Step 4: Confirm it's listed**
+
+```bash
+ssh root@<LXC113_IP> "hermes skills list"
+```
+
+Expected: `delegate-to-claude-code` appears in the list.
+
+- [ ] **Step 5: End-to-end delegation test with independent verification**
+
+Send Hermes a message through Telegram asking it to use the skill for a real, bounded task:
+
+> "Use your delegation skill to check docs/README.md in the homelab repo for a typo and fix one if you find it, committing the change. If there's no typo, just report that."
 
 Don't rely on Hermes's own chat reply as proof - independently confirm on LXC 109 itself, using your normal (non-restricted) SSH access:
 
 ```bash
-ssh root@192.168.0.204 "cat /tmp/hermes-delegation-test.txt"
+ssh root@192.168.0.204 "cd /root/homelab && git log --oneline -3"
 ssh root@192.168.0.204 "tail -3 /var/log/hermes-delegate.log"
 ```
 
-Expected: the file exists with a recent timestamp, and the delegate log shows the matching invocation - proving the task actually executed via the restricted channel rather than Hermes just claiming it did.
+Expected: the delegate log shows the matching invocation (proving the task actually ran through the restricted channel), and - if a typo existed - a new commit appears in `git log` with a message describing the fix.
 
 ---
 
@@ -617,33 +675,34 @@ Follow the existing `docs/hosts/*.md` format (see `docs/hosts/karakeep.md` for t
 
 Hermes Agent (native) + Odysseus (upstream Docker Compose checkout) - the
 background "agentic OS" layer. Routine/background work runs against the
-Nobara Ollama endpoint first, DeepSeek API second; actual coding/refactoring
-work is delegated over a restricted SSH channel to a permission-reduced
-Claude Code invocation on LXC 109 (claude-mgmt).
+Nobara Ollama endpoint first, DeepSeek API second; actual coding/documentation
+work is delegated, via a Hermes skill, over a restricted SSH channel to a
+permission-reduced Claude Code invocation on LXC 109 (claude-mgmt).
 
 ## Services
 
-- **Hermes Agent** - cron, memory, Telegram gateway (new dedicated bot, DM-pairing mode)
+- **Hermes Agent** - cron, memory, Telegram gateway (new dedicated bot, DM-pairing mode), `delegate-to-claude-code` skill
 - **Odysseus** - web workspace UI at `/opt/odysseus`, reverse-proxied at https://agentos.lan
 
 ## Model routing
 
 1. Nobara Ollama (`http://192.168.0.100:11434`, model `qwen3:8b`) - primary, free, local
 2. DeepSeek API (`deepseek-v4-flash`) - fallback when Nobara is off
-3. LXC 109 Claude Code (via restricted SSH, `/usr/local/bin/hermes-claude-code.sh`) - deliberate delegation only, not part of the failover chain
+3. LXC 109 Claude Code (via the `delegate-to-claude-code` skill and restricted SSH, `/usr/local/bin/hermes-claude-code.sh`) - deliberate delegation only, not part of the failover chain
 
 ## Security
 
 - SSH key `hermes-to-109` (on this host) can only invoke the wrapper script on
-  LXC 109, only from this host's IP (`from=` lock in `authorized_keys`) - no
-  interactive shell, no other commands
-- The wrapper caps task length, logs every invocation to
+  LXC 109, only from this host's IP (`from=` lock in `authorized_keys`,
+  verified by attempting the connection from another host) - no interactive
+  shell, no other commands
+- The wrapper caps task length, sanitizes and logs every invocation to
   `/var/log/hermes-delegate.log` on LXC 109, and runs Claude Code with
-  `scripts/hermes-delegate-settings.json` (Bash/WebFetch/WebSearch denied,
-  Edit/Write ask-first, Read/Grep/Glob allowed) instead of its normal
-  interactive permission set
+  `scripts/hermes-delegate-settings.json`: no raw shell (only `git
+  add/commit/status/log/diff` allowed), no network tools, file access scoped
+  to `/root/homelab`
 - Telegram gateway uses DM-pairing - unknown senders get a pairing code, not a response
-- Hermes's shell and file-write/edit tools default to ask-first
+- Hermes's own shell and file-write/edit tools default to ask-first
 ```
 
 - [ ] **Step 2: Add it to the doc index**
