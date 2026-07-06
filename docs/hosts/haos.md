@@ -5,7 +5,7 @@
 | Property     | Value                               |
 |--------------|-------------------------------------|
 | Hostname     | haos                                |
-| IP Address   | 192.168.0.202                       |
+| IP Address   | 192.168.0.202 (static in HAOS since 2026-07-06, was DHCP - see proxmox doc 25)                      |
 | VMID         | 101                                 |
 | Type         | KVM Virtual Machine (not LXC)       |
 | OS           | Alpine Linux 3.23.3 (add-on sandbox)|

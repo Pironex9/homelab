@@ -5,7 +5,7 @@
 | Property | Value |
 |----------|-------|
 | Hostname | karakeep |
-| IP Address | 192.168.0.128 |
+| IP Address | 192.168.0.128 (static since 2026-07-06, was DHCP - see proxmox doc 25) |
 | VMID | 106 |
 | OS | Debian GNU/Linux 13 (trixie) |
 | Kernel | 6.17.4-1-pve |

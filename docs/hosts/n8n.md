@@ -5,7 +5,7 @@
 | Property | Value |
 |----------|-------|
 | Hostname | n8n |
-| IP Address | 192.168.0.112 |
+| IP Address | 192.168.0.112 (static since 2026-07-06, was DHCP - see proxmox doc 25) |
 | VMID | 107 |
 | OS | Debian GNU/Linux 13 (trixie) |
 | Purpose | Workflow automation platform |

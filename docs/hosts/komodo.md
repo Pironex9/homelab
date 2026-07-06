@@ -5,7 +5,7 @@
 | Property | Value |
 |----------|-------|
 | Hostname | komodo |
-| IP Address | 192.168.0.105 |
+| IP Address | 192.168.0.105 (static since 2026-07-06, was DHCP - see proxmox doc 25) |
 | VMID | 105 |
 | OS | Alpine Linux v3.23 |
 | Kernel | 7.0.0-3-pve (shared with Proxmox host - LXCs have no separate kernel; relevant to the RSEQ/mongo incident below) |

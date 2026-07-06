@@ -90,6 +90,7 @@ nav:
           - 22 - Dawarich GPS Tracking: proxmox/22_Dawarich_GPS_Tracking_Setup.md
           - 23 - Homelable Network Visualization + MCP: proxmox/23_Homelable_Setup.md
           - 24 - Minecraft Server Setup: proxmox/24_Minecraft_Server_Setup.md
+          - 25 - IP Conflict and DHCP Incident: proxmox/25_IP_Conflict_DHCP_Incident_Network_Hardening.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md

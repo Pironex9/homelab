@@ -5,7 +5,7 @@
 | Property | Value |
 |----------|-------|
 | Hostname | ollama |
-| IP Address | 192.168.0.231 |
+| IP Address | 192.168.0.231 (static since 2026-07-06, was DHCP - see proxmox doc 25) |
 | VMID | 108 |
 | OS | Ubuntu 24.04.3 LTS (Noble Numbat) |
 | Kernel | 6.17.4-1-pve |
@@ -45,7 +45,7 @@
 
 | Setting | Value | Description |
 |---------|-------|-------------|
-| `OLLAMA_HOST` | `0.0.0.0` | Listen on all interfaces (network-accessible) |
+| `OLLAMA_HOST` | `0.0.0.0` | Listen on all interfaces (network-accessible). Since 2026-07-06 set via systemd drop-in `/etc/systemd/system/ollama.service.d/network.conf` - a reboot had reverted the binding to localhost-only |
 | `OLLAMA_INTEL_GPU` | `true` | Enable Intel GPU acceleration |
 | `OLLAMA_NUM_GPU` | `999` | Use all available GPU layers |
 | `OLLAMA_ORIGINS` | `*` | Allow requests from any origin (CORS) |

@@ -5,7 +5,7 @@
 | Property | Value |
 |----------|-------|
 | Hostname | caddy |
-| IP Address | 192.168.0.208 |
+| IP Address | 192.168.0.208 (static since 2026-07-06, was DHCP - see proxmox doc 25) |
 | VMID | 110 |
 | OS | Alpine Linux 3.23 |
 | CPU | 1 core |
