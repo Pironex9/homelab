@@ -11,6 +11,7 @@ services:
       - /srv/docker-data/sonarr:/config
       - /mnt/storage/media/tv/hun:/tv/hun
       - /mnt/storage/media/tv/eng:/tv/eng
+      - /mnt/storage/media/anime/tv:/anime/tv
       - /mnt/storage/media/downloads:/downloads
     ports:
       - 8989:8989

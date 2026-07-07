@@ -11,6 +11,7 @@ services:
       - /srv/docker-data/radarr:/config
       - /mnt/storage/media/movies/hun:/movies/hun
       - /mnt/storage/media/movies/eng:/movies/eng
+      - /mnt/storage/media/anime/movies:/anime/movies
       - /mnt/storage/media/downloads:/downloads
     ports:
       - 7878:7878

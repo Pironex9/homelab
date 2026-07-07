@@ -19,6 +19,10 @@ services:
         source: /mnt/storage/media/tv
         target: /media2
         read_only: true
+      - type: bind
+        source: /mnt/storage/media/anime
+        target: /media3
+        read_only: true
     devices:                        # <-- HOZZÁADÁS
       - /dev/dri:/dev/dri          # <-- HOZZÁADÁS
     group_add:                      # <-- HOZZÁADÁS
