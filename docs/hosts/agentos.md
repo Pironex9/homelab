@@ -50,7 +50,9 @@ OpenAI-style think levels).
 
 ## Management
 
-- Provisioned manually via `pct create` on pve (not Komodo-managed)
-- Odysseus runs from its own upstream checkout (`git pull` + `docker compose up -d --build` to update)
+- Provisioned manually via `pct create` on pve
+- Komodo-integrated: native Periphery agent (systemd, reverse-connect as "LXC 113"); the `odysseus` stack is registered in files_on_host mode (`/opt/odysseus`, `docker-compose.yml`) - status, logs, and redeploy from the Komodo UI, host resource alerts included
+- Odysseus updates stay manual by design: `git pull` in `/opt/odysseus`, then redeploy via Komodo (no auto-pull from the third-party upstream repo)
+- Homepage tiles: Odysseus (site monitor) and Hermes (ping) in the Automation group
 - Hermes updates via `hermes update`
 - Odysseus admin login: user `admin`, password in Vaultwarden
