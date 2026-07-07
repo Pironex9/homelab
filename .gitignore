@@ -62,3 +62,4 @@ id_rsa*
 # Tooling caches
 .firecrawl/
 .memsearch/
+.superpowers/
