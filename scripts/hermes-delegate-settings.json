@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//root/homelab/**)",
+      "Grep(//root/homelab/**)",
+      "Glob(//root/homelab/**)",
+      "Edit(//root/homelab/**)",
+      "Write(//root/homelab/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)"
+    ],
+    "deny": ["Bash", "WebFetch", "WebSearch"]
+  }
+}
