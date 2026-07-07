@@ -12,6 +12,6 @@
       "Bash(git log:*)",
       "Bash(git diff:*)"
     ],
-    "deny": ["Bash", "WebFetch", "WebSearch"]
+    "deny": ["WebFetch", "WebSearch"]
   }
 }

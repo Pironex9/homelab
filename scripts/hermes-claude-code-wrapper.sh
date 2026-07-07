@@ -28,4 +28,7 @@ SAFE_TASK=$(printf '%s' "$TASK" | tr -d '\000-\037')
 echo "$(date -u +%FT%TZ) from=${SSH_CLIENT%% *} task=${SAFE_TASK}" >> "$LOG_FILE"
 
 cd /root/homelab
-claude -p "$TASK" --settings /usr/local/etc/hermes-delegate-settings.json
+# --setting-sources "" keeps the user/project/local settings (which hold the
+# interactive session's broad allows) out of this invocation - only the
+# restricted delegate settings below apply.
+claude -p "$TASK" --setting-sources "" --settings /usr/local/etc/hermes-delegate-settings.json
