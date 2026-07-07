@@ -56,6 +56,7 @@ nav:
           - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
           - Minecraft Server (LXC 112): hosts/minecraft.md
           - Kan Kanban (on LXC 100): hosts/kan.md
+          - Agentos (LXC 113): hosts/agentos.md
       - Nobara PC: hosts/nobara.md
       - Hetzner VPS: hosts/vps.md
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
