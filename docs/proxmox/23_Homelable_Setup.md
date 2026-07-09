@@ -164,17 +164,27 @@ Stages run sequentially - Stage 2 only starts after the git pull completes.
 
 ### Schedule
 
-The procedure is scheduled to run daily at **03:10** (after Komodo's 03:00 auto-update):
+The procedure is scheduled to run daily at **03:40** (moved from 03:10 on 2026-07-09 - see incident below):
 
 ```
-Cron: 0 10 3 * * *
+Cron: 0 40 3 * * *
 ```
 
 Full nightly flow:
-- **03:00** - Komodo auto-update pulls new `homelable-backend` and `homelable-frontend` images
-- **03:10** - `homelable-update` procedure: git pull MCP source → redeploy (rebuilds MCP + re-pulls images)
+- **03:00** - Komodo auto-update pulls new `homelable-backend` and `homelable-frontend` images (across all managed stacks fleet-wide)
+- **03:40** - `homelable-update` procedure: git pull MCP source → redeploy (rebuilds MCP + re-pulls images)
 
 To update manually: Komodo > Procedures > `homelable-update` > Run.
+
+#### Incident: nightly failures from a 03:00/03:10 scheduling collision (2026-07-09)
+
+`homelable-git-pull` (and therefore `homelable-update`, whose Stage 1 runs the action) failed 3 nights in a row (Jul 7-9), always at the same instant, with:
+
+```
+error sending request for url (https://registry.npmjs.org/mogh_auth_client): client error (Connect): dns error: failed to lookup address information
+```
+
+Root cause: the action's script is a Deno TypeScript file that imports the Komodo client lib from `npm:` on every run (no lockfile/cache pin), so each execution needs a live fetch from `registry.npmjs.org`. It was scheduled at 03:10, only 10 minutes after Komodo's fleet-wide "Global Auto Update" (03:00, pulls images for every managed stack) - not enough buffer for that job to finish before the git-pull action's npm fetch competed for DNS/network on the same LXC. Confirmed transient, not a config issue: manual `git pull` and manual Deno execution both succeeded instantly outside the 03:00-03:10 window. Fix: pushed the procedure's schedule to 03:40, giving Global Auto Update 40 minutes of headroom.
 
 ## Data
 
