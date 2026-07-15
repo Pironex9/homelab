@@ -25,9 +25,14 @@
 
 ## Model Routing
 
+**Hermes:**
 1. Nobara Ollama (`http://192.168.0.100:11434`, model `qwen3:8b`) - primary, free, local
 2. DeepSeek API (`deepseek-v4-flash`) - fallback when Nobara is off (`fallback_providers` in `~/.hermes/config.yaml`)
 3. LXC 109 Claude Code (via the `delegate-to-claude-code` skill and restricted SSH, `/usr/local/bin/hermes-claude-code.sh`) - deliberate delegation only, not part of the failover chain
+
+**Odysseus:** auto-discovers models from Nobara Ollama (`LLM_HOST=192.168.0.100` in `/opt/odysseus/.env`); model choice is a UI setting (Settings -> Model / composer footer), not env-configured. `qwen2.5-coder:7b` (pulled 2026-07-15, ~4.7GB) is available as a coding-focused option alongside `qwen3:8b`.
+
+Nobara Ollama also serves Karakeep tagging, SuggestArr, and Immich - all pin their own model by name (`qwen3:8b`), so adding models for Hermes/Odysseus doesn't disturb them. The GPU (RTX 2060 Super, 8GB VRAM) holds one model at a time; concurrent requests for different models cause a swap delay (a few seconds), not a conflict.
 
 Hermes config notes: `model.provider: custom`, `model.context_length: 65536` and
 `model.ollama_num_ctx: 65536` (Hermes requires a 64K+ window; it passes `num_ctx`
