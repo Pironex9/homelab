@@ -19,6 +19,7 @@
 | Service | Description |
 |---------|-------------|
 | Hermes Agent (native) | Background agent - cron, memory, Telegram gateway, `delegate-to-claude-code` skill |
+| Hermes WebUI (native, systemd) | Browser UI for Hermes at `/opt/hermes-webui`, port 8787, reverse-proxied at https://hermes.lan |
 | Odysseus (Docker Compose) | Web workspace UI at `/opt/odysseus`, port 7000, reverse-proxied at https://agentos.lan |
 | chromadb, searxng, ntfy | Odysseus bundled sidecar services (loopback-only) |
 
@@ -45,6 +46,7 @@ OpenAI-style think levels).
   interactive session's broad permissions never apply): no arbitrary shell
   (only `git add/commit/status/log/diff` allowed; other commands fail closed
   in headless mode), no network tools, file writes scoped to `/root/homelab`
+- Hermes WebUI: password auth enabled (`HERMES_WEBUI_PASSWORD` in `/opt/hermes-webui/.env.local`, mode 600, password in Vaultwarden); binds 0.0.0.0:8787 because Caddy proxies from another LXC
 - Telegram gateway uses DM-pairing - unknown senders get a pairing code, not a response
 - Hermes dangerous-command approvals: `approvals.mode: manual`, `approvals.cron_mode: deny`
 
@@ -55,4 +57,5 @@ OpenAI-style think levels).
 - Odysseus updates stay manual by design: `git pull` in `/opt/odysseus`, then redeploy via Komodo (no auto-pull from the third-party upstream repo)
 - Homepage tiles: Odysseus (site monitor) and Hermes (ping) in the Automation group
 - Hermes updates via `hermes update`
+- Hermes WebUI (github.com/nesquena/hermes-webui): runs the agent in-process from `~/.hermes` using the agent venv (`/usr/local/lib/hermes-agent/venv`); systemd unit `hermes-webui.service`; update: `git -C /opt/hermes-webui pull && systemctl restart hermes-webui`
 - Odysseus admin login: user `admin`, password in Vaultwarden
