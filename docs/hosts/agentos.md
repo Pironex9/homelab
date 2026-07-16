@@ -27,8 +27,13 @@
 
 **Hermes:**
 1. Nobara Ollama (`http://192.168.0.100:11434`, model `qwen3:8b`) - primary, free, local
-2. DeepSeek API (`deepseek-v4-flash`) - fallback when Nobara is off (`fallback_providers` in `~/.hermes/config.yaml`)
+2. DeepSeek API (`deepseek-v4-flash`) - configured in the fallback chain (`~/.hermes/config.yaml`) but **not actually functional**: `DEEPSEEK_API_KEY` was never added to `/root/.hermes/.env`. As of 2026-07-16 there is no working fallback - if Nobara is off, Hermes' primary model call just fails. No cloud LLM subscription (xAI Grok OAuth, Nous Portal - the only two `hermes proxy providers` options) is configured either; user declined to set one up.
 3. LXC 109 Claude Code (via the `delegate-to-claude-code` skill and restricted SSH, `/usr/local/bin/hermes-claude-code.sh`) - deliberate delegation only, not part of the failover chain
+
+**Reverse direction - Claude Code (LXC 109/111, `/root/homelab` or `/root/uzlet`) offloading to Hermes:** needs no extra setup beyond the existing `ssh agentos` root access. For simple, mechanical subtasks (log/error summaries, boilerplate, one-off lookups), run `ssh agentos "hermes -t <toolset> -z '<task>'"`. Two things matter for correct results:
+- **Always pin an unrelated toolset with `-t`** (e.g. `-t vision`). Without it, Hermes runs with its full default toolset (`file`, `terminal`, `code_execution`, ...) and will actually try to write files or run commands on agentos' own filesystem instead of just answering in text - confirmed even `-t ''` doesn't suppress this.
+- **For code-fix drafts specifically, override the model with `-m qwen2.5-coder:7b`** instead of the default `qwen3:8b`, and ask for the corrected function/snippet directly rather than a unified diff. Testing (2026-07-16, two synthetic bug-fix cases) found both models produced *broken* diffs when asked for unified-diff output (bad hunk line-accounting, a stray leaked `qwen3` reasoning token) but both produced *correct* code when asked for the plain corrected snippet instead - diff bookkeeping, not code quality, was the actual failure mode. qwen2.5-coder:7b matched qwen3:8b on correctness and was ~18% faster in this role.
+- This offload is a token-savings measure only for genuinely trivial, well-bounded work - the output must still be reviewed and applied by hand, never trusted or applied verbatim.
 
 **Odysseus:** auto-discovers models from Nobara Ollama (`LLM_HOST=192.168.0.100` in `/opt/odysseus/.env`); model choice is a UI setting (Settings -> Model / composer footer), not env-configured. `qwen2.5-coder:7b` (pulled 2026-07-15, ~4.7GB) is available as a coding-focused option alongside `qwen3:8b`.
 
