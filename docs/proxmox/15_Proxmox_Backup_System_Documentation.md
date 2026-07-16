@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-03-04
+**Updated:** 2026-07-16
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -190,3 +190,47 @@ sdd1 (1.8TB) -> /mnt/disk4
 ```
 /mnt/hdd/Backup (3.7TB) -> NFS export, rsync target
 ```
+
+---
+
+## 7. LVM Thin Pool Capacity Incidents
+
+`pve/data` is a 164.94GB LVM thin pool hosting every guest disk. Being thin-provisioned, its `Data%` reflects actual allocated blocks, not declared guest disk sizes - and vzdump snapshot-mode backups need free pool space to create a temporary LVM snapshot per guest. When the pool gets too full, backups fail outright.
+
+### 2026-07-07: first hit (96.14%)
+
+Grew to 96.14% (NetData alert). Extended manually:
+```bash
+lvextend -L +15G pve/data
+```
+brought it to 87.39%, but VG (`pve`, 237GB total) had only ~1GB free afterward - not a real fix, just breathing room. Enabled thin pool autoextend as a safety net in `/etc/lvm/lvm.conf`:
+```
+thin_pool_autoextend_threshold = 80
+thin_pool_autoextend_percent = 10
+```
+Note: autoextend can only pull from *VG free space* - with the VG nearly full, it has nothing to extend into. The only durable fix is physical disk expansion (see `private/todo.md` - second NVMe in the HP EliteDesk 800 G4's free M.2 SSD2 slot).
+
+### 2026-07-16: pool full again, nightly backup failed for 9/10 guests
+
+Pool had grown back to 89.51% (above the 80% autoextend threshold), and with VG free space still ~1GB, LVM's safety check blocked new thin volume creation entirely. The 02:00 vzdump job failed for LXCs 100, 102, 103, 105, 106, 107, 109, 110, 111 (only the HAOS VM 101 succeeded - QEMU snapshot mode doesn't need an LVM snapshot the way LXC rootfs backups do):
+```
+ERROR: Backup of VM XXX failed - lvcreate snapshot 'pve/snap_vm-XXX-disk-X_vzdump' error:
+  Cannot create new thin volume, free space in thin pool pve/data reached threshold.
+```
+
+**Recovery - fstrim to reclaim already-freed-but-unreturned blocks:**
+```bash
+# Per container (safe - only discards blocks the guest filesystem already marked free)
+pct fstrim <vmid>
+```
+Run across all running LXCs, this reclaimed enough space to drop the pool from 89.51% to 74.35% (no guest data touched - fstrim only returns blocks the guest filesystem itself already considers free, e.g. deleted files that were never discarded back to the thin pool). Re-ran the failed backups manually afterward:
+```bash
+vzdump <vmid1> <vmid2> ... --storage backup-hdd --mode snapshot --compress zstd \
+  --prune-backups keep-daily=7,keep-last=7,keep-monthly=3,keep-weekly=4
+```
+
+**Also found and fixed:** the 2026-07-07 `lvm.conf` edit had left a duplicate `thin_pool_autoextend_percent` line (both uncommented), causing `WARNING: Ignoring duplicate config value` on every LVM command. Removed the duplicate.
+
+### Status
+
+fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`. Consider adding `fstrim` as a weekly cron across all LXCs (`pct fstrim <vmid>` per guest) to slow the recurrence.

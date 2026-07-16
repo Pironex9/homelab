@@ -58,7 +58,19 @@ export WEB_VAULT_FOLDER=/usr/share/webapps/vaultwarden-web
 export ADMIN_TOKEN=''        # empty = admin panel disabled
 export ROCKET_ADDRESS=0.0.0.0
 export SIGNUPS_ALLOWED=false
+export DOMAIN=https://your-vaultwarden.yourdomain.com
 ```
+
+### DOMAIN is required for browser extension / mobile clients
+
+`DOMAIN` was missing until 2026-07-16 (no `.env` file ever existed, only `.env.template`). Without it, Vaultwarden's `/api/config` endpoint reports `http://localhost` as the API/identity/notifications base URL. The web vault (static page, relative paths) still worked fine, but the Bitwarden browser extension and mobile apps fetch `/api/config` first and then call the returned URLs literally - so they tried to reach `http://localhost` on the *client's own machine* and failed with a generic "An error has occurred" / "Network error when attempting to fetch resource".
+
+**Symptom:** web vault login works, browser extension/mobile app login fails with a generic error.
+**Fix:** set `DOMAIN` to the exact externally-reachable HTTPS URL and restart. Verify with:
+```bash
+curl -s https://your-vaultwarden.yourdomain.com/api/config | grep -A5 environment
+```
+should show your real domain in the URLs, not `localhost`.
 
 ### Important: no ROCKET_TLS
 
@@ -103,6 +115,13 @@ rc-service vaultwarden restart
 
 Note: Alpine package versions may lag a few days behind upstream releases.
 
+### Known issue: browser extension login breaks after Bitwarden frontend updates
+
+Bitwarden's browser extension frontend occasionally adds new API routes before the Vaultwarden server implements them. Seen 2026-07-16: extension called `POST /identity/accounts/prelogin/password` (a newer "unified login" route), server returned `404` (running 1.35.4-r0, which predates the route), causing "An error has occurred" on extension login while the web vault kept working normally.
+
+**Diagnose:** check `/var/log/vaultwarden/access.log` for `404` responses to `/identity/accounts/...` around the time of the failed login.
+**Fix:** `apk update && apk upgrade vaultwarden` - the server-side fix aliases the new route to the existing `/identity/accounts/prelogin` handler (upstream PR [#7156](https://github.com/dani-garcia/vaultwarden/pull/7156)). Back up `/var/lib/vaultwarden` first (see Operations below).
+
 ---
 
 ## Operations
@@ -117,6 +136,9 @@ pct exec 103 -- tail -f /var/log/vaultwarden/error.log
 
 # Restart
 pct exec 103 -- rc-service vaultwarden restart
+
+# Backup data (before upgrades)
+pct exec 103 -- tar czf /root/vaultwarden-backup-$(date +%Y%m%d-%H%M).tar.gz -C /var/lib/vaultwarden .
 ```
 
 ---
