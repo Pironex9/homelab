@@ -1713,8 +1713,6 @@ Open ports verified - all intentional:
 | 22/tcp | SSH | Key-only, rate limited, fail2ban |
 | 80/443/tcp | Pangolin/Traefik | Normal web traffic |
 | 51820/21820 UDP | WireGuard (Pangolin tunnels) | Encrypted |
-| 25565/tcp | Minecraft Java | Stale - LXC 112 deleted Jul 2026, UFW rule + Traefik entrypoint removal pending |
-| 19132/udp | Minecraft Bedrock | Stale - LXC 112 deleted Jul 2026, UFW rule + Traefik entrypoint removal pending |
 | 41641/udp | Tailscale | Encrypted, auth required |
 | 3001/tcp | Uptime Kuma | UFW restricts to 172.18.0.0/16 only (Docker internal) |
 
