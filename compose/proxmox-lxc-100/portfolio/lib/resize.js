@@ -13,10 +13,11 @@ export async function generateVariants(srcImagePath, outDir, baseName) {
     .jpeg({ quality: 85 })
     .toFile(path.join(outDir, fullFile));
 
-  await sharp(srcImagePath)
-    .resize({ width: 400, fit: 'inside', withoutEnlargement: true })
+  // 640px so masonry columns stay sharp on 2x displays
+  const thumbInfo = await sharp(srcImagePath)
+    .resize({ width: 640, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 80 })
     .toFile(path.join(outDir, thumbFile));
 
-  return { full: fullFile, thumb: thumbFile };
+  return { full: fullFile, thumb: thumbFile, width: thumbInfo.width, height: thumbInfo.height };
 }

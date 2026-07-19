@@ -26,7 +26,9 @@ test('generateVariants writes a full and thumb JPEG within their max widths', as
   const fullMeta = await sharp(path.join(outDir, result.full)).metadata();
   const thumbMeta = await sharp(path.join(outDir, result.thumb)).metadata();
   assert.equal(fullMeta.width, 1600);
-  assert.equal(thumbMeta.width, 400);
+  assert.equal(thumbMeta.width, 640);
+  assert.equal(result.width, 640);
+  assert.equal(result.height, 320);
 });
 
 test('generateVariants never upscales a smaller source image', async () => {

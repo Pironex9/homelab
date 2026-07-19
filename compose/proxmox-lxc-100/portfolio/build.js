@@ -37,6 +37,8 @@ export async function build({
       const variants = await generateVariants(image.path, outDir, baseName);
       image.full = `images/${category.name}/${variants.full}`;
       image.thumb = `images/${category.name}/${variants.thumb}`;
+      image.width = variants.width;
+      image.height = variants.height;
     }
   }
 
