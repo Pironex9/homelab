@@ -1,0 +1,10 @@
+services:
+  portfolio:
+    image: caddy:alpine
+    container_name: portfolio
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./dist:/usr/share/caddy
+    ports:
+      - 3008:80
+    restart: unless-stopped
