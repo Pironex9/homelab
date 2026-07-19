@@ -1,3 +1,6 @@
 name: "Enci"
 age: 13
-intro: "Szeretek rajzolni, kulonosen anime-stilusu karaktereket."
+intro: "Szeretek rajzolni, különösen anime-stílusú karaktereket."
+# Kategória mappanevek (ékezet nélküli slugok) megjelenítési neve az oldalon.
+categories:
+  csendelet: "Csendélet"

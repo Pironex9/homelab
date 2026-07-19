@@ -136,7 +136,7 @@ function renderGallery() {
   currentImages = flatten(DATA, currentCategory);
 
   if (currentImages.length === 0) {
-    gallery.innerHTML = '<p class="empty">Meg nincsenek kepek ebben a kategoriaban.</p>';
+    gallery.innerHTML = '<p class="empty">Még nincsenek képek ebben a kategóriában.</p>';
     return;
   }
 
@@ -207,7 +207,7 @@ renderGallery();
 export function renderIndexHtml({ bio, categories }) {
   const tabsHtml = [
     `<button class="tab active" data-category="all">Összes</button>`,
-    ...categories.map((c) => `<button class="tab" data-category="${escapeHtml(c.name)}">${escapeHtml(displayName(c.name))}</button>`),
+    ...categories.map((c) => `<button class="tab" data-category="${escapeHtml(c.name)}">${escapeHtml(bio.categories?.[c.name] || displayName(c.name))}</button>`),
   ].join('\n');
 
   const dataJson = JSON.stringify(categories.map((c) => ({

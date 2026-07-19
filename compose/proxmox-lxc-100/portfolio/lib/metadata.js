@@ -36,5 +36,5 @@ export function loadBio(bioPath) {
   if (!data || !data.name) {
     throw new Error(`bio.yml at ${bioPath} must include at least a "name" field`);
   }
-  return { name: data.name, age: data.age ?? null, intro: data.intro || '' };
+  return { name: data.name, age: data.age ?? null, intro: data.intro || '', categories: data.categories || {} };
 }

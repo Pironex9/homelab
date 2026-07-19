@@ -7,6 +7,8 @@ Static art portfolio for Enci's school admission. No backend, no database.
 1. Photograph/scan the drawing (not covered by this tool).
 2. Copy the image into `content/<category>/`, e.g. `content/tajkep/03-hegyek.jpg`.
    New categories are just new folders under `content/` - no code changes needed.
+   Keep folder names accent-free (they become file paths); set the accented
+   display name in `bio.yml` under `categories:`, e.g. `tajkep: "Tájkép"`.
 3. Optionally add a sidecar YAML file next to it with the same base name, e.g. `content/tajkep/03-hegyek.yml`:
 
    ```yaml
@@ -21,7 +23,7 @@ Static art portfolio for Enci's school admission. No backend, no database.
 
 ## Editing the bio
 
-Edit `bio.yml` (name, age, intro), then rebuild.
+Edit `bio.yml` (name, age, intro, category display names), then rebuild.
 
 ## Running tests
 

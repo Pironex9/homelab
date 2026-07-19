@@ -40,12 +40,15 @@ test('loadImageMetadata falls back to filename-derived title when sidecar is mis
   assert.deepEqual(meta, { title: 'Tajkep Nyari', technique: null, date: null });
 });
 
-test('loadBio reads name, age, intro', () => {
+test('loadBio reads name, age, intro, and category display names', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bio-'));
   const bioPath = path.join(dir, 'bio.yml');
-  fs.writeFileSync(bioPath, 'name: "Enci"\nage: 13\nintro: "Szeretek rajzolni."\n');
+  fs.writeFileSync(bioPath, 'name: "Enci"\nage: 13\nintro: "Szeretek rajzolni."\ncategories:\n  csendelet: "Csendélet"\n');
 
-  assert.deepEqual(loadBio(bioPath), { name: 'Enci', age: 13, intro: 'Szeretek rajzolni.' });
+  assert.deepEqual(loadBio(bioPath), {
+    name: 'Enci', age: 13, intro: 'Szeretek rajzolni.',
+    categories: { csendelet: 'Csendélet' },
+  });
 });
 
 test('loadBio throws a clear error when name is missing', () => {
