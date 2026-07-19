@@ -9,14 +9,23 @@ export function deriveTitleFromFilename(filename) {
   return words.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// YAML implicit typing can turn unquoted sidecar values into non-strings
+// (e.g. `date: 2026-03-12` -> Date, `technique: no` -> false). The interface
+// promises opaque display strings, so coerce present values back to strings.
+function asDisplayString(value) {
+  if (value === undefined || value === null) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value);
+}
+
 export function loadImageMetadata(imagePath) {
   const sidecarPath = imagePath.slice(0, -path.extname(imagePath).length) + '.yml';
   if (fs.existsSync(sidecarPath)) {
     const data = yaml.load(fs.readFileSync(sidecarPath, 'utf8')) || {};
     return {
-      title: data.title || deriveTitleFromFilename(imagePath),
-      technique: data.technique || null,
-      date: data.date || null,
+      title: asDisplayString(data.title) || deriveTitleFromFilename(imagePath),
+      technique: asDisplayString(data.technique) || null,
+      date: asDisplayString(data.date) || null,
     };
   }
   return { title: deriveTitleFromFilename(imagePath), technique: null, date: null };

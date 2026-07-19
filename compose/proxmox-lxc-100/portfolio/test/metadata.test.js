@@ -20,6 +20,17 @@ test('loadImageMetadata reads a sidecar yml when present', () => {
   assert.deepEqual(meta, { title: 'Csendelet almaval', technique: 'ceruza', date: '2026-03-12' });
 });
 
+test('loadImageMetadata returns date as a string even when the sidecar date is unquoted', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-'));
+  const imagePath = path.join(dir, '03-akvarell.jpg');
+  fs.writeFileSync(imagePath, '');
+  fs.writeFileSync(path.join(dir, '03-akvarell.yml'), 'title: Akvarell\ntechnique: akvarell\ndate: 2026-03-12\n');
+
+  const meta = loadImageMetadata(imagePath);
+  assert.equal(typeof meta.date, 'string');
+  assert.equal(meta.date, '2026-03-12');
+});
+
 test('loadImageMetadata falls back to filename-derived title when sidecar is missing', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-'));
   const imagePath = path.join(dir, '02-tajkep-nyari.jpg');
