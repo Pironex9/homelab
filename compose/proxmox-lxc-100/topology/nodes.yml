@@ -31,7 +31,7 @@ nodes:
     kind: lxc
     ip: 192.168.0.110
     role: "Docker host"
-    detail: "21 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."
+    detail: "22 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."
 
   - badge: "VM 101"
     name: haos

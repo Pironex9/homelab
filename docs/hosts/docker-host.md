@@ -82,6 +82,13 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `notifiarr` | `golift/notifiarr` | - | Notification hub |
 | `docuseal` | `docuseal/docuseal` | 3003 | Self-hosted e-signature platform |
 
+### Static Sites
+
+| Container | Image | Port | Description |
+|-----------|-------|------|-------------|
+| `portfolio` | `caddy:alpine` | 3008 | Art portfolio static site (Node build, `portfolio.lan`) |
+| `topology` | `caddy:alpine` | 3009 | Interactive network topology map (Node build, `topology.lan`) |
+
 ### Management
 
 | Container | Image | Port | Description |
@@ -118,6 +125,8 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 8888 | TCP | Dozzle |
 | 8989 | TCP | Sonarr |
 | 3001 | TCP | Homelable web UI |
+| 3008 | TCP | Portfolio static site |
+| 3009 | TCP | Topology map static site |
 | 3003 | TCP | DocuSeal |
 | 3005 | TCP | Dawarich |
 | 8001 | TCP | Homelable MCP server |
