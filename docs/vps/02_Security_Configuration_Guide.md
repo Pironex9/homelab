@@ -1718,11 +1718,13 @@ Open ports verified - all intentional:
 
 SSH: `PasswordAuthentication no`, `PermitRootLogin prohibit-password`, fail2ban active (sshd + traefik-auth jails), unattended-upgrades running.
 
+**Minecraft cleanup (2026-07-19):** after LXC 112 was deleted, the leftover public exposure was removed: UFW allow rules for 25565/tcp + 19132/udp deleted, `tcp-25565`/`udp-19132` Traefik entrypoints removed from `traefik_config.yml`, and the gerbil port mappings dropped from `/opt/pangolin/docker-compose.yml` (backups: `*.bak-20260719`). Applied with a full-stack `docker compose up -d --force-recreate` per the gerbil lesson below; all public resources verified healthy afterwards.
+
 **Pangolin incident (same day):** Gerbil container was recreated during Minecraft troubleshooting. Traefik uses `network_mode: service:gerbil` - recreating gerbil alone orphaned Traefik in the old network namespace, breaking all routing (443, 80, Minecraft ports). Fixed by force-recreating traefik. Lesson: always recreate the full Pangolin stack together (`docker compose up -d --force-recreate`), never gerbil alone.
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** 2026-04-24
+**Document Version:** 1.2
+**Last Updated:** 2026-07-19
 **Status:** Production Security Complete
 **Next Review:** 2026-07-24

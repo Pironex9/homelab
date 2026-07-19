@@ -1,6 +1,6 @@
 # Minecraft Server Setup
 
-> **Decommissioned:** LXC 112 deleted in July 2026. Kept for reference.
+> **Decommissioned:** LXC 112 deleted in July 2026. Public access fully removed from the VPS (UFW rules, Traefik entrypoints, gerbil port mappings - see `vps/02`). Kept for reference.
 
 **Date:** 2026-04-15
 **Hostname:** minecraft
