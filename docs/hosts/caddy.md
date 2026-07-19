@@ -55,7 +55,7 @@ pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   -cert-file /etc/caddy/certs/lan.pem \
   -key-file /etc/caddy/certs/lan-key.pem \
   proxmox.lan adguard.lan komodo.lan karakeep.lan n8n.lan ollama.lan \
-  jellyfin.lan homepage.lan portfolio.lan immich.lan bentopdf.lan docuseal.lan \
+  jellyfin.lan homepage.lan portfolio.lan topology.lan immich.lan bentopdf.lan docuseal.lan \
   qbit.lan sonarr.lan form.lan syncthing.lan \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
   scrutiny.lan prowlarr.lan freshrss.lan \
@@ -140,6 +140,7 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | jellyfin.lan | http://192.168.0.110:8096 |
 | homepage.lan | http://192.168.0.110:3002 |
 | portfolio.lan | http://192.168.0.110:3008 |
+| topology.lan | http://192.168.0.110:3009 |
 | immich.lan | http://192.168.0.110:2283 |
 | bentopdf.lan | http://192.168.0.110:3000 |
 | docuseal.lan | http://192.168.0.110:3003 |

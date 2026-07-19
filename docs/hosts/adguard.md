@@ -85,6 +85,7 @@ All service domains resolve to `192.168.0.208` (Caddy reverse proxy). Direct hos
 | `jellyfin.lan` | `192.168.0.208` |
 | `homepage.lan` | `192.168.0.208` |
 | `portfolio.lan` | `192.168.0.208` |
+| `topology.lan` | `192.168.0.208` |
 | `immich.lan` | `192.168.0.208` |
 | `bentopdf.lan` | `192.168.0.208` |
 | `docuseal.lan` | `192.168.0.208` |
