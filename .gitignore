@@ -63,3 +63,5 @@ id_rsa*
 .firecrawl/
 .memsearch/
 .superpowers/
+.playwright/
+.playwright-cli/
