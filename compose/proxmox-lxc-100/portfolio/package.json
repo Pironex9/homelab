@@ -1,0 +1,13 @@
+{
+  "name": "portfolio-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "sharp": "^0.33.0",
+    "js-yaml": "^4.1.0"
+  }
+}
