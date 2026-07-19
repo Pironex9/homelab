@@ -53,6 +53,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [24 - IP Conflict and DHCP Incident - Network Hardening](./proxmox/24_IP_Conflict_DHCP_Incident_Network_Hardening.md) - Rogue ARP claimants, DHCP-to-static migration of all LXCs/VM, Newt stale tunnel after router reboots
 - [25 - Art Portfolio Static Site](./proxmox/25_Art_Portfolio_Static_Site.md) - Node build script (sharp, js-yaml, node:test) + Caddy static hosting, fail-loud build verification, gallery-paper frontend, built via subagent-driven development
 - [26 - Interactive Network Topology Map](./proxmox/26_Network_Topology_Map.md) - YAML inventory baked into a static HTML map by a Node build script, clickable node detail panel, SVG wires, control-room blueprint design
+- [27 - Homepage GitOps Config](./proxmox/27_Homepage_GitOps_Config.md) - Homepage dashboard config moved into git, Komodo deploy settings, secret placeholder workflow, live mount verification
 
 ### Deprecated
 

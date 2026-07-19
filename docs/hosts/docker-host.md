@@ -35,6 +35,8 @@
 
 All stacks are managed via **Komodo** (GitOps mode). Compose files are stored in the [homelab git repo](https://github.com/Pironex9/homelab) under `compose/proxmox-lxc-100/<stack-name>/`. Komodo clones the repo to `/etc/komodo/repos/github/` on this host and runs deploys from there. Legacy compose files remain at `/srv/docker-compose/<stack-name>/` but are no longer used.
 
+Homepage is also GitOps-managed at the application config level. Its YAML/CSS/JS config lives in `compose/proxmox-lxc-100/homepage/config/` and is mounted from the Komodo checkout to `/app/config`. Runtime-only data remains on host volumes: `/srv/docker-data/homepage/images` and `/srv/docker-data/homepage/logs`. Secrets stay in Komodo Stack Environment (`stack.env`) and are referenced in config with `{{HOMEPAGE_VAR_*}}` placeholders.
+
 ### Media
 
 | Container | Image | Port | Description |
@@ -149,6 +151,8 @@ The `periphery.service` agent connects this host to Komodo Core (LXC 105). This 
 
 ## Lessons Learned
 
+- **Homepage config source of truth (Jul 2026):** Homepage app config moved from live `/srv/docker-data/homepage/*.yaml` files into git under `compose/proxmox-lxc-100/homepage/config/`. Komodo deploy now mounts `/etc/komodo/repos/github/compose/proxmox-lxc-100/homepage/config` to `/app/config`, with logs and images kept on `/srv/docker-data/homepage/`. Any dashboard change should be made in git, committed, pushed, then deployed through Komodo.
+- **Komodo repo credential hygiene:** The LXC 100 Komodo checkout currently uses a tokenized HTTPS remote. Treat that token as a secret, avoid copying it into docs or logs, and migrate to a GitHub deploy key or SSH remote when practical; rotate the old PAT afterwards.
 - **LVM thin pool vs filesystem usage:** The Proxmox LVM thin pool `Data%` tracks historically allocated blocks, not current usage. Old Docker images, deleted files, and rotated logs leave "phantom" allocations until TRIM runs. In one incident LXC 100 showed 99.73% thin pool usage while `df` only showed 72% filesystem usage - `pct fstrim 100` freed 14 GB instantly and dropped it to 74%.
 - **fstrim: use `pct fstrim <id>` from the Proxmox host:** Running `fstrim` inside an unprivileged LXC fails with "Operation not permitted". The correct method is `pct fstrim <vmid>` run as root on the Proxmox host. A weekly cron runs this for all LXCs automatically: `/etc/cron.weekly/lxc-fstrim`.
 - **Docker image pruning is essential:** With 20+ containers, dangling images accumulate quickly. `docker image prune -f` reclaimed ~390 MB in one session. Schedule this regularly.

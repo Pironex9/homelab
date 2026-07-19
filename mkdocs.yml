@@ -92,6 +92,7 @@ nav:
           - 24 - IP Conflict and DHCP Incident: proxmox/24_IP_Conflict_DHCP_Incident_Network_Hardening.md
           - 25 - Art Portfolio Static Site: proxmox/25_Art_Portfolio_Static_Site.md
           - 26 - Interactive Network Topology Map: proxmox/26_Network_Topology_Map.md
+          - 27 - Homepage GitOps Config: proxmox/27_Homepage_GitOps_Config.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
