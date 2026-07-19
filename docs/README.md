@@ -53,6 +53,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [23 - Homelable Network Visualization + MCP](./proxmox/23_Homelable_Setup.md) - Interactive homelab topology canvas, live status checks, nmap scanning, Claude Code MCP integration
 - [24 - Minecraft Server Setup](./proxmox/24_Minecraft_Server_Setup.md) - PaperMC + GeyserMC + Floodgate on dedicated LXC, Pangolin raw TCP/UDP public access
 - [25 - IP Conflict and DHCP Incident - Network Hardening](./proxmox/25_IP_Conflict_DHCP_Incident_Network_Hardening.md) - Rogue ARP claimants, DHCP-to-static migration of all LXCs/VM, Newt stale tunnel after router reboots
+- [26 - Art Portfolio Static Site](./proxmox/26_Art_Portfolio_Static_Site.md) - Node build script (sharp, js-yaml, node:test) + Caddy static hosting, fail-loud build verification, gallery-paper frontend, built via subagent-driven development
 
 ### Deprecated
 

@@ -92,6 +92,7 @@ nav:
           - 23 - Homelable Network Visualization + MCP: proxmox/23_Homelable_Setup.md
           - 24 - Minecraft Server Setup: proxmox/24_Minecraft_Server_Setup.md
           - 25 - IP Conflict and DHCP Incident: proxmox/25_IP_Conflict_DHCP_Incident_Network_Hardening.md
+          - 26 - Art Portfolio Static Site: proxmox/26_Art_Portfolio_Static_Site.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
