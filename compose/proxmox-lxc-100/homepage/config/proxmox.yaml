@@ -1,0 +1,8 @@
+---
+- Proxmox:
+    - pve:
+        provider: proxmox
+        url: https://192.168.0.109:8006
+        token: {{HOMEPAGE_VAR_PROXMOX_USER}}
+        secret: {{HOMEPAGE_VAR_PROXMOX_TOKEN}}
+        node: pve

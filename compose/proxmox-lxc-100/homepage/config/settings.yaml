@@ -1,0 +1,55 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/settings/
+
+title: Proxmox Home Page
+
+headerStyle: boxed
+
+background:
+  image: https://www.traveltalktours.com/wp-content/smush-webp/2024/04/Best-Places-for-Cherry-Blossoms-in-Japan-1536x1024.jpg.webp
+  blur: ""
+  saturate: 60 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
+  brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
+  opacity: 60 # 0-100 
+
+
+theme: dark
+color: slate
+
+layout:
+  Quick Links:
+    style: row
+    columns: 8
+    iconsOnly: true
+  Uzlet:
+    style: row
+    columns: 3
+    iconsOnly: true
+  Monitoring:
+    style: row
+    columns: 5
+  Infrastructure:
+    style: row
+    columns: 4
+  Arr Stack:
+    style: row
+    columns: 6
+  Media:
+    style: row
+    columns: 4
+  Automation:
+    style: row
+    columns: 4
+  Network:
+    style: row
+    columns: 4
+  Utilities:
+    style: row
+    columns: 6
+  Productivity:
+    style: row
+    columns: 4
+  Calendar:
+    style: row
+    columns: 2

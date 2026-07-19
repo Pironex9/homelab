@@ -10,7 +10,8 @@ services:
       - TZ=Europe/Budapest
       - HOMEPAGE_ALLOWED_HOSTS=192.168.0.110:3002,homepage.lan
     volumes:
-      - /srv/docker-data/homepage:/app/config
+      - ./config:/app/config
+      - /srv/docker-data/homepage/logs:/app/config/logs
       - /srv/docker-data/homepage/images:/app/public/images
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/storage:/mnt/storage:ro
