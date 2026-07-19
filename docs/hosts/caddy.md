@@ -44,7 +44,7 @@ Generated with mkcert using a local CA (CAROOT=/etc/caddy/certs):
 | `lan.pem` | Server cert (all .lan domains as explicit SANs) |
 | `lan-key.pem` | Server cert private key (owner: root:caddy, mode: 640) |
 
-**Cert expiry:** 2028-06-30
+**Cert expiry:** 2028-10-19
 
 **Note:** Wildcard `*.lan` certs are rejected by Firefox (second-level wildcard). All .lan domains must be listed explicitly as SANs in the cert. To add a new domain, regenerate the cert with mkcert including the new domain name.
 
@@ -55,7 +55,7 @@ pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   -cert-file /etc/caddy/certs/lan.pem \
   -key-file /etc/caddy/certs/lan-key.pem \
   proxmox.lan adguard.lan komodo.lan karakeep.lan n8n.lan ollama.lan \
-  jellyfin.lan homepage.lan immich.lan bentopdf.lan docuseal.lan \
+  jellyfin.lan homepage.lan portfolio.lan immich.lan bentopdf.lan docuseal.lan \
   qbit.lan sonarr.lan form.lan syncthing.lan \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
   scrutiny.lan prowlarr.lan freshrss.lan \
@@ -139,6 +139,7 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | ollama.lan | http://192.168.0.231:11434 |
 | jellyfin.lan | http://192.168.0.110:8096 |
 | homepage.lan | http://192.168.0.110:3002 |
+| portfolio.lan | http://192.168.0.110:3008 |
 | immich.lan | http://192.168.0.110:2283 |
 | bentopdf.lan | http://192.168.0.110:3000 |
 | docuseal.lan | http://192.168.0.110:3003 |
