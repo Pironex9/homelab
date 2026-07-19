@@ -1,0 +1,10 @@
+services:
+  topology:
+    image: caddy:alpine
+    container_name: topology
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./dist:/usr/share/caddy
+    ports:
+      - 3009:80
+    restart: unless-stopped
