@@ -113,13 +113,6 @@ nodes:
     role: "Scraper"
     detail: "Business data scraper."
 
-  - badge: "LXC 112"
-    name: minecraft
-    site: lan
-    kind: lxc
-    role: "Game server"
-    detail: "Minecraft server."
-
   - badge: "LXC 113"
     name: agentos
     site: lan

@@ -8,4 +8,4 @@ npm test        # build verification + validation tests
 npm run build   # nodes.yml -> dist/
 ```
 
-Edit `nodes.yml` to add/change hosts, then rebuild. `dist/` is gitignored - deploy by rsyncing it to the repo clone on LXC 100 (see `docs/proxmox/27_Network_Topology_Map.md`).
+Edit `nodes.yml` to add/change hosts, then rebuild. `dist/` is gitignored - deploy by rsyncing it to the repo clone on LXC 100 (see `docs/proxmox/26_Network_Topology_Map.md`).

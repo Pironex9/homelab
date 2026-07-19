@@ -14,7 +14,6 @@ Per-host reference documentation - current configuration, running services, and 
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - GitHub MCP, n8n MCP
 - [nobara](./hosts/nobara.md) - Desktop PC - NVIDIA RTX 2060, Ollama GPU node, NFS/SSHFS client
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
-- [minecraft](./hosts/minecraft.md) - Minecraft server (LXC 112) - PaperMC + GeyserMC + Floodgate, Java + Bedrock cross-play
 - [kan](./hosts/kan.md) - Kan kanban board (Docker stack on LXC 100) - self-hosted Trello alternative, PostgreSQL
 - [agentos](./hosts/agentos.md) - Hermes + Odysseus agentic OS layer (LXC 113) - local Ollama primary, DeepSeek fallback, restricted Claude Code delegation
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, WoL, Tailscale access
@@ -51,15 +50,15 @@ Chronological setup guides - how the homelab was built, step by step.
 - [21 - Public Form E-Signature Automation](./proxmox/21_Public_Form_E-Signature_Automation.md) - Public web form with Turnstile bot protection, n8n webhook validation, DocuSeal e-signature automation
 - [22 - Dawarich GPS Tracking](./proxmox/22_Dawarich_GPS_Tracking_Setup.md) - Self-hosted GPS location history and family tracking, PostGIS, mobile app integration
 - [23 - Homelable Network Visualization + MCP](./proxmox/23_Homelable_Setup.md) - Interactive homelab topology canvas, live status checks, nmap scanning, Claude Code MCP integration
-- [24 - Minecraft Server Setup](./proxmox/24_Minecraft_Server_Setup.md) - PaperMC + GeyserMC + Floodgate on dedicated LXC, Pangolin raw TCP/UDP public access
-- [25 - IP Conflict and DHCP Incident - Network Hardening](./proxmox/25_IP_Conflict_DHCP_Incident_Network_Hardening.md) - Rogue ARP claimants, DHCP-to-static migration of all LXCs/VM, Newt stale tunnel after router reboots
-- [26 - Art Portfolio Static Site](./proxmox/26_Art_Portfolio_Static_Site.md) - Node build script (sharp, js-yaml, node:test) + Caddy static hosting, fail-loud build verification, gallery-paper frontend, built via subagent-driven development
-- [27 - Interactive Network Topology Map](./proxmox/27_Network_Topology_Map.md) - YAML inventory baked into a static HTML map by a Node build script, clickable node detail panel, SVG wires, control-room blueprint design
+- [24 - IP Conflict and DHCP Incident - Network Hardening](./proxmox/24_IP_Conflict_DHCP_Incident_Network_Hardening.md) - Rogue ARP claimants, DHCP-to-static migration of all LXCs/VM, Newt stale tunnel after router reboots
+- [25 - Art Portfolio Static Site](./proxmox/25_Art_Portfolio_Static_Site.md) - Node build script (sharp, js-yaml, node:test) + Caddy static hosting, fail-loud build verification, gallery-paper frontend, built via subagent-driven development
+- [26 - Interactive Network Topology Map](./proxmox/26_Network_Topology_Map.md) - YAML inventory baked into a static HTML map by a Node build script, clickable node detail panel, SVG wires, control-room blueprint design
 
 ### Deprecated
 
 - [Recommendarr](./proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md) - Recommendarr AI recommendations (removed due to security concerns, Mar 2026)
 - [Scanopy](./proxmox/deprecated/Scanopy.md) - Network topology visualizer (decommissioned, replaced)
+- [Minecraft Server Setup](./proxmox/deprecated/Minecraft_Server_Setup.md) - PaperMC + GeyserMC + Floodgate, Java + Bedrock cross-play (LXC 112 deleted, Jul 2026)
 
 ## other/
 

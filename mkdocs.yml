@@ -54,7 +54,6 @@ nav:
           - Ollama (LXC 108): hosts/ollama.md
           - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
           - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
-          - Minecraft Server (LXC 112): hosts/minecraft.md
           - Kan Kanban (on LXC 100): hosts/kan.md
           - Agentos (LXC 113): hosts/agentos.md
       - Nobara PC: hosts/nobara.md
@@ -90,13 +89,13 @@ nav:
           - 21 - Public Form E-Signature Automation: proxmox/21_Public_Form_E-Signature_Automation.md
           - 22 - Dawarich GPS Tracking: proxmox/22_Dawarich_GPS_Tracking_Setup.md
           - 23 - Homelable Network Visualization + MCP: proxmox/23_Homelable_Setup.md
-          - 24 - Minecraft Server Setup: proxmox/24_Minecraft_Server_Setup.md
-          - 25 - IP Conflict and DHCP Incident: proxmox/25_IP_Conflict_DHCP_Incident_Network_Hardening.md
-          - 26 - Art Portfolio Static Site: proxmox/26_Art_Portfolio_Static_Site.md
-          - 27 - Interactive Network Topology Map: proxmox/27_Network_Topology_Map.md
+          - 24 - IP Conflict and DHCP Incident: proxmox/24_IP_Conflict_DHCP_Incident_Network_Hardening.md
+          - 25 - Art Portfolio Static Site: proxmox/25_Art_Portfolio_Static_Site.md
+          - 26 - Interactive Network Topology Map: proxmox/26_Network_Topology_Map.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
+          - Minecraft Server: proxmox/deprecated/Minecraft_Server_Setup.md
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md

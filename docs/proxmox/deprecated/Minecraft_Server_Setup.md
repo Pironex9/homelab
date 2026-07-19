@@ -1,5 +1,7 @@
 # Minecraft Server Setup
 
+> **Decommissioned:** LXC 112 deleted in July 2026. Kept for reference.
+
 **Date:** 2026-04-15
 **Hostname:** minecraft
 **IP address:** 192.168.0.213

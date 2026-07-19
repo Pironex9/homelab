@@ -36,7 +36,6 @@ Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
 ├── LXC 108  ollama          192.168.0.231   Ollama local LLM (CPU, always on)
 ├── LXC 109  claude-mgmt     192.168.0.204   Claude Code management node
 ├── LXC 110  caddy           192.168.0.208   Caddy reverse proxy + mkcert local CA
-├── LXC 112  minecraft       192.168.0.213   PaperMC + GeyserMC (Java + Bedrock)
 └── Storage
     ├── MergerFS pool   8.1TB usable (2x internal HDD + 2x USB HDD)
     └── SnapRAID        1 parity drive, automated sync + scrub
