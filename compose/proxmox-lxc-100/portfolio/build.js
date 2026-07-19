@@ -24,8 +24,16 @@ export async function build({
 
   for (const category of categories) {
     const outDir = path.join(distDir, 'images', category.name);
+    const usedBaseNames = new Map();
     for (const image of category.images) {
       const baseName = path.basename(image.file, path.extname(image.file));
+      if (usedBaseNames.has(baseName)) {
+        throw new Error(
+          `Build check failed: duplicate output basename "${baseName}" in category "${category.name}" ` +
+          `(from files ${usedBaseNames.get(baseName)} and ${image.file}) - rename one of them`,
+        );
+      }
+      usedBaseNames.set(baseName, image.file);
       const variants = await generateVariants(image.path, outDir, baseName);
       image.full = `images/${category.name}/${variants.full}`;
       image.thumb = `images/${category.name}/${variants.thumb}`;

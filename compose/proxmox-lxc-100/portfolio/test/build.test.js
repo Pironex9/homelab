@@ -32,6 +32,17 @@ test('build produces index.html, robots.txt, and resized images that pass verifi
   assert.doesNotThrow(() => verifyBuildOutput(categories, distDir));
 });
 
+test('build throws on duplicate output basename within a category', async () => {
+  const { contentDir, bioPath, distDir } = await makeTestProject();
+  await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 40, g: 50, b: 60 } } })
+    .png().toFile(path.join(contentDir, 'csendelet', '01-alma.png'));
+
+  await assert.rejects(
+    () => build({ contentDir, bioPath, distDir }),
+    /duplicate output basename "01-alma" in category "csendelet"/,
+  );
+});
+
 test('verifyBuildOutput throws when an expected image file is missing', () => {
   const distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dist-'));
   fs.writeFileSync(path.join(distDir, 'index.html'), '<html>csendelet</html>');
