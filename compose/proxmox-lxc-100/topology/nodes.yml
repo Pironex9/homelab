@@ -81,14 +81,6 @@ nodes:
     role: "Automation"
     detail: "n8n workflow automation."
 
-  - badge: "LXC 108"
-    name: ollama
-    site: lan
-    kind: lxc
-    ip: 192.168.0.231
-    role: "Local LLM"
-    detail: "Ollama inference server for local models."
-
   - badge: "LXC 109"
     name: claude-mgmt
     site: lan
