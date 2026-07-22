@@ -10,7 +10,6 @@ Per-host reference documentation - current configuration, running services, and 
 - [komodo](./hosts/komodo.md) - Komodo (LXC 105) - GitOps deployment management, Periphery agents
 - [karakeep](./hosts/karakeep.md) - Karakeep (LXC 106) - bookmarking, AI tagging with local Ollama
 - [n8n](./hosts/n8n.md) - n8n (LXC 107) - workflow automation, Claude Code MCP integration
-- [ollama](./hosts/ollama.md) - Ollama (LXC 108) - local LLM inference, Intel GPU via SYCL
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - tmux persistent session, code-server (Tailscale-only), GitHub/n8n MCP
 - [nobara](./hosts/nobara.md) - Desktop PC - NVIDIA RTX 2060, Ollama GPU node, NFS/SSHFS client
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
@@ -22,6 +21,7 @@ Per-host reference documentation - current configuration, running services, and 
 ### Retired
 
 - [raspberry-pi](./hosts/raspberry-pi.md) - Raspberry Pi 4 (retired, Aug 2024 - Dec 2025) - origin homelab, 20+ Docker services
+- [ollama](./hosts/ollama.md) - Ollama (LXC 108, decommissioned Jul 2026) - unused, local LLM inference had no callers, freed thin pool space
 
 ## proxmox/
 

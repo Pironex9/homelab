@@ -60,7 +60,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/Proxmo
 ## LXC 107 - n8n
 
 ### What it does
-A workflow automation platform for building automated pipelines connecting apps and services. Used here primarily with Ollama (LXC 108) for AI-assisted automation tasks.
+A workflow automation platform for building automated pipelines connecting apps and services.
 
 ### Installation
 
@@ -75,21 +75,21 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/Proxmo
 
 ---
 
-## LXC 108 - Ollama
+## LXC 108 - Ollama (decommissioned)
 
-### What it does
-Runs open-source large language models locally. This instance is always-on, CPU-based, and handles light inference tasks - primarily integrated with n8n for automation workflows.
+> **Decommissioned 2026-07-21:** LXC 108 was unused (Karakeep, n8n, and all docker-host stacks used the Nobara PC Ollama instance instead) and was deleted to free space on the `pve/data` thin pool. Section kept for reference; see [hosts/ollama.md](../hosts/ollama.md) (moved to `deprecated/`) for full history.
 
-For GPU-accelerated inference, a separate Ollama instance runs on the Nobara desktop (not 24/7).
+### What it did
+Ran open-source large language models locally. This instance was always-on, CPU-based, and intended for light inference tasks. In practice nothing referenced it - all AI tagging (Karakeep) and agent workloads (Hermes/Odysseus) use the **Nobara PC Ollama** instance (GPU, 192.168.0.100:11434) instead.
 
-### Installation
+### Installation (historical)
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/ollama.sh)"
 ```
 
-### Details
+### Details (historical)
 
 - **Port:** 11434
 - **LXC ID:** 108
-- **OLLAMA_HOST:** set to `0.0.0.0` to allow access from other LXCs (e.g. n8n)
+- **OLLAMA_HOST:** set to `0.0.0.0` to allow access from other LXCs

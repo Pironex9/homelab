@@ -1,5 +1,7 @@
 # ollama LXC
 
+**Status:** Decommissioned (2026-07-21) - unused (Karakeep, n8n, and all docker-host stacks used the Nobara PC Ollama instance instead), deleted with `pct destroy --purge` to free space on the `pve/data` thin pool. Kept for reference.
+
 ## Overview
 
 | Property | Value |

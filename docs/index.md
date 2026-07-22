@@ -33,7 +33,6 @@ Proxmox VE 9.1 (HP EliteDesk 800 G4, i5-8400, 32GB RAM)
 ├── LXC 105  komodo          192.168.0.105   Komodo GitOps management
 ├── LXC 106  karakeep        192.168.0.128   Karakeep bookmarking + AI tagging
 ├── LXC 107  n8n             192.168.0.112   n8n workflow automation
-├── LXC 108  ollama          192.168.0.231   Ollama local LLM (CPU, always on)
 ├── LXC 109  claude-mgmt     192.168.0.204   Claude Code management node
 ├── LXC 110  caddy           192.168.0.208   Caddy reverse proxy + mkcert local CA
 └── Storage

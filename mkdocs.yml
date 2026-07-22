@@ -51,7 +51,6 @@ nav:
           - Komodo (LXC 105): hosts/komodo.md
           - Karakeep (LXC 106): hosts/karakeep.md
           - n8n (LXC 107): hosts/n8n.md
-          - Ollama (LXC 108): hosts/ollama.md
           - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
           - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
           - Kan Kanban (on LXC 100): hosts/kan.md
@@ -61,6 +60,7 @@ nav:
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
       - Retired:
           - Raspberry Pi 4: hosts/raspberry-pi.md
+          - Ollama (LXC 108): hosts/ollama.md
   - Setup Guides:
       - Core Infrastructure:
           - 01 - Proxmox + MergerFS + SnapRAID: proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation.md
