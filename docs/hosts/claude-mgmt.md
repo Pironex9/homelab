@@ -42,10 +42,11 @@ tmux new-session -d -s claude "claude"
 Docker container `code-server` (image `lscr.io/linuxserver/code-server`), compose file `compose/proxmox-lxc-109/code-server/docker-compose.yml`, deployed via Komodo (stack `code-server`, GitOps auto-update).
 
 - **Bound to Tailscale-only:** `100.98.146.14:8443` - not reachable from LAN or public internet, only via Tailscale mesh
+- **HTTPS via Tailscale Serve:** `tailscale serve --bg 8443` proxies `https://claude-mgmt.tailc6abe2.ts.net/` -> `http://127.0.0.1:8443`, giving a real Let's Encrypt cert (Tailscale HTTPS certs feature, not Funnel - stays tailnet-only). Plain `http://100.98.146.14:8443` still works but triggers a browser insecure-context warning (clipboard/service worker APIs degraded)
 - **Password:** set via Komodo Stack Environment (`CODE_SERVER_PASSWORD`), not in the compose file or git
-- **Workspace:** `/root/homelab` mounted at `/config/workspace/homelab`
+- **Workspace:** `/root` mounted whole at `/config/workspace/root` (single parent bind mount - covers `homelab`, `uzlet`, `learning`, `youtube`; standard practice over per-project mounts, since Docker can't merge multiple host dirs into one path anyway). Default editor workspace opens at `/config/workspace/root/homelab`
 - **Why Docker over native install:** chosen for consistency with the homelab's GitOps/IaC approach (auto-update via Komodo like every other stack) despite the extra Docker+Periphery layer for a single container - deliberate tradeoff, not to be "simplified" back to a native install
-- Access: browser to `http://100.98.146.14:8443` while connected to Tailscale
+- Access: browser to `https://claude-mgmt.tailc6abe2.ts.net/` while connected to Tailscale
 
 ## Network Configuration
 

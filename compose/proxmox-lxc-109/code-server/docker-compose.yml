@@ -6,11 +6,12 @@ services:
       - PUID=0
       - PGID=0
       - TZ=Europe/Budapest
-      - DEFAULT_WORKSPACE=/config/workspace
+      - DEFAULT_WORKSPACE=/config/workspace/root/homelab
       - PASSWORD=${CODE_SERVER_PASSWORD}
     volumes:
       - /srv/docker-data/code-server:/config
-      - /root/homelab:/config/workspace/homelab
+      - /root:/config/workspace/root
     ports:
+      - 127.0.0.1:8443:8443
       - 100.98.146.14:8443:8443
     restart: unless-stopped
