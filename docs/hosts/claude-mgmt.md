@@ -19,6 +19,33 @@
 | uv / uvx | 0.11.6 | Python package runner, used for ha-mcp |
 | git | 2.39.5 | Version control |
 | ripgrep | - | Fast code search, used by Claude Code |
+| tmux | 3.3a | Persistent `claude` session, survives disconnects |
+| Docker | latest (get.docker.com) | Runs code-server stack, Komodo-managed |
+| Komodo Periphery | v2.2.0 | Outbound mode, `connect_as = "LXC 109"`, systemd `periphery.service` |
+
+## tmux persistent Claude session
+
+A `claude` tmux session runs the Claude Code CLI persistently so it survives SSH disconnects. Reattach from any client (Termux, Nobara, VS Code terminal, code-server browser terminal):
+
+```bash
+tmux attach -t claude
+```
+
+If the session doesn't exist (e.g. after a reboot):
+
+```bash
+tmux new-session -d -s claude "claude"
+```
+
+## code-server (browser IDE)
+
+Docker container `code-server` (image `lscr.io/linuxserver/code-server`), compose file `compose/proxmox-lxc-109/code-server/docker-compose.yml`, deployed via Komodo (stack `code-server`, GitOps auto-update).
+
+- **Bound to Tailscale-only:** `100.98.146.14:8443` - not reachable from LAN or public internet, only via Tailscale mesh
+- **Password:** set via Komodo Stack Environment (`CODE_SERVER_PASSWORD`), not in the compose file or git
+- **Workspace:** `/root/homelab` mounted at `/config/workspace/homelab`
+- **Why Docker over native install:** chosen for consistency with the homelab's GitOps/IaC approach (auto-update via Komodo like every other stack) despite the extra Docker+Periphery layer for a single container - deliberate tradeoff, not to be "simplified" back to a native install
+- Access: browser to `http://100.98.146.14:8443` while connected to Tailscale
 
 ## Network Configuration
 
@@ -36,12 +63,15 @@
 |---------|--------|-------------|
 | ssh.service | active | OpenSSH server (Restart=always, RestartSec=5) |
 | cron.service | active | Scheduled tasks |
+| docker.service | active | Runs code-server container |
+| periphery.service | active | Komodo agent, outbound to Core (LXC 105) |
 
 ## Open Ports
 
 | Port | Protocol | Notes |
 |------|----------|-------|
 | 22 | TCP | SSH access |
+| 8443 | TCP | code-server, bound to Tailscale IP only (100.98.146.14) |
 
 ## SSH Access
 

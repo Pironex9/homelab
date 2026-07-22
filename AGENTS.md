@@ -23,7 +23,7 @@ Infrastructure-as-code for a self-hosted homelab on Proxmox VE 9.1: Docker Compo
 | LXC 103 vaultwarden | 192.168.0.219 | passwords (Alpine, `pct exec` only) |
 | LXC 105 komodo | 192.168.0.105 | GitOps deploy, port 9120 (Alpine) |
 | LXC 106 karakeep / 107 n8n | .128 / .112 | apps |
-| LXC 109 claude-mgmt | 192.168.0.204 | this machine |
+| LXC 109 claude-mgmt | 192.168.0.204 | this machine, tmux persistent `claude` session, code-server (Tailscale-only, :8443) |
 | LXC 110 caddy / 111 uzlet | .208 / .115 | proxy / scraper |
 | LXC 113 agentos | 192.168.0.71 | Hermes + Odysseus agentic OS |
 
