@@ -279,6 +279,12 @@
         description: Document signing
         siteMonitor: https://sign.homelabor.net
         statusStyle: dot
+    - Code Server:
+        icon: code-server.png
+        href: https://claude-mgmt.tailc6abe2.ts.net
+        description: Browser IDE (LXC 109, Tailscale-only)
+        siteMonitor: http://100.98.146.14:8443
+        statusStyle: dot
 
 - Productivity:
     - Kan:
