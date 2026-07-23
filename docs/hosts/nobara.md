@@ -188,7 +188,56 @@ sudo grubby --update-kernel=ALL --remove-args=rhgb
 
 ---
 
+## Virtualization (KVM/libvirt)
+
+Installed 2026-07-23 to run a Windows 10 VM for Claude Desktop practice (interview prep).
+
+| Property | Value |
+|----------|-------|
+| Packages | `@virtualization` group (libvirt, qemu-kvm, virt-manager) |
+| libvirtd | enabled, `qemu:///system` |
+| Network | libvirt `default` NAT network (virbr0) |
+| VM | `win10-claude`, 4 GB RAM, 2 vCPU, 64 GB qcow2 disk at `/var/lib/libvirt/images/` |
+| Install source | `/mnt/hdd/INSTALL/OSs/W1064HU2202V1.iso` |
+
+Console: `virt-manager` locally (GUI), or `virsh --connect qemu:///system console win10-claude`.
+
 ## Incidents
+
+### 2026-07-23 - Network outage during `@virtualization` install (firewalld state corruption)
+
+**Symptom:** Mid-`dnf install -y @virtualization`, the transaction appeared to hang at a `systemd` `%triggerpostun` scriptlet. Shortly after, all network connectivity died completely - not even the gateway (192.168.0.1) responded to ping, DNS resolution failed, and the active SSH session from LXC 109 dropped.
+
+**Root causes (two independent issues):**
+
+1. **Stale repo GPG keys.** `/etc/yum.repos.d/nobara.repo`'s `[nobara]` section only listed `gpgkey=` paths up to `RPM-GPG-KEY-fedora-43-primary`, and `[nobara-updates]` pointed at a `nobara-baseos-pubkey-41` file that had already been removed by a `nobara-gpg-keys` package upgrade. Fedora/Nobara had moved to fc44-signed packages, so any package from those repos failed `Signature verification failed`, blocking the whole transaction (dnf transactions are all-or-nothing).
+
+2. **Corrupted firewalld nftables state.** The `@virtualization` install pulled in/restarted `firewalld`, which raced with a `NetworkManager` restart triggered by the same transaction. This left a stray `table inet firewalld_policy_drop` in the live nftables ruleset - a table running at a *higher priority* (`filter+9`) than firewalld's own zone rules (`filter+10`), with `policy drop` on all three chains (`filter_input`, `filter_forward`, `filter_output`) and only `ct state established,related` allowed through. Every new connection (ping, DNS, SSH) was silently dropped before it ever reached the normal zone-based rules. `firewalld`'s own log showed the underlying corruption: `ERROR: UNKNOWN_INTERFACE: 'enp39s0' is not in any zone` and a Python traceback around the time of the NetworkManager restart.
+
+**Fixes applied:**
+
+```bash
+# 1. GPG key config - add the missing key, replace the dead one
+sudo sed -i '9a\       file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-44-primary' /etc/yum.repos.d/nobara.repo
+sudo sed -i \
+  -e 's#file:///etc/pki/rpm-gpg/RPM-GPG-KEY-nobara-baseos-pubkey-41#file:///etc/pki/rpm-gpg/RPM-GPG-KEY-nobara-baseos-pubkey-44#' \
+  /etc/yum.repos.d/nobara.repo
+
+# 2. Corrupted firewalld state - full restart regenerates nftables from clean config
+sudo systemctl restart firewalld
+```
+
+The `firewalld` restart alone fixed connectivity (the stray drop-table is a runtime nftables artifact, not a config file, so it doesn't recur on a normal boot). Interfaces were then explicitly re-pinned to the `FedoraWorkstation` zone (was already the default before the incident) to rule out any lingering ambiguity:
+
+```bash
+sudo firewall-cmd --zone=FedoraWorkstation --change-interface=enp39s0 --permanent
+sudo firewall-cmd --zone=FedoraWorkstation --change-interface=wlp41s0 --permanent
+sudo firewall-cmd --reload
+```
+
+**Diagnosis path:** `top` (no hung process) -> `ping` sweep (gateway unreachable = local L3/L2 issue, not remote DNS server) -> `ip a`/`ip route` (interfaces up, routes correct - ruled out interface/routing config) -> `ip neigh` (ARP partially working - ruled out pure L2 failure) -> `systemctl status firewalld` (found the `UNKNOWN_INTERFACE` errors and traceback) -> `nft list ruleset` (found the `firewalld_policy_drop` table with `policy drop` running ahead of the real zone rules).
+
+**Lesson:** a package transaction that touches `libvirt`/`firewalld` while `NetworkManager` also restarts mid-transaction can corrupt firewalld's live nftables state independent of its saved config. If a network outage follows a package install involving virtualization/firewall packages, check `sudo nft list ruleset` for stray tables before assuming a routing or DNS problem - `systemctl restart firewalld` resolved it without needing a reboot.
 
 ### 2026-04-08 - GUI freeze on boot + Dolphin hangs
 
