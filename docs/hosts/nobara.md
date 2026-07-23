@@ -194,13 +194,59 @@ Installed 2026-07-23 to run a Windows 10 VM for Claude Desktop practice (intervi
 
 | Property | Value |
 |----------|-------|
-| Packages | `@virtualization` group (libvirt, qemu-kvm, virt-manager) |
+| Packages | `@virtualization` group (libvirt, qemu-kvm, virt-manager, spice-vdagent) |
 | libvirtd | enabled, `qemu:///system` |
-| Network | libvirt `default` NAT network (virbr0) |
-| VM | `win10-claude`, 4 GB RAM, 2 vCPU, 64 GB qcow2 disk at `/var/lib/libvirt/images/` |
+| Network | libvirt `default` NAT network (virbr0, 192.168.122.0/24) |
+| VM | `win10-claude`, 8 GB RAM, 2 vCPU, 64 GB qcow2 disk at `/var/lib/libvirt/images/` |
+| NIC | `e1000e` (not `virtio` - Windows 10 has no built-in virtio-net driver) |
+| CPU mode | `host-passthrough` (passes AMD SVM through for nested virtualization) |
 | Install source | `/mnt/hdd/INSTALL/OSs/W1064HU2202V1.iso` |
 
-Console: `virt-manager` locally (GUI), or `virsh --connect qemu:///system console win10-claude`.
+Console: `virt-manager` locally (GUI, SPICE display), or `virsh --connect qemu:///system console win10-claude`.
+
+### VM internet access - Docker/libvirt FORWARD chain conflict
+
+Right after creating the VM, the guest got a DHCP lease from libvirt's dnsmasq (192.168.122.0/24) and could reach the host (192.168.122.1) but nothing beyond it - no internet. Cause: Docker's own `iptables`-managed `table ip filter` chain `FORWARD` runs at nftables priority `filter` (0), *before* firewalld's `table inet firewalld` chain `filter_FORWARD` (priority `filter+10`) which has the correct libvirt-forwarding accept rule. Since Docker's `FORWARD` chain policy is `drop` and only jumps to `DOCKER-USER`/`DOCKER-FORWARD`/`ts-forward` (none of which know about `virbr0`), guest traffic was silently dropped before firewalld's rule ever ran. This is a known Docker+libvirt+firewalld(nftables) interaction (RHBZ 1638342 talks about the older iptables-backend version of the same class of bug).
+
+Fix - add explicit accepts to `DOCKER-USER` (the one chain Docker guarantees not to overwrite on restart/reload):
+
+```bash
+sudo iptables -I DOCKER-USER -i virbr0 -o enp39s0 -j ACCEPT
+sudo iptables -I DOCKER-USER -i enp39s0 -o virbr0 -j ACCEPT
+```
+
+### Resizing the VM
+
+Static memory/CPU changes require the VM to be off:
+
+```bash
+sudo virsh --connect qemu:///system shutdown win10-claude
+# wait for "shut off" in: virsh --connect qemu:///system list --all
+sudo virt-xml win10-claude --edit --memory memory=8192,currentMemory=8192
+sudo virsh --connect qemu:///system start win10-claude
+```
+
+### Clipboard sharing (host <-> guest)
+
+Needs a SPICE agent on both ends:
+
+- Host: `sudo dnf install -y spice-vdagent` (was skipped initially by the Nobara repo GPG bug below, install cleanly once that's fixed), then `sudo systemctl enable --now spice-vdagentd`.
+- Guest: install [SPICE guest tools](https://www.spice-space.org/download/windows/spice-guest-tools/spice-guest-tools-latest.exe) inside Windows, then reboot the VM.
+
+Once both are running, copy/paste works transparently through the `virt-manager` SPICE console window - no extra steps.
+
+### Claude Desktop Cowork - "Missing HCS services: HNS, vmcompute"
+
+Cowork's sandbox needs Windows' own Hyper-V/Host Compute Service stack (`vmcompute`, `hns`, `vfpext`), which needs nested virtualization inside the guest. Both host prerequisites were already satisfied by default here: `cat /sys/module/kvm_amd/parameters/nested` returned `1`, and `virt-install` had already set `<cpu mode='host-passthrough'/>` on the VM (passes AMD SVM through to the guest). So the fix was entirely inside Windows - enable the optional features and do a real restart (not shutdown/power-on, which skips re-initializing virtualization services under Fast Startup):
+
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+Enable-WindowsOptionalFeature -Online -FeatureName Containers -All
+Restart-Computer
+```
+
+Verify after reboot: `Get-Service vmcompute, hns` should both show `Running`.
 
 ## Incidents
 
