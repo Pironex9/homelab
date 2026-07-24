@@ -231,6 +231,28 @@ vzdump <vmid1> <vmid2> ... --storage backup-hdd --mode snapshot --compress zstd 
 
 **Also found and fixed:** the 2026-07-07 `lvm.conf` edit had left a duplicate `thin_pool_autoextend_percent` line (both uncommented), causing `WARNING: Ignoring duplicate config value` on every LVM command. Removed the duplicate.
 
+### 2026-07-24: automated the fstrim stopgap, `discard=on` does not apply to LXC
+
+Pool was at 69.93%. Tried enabling `discard=on` on all 10 LXC rootfs entries so trim would happen live instead of needing periodic `pct fstrim`:
+```bash
+pct set <vmid> -rootfs local-lvm:vm-<vmid>-disk-0,size=<X>G,discard=on
+```
+Rejected by the Proxmox API on every container:
+```
+400 Parameter verification failed.
+rootfs.discard: property is not defined in schema and the schema does not allow additional properties
+```
+**`discard=on` is a QEMU/VM disk option only.** It works for VMs because the guest talks to a virtual scsi/virtio disk and the discard flag lets that passthrough reach the host's thin volume. LXC containers share the host kernel and mount the thin LV's filesystem directly - there's no virtual disk layer to carry a discard flag, so the option doesn't exist for `rootfs` at all. There is no live-discard equivalent for LXC; periodic `fstrim` is the only mechanism.
+
+Automated the existing manual workaround instead - added `/etc/cron.weekly/lxc-fstrim` on the Proxmox host:
+```bash
+#!/bin/bash
+for id in $(pct list | awk 'NR>1 && $2=="running"{print $1}'); do
+  pct fstrim $id
+done
+```
+First run reclaimed ~25.3GB (69.93% -> 65.65%); CT 100 (docker-host, 13.2GB) and CT 109 (6.4GB) were the largest single reclaims.
+
 ### Status
 
-fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`. Consider adding `fstrim` as a weekly cron across all LXCs (`pct fstrim <vmid>` per guest) to slow the recurrence.
+fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`. The weekly fstrim cron (above) now runs automatically, so this should only need manual attention again if the pool approaches the 80% autoextend threshold between runs.
