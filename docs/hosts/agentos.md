@@ -26,8 +26,9 @@
 ## Model Routing
 
 **Hermes:**
-1. Nobara Ollama (`http://192.168.0.100:11434`, model `qwen3:8b`) - primary, free, local
-2. DeepSeek API (`deepseek-v4-flash`) - configured in the fallback chain (`~/.hermes/config.yaml`) but **not actually functional**: `DEEPSEEK_API_KEY` was never added to `/root/.hermes/.env`. As of 2026-07-16 there is no working fallback - if Nobara is off, Hermes' primary model call just fails. No cloud LLM subscription (xAI Grok OAuth, Nous Portal - the only two `hermes proxy providers` options) is configured either; user declined to set one up.
+1. Nobara Ollama (`http://192.168.0.100:11434`, model `qwen3:8b`) - primary, free, local, but not always on (desktop PC, powered off outside active use)
+2. Google Gemini (`gemini-flash-latest`) - working fallback as of 2026-07-24, configured in `~/.hermes/config.yaml` (`fallback_providers: provider: gemini`) with `GEMINI_API_KEY` in `/root/.hermes/.env`. Verified live: stopping Ollama and running `hermes chat` correctly fails over and answers.
+   - **Why Gemini, not DeepSeek/Groq:** DeepSeek was the first candidate but was dropped over data-sovereignty concerns (PIPL/National Intelligence Law compel Chinese companies to hand over data on request, no independent judicial review). Groq was tried next (US-based, no such concern) but its free tier caps at 6-8K tokens/minute, and Hermes' full agent request (system prompt + tool schemas) runs ~20K tokens - every fallback call hit a 413 "request too large" error. It also isn't a bundled provider plugin in Hermes v0.18 (only wired for Whisper STT), so it needs a `custom_providers` entry (`base_url: https://api.groq.com/openai/v1`, `key_env: GROQ_API_KEY`, referenced as `provider: custom:groq`) rather than a bare `provider: groq`. Gemini is a first-class Hermes provider, has a 250K TPM free tier (12x the requirement), and - for EU-based accounts specifically - the free tier inherits the paid tier's stricter data-use terms (no training on prompts/responses), which the US free tier does not get.
 3. LXC 109 Claude Code (via the `delegate-to-claude-code` skill and restricted SSH, `/usr/local/bin/hermes-claude-code.sh`) - deliberate delegation only, not part of the failover chain
 
 **Reverse direction - Claude Code (LXC 109/111, `/root/homelab` or `/root/uzlet`) offloading to Hermes:** needs no extra setup beyond the existing `ssh agentos` root access. For simple, mechanical subtasks (log/error summaries, boilerplate, one-off lookups), run `ssh agentos "hermes -t <toolset> -z '<task>'"`. Two things matter for correct results:
@@ -43,6 +44,12 @@ Hermes config notes: `model.provider: custom`, `model.context_length: 65536` and
 `model.ollama_num_ctx: 65536` (Hermes requires a 64K+ window; it passes `num_ctx`
 to Ollama itself), `agent.reasoning_effort: none` (Ollama's qwen3 rejects
 OpenAI-style think levels).
+
+## Homelab Monitoring (ntfy)
+
+The bundled `ntfy` sidecar (Odysseus stack) is used as the push channel for a daily homelab status digest. It's bound to `0.0.0.0:8091` (not loopback-only, unlike chromadb/searxng) so it can be reached over the LAN and proxied through Caddy at `https://ntfy.lan`.
+
+`scripts/homelab-digest.sh` (runs via cron on LXC 109, not on agentos - see the claude-mgmt doc) collects Proxmox/SnapRAID/Docker health over SSH and posts a plain-text summary to the `homelab-digest` topic. This is deliberately a plain bash script, not a Hermes agent task: the data collection is fully deterministic (disk percentages, service up/down, SMART numbers), so routing it through an LLM would add cost and hallucination risk for zero benefit. Hermes/Gemini fallback is reserved for tasks that actually need judgment.
 
 ## Security
 

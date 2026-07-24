@@ -59,7 +59,7 @@ pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   qbit.lan sonarr.lan form.lan syncthing.lan \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
   scrutiny.lan prowlarr.lan freshrss.lan \
-  netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan homelable.lan agentos.lan hermes.lan'
+  netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan homelable.lan agentos.lan hermes.lan ntfy.lan'
 pct exec 110 -- chown root:caddy /etc/caddy/certs/lan-key.pem
 pct exec 110 -- chmod 640 /etc/caddy/certs/lan-key.pem
 pct exec 110 -- rc-service caddy restart
@@ -163,6 +163,7 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | homelable.lan | http://192.168.0.110:3001 |
 | agentos.lan | http://192.168.0.71:7000 (Odysseus, LXC 113) |
 | hermes.lan | http://192.168.0.71:8787 (Hermes WebUI, LXC 113) |
+| ntfy.lan | http://192.168.0.71:8091 (ntfy, Odysseus sidecar, LXC 113) |
 
 **Note on qbit.lan:** qBittorrent 5.1+ reads `X-Forwarded-Proto: https` from trusted proxies to automatically set the `Secure` flag on its session cookie. The Caddy block explicitly sets this header even on HTTP requests so the behavior is consistent.
 
@@ -175,3 +176,4 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 - **Installation:** Deployed via community-scripts Alpine LXC script (successor to tteck/Proxmox scripts).
 - **HTTP + HTTPS in one Caddyfile:** Caddy does not allow a `tls` directive in a block that matches both HTTP and HTTPS. Solution: define handlers once in a named snippet `(lan_services)` and `import` it from both the `*.lan` (HTTPS) and `http://*.lan` (HTTP) blocks.
 - **Firefox Nightly Android cannot trust user CAs:** Android user-installed CA certificates are ignored by Firefox Nightly regardless of `security.enterprise_roots.enabled`. The workaround is HTTP access on port 80.
+- **"TLS alert: internal error" from curl/wget but not openssl - always check SNI first:** while wiring up `ntfy.lan` (2026-07-24), testing via `curl -k https://192.168.0.208/ -H 'Host: ntfy.lan'` (IP + Host header, no DNS) consistently failed with a raw TLS `internal_error` alert - reproduced with curl, wget, and even a from-scratch `openssl s_client` test that mimicked curl's full cipher/extension list. The actual cause: connecting by IP with a `Host:` header sets the HTTP virtual-host but sends **no SNI** at the TLS layer, and Caddy has no way to pick a certificate/site block for `*.lan` without it - so it fails hard with an opaque alert instead of a clean error. Packet capture (`tcpdump` + `tshark`, temporarily installed via `apk add`, then removed) confirmed the only real difference between the failing and passing ClientHellos was the presence of the `server_name` (SNI) extension. Testing via the actual hostname (`curl -sk --resolve ntfy.lan:443:192.168.0.208 https://ntfy.lan/`, or normal DNS resolution) works every time. **Lesson: when a `*.lan` domain "doesn't work" with curl, test with the real hostname (or `--resolve`) before suspecting Caddy - an IP+Host-header test isn't equivalent to a real request and produces a misleading server-side error.**
