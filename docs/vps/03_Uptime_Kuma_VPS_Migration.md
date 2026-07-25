@@ -222,6 +222,8 @@ The original monitors used the Docker type, which checks container status via th
 
 All homelab services are monitored via their LAN IPs. The VPS can reach `192.168.0.x` via Tailscale (`--accept-routes` must be enabled, `pve` advertises `192.168.0.0/24`).
 
+**2026-07-25 additions:** the SnapRAID Daemon through Homelable MCP rows were added the same way as the original batch (direct SQLite insert into `monitor`, then `docker restart uptime-kuma` so Kuma's scheduler picks them up - new rows don't take effect live). All verified UP immediately after restart by querying the `heartbeat` table.
+
 | Monitor | Type | Target | Notes |
 |---------|------|--------|-------|
 | Sonarr | HTTP | http://192.168.0.110:8989 | |
@@ -242,6 +244,19 @@ All homelab services are monitored via their LAN IPs. The VPS can reach `192.168
 | NetData | HTTP | http://192.168.0.109:19999 | on Proxmox host |
 | DocuSeal | HTTP | http://192.168.0.110:3003 | |
 | Form | HTTP | http://192.168.0.110:3004 | |
+| SnapRAID Daemon | HTTP | http://192.168.0.109:7627 | on Proxmox host |
+| Topology | HTTP | http://192.168.0.110:3009 | |
+| Portfolio | HTTP | http://192.168.0.110:3008 | |
+| Odysseus | HTTP | http://192.168.0.71:7000 | agentos (LXC 113); accepts `["200-299", "302"]` |
+| Hermes | HTTP | http://192.168.0.71:8787 | agentos (LXC 113), Hermes WebUI; accepts `["200-299", "302"]` |
+| code-server | HTTP | http://100.98.146.14:8443 | claude-mgmt (LXC 109) - Tailscale-only, binds to its own Tailscale IP not the LAN IP; accepts `["200-299", "302"]` |
+| FreshRSS | HTTP | http://192.168.0.110:8083 | accepts `["200-299", "302"]` (login redirect) |
+| SuggestArr | HTTP | http://192.168.0.110:5000 | |
+| ntfy | HTTP | http://192.168.0.71:8091 | agentos (LXC 113), Odysseus sidecar |
+| Kan | HTTP | http://192.168.0.110:3006 | accepts `["200-299", "307"]` |
+| Dawarich | HTTP | http://192.168.0.110:3005 | |
+| Homelable | HTTP | http://192.168.0.110:3001 | frontend only - backend has no host-exposed port, internal-network only |
+| Homelable MCP | HTTP | http://192.168.0.110:8001 | accepts `["200-299", "401"]` (auth-protected endpoint) |
 
 ### VPS / Pangolin public monitors
 
