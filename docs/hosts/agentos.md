@@ -22,6 +22,8 @@
 | Hermes WebUI (native, systemd) | Browser UI for Hermes at `/opt/hermes-webui`, port 8787, reverse-proxied at https://hermes.lan |
 | Odysseus (Docker Compose) | Web workspace UI at `/opt/odysseus`, port 7000, reverse-proxied at https://agentos.lan |
 | chromadb, searxng, ntfy | Odysseus bundled sidecar services (loopback-only) |
+| SkillClaw proxy (native, systemd via `skillclaw start --daemon`) | Session-capture + skill-injection proxy in front of Hermes' LLM calls, loopback-only (`127.0.0.1:30000`) |
+| skillclaw-evolve.service (native, systemd) | Background skill-refinement loop, reads captured sessions every 6h and proposes skill updates |
 
 ## Model Routing
 
@@ -80,6 +82,25 @@ Bot: `@homelabor_hermes_bot`, token in `TELEGRAM_BOT_TOKEN` (`/root/.hermes/.env
 - Authorized via **DM pairing**, not a hardcoded user-ID allowlist: the owner DMs the bot, gets an 8-char pairing code, owner approves with `hermes pairing approve telegram <code>`. No `TELEGRAM_ALLOWED_USERS` set - matches the documented safe default (all senders denied until paired).
 - Home channel set from inside the DM with `/sethome`, so cron deliveries land there. `homelab-digest-review`'s `deliver` is `origin,telegram`.
 
+## SkillClaw (added 2026-07-25)
+
+Third-party skill-evolution layer for Hermes (`github.com/AMAP-ML/SkillClaw`, unofficial/community project, not affiliated with NousResearch). Installed after the user asked Hermes to install a skill from this repo directly, which triggered a source-code review before activation - the project isn't audited upstream, and by its own design it (a) proxies all Hermes LLM traffic and (b) can autonomously rewrite `SKILL.md` files the agent later treats as trusted instructions, so both were reviewed before turning anything on.
+
+**Two components, reviewed and configured separately:**
+
+1. **Proxy** (`skillclaw start --daemon`, plain `systemctl`-less background process managed by the CLI itself, not a unit file) - sits between Hermes and its LLM provider to capture session traces (prompts/responses/tool I/O) into `~/.skillclaw/records/conversations.jsonl`, and injects skill content from `~/.hermes/skills` into the agent's context.
+   - **Default config is unsafe and was overridden**: binds `0.0.0.0` with no proxy auth key by default - source review found `_check_auth()` explicitly skips authentication when no key is set (`skillclaw/api_server.py`), meaning anyone on the LAN could relay requests through the owner's Gemini key with zero auth. Fixed in `~/.skillclaw/config.yaml`: `proxy.host: 127.0.0.1`, `proxy.api_key` set to a random token. Verified: unauthenticated `curl` to `127.0.0.1:30000/v1/models` returns 401; `ss -tlnp` confirms loopback-only bind.
+   - `skillclaw start` silently rewrites `~/.hermes/config.yaml`'s `model:` block to route through the proxy (backs up the previous config first, under `~/.skillclaw/backups/hermes/`) - `skillclaw doctor hermes` confirms `proxy_match: True` and zero issues after activation.
+   - Session data is 100% local by default (`sharing.enabled: false`, left off) - the `skill_hub`/nacos cross-device sharing mechanism has no hardcoded remote and raises an error if `sharing.nacos_server` isn't explicitly set, so nothing phones home unless deliberately configured.
+   - Conversation captures (`records/conversations.jsonl`) are plaintext, no file-permission hardening beyond default umask - treat that directory as sensitive (it will contain anything typed into a Hermes session).
+
+2. **Evolve server** (`skillclaw-evolve.service`, real systemd unit since this needs to persist/restart like the other native services) - periodically reads captured sessions and uses an LLM to propose skill refinements.
+   - **`--engine agent` was explicitly avoided**: source review found it launches a real OpenClaw agent subprocess with `sandbox.mode: off` and *always* auto-publishes regardless of `--publish-mode` (no verifier gate, unlike the `workflow` engine) - confinement to its workspace dir is a prompt instruction to the LLM, not a technical control. This is the same class of risk as the cron-toolset incident above (an agent with real write/exec access and no hard boundary), so it's not used here.
+   - Configured instead with `--engine workflow --publish-mode validated --skill-verifier --skill-verifier-min-score 0.85 --validation-required-results 1 --validation-required-approvals 1 --interval 21600 --storage-backend local --local-root /root/.skillclaw/evolve-store --use-skillclaw-config`. `validated` mode queues candidates instead of writing live `SKILL.md` files directly; on a single-user install with no other validation clients, this is effectively a manual-approval gate. Candidates land in the separate `evolve-store` staging directory, not directly in `~/.hermes/skills/` - review/promotion is a manual step.
+   - `--use-skillclaw-config` reuses the same already-reviewed, billing-enabled Gemini key as the proxy, instead of the tool's own default (`gpt-4o` via `api.openai.com`) - avoids opening a second, unreviewed data-egress path for captured session content.
+   - **Known residual risk, accepted as low-severity for now:** the evolve LLM call treats captured session "evidence" (including tool-call outputs, which can contain text from web pages or other untrusted sources, not just what the user typed) as ordinary context with no explicit untrusted/instruction-vs-data marking - a theoretical prompt-injection-into-skills vector. Mitigated in practice by `validated` publish mode requiring manual promotion out of staging before anything reaches a live skill file.
+   - First cycle ran clean (0 sessions queued yet, systemd unit healthy). Verified end-to-end with `hermes -z` through the proxy before enabling the evolve loop.
+
 ## Security
 
 - SSH key `hermes-to-109` (on this host) can only invoke the wrapper script on
@@ -97,6 +118,7 @@ Bot: `@homelabor_hermes_bot`, token in `TELEGRAM_BOT_TOKEN` (`/root/.hermes/.env
 - Hermes dangerous-command approvals: `approvals.mode: manual`, `approvals.cron_mode: deny`, plus custom `approvals.deny` glob rules for snapraid/lvm commands (see Homelab Monitoring section - these aren't in Hermes' built-in denylist)
 - `security.allow_private_urls: true` - deliberate opt-out of SSRF protection for RFC1918 addresses, safe here because every private-range target is our own LAN, not an attacker-controlled internal service
 - Gateway daemon (`hermes-gateway.service`) runs as root - contradicts the official "never run the gateway as non-root" recommendation, but accepted here (same reasoning as the `hermes-to-109` SSH key restriction) because this is a single-purpose, single-user LXC with no other accounts
+- SkillClaw proxy: loopback-only bind + auth token (default is `0.0.0.0` with no auth - overridden, see SkillClaw section); evolve server restricted to `--engine workflow` with `--publish-mode validated` (the `agent` engine runs unsandboxed and bypasses validation entirely - not used)
 
 ## Management
 
