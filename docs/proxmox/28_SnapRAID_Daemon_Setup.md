@@ -82,3 +82,39 @@ systemctl status snapraidd
 ss -tlnp | grep 7627
 curl -s -o /dev/null -w '%{http_code}\n' http://192.168.0.109:7627/
 ```
+
+## Reboot test and final cleanup (2026-07-25)
+
+Before permanently deleting the quarantined old binary, did a full `pve` host reboot to catch any boot-order dependency a runtime check can't see. Everything came back clean:
+
+- All 10 LXCs and the HAOS VM back to `running`
+- All 4 disks remounted (UUID-based `/etc/fstab`, unaffected by device letter reassignment - see below)
+- MergerFS pool (`disk1+disk3+disk4`) back up
+- `snapraidd` active, port `7627` listening, dashboard reachable
+- `snapraid status` reported the same sync/scrub state as before the reboot - nothing regressed
+
+No issues found, so the old binary and its leftover man page were deleted for good:
+
+```bash
+rm /usr/local/bin/snapraid.disabled-test
+rm /usr/local/share/man/man1/snapraid.1
+```
+
+`man snapraid` now correctly resolves to the dpkg-managed v14.9 page. `/usr/local/bin` and `/usr/local/share/man/man1` no longer contain any SnapRAID remnants.
+
+### Gotcha: `/dev/sdX` letters are not stable across reboots
+
+After the reboot, `d1` (serial `AR11051EJA18VH`) enumerated as `/dev/sdb` instead of `/dev/sda` - the two internal SATA HGST drives (`d1`, `parity`) and the two USB drives (`d3`, `d4`) got assigned different `/dev/sdX` letters than before the reboot. This is normal Linux behavior with multiple SATA/USB disks and is exactly why `/etc/fstab` here uses UUIDs, not device paths - the `disk1`-`disk4` mountpoints resolved to the correct physical disks regardless.
+
+**Practical implication:** never assume a `/dev/sdX` mapping from a previous session still holds. Before running `smartctl`/`hdparm` against a specific physical disk, re-check with `lsblk -o NAME,MODEL,SERIAL,TRAN` and match on serial number, not on the device letter.
+
+## Related: disk failure-risk re-assessment after the v12.3 -> v14.9 upgrade
+
+Upgrading the SnapRAID engine as part of this install changed the `snapraid smart` failure-probability numbers dramatically for the same physical array - worth knowing if compared against older readings:
+
+| | v12.3 (old) | v14.9 (new) |
+|---|---|---|
+| Array-wide (at least one disk fails within 1 year) | 96% | 15% |
+| `d1` individually | 84% | 4% |
+
+Neither number was treated as ground truth - cross-checked against raw `smartctl -a` output instead (see `private/todo.md` #8 for the full writeup). Verdict: `d1` has no active errors (0 reallocated/pending sectors, PASSED self-test) but does show genuine accumulated mechanical wear (`Load_Cycle_Count`/`Power-Off_Retract_Count` at their normalized threshold, likely inherited from its life before being acquired refurbished) - real, but not an emergency. Planned (not urgent) replacement.

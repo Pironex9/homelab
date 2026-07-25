@@ -186,6 +186,8 @@ Storage layout:
 
 ## 🛡️ SnapRAID Installation and Configuration
 
+> **⚠️ Superseded (2026-07-25):** the install-from-source method and manual cron below describe the *original* 2026 setup (SnapRAID v12.3). The CLI has since been upgraded to a dpkg-managed v14.9, and the manual sync cron was replaced by SnapRAID Daemon (`snapraidd`), which now handles scheduled sync/scrub/SMART monitoring plus a web dashboard at `http://192.168.0.109:7627`. See **[28 - SnapRAID Daemon Setup](./28_SnapRAID_Daemon_Setup.md)** for the current install method and config. This section is kept as historical record of how the array was originally built.
+
 ### Install from source
 ```bash
 # Dependencies
