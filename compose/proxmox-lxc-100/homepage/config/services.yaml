@@ -46,6 +46,12 @@
         description: Notifications and integrations
         siteMonitor: http://192.168.0.110:5454
         statusStyle: dot
+    - SnapRAID Daemon:
+        icon: mdi-harddisk
+        href: http://192.168.0.109:7627
+        description: SnapRAID array health, SMART, scheduled sync/scrub
+        siteMonitor: http://192.168.0.109:7627
+        statusStyle: dot
 
 - Infrastructure:
     - AdGuard Home:
