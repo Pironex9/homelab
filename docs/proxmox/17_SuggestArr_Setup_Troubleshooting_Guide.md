@@ -1,4 +1,5 @@
 **Date:** 2026-03-14
+**Updated:** 2026-07-26
 **System:** Proxmox VE 9.1
 
 ## Docker Compose Configuration
@@ -169,6 +170,56 @@ cat /srv/docker-data/suggestarr/config.yaml | grep -A 10 FILTER_GENRES_EXCLUDE
 
 ---
 
+### Bug #3: Stale Jellyseerr Session Token Cached in `requests.db` (403 on service lookups)
+
+**Symptom:**
+```
+ERROR SeerClient Request to http://192.168.0.110:5055/api/v1/service/sonarr/0 failed with status: 403, You do not have permission to access this endpoint
+ERROR SeerClient Request to http://192.168.0.110:5055/api/v1/service/radarr/0 failed with status: 403, You do not have permission to access this endpoint
+```
+Recommendation jobs still complete and requests still get sent to Jellyseerr, but with `profileId=None, rootFolder=None` (default quality profile/folder instead of the configured one).
+
+**Misleading part:** the error text says "permission", which looks like a Jellyseerr user-rights problem. It usually isn't. Jellyseerr's `/api/v1/service/*` routes only require *being logged in* (`isAuthenticated()` with no specific permission bit) - the generic 403 message fires whenever `req.user` is null, i.e. **the session cookie itself is invalid**, not when the account lacks a specific permission. (That said, `MANAGE_REQUESTS` is still worth granting to the account SuggestArr logs in as - Jellyseerr Settings → Users → permissions - since it's needed for other operations and doesn't hurt.)
+
+**Root cause:** SuggestArr calls two different Jellyseerr endpoints with two different credentials:
+- List/request endpoints use the **Jellyseerr API key** (`SEER_TOKEN`) - always valid, admin-equivalent.
+- The per-server detail endpoints (`/api/v1/service/sonarr/{id}`, `/api/v1/service/radarr/{id}`) deliberately use a **cached session cookie** (`SEER_SESSION_TOKEN`) obtained once via `POST /api/v1/auth/local` at initial setup, instead of the API key.
+
+That cookie is cached in **two places** - `config.yaml` *and* the `integrations` table in `requests.db` (`service='seer'`, column `config_json`) - and the DB row wins: `load_env_vars()` merges DB integration secrets on top of the yaml on every load. Editing `config.yaml` alone does nothing if the DB row still has the old value. The cookie found in this incident was dated 2026-04-07 (over 3 months stale) and had simply expired server-side; SuggestArr never refreshes it automatically, and its own retry logic treats any 403 containing the word "permission" as unrecoverable (it does **not** retry with a fresh login on this error).
+
+**Fix:**
+```bash
+# 1. Get a fresh session cookie via SuggestArr's own login endpoint
+#    (uses the same credentials already configured in SuggestArr - Jellyseerr user email/password)
+curl -s -X POST http://192.168.0.110:5000/api/seer/login \
+  -H 'Content-Type: application/json' \
+  -d '{"SEER_API_URL":"http://192.168.0.110:5055","SEER_TOKEN":"<jellyseerr_api_key>","SEER_USER_NAME":"<jellyseerr_user_email>","SEER_PASSWORD":"<jellyseerr_user_password>"}'
+# -> {"message":"Login successful","session_token":"s%3A....","type":"success"}
+
+# 2. Write the fresh token into requests.db (the actual source of truth, NOT config.yaml)
+python3 -c "
+import sqlite3, json
+c = sqlite3.connect('/srv/docker-data/suggestarr/requests.db')
+row = c.execute(\"SELECT config_json FROM integrations WHERE service='seer'\").fetchone()
+data = json.loads(row[0])
+data['session_token'] = '<paste the fresh session_token value from step 1>'
+c.execute(\"UPDATE integrations SET config_json=? WHERE service='seer'\", (json.dumps(data),))
+c.commit()
+"
+
+# 3. Restart
+docker restart suggestarr
+
+# 4. Verify
+curl -s http://192.168.0.110:5000/api/seer/radarr-servers
+curl -s http://192.168.0.110:5000/api/seer/sonarr-servers
+# both should return profiles/rootFolders, not a 403
+```
+
+**Prevention:** there's no automatic refresh for this cookie in the current SuggestArr version - if the 403 reappears after weeks/months, re-run the same procedure rather than assuming a permissions regression.
+
+---
+
 ## Operational Procedures
 
 ### Fresh Installation
@@ -225,8 +276,8 @@ docker restart suggestarr
 **Solution:** See Bug #2 - fix genre exclude duplicates in config.yaml
 
 ### Jellyseerr Session Expired
-**Symptom:** Authentication errors in logs
-**Solution:** Re-run setup wizard, re-enter Jellyseerr credentials
+**Symptom:** `403 ... You do not have permission to access this endpoint` in logs for `/api/v1/service/sonarr` or `/radarr`, despite Jellyfin/request-sending still working
+**Solution:** See Bug #3 - refresh the session cookie via `/api/seer/login` and write it into `requests.db` (`integrations` table). Re-running the setup wizard also works but is heavier-handed than necessary.
 
 ### No Recommendations Generated
 **Check:**
@@ -283,6 +334,6 @@ ports:
 1. **Library selection bug** - UI misleading, must select manually
 2. **Genre exclude duplication** - GUI creates duplicate entries causing crash
 3. **Base URL subpath** - Known to cause routing issues, leave empty
-4. **Session token expiry** - Jellyseerr tokens expire, requires re-authentication
+4. **Session token expiry** - the Jellyseerr session cookie SuggestArr uses for `/service/sonarr|radarr` detail lookups can go stale for months without SuggestArr noticing or refreshing it; the resulting 403 is worded like a permissions error but isn't - see Bug #3
 
 **Bug Reports:** Submit to https://github.com/ciuse99/suggestarr/issues
