@@ -72,7 +72,10 @@ export function verifyBuildOutput(categories, distDir) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  build()
+  build({
+    contentDir: process.env.PORTFOLIO_CONTENT_DIR || undefined,
+    bioPath: process.env.PORTFOLIO_BIO_PATH || undefined,
+  })
     .then(({ categories }) => {
       const total = categories.reduce((sum, c) => sum + c.images.length, 0);
       console.log(`Build ok: ${categories.length} categories, ${total} images.`);
