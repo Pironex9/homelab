@@ -53,7 +53,7 @@ No other sections (no blog, no testimonials, no gimmick 3D/WebGPU demos) - out o
 
 - Enable Uptime Kuma's built-in public status page (if not already enabled) covering the homelab's services.
 - Expose it via Pangolin on its own public subdomain (e.g. `status.homelabor.net`) - no new backend, no API keys, no new attack surface; reuses infrastructure that already exists.
-- The Hero section embeds this data (iframe, or a small client-side fetch against Uptime Kuma's public status-page JSON endpoint) to show live service count and uptime %.
+- The Hero section shows live service count and uptime % via a small client-side fetch against Uptime Kuma's public status-page JSON endpoint, styled to match the rest of the Hero (not an embedded iframe, which would show Kuma's own UI and break the visual design). Fall back to a plain iframe/link to the status page only if that endpoint turns out not to expose usable per-service data at implementation time.
 - **Fallback**: if the status endpoint is unreachable (e.g. the homelab itself is powered off or the WAN link is down), the Hero falls back to a static value (e.g. a plain "27 self-hosted services" line) instead of showing an error or blank space. The landing page itself stays up regardless, since it's hosted on GitHub Pages independent of homelab uptime.
 - No other embedded live widgets (GitHub contribution graph, last-commit timestamp, Netdata badges, Grafana public dashboards, WakaTime) - considered during brainstorming and explicitly deferred to keep the first version simple. Revisit later if desired.
 
