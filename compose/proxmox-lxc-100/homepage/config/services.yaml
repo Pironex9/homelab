@@ -235,6 +235,12 @@
         href: https://hermes.lan
         siteMonitor: http://192.168.0.71:8787/health
         statusStyle: dot
+    - Minions:
+        icon: mdi-view-dashboard-outline
+        description: Mission Control for Hermes tasks - kanban, live streaming
+        href: https://minions.lan
+        siteMonitor: http://192.168.0.71:6969/api/health
+        statusStyle: dot
 
 - Network:
     - Syncthing:
