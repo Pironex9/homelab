@@ -4,3 +4,5 @@ intro: "Szeretek rajzolni, különösen anime-stílusú karaktereket."
 # Kategória mappanevek (ékezet nélküli slugok) megjelenítési neve az oldalon.
 categories:
   csendelet: "Csendélet"
+  tajkep: "Tájkép"
+  anime-karakter: "Anime karakter"
