@@ -1,0 +1,14 @@
+services:
+  deoldify:
+    build: .
+    image: nobara-deoldify:5f86c28
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./data:/app/photos
+    network_mode: none

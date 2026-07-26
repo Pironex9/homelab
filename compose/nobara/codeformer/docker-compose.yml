@@ -1,0 +1,14 @@
+services:
+  codeformer:
+    build: .
+    image: nobara-codeformer:b33cc7d
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./data:/app/photos
+    network_mode: none
