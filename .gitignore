@@ -65,3 +65,4 @@ id_rsa*
 .superpowers/
 .playwright/
 .playwright-cli/
+__pycache__/
