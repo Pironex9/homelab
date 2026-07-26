@@ -98,7 +98,10 @@ footer{
   z-index:10;padding:1rem;
 }
 .lightbox.hidden{display:none}
-.lightbox img{max-width:min(92vw,1100px);max-height:78vh;object-fit:contain;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#lightbox-stage{max-width:96vw;max-height:82vh;overflow:auto;overscroll-behavior:contain}
+#lightbox-stage img{display:block;margin:auto;max-width:96vw;max-height:82vh;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#lightbox-stage.zoomable img{cursor:zoom-in}
+#lightbox-stage.zoomed img{max-width:none;max-height:none;cursor:zoom-out}
 #lightbox-caption{color:#efe9dc;margin-top:1.25rem;text-align:center;font-size:.95rem}
 #lightbox-caption .t{font-family:'Young Serif',Georgia,serif;font-size:1.15rem;display:block;margin-bottom:.3rem}
 #lightbox-caption .m{color:#a89d89;letter-spacing:.1em;text-transform:uppercase;font-size:.72rem}
@@ -156,11 +159,23 @@ function renderGallery() {
   });
 }
 
+// Zoom is offered only when the file actually has more pixels than we are
+// showing - blowing up a small scan just makes it blurry.
+function markZoomable() {
+  const stage = document.getElementById('lightbox-stage');
+  const el = document.getElementById('lightbox-img');
+  stage.classList.remove('zoomed');
+  stage.classList.toggle('zoomable', el.naturalWidth > el.clientWidth + 8);
+}
+
 function openLightbox(index) {
   currentIndex = index;
   const img = currentImages[index];
-  document.getElementById('lightbox-img').src = img.full;
-  document.getElementById('lightbox-img').alt = img.title;
+  const el = document.getElementById('lightbox-img');
+  el.onload = markZoomable;
+  el.src = img.full;
+  el.alt = img.title;
+  document.getElementById('lightbox-stage').classList.remove('zoomed', 'zoomable');
   const meta = [img.technique, img.date].filter(Boolean).join(' · ');
   const cap = document.getElementById('lightbox-caption');
   cap.innerHTML = '<span class="t">' + esc(img.title) + '</span>'
@@ -178,6 +193,19 @@ function stepLightbox(delta) {
   const n = currentImages.length;
   openLightbox((currentIndex + delta + n) % n);
 }
+
+// Click to zoom to 1:1, native scroll pans. Scroll lands on the clicked spot.
+document.getElementById('lightbox-img').addEventListener('click', (e) => {
+  const stage = document.getElementById('lightbox-stage');
+  if (!stage.classList.contains('zoomable')) return;
+  const r = e.target.getBoundingClientRect();
+  const fx = (e.clientX - r.left) / r.width;
+  const fy = (e.clientY - r.top) / r.height;
+  if (stage.classList.toggle('zoomed')) {
+    stage.scrollLeft = fx * stage.scrollWidth - stage.clientWidth / 2;
+    stage.scrollTop = fy * stage.scrollHeight - stage.clientHeight / 2;
+  }
+});
 
 document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
 document.getElementById('lightbox-prev').addEventListener('click', () => stepLightbox(-1));
@@ -250,7 +278,7 @@ export function renderIndexHtml({ bio, categories }) {
   <button id="lightbox-close" class="lb-btn" aria-label="Bezárás">&times;</button>
   <button id="lightbox-prev" class="lb-btn" aria-label="Előző">&larr;</button>
   <button id="lightbox-next" class="lb-btn" aria-label="Következő">&rarr;</button>
-  <img id="lightbox-img" src="" alt="">
+  <div id="lightbox-stage"><img id="lightbox-img" src="" alt=""></div>
   <div id="lightbox-caption"></div>
 </div>
 <script>

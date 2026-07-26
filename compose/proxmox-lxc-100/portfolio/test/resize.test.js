@@ -16,7 +16,7 @@ test('generateVariants writes a full and thumb JPEG within their max widths', as
   const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'src-'));
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'out-'));
   const srcPath = path.join(srcDir, 'test.png');
-  await makeTestImage(srcPath, 2000, 1000);
+  await makeTestImage(srcPath, 3000, 1500);
 
   const result = await generateVariants(srcPath, outDir, 'test');
 
@@ -25,7 +25,7 @@ test('generateVariants writes a full and thumb JPEG within their max widths', as
 
   const fullMeta = await sharp(path.join(outDir, result.full)).metadata();
   const thumbMeta = await sharp(path.join(outDir, result.thumb)).metadata();
-  assert.equal(fullMeta.width, 1600);
+  assert.equal(fullMeta.width, 2000);
   assert.equal(thumbMeta.width, 640);
   assert.equal(result.width, 640);
   assert.equal(result.height, 320);

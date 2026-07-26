@@ -31,6 +31,14 @@ test('renderIndexHtml includes bio, every category name, and embedded image data
   assert.match(html, /images\/anime-karakter\/02-full\.jpg/);
 });
 
+test('lightbox has a zoom stage that only activates when the file has extra pixels', () => {
+  const html = renderIndexHtml(sampleInput);
+
+  assert.match(html, /id="lightbox-stage"/);
+  assert.match(html, /naturalWidth > el\.clientWidth/);
+  assert.match(html, /classList\.toggle\('zoomed'\)/);
+});
+
 test('renderIndexHtml escapes HTML-sensitive characters in bio and titles', () => {
   const html = renderIndexHtml({
     bio: { name: '<script>alert(1)</script>', age: null, intro: '' },

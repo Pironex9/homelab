@@ -8,8 +8,15 @@ export async function generateVariants(srcImagePath, outDir, baseName) {
   const fullFile = `${baseName}-full.jpg`;
   const thumbFile = `${baseName}-thumb.jpg`;
 
+  // Portfolio standard: ~2000px long edge for the lightbox, so zooming shows
+  // real brush/pencil detail instead of upscaled mush.
+  const src = await sharp(srcImagePath).metadata();
+  if (src.width < 1600) {
+    console.warn(`  ! ${baseName}: a forráskép csak ${src.width}px széles - a nagyítás nem fog több részletet mutatni (ajánlott 2000px+)`);
+  }
+
   await sharp(srcImagePath)
-    .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
+    .resize({ width: 2000, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 })
     .toFile(path.join(outDir, fullFile));
 
