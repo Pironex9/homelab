@@ -2,6 +2,16 @@ site_name: Norbert Csicsay - Homelab
 site_description: Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
 site_author: Norbert Csicsay
 site_url: https://docs.homelabor.net/
+
+# Internal working documents. They live under docs/ so they sit beside the
+# material they describe, but they are not part of the published portfolio:
+# they name services and reasoning meant for me, not for a visitor. Leaving
+# them out of `nav` was not enough - MkDocs still built them, listed them in
+# sitemap.xml and indexed them for the site search.
+exclude_docs: |
+  superpowers/
+  adr/
+
 repo_url: https://github.com/Pironex9/homelab
 repo_name: Pironex9/homelab
 
