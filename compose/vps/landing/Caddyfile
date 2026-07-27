@@ -23,6 +23,11 @@
 	# apex, including a future one created for private use. This route is on
 	# an auth-free public hostname, so it grants exactly what the widget
 	# needs and nothing else.
+	#
+	# COUPLED to src/status.js: the slug below must match the SLUG constant
+	# there. Nothing enforces it. Change it in only one file and both fetches
+	# 404, the uptime block stays hidden for good, and the only trace is a
+	# console.warn in the visitor's browser. Change both.
 	handle /api/status-page/statuspage1 {
 		reverse_proxy 172.17.0.1:3001
 	}

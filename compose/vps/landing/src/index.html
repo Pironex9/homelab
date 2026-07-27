@@ -10,7 +10,19 @@
 <meta property="og:title" content="Norbert Csicsay - Homelab Infrastructure">
 <meta property="og:description" content="Proxmox VE, GitOps-deployed containers, parity-protected storage and self-hosted public access. Documented as it was built.">
 <meta property="og:url" content="https://homelabor.net/">
-<meta property="og:image" content="https://homelabor.net/topology.png">
+<!-- Purpose-built card, not the topology diagram. topology.png is 1280x1360
+     portrait; LinkedIn and Slack crop a shared link to roughly 1.91:1, which
+     would show an unreadable strip out of its middle. og.png is 1200x630,
+     generated from ../og.html - see the comment at the top of that file for
+     the exact command. It is deliberately kept out of src/ so build.sh does
+     not publish the generator alongside its output. -->
+<meta property="og:image" content="https://homelabor.net/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="A homelab run like production. Norbert Csicsay, homelabor.net. Fifteen nodes across two sites.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -84,9 +96,12 @@
                alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
         </div>
         <figcaption>
-          Every host, container and subnet on the node. The map is generated from a
-          single YAML file and rebuilt with the documentation, so it cannot drift
-          away from the machines it describes.
+          The Proxmox host with its ten containers and one virtual machine, plus the
+          three K3s nodes at the second site: fifteen nodes over two subnets. The
+          Hetzner VPS serving this page and the desktop that holds the backup mirror
+          are not on it. Every box is generated from one YAML file, so adding a host
+          is a data edit rather than a redraw, but the rebuild is a deliberate step
+          and the map is only as current as the last one.
         </figcaption>
       </figure>
     </div>
@@ -101,9 +116,12 @@
         <a class="card" href="https://docs.homelabor.net/proxmox/16_Komodo_complete_setup/">
           <h3>Komodo GitOps Migration</h3>
           <p>
-            Twenty Docker Compose stacks moved off Dockge and onto Komodo without
-            dropping a service. Every stack now lives in Git, and Komodo pulls and
-            redeploys straight from the repository when a commit lands.
+            The Docker Compose stacks moved off Dockge and onto Komodo, and their
+            definitions moved into this repository rather than being edited in place
+            on the host. Komodo keeps a clone on the Docker host and deploys each
+            stack from it, on an explicit pull and deploy rather than on every commit.
+            One stack that builds from a third-party checkout stays on the host by
+            design.
           </p>
           <span class="card-cta">Read the write-up</span>
         </a>
