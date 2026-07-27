@@ -40,6 +40,7 @@
 | `compose/vps/landing/.gitignore` | Excludes `dist/` |
 | `compose/vps/landing/README.md` | Build and deploy instructions for this stack |
 | `docs/index.md` | Stripped to a navigation index (modified) |
+| `docs/README.md` | GitHub-facing index; gains a link to the new public site (modified) |
 | `docs/hosts/vps.md` | Records the new stack and the apex route (modified) |
 
 `dist/` is a build artifact and is never committed.
@@ -99,10 +100,12 @@ Expected: thirteen monitor names plus the group name "Services". Specifically ab
 - [ ] **Step 4: Verify the badge endpoint still answers for a monitor that stayed**
 
 ```bash
-curl -s "https://uptime.homelabor.net/api/badge/9/uptime/720h" | grep -oE '>[0-9.]+%<'
+curl -s "https://uptime.homelabor.net/api/badge/9/uptime/720h" | grep -oE '>[0-9.]+%<' | head -1
 ```
 
-Expected: a percentage such as `>99.93%<`. If this returns `N/A`, monitor 9 lost its public group membership and Step 2 was applied incorrectly.
+Expected: one line, a percentage such as `>99.93%<`. The `head -1` is not cosmetic: the badge SVG draws the value twice, once as a shadow and once as visible fill, so without it this prints two identical lines.
+
+If this returns nothing and the badge body contains `N/A`, monitor 9 lost its public group membership and Step 2 was applied incorrectly.
 
 - [ ] **Step 5: Verify a removed monitor now returns N/A**
 
@@ -369,6 +372,14 @@ Create `compose/vps/landing/Caddyfile`:
 
 ```
 :80 {
+	# The heartbeat payload is large and highly repetitive: 242 KB for 37
+	# monitors, and still around 85 KB for the curated 13. It compresses
+	# 13x (measured: 242 KB -> 18 KB gzipped), so this one line is the
+	# fix rather than trying to shrink the payload at the Kuma end.
+	# Kuma's showOnlyLastHeartbeat option does NOT help - the heartbeat
+	# route hardcodes `LIMIT 100` and never reads that flag.
+	encode zstd gzip
+
 	# Uptime Kuma runs on this same host with network_mode: host.
 	# 172.17.0.1 is the address Pangolin's own resource target uses; the
 	# architecture diagram in docs/vps/03 says 172.18.0.1 and is wrong.
@@ -418,8 +429,14 @@ Create `compose/vps/landing/src/status.js`:
         return r.text();
       })
       .then(function (svg) {
-        var m = svg.match(/>([\d.]+)%</);
-        return m ? parseFloat(m[1]) : null;
+        // The badge draws the value twice: a dark shadow text, then the
+        // visible fill text. Take the last match, which is the visible one.
+        // A monitor that is not on the public status page renders "N/A"
+        // instead of a percentage, and falls through to null.
+        var matches = svg.match(/>([\d.]+)%</g);
+        if (!matches || !matches.length) return null;
+        var last = matches[matches.length - 1];
+        return parseFloat(last.slice(1, -2));
       });
   }
 
@@ -453,13 +470,26 @@ Create `compose/vps/landing/src/status.js`:
       var ids = publicMonitorIds(page);
       if (!ids.length) throw new Error("status page lists no public monitors");
 
-      return Promise.all([
-        Promise.all(ids.map(getBadgeUptime)),
+      // allSettled throughout, never all. One badge returning 404 must not
+      // cost the whole figure when twelve others answered, and losing the
+      // heartbeat call must not cost the figure either. Only a total absence
+      // of usable values hides the block.
+      return Promise.allSettled([
+        Promise.allSettled(ids.map(getBadgeUptime)),
         getJSON("/api/status-page/heartbeat/" + SLUG)
-      ]).then(function (results) {
-        var values = results[0].filter(function (v) {
-          return typeof v === "number" && !isNaN(v);
-        });
+      ]).then(function (outer) {
+        var values = (outer[0].value || [])
+          .filter(function (r) {
+            return (
+              r.status === "fulfilled" &&
+              typeof r.value === "number" &&
+              !isNaN(r.value)
+            );
+          })
+          .map(function (r) {
+            return r.value;
+          });
+
         if (!values.length) throw new Error("no badge returned a usable value");
 
         var mean =
@@ -468,7 +498,13 @@ Create `compose/vps/landing/src/status.js`:
           }, 0) / values.length;
 
         document.getElementById("uptime-figure").textContent = mean.toFixed(2) + "%";
-        renderDots(ids, (results[1] || {}).heartbeatList || {});
+
+        if (outer[1].status === "fulfilled") {
+          renderDots(ids, (outer[1].value || {}).heartbeatList || {});
+        } else {
+          console.warn("service dots unavailable:", outer[1].reason.message);
+        }
+
         document.getElementById("uptime-block").removeAttribute("hidden");
       });
     })
@@ -546,18 +582,40 @@ networks:
 
 Create `compose/vps/landing/README.md` documenting: what the stack is, that `dist/` is a build artifact, the exact build and redeploy commands from Step 5 below, why the container joins the `pangolin` network, why Kuma is at `172.17.0.1:3001`, and that the stack is stateless so `scripts/backup.sh` has nothing to cover. Mirror the tone and level of detail of `compose/proxmox-lxc-100/portfolio/README.md`.
 
-- [ ] **Step 3: Commit and let Komodo pull**
+- [ ] **Step 3: Commit locally**
 
 ```bash
 git add compose/vps/landing/docker-compose.yml compose/vps/landing/README.md
 git commit -m "feat(landing): compose stack for the VPS"
 ```
 
-Then in the Komodo UI at `http://192.168.0.105:9120`, create a stack for `compose/vps/landing` on server **VPS** (uppercase - a lowercase name creates a duplicate server entry, see `docs/hosts/vps.md`), and Pull.
+- [ ] **Step 4: Stop and ask for push authorization**
 
-Pushing is required for Komodo to see the commit. Ask the user before pushing; do not push unprompted.
+Komodo deploys from the **remote**, so it cannot see this stack until the commit is pushed. The project rule in `AGENTS.md` is never to push unless explicitly asked, so this is a hard stop, not a formality.
 
-- [ ] **Step 4: Confirm the network is joinable before starting anything**
+Ask the user for permission to push. Do not continue past this step without an explicit yes.
+
+If permission is refused, deployment is blocked. Stop here and report that; do not attempt to work around it by copying files onto the VPS by hand, which would leave the running stack diverged from git and defeat the point of the GitOps flow.
+
+If permission is granted:
+
+```bash
+git push
+```
+
+- [ ] **Step 5: Register the stack in Komodo and pull**
+
+In the Komodo UI at `http://192.168.0.105:9120`, create a stack for `compose/vps/landing` on server **VPS** (uppercase - a lowercase name creates a duplicate server entry, see `docs/hosts/vps.md`), then Pull.
+
+Verify the pull actually landed before going further:
+
+```bash
+ssh vps 'ls /etc/komodo/repos/github/compose/vps/landing/'
+```
+
+Expected: `Caddyfile`, `README.md`, `build.sh`, `docker-compose.yml`, `src/`, `test-build.sh`. If `src/` is missing, the pull predates the content commit and Komodo needs another Pull.
+
+- [ ] **Step 6: Confirm the network is joinable before starting anything**
 
 ```bash
 ssh vps 'docker network inspect pangolin --format "{{range .IPAM.Config}}{{.Subnet}} {{.Gateway}}{{end}}"'
@@ -566,7 +624,7 @@ ssh vps 'docker network inspect pangolin --format "{{range .Containers}}{{.IPv4A
 
 Expected: subnet `172.18.0.0/16`, gateway `172.18.0.1`, and `172.18.0.10` **not** among the addresses in use. If it is taken, pick the next free address and update both the compose file and Task 6's target.
 
-- [ ] **Step 5: Build and start**
+- [ ] **Step 7: Build and start**
 
 ```bash
 ssh vps 'cd /etc/komodo/repos/github/compose/vps/landing && sh build.sh && docker compose up -d'
@@ -582,7 +640,7 @@ On every later rebuild, recreate rather than restart. The build deletes and recr
 ssh vps 'cd /etc/komodo/repos/github/compose/vps/landing && sh build.sh && docker rm -f landing && docker compose up -d'
 ```
 
-- [ ] **Step 6: Verify the page is served**
+- [ ] **Step 8: Verify the page is served**
 
 ```bash
 ssh vps 'curl -s -o /dev/null -w "%{http_code}\n" http://172.18.0.10/'
@@ -591,18 +649,19 @@ ssh vps 'curl -s http://172.18.0.10/ | grep -o "id=\"stack-count\">[0-9]*"'
 
 Expected: `200`, and a stack count matching `find compose -mindepth 2 -maxdepth 2 -type d | wc -l`.
 
-- [ ] **Step 7: Verify the Kuma proxy works from inside the container's network**
+- [ ] **Step 9: Verify the Kuma proxy works from inside the container's network**
 
 ```bash
-ssh vps 'curl -s "http://172.18.0.10/api/badge/9/uptime/720h" | grep -oE ">[0-9.]+%<"'
+ssh vps 'curl -s "http://172.18.0.10/api/badge/9/uptime/720h" | grep -oE ">[0-9.]+%<" | head -1'
 ssh vps 'curl -s "http://172.18.0.10/api/status-page/statuspage1" | grep -oE "\"name\":\"[^\"]+\"" | wc -l'
+ssh vps 'curl -s -H "Accept-Encoding: gzip" -o /dev/null -w "%{size_download} bytes\n" "http://172.18.0.10/api/status-page/heartbeat/statuspage1"'
 ```
 
-Expected: a percentage such as `>99.93%<`, and fourteen names (thirteen monitors plus the group).
+Expected: one percentage such as `>99.93%<`; fourteen names (thirteen monitors plus the group); and a compressed heartbeat body in the region of 6 KB. If that third figure comes back near 85 KB, `encode` is missing from the Caddyfile and the page is shipping fourteen times more bytes than it needs.
 
 If the badge request hangs or returns a 502, the container is not in the UFW-permitted source range. Confirm with `ssh vps 'docker inspect landing --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"'` - it must report `172.18.0.10`.
 
-- [ ] **Step 8: Review the rendered page visually**
+- [ ] **Step 10: Review the rendered page visually**
 
 ```bash
 ssh -L 8099:172.18.0.10:80 vps -N
@@ -704,6 +763,23 @@ This is the technical documentation. For the overview, see [homelabor.net](https
 
 The four Featured Project descriptions now live on the Landing Page. They are moved, not copied: duplicated facts drift, which is the same reason the stack count is derived rather than typed.
 
+Then handle the GitHub-facing index. `AGENTS.md` requires MkDocs navigation and `docs/README.md` to stay in sync with docs changes, and `docs/CLAUDE.md` records that `docs/index.md` and `docs/README.md` coexist, the latter being what GitHub renders.
+
+This task adds and removes no documentation *files*, so `README.md`'s directory listing stays accurate and `mkdocs.yml`'s `nav:` needs no change. Confirm that rather than assuming it:
+
+```bash
+grep -c '\.md)' docs/README.md
+ls docs/proxmox/*.md docs/vps/*.md docs/hosts/*.md | wc -l
+```
+
+Both counts must be unchanged from before this task. What *is* now missing from `README.md` is the site itself: it is the GitHub-facing entry point and the repo has just acquired a public landing page. Add one line to its `## External Resources` section:
+
+```markdown
+- [homelabor.net](https://homelabor.net/) - infrastructure overview
+```
+
+`docs/CNAME` stays exactly as it is, containing `docs.homelabor.net`. The documentation site keeps its subdomain; only the apex is new.
+
 - [ ] **Step 5: Verify the docs site still builds and its links resolve**
 
 ```bash
@@ -754,7 +830,7 @@ Expected: `0`.
 - [ ] **Step 10: Commit**
 
 ```bash
-git add docs/index.md docs/hosts/vps.md
+git add docs/index.md docs/README.md docs/hosts/vps.md
 git commit -m "docs: point the docs homepage at homelabor.net and record the landing stack"
 ```
 
