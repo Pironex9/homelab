@@ -90,14 +90,39 @@ Open `https://uptime.homelabor.net`, log in, open the status page titled "Runnin
 
 In the "Services" group, remove every monitor **except** the thirteen listed above. Save.
 
-- [ ] **Step 3: Verify the public API no longer discloses the removed monitors**
+- [ ] **Step 3: Verify the public set is exactly the thirteen, no more and no fewer**
+
+Twenty-four monitors have to come off. Eyeballing a sorted list, or spot-checking a handful of names, lets a partial curation through: leave two unwanted monitors public and every later check in this task still passes, while those names stay exposed and get counted into the landing page's dots and uptime average.
+
+Assert the whole set instead:
 
 ```bash
-curl -s https://uptime.homelabor.net/api/status-page/statuspage1 \
-  | grep -oE '"name":"[^"]+"' | sed 's/"name":"//;s/"//' | sort
+curl -s https://uptime.homelabor.net/api/status-page/statuspage1 | python3 -c '
+import json, sys
+expected = {
+    9: "AdGuard Home", 10: "Scrutiny", 11: "Home Assistant", 16: "Jellyfin",
+    35: "Immich", 38: "NetData", 40: "DocuSeal", 42: "Pangolin",
+    47: "Uptime Kuma (public)", 48: "SnapRAID Daemon", 53: "code-server",
+    54: "FreshRSS", 57: "Kan",
+}
+actual = {m["id"]: m["name"]
+          for g in json.load(sys.stdin).get("publicGroupList", [])
+          for m in g.get("monitorList", [])}
+
+extra = {k: v for k, v in actual.items() if k not in expected}
+missing = {k: v for k, v in expected.items() if k not in actual}
+renamed = {k: (expected[k], actual[k]) for k in expected if k in actual and actual[k] != expected[k]}
+
+for label, d in (("STILL PUBLIC", extra), ("MISSING", missing), ("RENAMED", renamed)):
+    if d:
+        print(label + ":", d)
+print("OK" if not (extra or missing) else "FAIL")
+'
 ```
 
-Expected: thirteen monitor names plus the group name "Services". Specifically absent: `qBittorrent`, `Radarr`, `Sonarr`, `Prowlarr`, `Seerr`, `SuggestArr`, `Syncthing`, `Dawarich`.
+Expected: `OK`, with nothing printed above it.
+
+`STILL PUBLIC` lists monitors that should have been removed and were not. `MISSING` lists ones that should have stayed and were removed by mistake. `RENAMED` is informational: an id whose name changed since this plan was written, which does not fail the check but means the table in this task is out of date.
 
 - [ ] **Step 4: Verify the badge endpoint still answers for a monitor that stayed**
 
