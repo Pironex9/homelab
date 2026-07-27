@@ -80,7 +80,7 @@
         <!-- Pannable on narrow screens: a schematic this wide is unreadable
              scaled down to a phone, so it keeps its width and scrolls. -->
         <div class="plate-scroll" tabindex="0" role="group" aria-label="Topology map, scrollable sideways">
-          <img src="topology.png" width="2200" height="1360" loading="lazy" decoding="async"
+          <img src="topology.png" width="1280" height="1360" loading="lazy" decoding="async"
                alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
         </div>
         <figcaption>
@@ -111,9 +111,10 @@
         <a class="card" href="https://docs.homelabor.net/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation/">
           <h3>Resilient Storage</h3>
           <p>
-            Two internal and two USB drives pooled into one 8.1 TB MergerFS volume
-            with SnapRAID parity on top. It survives a single drive failure with no
-            data loss, and systemd timers run the sync and scrub unattended.
+            Three drives pooled into one 8.1 TB MergerFS volume, with a fourth held
+            back for SnapRAID parity. It survives a single drive failure with no data
+            loss, and a supervised SnapRAID daemon runs the weekly sync and scrub
+            unattended.
           </p>
           <span class="card-cta">Read the write-up</span>
         </a>
@@ -122,8 +123,8 @@
           <h3>Self-hosted Tunnel</h3>
           <p>
             Selected services reach the public internet through Pangolin on a Hetzner
-            VPS, joined to the homelab by a WireGuard tunnel. No Cloudflare in the
-            path and no ports forwarded on the home router.
+            VPS, joined to the homelab by a WireGuard tunnel. No third-party tunnel
+            provider in the path and no ports forwarded on the home router.
           </p>
           <span class="card-cta">Read the write-up</span>
         </a>
@@ -131,9 +132,10 @@
         <a class="card" href="https://docs.homelabor.net/proxmox/15_Proxmox_Backup_System_Documentation/">
           <h3>Backup System</h3>
           <p>
-            Restic snapshots to a local disk and to an NFS share on a second machine,
-            driven by a shell script on a schedule. Each source carries its own
-            retention policy, and restores are tested rather than assumed.
+            Restic snapshots of the Proxmox host to a local repository, mirrored to an
+            NFS share on a second machine that is not always on. A weekly cron job
+            prunes to seven daily, four weekly and three monthly snapshots, then runs
+            a repository integrity check.
           </p>
           <span class="card-cta">Read the write-up</span>
         </a>

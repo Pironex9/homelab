@@ -18,7 +18,10 @@
 
   --ink:       #e9edf2;
   --ink-2:     #a2adbb;
-  --ink-3:     #6d7887;
+  /* Lightened from #6d7887: that failed WCAG AA 4.5:1 at every use (4.31 on
+     --bg, 4.05 on --surface, 3.86 on --surface-2 card hover). This clears
+     4.5:1 on all three, worst case 4.81 on --surface-2. */
+  --ink-3:     #7d8898;
 
   --accent:      #e8933f;
   --accent-soft: #f2b273;
