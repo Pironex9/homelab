@@ -82,9 +82,11 @@ No blog, no testimonials, no 3D or WebGPU set pieces.
 
 Neither is typed by hand. Hand-maintained counts drift: `AGENTS.md` still claims 22 Docker stacks on LXC 100 where there are 23.
 
+The stack count is derived from the presence of a compose file, not from the directory listing. Counting directories gives one more, because `compose/proxmox-lxc-100/uptime-kuma/` still exists holding only a `.env` after Kuma moved to the VPS. It is not a Compose Stack as `CONTEXT.md` defines one, and this figure goes on a public page, so the derivation follows the definition.
+
 | Figure | Derivation | Current value |
 |---|---|---|
-| Compose Stacks | `find compose -mindepth 2 -maxdepth 2 -type d \| wc -l` | 29 |
+| Compose Stacks | directories under `compose/<host>/` that contain a `docker-compose.yml`, `compose.yml` or `compose.yaml` | 28, and 29 once this stack is added |
 | Uptime | Uptime Kuma badge endpoint, thirty-day window, averaged across the Publicly Monitored Services | live, ~99.9% |
 
 A Proxmox Guest count was specified earlier and is **dropped**. It cannot be derived reliably: the obvious source, the infra table in `AGENTS.md`, packs two guests into single rows (`LXC 110 caddy / 111 uzlet`), so a regex over it silently returns 9 against a true 11. Querying Proxmox directly at build time would require SSH from the public gateway into the hypervisor - a security regression for the sake of one number. A figure that cannot be derived is not asserted; the Proxmox story is carried by the tech stack and architecture sections instead.

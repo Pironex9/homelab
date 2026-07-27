@@ -157,13 +157,21 @@ grep -qE 'id="stack-count"[^>]*>[0-9]+' "$DIR/dist/index.html" \
     || fail "stack count was not substituted with a number"
 
 # 2. An unsubstituted placeholder is caught rather than shipped.
-cp "$DIR/src/index.html" "$DIR/src/index.html.bak"
+#
+# This case has to dirty the real src/index.html, so the restore runs from a
+# trap rather than from the happy path. Without it, a Ctrl-C between the
+# mutation and the restore leaves a corrupted source file in the repo, and
+# the next run would then back up the already-corrupted file and "restore"
+# it. mktemp also keeps concurrent runs from sharing one backup path.
+backup=$(mktemp)
+cp "$DIR/src/index.html" "$backup"
+trap 'cp "$backup" "$DIR/src/index.html" 2>/dev/null || true; rm -f "$backup"' EXIT INT TERM HUP
+
 printf '<!-- {{UNKNOWN_TOKEN}} -->\n' >> "$DIR/src/index.html"
 if sh "$DIR/build.sh" >/dev/null 2>&1; then
-    mv "$DIR/src/index.html.bak" "$DIR/src/index.html"
     fail "build.sh accepted an unsubstituted placeholder"
 fi
-mv "$DIR/src/index.html.bak" "$DIR/src/index.html"
+cp "$backup" "$DIR/src/index.html"
 
 # Leave a good build behind.
 sh "$DIR/build.sh" >/dev/null || fail "rebuild after the negative case failed"
@@ -214,7 +222,17 @@ DIST="$DIR/dist"
     exit 1
 }
 
-stack_count=$(find "$REPO_ROOT/compose" -mindepth 2 -maxdepth 2 -type d | wc -l | tr -d ' ')
+# Count directories that actually contain a compose file, not every
+# second-level directory. CONTEXT.md defines a Compose Stack as a directory
+# holding a docker-compose.yml, and the repo currently has one directory
+# that does not: compose/proxmox-lxc-100/uptime-kuma is a leftover holding
+# only .env after Kuma moved to the VPS. Counting directories would put a
+# number on a public page that the repo cannot back up.
+# Both spellings are in use here: seerr and bentopdf use compose.yaml.
+# sed rather than find -printf, which is GNU-only.
+stack_count=$(find "$REPO_ROOT/compose" -mindepth 3 -maxdepth 3 \
+    \( -name docker-compose.yml -o -name compose.yml -o -name compose.yaml \) \
+    | sed 's|/[^/]*$||' | sort -u | wc -l | tr -d ' ')
 
 [ "$stack_count" -gt 0 ] || {
     echo "build: derived a stack count of zero, refusing to build" >&2
@@ -252,11 +270,15 @@ Expected: `PASS: build.sh substitutes counts and rejects leftover placeholders`
 Then confirm the derived number matches reality:
 
 ```bash
-find compose -mindepth 2 -maxdepth 2 -type d | wc -l
+find compose -mindepth 3 -maxdepth 3 \
+  \( -name docker-compose.yml -o -name compose.yml -o -name compose.yaml \) \
+  | sed 's|/[^/]*$||' | sort -u | wc -l
 grep -o 'id="stack-count">[0-9]*' compose/vps/landing/dist/index.html
 ```
 
-Expected: both report 29 at the time of writing. They must agree with each other whatever the value is.
+Expected: both report **28** at this point, and **29** once Task 5 adds `compose/vps/landing/docker-compose.yml`. They must agree with each other whatever the value is.
+
+Note that a plain `find -mindepth 2 -maxdepth 2 -type d` reports 29 and 30 respectively. That extra directory is `compose/proxmox-lxc-100/uptime-kuma`, which holds only a `.env` left behind when Uptime Kuma moved to the VPS. It is not a Compose Stack under this repo's own definition, and this number goes on a public page, so the count follows the definition rather than the directory listing.
 
 - [ ] **Step 7: Commit**
 
@@ -278,7 +300,7 @@ git commit -m "feat(landing): dependency-free build script with self-check"
 **Interfaces:**
 - Consumes: `build.sh` from Task 2, and the `{{STACK_COUNT}}` placeholder contract.
 - Produces: DOM element ids that Task 4's `status.js` binds to, and which must not be renamed:
-  - `#stack-count` - already substituted at build time, no JavaScript touches it
+  - `#stack-count` - already substituted at build time, no JavaScript touches it. **Its opening tag must be immediately followed by `{{STACK_COUNT}}` on the same line, with no nested element and no whitespace between them**, like `<span id="stack-count">{{STACK_COUNT}}</span>`. Task 2's test asserts the pattern `id="stack-count"[^>]*>[0-9]+`, so wrapping the number in an inner element or breaking the line is valid HTML that still renders correctly but fails the build check in Task 5, long after the cause. Attributes may be added freely; only the position of the number is fixed.
   - `#uptime-figure` - text content set to a string like `99.93%`
   - `#uptime-block` - the container whose `hidden` attribute is removed once a figure is available
   - `#service-dots` - a container that receives one `<span class="dot" data-status="up|down">` per public monitor
@@ -647,7 +669,7 @@ ssh vps 'curl -s -o /dev/null -w "%{http_code}\n" http://172.18.0.10/'
 ssh vps 'curl -s http://172.18.0.10/ | grep -o "id=\"stack-count\">[0-9]*"'
 ```
 
-Expected: `200`, and a stack count matching `find compose -mindepth 2 -maxdepth 2 -type d | wc -l`.
+Expected: `200`, and a stack count of **29** - the 28 from Task 2 plus this stack's own `docker-compose.yml`, which is now committed and counted. If it still reads 28, `build.sh` ran before the compose file existed and needs re-running.
 
 - [ ] **Step 9: Verify the Kuma proxy works from inside the container's network**
 
@@ -731,6 +753,22 @@ and under `http.services`:
 ```
 
 Back the file up first (`cp dynamic_config.yml dynamic_config.yml.bak-$(date +%Y%m%d)`, matching the existing convention in that directory), and record the hand-edit in `docs/hosts/vps.md` as something to re-apply after a Pangolin upgrade. Note that `pangolin` and `traefik` both run floating `latest` tags on this host, so an upgrade can arrive unannounced.
+
+**Rollback, before running Step 3.** Steps 1 and 2 are the first externally visible changes in this plan. If verification fails, `homelabor.net` is publicly resolving to a broken route, a login page or a TLS error, and it stays that way until undone. Read this before verifying, not after:
+
+1. **Cloudflare:** delete the apex `A` record, or set it to "paused". The name stops resolving, which is strictly better than resolving to something broken.
+2. **Pangolin:** delete the `Landing` resource, or toggle it disabled. No other resource shares the apex, so nothing else is affected.
+3. **Traefik, only if the Step 2 fallback was used:** restore the dated backup and reload.
+
+```bash
+ssh vps 'cd /opt/pangolin/config/traefik && cp dynamic_config.yml.bak-YYYYMMDD dynamic_config.yml'
+ssh vps 'docker restart traefik'
+ssh vps 'docker logs --tail 30 traefik'
+```
+
+Traefik reads the file provider on change, but restarting removes any doubt. Check the logs for certificate errors before concluding the restore worked.
+
+None of Tasks 1 to 5 need reverting: the container is not public on its own, and the status page curation is a fix that stands regardless.
 
 - [ ] **Step 3: Verify the apex is public and correctly certificated**
 
@@ -843,3 +881,4 @@ Not part of this plan. Recorded so they are not lost:
 - `AGENTS.md` and `CLAUDE.md` both claim 22 Docker stacks on LXC 100; there are 23.
 - `docs/vps/03_Uptime_Kuma_VPS_Migration.md` shows Traefik reaching Kuma at `172.18.0.1:3001`; the configured target is `172.17.0.1:3001`.
 - `pangolin` and `traefik` on the VPS run floating `latest` tags. This matters more now that an apex route depends on Pangolin's behaviour.
+- `compose/proxmox-lxc-100/uptime-kuma/` holds only a `.env`, left behind when Uptime Kuma moved to the VPS. It is not a Compose Stack and is the reason the count in Task 2 is derived from compose files rather than directories. Worth deleting, but deliberately not in this plan: removing it would change a publicly displayed number in the same change that ships the page.
