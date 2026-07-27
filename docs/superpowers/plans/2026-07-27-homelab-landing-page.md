@@ -343,25 +343,29 @@ This page exists to be looked at. Use the `design-taste-frontend` skill before w
 
 The good news is that only the image is stale. The source of truth, `compose/proxmox-lxc-100/topology/nodes.yml`, is already correct: it contains 111 and 113 and no 108. So this is a re-export, not a data fix.
 
-Confirm that before regenerating, so a fix is not applied to the wrong layer:
+Confirm the live diagram is current before screenshotting it, so the fix is not applied to the wrong layer:
 
 ```bash
-grep -c "LXC 108" compose/proxmox-lxc-100/topology/nodes.yml
-grep -c "LXC 111\|LXC 113" compose/proxmox-lxc-100/topology/nodes.yml
+curl -s http://192.168.0.110:3009/ | grep -oE "LXC (108|111|113)" | sort -u
 ssh root@192.168.0.109 'pct list'
 ```
 
-Expected: `0` for LXC 108, `2` for 111 and 113, and a `pct list` that agrees with `nodes.yml`. If `nodes.yml` disagrees with `pct list`, fix `nodes.yml` first and note it, because that stack renders the diagram used in two places.
+Expected: `LXC 111` and `LXC 113` present, no `LXC 108`, and a `pct list` that agrees. At the time of writing the deployed topology page passes this, so no rebuild is needed - the source was updated and redeployed, and only the PNG in `docs/assets/` was left behind. If it does not pass, edit `compose/proxmox-lxc-100/topology/nodes.yml`, run `npm test && npm run build` there, and redeploy per `docs/proxmox/26_Network_Topology_Map.md` before continuing.
 
-Then rebuild the topology stack, capture the rendered page as a PNG, and put the fresh export in both places:
+(The word "Ollama" still appears on the page. That is expected: it is prose inside Karakeep's description, not a node. The retired `Ollama (LXC 108)` node is gone.)
+
+The diagram draws its connecting wires in the browser with JavaScript, so there is no server-side image to export. Capture it from a browser:
+
+1. Open `http://192.168.0.110:3009/` at a wide viewport, at least 2000 px, so nothing wraps or clips.
+2. Take a full-page screenshot and save it as `docs/assets/topology.png`, replacing the stale one.
+3. Confirm the new image is roughly comparable in size to the old 218 KB, and open it to check no node is cut off at the edges.
 
 ```bash
-cp <fresh-export>.png docs/assets/topology.png
 cp docs/assets/topology.png compose/vps/landing/src/topology.png
-ls -l compose/vps/landing/src/topology.png
+ls -l docs/assets/topology.png compose/vps/landing/src/topology.png
 ```
 
-The Documentation Site's copy is refreshed too, since it carries the same staleness and the same diagram. Copying rather than referencing is required because the container serves only its own directory.
+The Documentation Site's copy is refreshed too, since it carries the same staleness and the same diagram. Copying into `src/` rather than referencing is required because the container serves only its own directory.
 
 - [ ] **Step 3: Write the page**
 
