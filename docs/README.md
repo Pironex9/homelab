@@ -83,6 +83,7 @@ Side projects outside the homelab.
 
 ## External Resources
 
+- [homelabor.net](https://homelabor.net/) - infrastructure overview
 - [Proxmox Documentation](https://pve.proxmox.com/pve-docs/)
 - [Docker Documentation](https://docs.docker.com/)
 - [Komodo Documentation](https://komo.do/docs)

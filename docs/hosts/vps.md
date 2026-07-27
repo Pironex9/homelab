@@ -51,6 +51,25 @@ Public URL: https://uptime.homelabor.net (Pangolin auth required)
 
 Runs with `network_mode: host` to access the VPS host's Tailscale routes, enabling monitoring of homelab LAN services (192.168.0.x) via the `pve` subnet router.
 
+### Landing stack
+
+Managed by Komodo.
+
+| Container | Image | Address | Description |
+|-----------|-------|---------|-------------|
+| `landing` | built from `compose/vps/landing/` | `172.18.0.10` (static, `pangolin` network) | Homelab portfolio landing page |
+
+No host port is published; Traefik reaches the container directly on the `pangolin` Docker network at `172.18.0.10:80`.
+
+Public URL: https://homelabor.net (apex, no subdomain) - **no authentication**, by design. This is the one resource meant to be reachable with no session, the same precedent Jellyfin already set.
+
+Pangolin resource setup notes (recorded here because they differ from what was planned):
+
+- The apex resource worked on the first try with a blank subdomain field - the installed Pangolin version did not need the Traefik file-provider fallback that fosrl/pangolin issue #2645 warns about. Anyone adding a future apex-style resource does not need that fallback either.
+- The resource was created with Platform SSO enabled by default, which 302-redirected the apex to the Pangolin auth wall even though Authentication was set to off. SSO had to be explicitly disabled on this specific resource before the apex served content directly.
+- The target site defaulted to the `HomeLabor` newt (tunnel) site instead of the local `VPS` site. With the tunnel site selected, Traefik was handed a WireGuard tunnel address (`http://100.89.128.4:<port>`) for a container that actually runs on the VPS itself, and every request hung for 25 seconds before failing. Moving the resource's site to `VPS` fixed it immediately. Uptime Kuma is the only other resource on the local `VPS` site; every other resource on this Pangolin instance legitimately goes through the tunnel and should stay there.
+- TLS: the Let's Encrypt certificate issued normally over the gray-cloud apex `A` record, no special handling needed.
+
 ## Firewall (UFW)
 
 | Port/Source | Protocol | Action | Service |
