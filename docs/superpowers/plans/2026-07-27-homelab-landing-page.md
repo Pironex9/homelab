@@ -239,6 +239,19 @@ stack_count=$(find "$REPO_ROOT/compose" -mindepth 3 -maxdepth 3 \
     exit 1
 }
 
+# dist/ becomes a public web root, and the copy below is wholesale. Anything
+# that lands in src/ is served by path even with directory listing off, so a
+# stray .env, editor swap file or *.bak would be fetchable at
+# https://homelabor.net/<name>. Refuse rather than silently drop them, so the
+# engineer finds out here instead of never.
+risky=$(find "$SRC" \( -name '.*' -o -name '*.bak' -o -name '*~' \
+    -o -name '*.swp' -o -name '*.orig' -o -name '*.env' \) -print)
+if [ -n "$risky" ]; then
+    echo "build: src/ contains files that must not be published:" >&2
+    echo "$risky" >&2
+    exit 1
+fi
+
 rm -rf "$DIST"
 mkdir -p "$DIST"
 cp -R "$SRC"/. "$DIST"/
@@ -388,7 +401,7 @@ git commit -m "feat(landing): page content, styling and architecture diagram"
 
 **Interfaces:**
 - Consumes: the DOM ids from Task 3; the curated status page from Task 1.
-- Produces: two same-origin routes that must exist for the widget to work: `/api/badge/*` and `/api/status-page/*`, both proxied to `172.17.0.1:3001`.
+- Produces: three same-origin routes that must exist for the widget to work, all proxied to `172.17.0.1:3001`: `/api/badge/*`, and the two exact paths `/api/status-page/statuspage1` and `/api/status-page/heartbeat/statuspage1`. Adding a status page later means adding its routes here deliberately, which is the point.
 
 The monitor list is **not** hardcoded. `status.js` reads the public monitors from the status page itself, so Task 1's curation is the single source of truth and a later change there needs no code edit.
 
@@ -410,11 +423,23 @@ Create `compose/vps/landing/Caddyfile`:
 	# 172.17.0.1 is the address Pangolin's own resource target uses; the
 	# architecture diagram in docs/vps/03 says 172.18.0.1 and is wrong.
 	# Only these two prefixes are proxied, not all of Kuma's API.
+	# Badges stay a wildcard because the monitor ids follow whatever Task 1
+	# curates, and Kuma gates them itself: isMonitorPublic() makes a badge
+	# for a non-public monitor render "N/A" rather than leak a figure.
 	handle /api/badge/* {
 		reverse_proxy 172.17.0.1:3001
 	}
 
-	handle /api/status-page/* {
+	# Status-page routes are pinned to this one slug, NOT /api/status-page/*.
+	# A wildcard would publish every status page Kuma ever hosts through the
+	# apex, including a future one created for private use. This route is on
+	# an auth-free public hostname, so it grants exactly what the widget
+	# needs and nothing else.
+	handle /api/status-page/statuspage1 {
+		reverse_proxy 172.17.0.1:3001
+	}
+
+	handle /api/status-page/heartbeat/statuspage1 {
 		reverse_proxy 172.17.0.1:3001
 	}
 
@@ -438,9 +463,31 @@ Create `compose/vps/landing/src/status.js`:
 
   var SLUG = "statuspage1";
   var WINDOW_HOURS = "720h"; // 30 days. The status-page JSON only exposes 24h.
+  var TIMEOUT_MS = 4000;
+
+  // allSettled waits for every promise to settle, and a stalled fetch never
+  // does. Without a deadline, one hung request from Kuma leaves the block
+  // hidden forever even though the other values already arrived. Every
+  // request therefore carries its own abort timer.
+  function fetchWithTimeout(url) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () {
+      controller.abort();
+    }, TIMEOUT_MS);
+    return fetch(url, { signal: controller.signal }).then(
+      function (r) {
+        clearTimeout(timer);
+        return r;
+      },
+      function (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    );
+  }
 
   function getJSON(url) {
-    return fetch(url).then(function (r) {
+    return fetchWithTimeout(url).then(function (r) {
       if (!r.ok) throw new Error(url + " returned " + r.status);
       return r.json();
     });
@@ -449,7 +496,7 @@ Create `compose/vps/landing/src/status.js`:
   // Kuma's badge endpoint returns SVG, not JSON. The value is text content,
   // e.g. ...textLength="430">99.93%</text>
   function getBadgeUptime(id) {
-    return fetch("/api/badge/" + id + "/uptime/" + WINDOW_HOURS)
+    return fetchWithTimeout("/api/badge/" + id + "/uptime/" + WINDOW_HOURS)
       .then(function (r) {
         if (!r.ok) throw new Error("badge " + id + " returned " + r.status);
         return r.text();
@@ -557,15 +604,19 @@ Expected: `PASS`. `build.sh` copies `src/` wholesale, so the new files need no b
 
 The placeholder guard scans all of `dist/`, not only `index.html`. `status.js` and `style.css` are copied verbatim and never substituted, so a stray `{{TOKEN}}` in either would ship to a public page unless the guard reaches them. Confirm it does, now that there is a second file to test against:
 
+Probe with a **new throwaway file** rather than by appending to `status.js`. Editing a real source file and undoing the edit is the pattern Task 2 had to fix with a trap; an interrupted `sed -i '$d'` deletes a real line of code, and if the file lacks a trailing newline the appended comment merges into the last statement:
+
 ```bash
 cd compose/vps/landing
-printf '// {{LEFTOVER}}\n' >> src/status.js
+printf '// {{LEFTOVER}}\n' > src/_guard-probe.js
 sh build.sh; echo "exit=$?"
-sed -i '$d' src/status.js
-sh build.sh >/dev/null && echo "restored ok"
+rm -f src/_guard-probe.js
+sh build.sh >/dev/null && echo "guard verified, no source file was touched"
 ```
 
-Expected: the first build exits non-zero reporting `{{LEFTOVER}}`; after the last line is removed, the build succeeds again. If the first build exits 0, the guard is still scanning only `index.html` and Task 2's build script was not updated.
+Expected: the first build exits non-zero reporting `{{LEFTOVER}}`; after the probe is removed, the build succeeds. If the first build exits 0, the guard is still scanning only `index.html` and Task 2's build script was not updated.
+
+An interruption here leaves behind a stray `_guard-probe.js` rather than a damaged source file, and the next build refuses to run until it is gone, so the failure announces itself.
 
 - [ ] **Step 5: Commit**
 

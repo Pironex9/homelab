@@ -113,7 +113,11 @@ One published status page remains afterward: one place to maintain, one place th
 
 ### The widget
 
-- Caddy reverse-proxies exactly two prefixes, `/api/badge/*` and `/api/status-page/*`, to Uptime Kuma at **`172.17.0.1:3001`**. These are Kuma's own paths, passed through unrewritten, so the browser calls the same URLs it would call directly. Not all of `/api/*` - the address Pangolin's own resource target uses, verified in its database. (The architecture diagram in `docs/vps/03_Uptime_Kuma_VPS_Migration.md` says `172.18.0.1`; that is wrong and misled an earlier draft of this spec.) Kuma runs on this same host with `network_mode: host`, so this is a local hop and the widget is **same-origin** - no CORS involvement at all.
+- Caddy reverse-proxies three routes to Uptime Kuma at **`172.17.0.1:3001`**: `/api/badge/*`, plus the two exact paths `/api/status-page/statuspage1` and `/api/status-page/heartbeat/statuspage1`. Kuma's own paths, passed through unrewritten, so the browser calls the URLs it would call directly.
+
+  The status-page routes are pinned to the one slug rather than wildcarded, because this hostname is public and auth-free: `/api/status-page/*` would publish every status page Kuma ever hosts, including one created later for private use. Badges stay wildcarded because their ids follow whatever the curation leaves public, and Kuma gates them itself - `isMonitorPublic()` makes a badge for a non-public monitor render `N/A` rather than a figure.
+
+  `172.17.0.1` is the address Pangolin's own resource target uses, verified in its database. The architecture diagram in `docs/vps/03_Uptime_Kuma_VPS_Migration.md` says `172.18.0.1`; that is wrong and misled an earlier draft of this spec. Kuma runs on this same host with `network_mode: host`, so this is a local hop and the widget is **same-origin** - no CORS involvement at all.
 - The thirty-day figure comes from `/api/badge/<id>/uptime/720h`, one call per Publicly Monitored Service, averaged in the browser. Kuma caches these for five minutes server-side and sets `allowAllOrigin`.
 - The badge returns SVG, not JSON. The value appears as text content, e.g. `...textLength="430">99.93%</text>`, so it is extracted with a match on `>([\d.]+)%<`. Verified against a live response.
 - The badge endpoint returns `N/A` unless the monitor belongs to a group with `public = 1` (`isMonitorPublic` in `api-router.js`). The curated status page supplies exactly that, so the two decisions are coupled: removing a monitor from the page also removes it from the average.
