@@ -51,3 +51,4 @@ Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + P
 - Keep changes scoped: this repo is infrastructure documentation and deployment config, not an application codebase.
 - When changing compose stacks, validate YAML where possible and preserve existing deployment conventions.
 - When changing docs, keep MkDocs navigation and `docs/README.md` in sync.
+- When adding or removing a compose stack, rebuild the `landing` stack on the VPS; its published stack count is baked in at build time.
