@@ -401,7 +401,9 @@ The Documentation Site's copy is refreshed too, since it carries the same stalen
 Replace `compose/vps/landing/src/index.html` with the five sections below. Write the real copy; there is no placeholder text in this project.
 
 1. **Hero** - name; one line stating what is run; `{{STACK_COUNT}}` Docker Compose stacks; the uptime block; buttons to GitHub, LinkedIn, and `https://docs.homelabor.net/`. Do not use the phrase "career changer" or any equivalent. State what the infrastructure is, not what the author is transitioning from.
-2. **Tech stack** - icon grid: Proxmox, Docker, Komodo, MergerFS + SnapRAID, Restic, Pangolin, Caddy, Tailscale, AdGuard, Uptime Kuma.
+2. **Tech stack** - a typographic grid: each tool's name with a one-line descriptor of its role (Proxmox, Docker, Komodo, MergerFS + SnapRAID, Restic, Pangolin, Caddy, Tailscale, AdGuard, Uptime Kuma).
+
+   This started as "icon grid" and was changed during execution, ruled by the author. Five of the ten have no recognisable logo (Komodo, MergerFS, SnapRAID, Restic, Pangolin), so an icon grid would be half icons and half text, or would invent brand marks for real projects. The descriptor also says something a logo cannot: "GitOps deploys", "pooled disks, parity".
 3. **Architecture** - `topology.png` with a short caption.
 4. **Featured Projects** - four cards. Titles and hrefs exactly as below; all four were verified to return HTTP 200:
    - Komodo GitOps Migration -> `https://docs.homelabor.net/proxmox/16_Komodo_complete_setup/`
