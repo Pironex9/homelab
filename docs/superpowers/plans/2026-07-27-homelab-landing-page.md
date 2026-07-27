@@ -30,18 +30,20 @@
 | Path | Responsibility |
 |---|---|
 | `compose/vps/landing/docker-compose.yml` | Container definition, network attachment, static IP |
-| `compose/vps/landing/Caddyfile` | Static file serving plus two narrow reverse-proxy routes to Kuma |
+| `compose/vps/landing/Caddyfile` | Static file serving, compression, and three narrow reverse-proxy routes to Kuma |
 | `compose/vps/landing/build.sh` | Derives the Compose Stack count, substitutes it, writes `dist/`, self-checks |
 | `compose/vps/landing/test-build.sh` | Asserts the build substitutes correctly and fails loudly when it cannot |
 | `compose/vps/landing/src/index.html` | Page markup, with `{{STACK_COUNT}}` placeholder |
 | `compose/vps/landing/src/style.css` | All styling |
 | `compose/vps/landing/src/status.js` | Live status widget: uptime average and per-service dots |
-| `compose/vps/landing/src/topology.png` | Architecture diagram, copied from `docs/assets/` |
+| `compose/vps/landing/src/topology.png` | Architecture diagram, copied from `docs/assets/` after regeneration |
 | `compose/vps/landing/.gitignore` | Excludes `dist/` |
 | `compose/vps/landing/README.md` | Build and deploy instructions for this stack |
 | `docs/index.md` | Stripped to a navigation index (modified) |
 | `docs/README.md` | GitHub-facing index; gains a link to the new public site (modified) |
 | `docs/hosts/vps.md` | Records the new stack and the apex route (modified) |
+| `compose/CLAUDE.md` | Gains the rebuild reminder for the baked-in count (modified) |
+| `docs/assets/topology.png` | Stale export, regenerated before use (modified) |
 
 `dist/` is a build artifact and is never committed.
 
@@ -320,7 +322,7 @@ git commit -m "feat(landing): dependency-free build script with self-check"
   - `#stack-count` - already substituted at build time, no JavaScript touches it. **Its opening tag must be immediately followed by `{{STACK_COUNT}}` on the same line, with no nested element and no whitespace between them**, like `<span id="stack-count">{{STACK_COUNT}}</span>`. Task 2's test asserts the pattern `id="stack-count"[^>]*>[0-9]+`, so wrapping the number in an inner element or breaking the line is valid HTML that still renders correctly but fails the build check in Task 5, long after the cause. Attributes may be added freely; only the position of the number is fixed.
   - `#uptime-figure` - text content set to a string like `99.93%`
   - `#uptime-block` - the container whose `hidden` attribute is removed once a figure is available
-  - `#service-dots` - a container that receives one `<span class="dot" data-status="up|down">` per public monitor
+  - `#service-dots` - a container that receives a `<ul class="dots">` holding one `<li class="dot" data-status="up|down">` per public monitor, each carrying a `title` and a visually hidden label like `AdGuard Home: up`. The stylesheet needs a `.visually-hidden` rule (clipped, not `display:none`, which would hide it from screen readers too) and must style `.dots` as an unstyled list.
 
 - [ ] **Step 1: Invoke the design skill**
 
@@ -332,14 +334,34 @@ This page exists to be looked at. Use the `design-taste-frontend` skill before w
 - Project cards lift slightly on hover.
 - Mobile: sections stack, icon grid drops to two columns.
 
-- [ ] **Step 2: Copy the architecture diagram into the stack**
+- [ ] **Step 2: Regenerate the architecture diagram, then copy it**
+
+**Do not copy `docs/assets/topology.png` as it stands.** It is a stale export and it becomes the architecture centrepiece of a page written to be examined by hiring managers. Verified against the live hypervisor:
+
+- It shows `Ollama (LXC 108)` at 192.168.0.231. `pct list` on pve returns no LXC 108; that container is gone.
+- It omits LXC 111 (`uzlet`) and LXC 113 (`agentos`), both of which exist and are documented in `AGENTS.md`.
+
+The good news is that only the image is stale. The source of truth, `compose/proxmox-lxc-100/topology/nodes.yml`, is already correct: it contains 111 and 113 and no 108. So this is a re-export, not a data fix.
+
+Confirm that before regenerating, so a fix is not applied to the wrong layer:
 
 ```bash
+grep -c "LXC 108" compose/proxmox-lxc-100/topology/nodes.yml
+grep -c "LXC 111\|LXC 113" compose/proxmox-lxc-100/topology/nodes.yml
+ssh root@192.168.0.109 'pct list'
+```
+
+Expected: `0` for LXC 108, `2` for 111 and 113, and a `pct list` that agrees with `nodes.yml`. If `nodes.yml` disagrees with `pct list`, fix `nodes.yml` first and note it, because that stack renders the diagram used in two places.
+
+Then rebuild the topology stack, capture the rendered page as a PNG, and put the fresh export in both places:
+
+```bash
+cp <fresh-export>.png docs/assets/topology.png
 cp docs/assets/topology.png compose/vps/landing/src/topology.png
 ls -l compose/vps/landing/src/topology.png
 ```
 
-Expected: about 218 KB. It is copied rather than referenced because the container serves only its own directory.
+The Documentation Site's copy is refreshed too, since it carries the same staleness and the same diagram. Copying rather than referencing is required because the container serves only its own directory.
 
 - [ ] **Step 3: Write the page**
 
@@ -402,6 +424,8 @@ git commit -m "feat(landing): page content, styling and architecture diagram"
 **Interfaces:**
 - Consumes: the DOM ids from Task 3; the curated status page from Task 1.
 - Produces: three same-origin routes that must exist for the widget to work, all proxied to `172.17.0.1:3001`: `/api/badge/*`, and the two exact paths `/api/status-page/statuspage1` and `/api/status-page/heartbeat/statuspage1`. Adding a status page later means adding its routes here deliberately, which is the point.
+
+**Honest boundary:** this task can prove the Caddyfile is *valid* and that it serves the static site, but it cannot prove the proxy routes reach Kuma. The upstream is `172.17.0.1:3001` on the VPS, which does not exist on a development machine. Proxy acceptance genuinely belongs to Task 5 Step 9, and is called out there rather than pretended here.
 
 The monitor list is **not** hardcoded. `status.js` reads the public monitors from the status page itself, so Task 1's curation is the single source of truth and a later change there needs no code edit.
 
@@ -513,35 +537,59 @@ Create `compose/vps/landing/src/status.js`:
       });
   }
 
-  function publicMonitorIds(page) {
-    var ids = [];
+  // Names are kept, not just ids. A row of coloured dots with no text is
+  // meaningless to a screen reader and ambiguous to everyone else: nothing
+  // says which dot is which service.
+  function publicMonitors(page) {
+    var monitors = [];
     (page.publicGroupList || []).forEach(function (group) {
       (group.monitorList || []).forEach(function (m) {
-        ids.push(m.id);
+        monitors.push({ id: m.id, name: m.name });
       });
     });
-    return ids;
+    return monitors;
   }
 
-  function renderDots(ids, heartbeats) {
+  function renderDots(monitors, heartbeats) {
     var container = document.getElementById("service-dots");
     if (!container) return;
     container.textContent = "";
-    ids.forEach(function (id) {
-      var beats = heartbeats[id] || [];
+
+    var list = document.createElement("ul");
+    list.className = "dots";
+
+    monitors.forEach(function (m) {
+      var beats = heartbeats[m.id] || [];
       var last = beats[beats.length - 1];
-      var dot = document.createElement("span");
-      dot.className = "dot";
       // Kuma status: 1 = up, 3 = maintenance. Anything else is not up.
-      dot.dataset.status = last && (last.status === 1 || last.status === 3) ? "up" : "down";
-      container.appendChild(dot);
+      var up = !!last && (last.status === 1 || last.status === 3);
+
+      var item = document.createElement("li");
+      item.className = "dot";
+      item.dataset.status = up ? "up" : "down";
+      // Carries the meaning in text, not only in colour. Read aloud by
+      // screen readers, shown on hover, and survives a CSS failure.
+      item.title = m.name + ": " + (up ? "up" : "down");
+
+      var label = document.createElement("span");
+      label.className = "visually-hidden";
+      label.textContent = item.title;
+      item.appendChild(label);
+
+      list.appendChild(item);
     });
+
+    container.appendChild(list);
   }
 
   getJSON("/api/status-page/" + SLUG)
     .then(function (page) {
-      var ids = publicMonitorIds(page);
-      if (!ids.length) throw new Error("status page lists no public monitors");
+      var monitors = publicMonitors(page);
+      if (!monitors.length) throw new Error("status page lists no public monitors");
+
+      var ids = monitors.map(function (m) {
+        return m.id;
+      });
 
       // allSettled throughout, never all. One badge returning 404 must not
       // cost the whole figure when twelve others answered, and losing the
@@ -573,7 +621,7 @@ Create `compose/vps/landing/src/status.js`:
         document.getElementById("uptime-figure").textContent = mean.toFixed(2) + "%";
 
         if (outer[1].status === "fulfilled") {
-          renderDots(ids, (outer[1].value || {}).heartbeatList || {});
+          renderDots(monitors, (outer[1].value || {}).heartbeatList || {});
         } else {
           console.warn("service dots unavailable:", outer[1].reason.message);
         }
@@ -618,7 +666,35 @@ Expected: the first build exits non-zero reporting `{{LEFTOVER}}`; after the pro
 
 An interruption here leaves behind a stray `_guard-probe.js` rather than a damaged source file, and the next build refuses to run until it is gone, so the failure announces itself.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Validate the Caddyfile and confirm static serving**
+
+A syntax error or a mistyped path matcher in the Caddyfile would otherwise surface only in Task 5, on the VPS, mixed in with network and firewall variables. Separate it out now:
+
+```bash
+cd compose/vps/landing
+docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:alpine \
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Expected: `Valid configuration`. This checks the whole file including the three `handle` blocks and the `encode` directive.
+
+Then confirm the static half actually serves, and that the API paths are routed rather than falling through to the file server:
+
+```bash
+docker run --rm -d --name landing-probe -p 8099:80 \
+  -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+  -v "$PWD/dist:/usr/share/caddy:ro" caddy:alpine
+sleep 2
+curl -s -o /dev/null -w "index: %{http_code}\n" http://localhost:8099/
+curl -s -o /dev/null -w "status.js: %{http_code}\n" http://localhost:8099/status.js
+curl -s -o /dev/null -w "api: %{http_code}\n" http://localhost:8099/api/status-page/statuspage1
+curl -s -o /dev/null -w "unrouted api: %{http_code}\n" http://localhost:8099/api/status-page/other
+docker rm -f landing-probe
+```
+
+Expected: `200` for the first two. The third returns `502` - Caddy matched the route and tried to reach `172.17.0.1:3001`, which is not there locally; that failure is the proof the route matched. The fourth must return `404`, from the file server, proving the narrowed matcher does **not** pass arbitrary status page slugs. A `502` on the fourth means the route was left as a wildcard.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add compose/vps/landing/Caddyfile compose/vps/landing/src/status.js \
@@ -669,7 +745,19 @@ networks:
 
 - [ ] **Step 2: Write the stack README**
 
-Create `compose/vps/landing/README.md` documenting: what the stack is, that `dist/` is a build artifact, the exact build and redeploy commands from Step 5 below, why the container joins the `pangolin` network, why Kuma is at `172.17.0.1:3001`, and that the stack is stateless so `scripts/backup.sh` has nothing to cover. Mirror the tone and level of detail of `compose/proxmox-lxc-100/portfolio/README.md`.
+Create `compose/vps/landing/README.md` documenting: what the stack is, that `dist/` is a build artifact, the exact build and redeploy commands from Step 7 below, why the container joins the `pangolin` network, why Kuma is at `172.17.0.1:3001`, and that the stack is stateless so `scripts/backup.sh` has nothing to cover. Mirror the tone and level of detail of `compose/proxmox-lxc-100/portfolio/README.md`.
+
+It must also carry the **maintenance contract**, prominently, because nothing else enforces it:
+
+> The Compose Stack count on the landing page is baked in at build time. Nothing rebuilds it on a schedule; that was a deliberate design choice. So **after adding or removing any Compose Stack anywhere in this repo**, rebuild and recreate this one, or the public number silently goes stale:
+>
+> ```bash
+> ssh vps 'cd /etc/komodo/repos/github/compose/vps/landing && sh build.sh && docker rm -f landing && docker compose up -d'
+> ```
+
+Add the same one-line reminder to `compose/CLAUDE.md`, next to the existing "After editing a compose file" instruction. That file is the one actually read when a stack is added, so it is where the reminder has a chance of being seen.
+
+The uptime figure needs none of this: it is fetched live and cannot drift.
 
 - [ ] **Step 3: Commit locally**
 
