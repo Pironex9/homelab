@@ -116,11 +116,15 @@ renamed = {k: (expected[k], actual[k]) for k in expected if k in actual and actu
 for label, d in (("STILL PUBLIC", extra), ("MISSING", missing), ("RENAMED", renamed)):
     if d:
         print(label + ":", d)
-print("OK" if not (extra or missing) else "FAIL")
+ok = not (extra or missing)
+print("OK" if ok else "FAIL")
+sys.exit(0 if ok else 1)
 '
 ```
 
-Expected: `OK`, with nothing printed above it.
+Expected: `OK`, with nothing printed above it, and `$?` equal to 0.
+
+The explicit `sys.exit` matters: without it the check prints `FAIL` and still exits 0, so anything scripting this step would read success from a failed curation.
 
 `STILL PUBLIC` lists monitors that should have been removed and were not. `MISSING` lists ones that should have stayed and were removed by mistake. `RENAMED` is informational: an id whose name changed since this plan was written, which does not fail the check but means the table in this task is out of date.
 
