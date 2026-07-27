@@ -1,0 +1,186 @@
+<!doctype html>
+<!--
+  Generator for src/og.png, the Open Graph share card. NOT part of the site:
+  it lives here rather than in src/ because build.sh copies src/ wholesale
+  into a public web root, and the generator has no business being served.
+
+  Regenerate:
+
+    google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+      --run-all-compositor-stages-before-draw \
+      --screenshot=compose/vps/landing/src/og.png \
+      --window-size=1200,630 --virtual-time-budget=9000 \
+      file://$PWD/compose/vps/landing/og.html
+
+  The two figures come from the same nodes.yml that generates topology.png,
+  and the figcaption on the page repeats them in words. If a host is added or
+  removed, all three move together: rebuild the topology map, re-export
+  topology.png, rerun the command above, and fix the figcaption.
+
+  Self-contained on purpose: no shared stylesheet, because the card must keep
+  rendering identically years from now even if style.css moves on. The values
+  below are copied from style.css, not imported.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>homelabor.net Open Graph card</title>
+<style>
+  :root {
+    --bg:        #0b0e13;
+    --surface:   #12161d;
+    --line:      #232a35;
+    --ink:       #e9edf2;
+    --ink-2:     #a2adbb;
+    --ink-3:     #7d8898;
+    --accent:    #e8933f;
+    --sans: "Liberation Sans", "Segoe UI", system-ui, Arial, sans-serif;
+    --mono: "DejaVu Sans Mono", "Liberation Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { width: 1200px; height: 630px; }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 62px 72px 54px;
+    background:
+      radial-gradient(74% 104% at 2% -18%, rgba(232, 147, 63, 0.20), transparent 58%),
+      radial-gradient(58% 86% at 104% 112%, rgba(232, 147, 63, 0.10), transparent 58%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* Hairline frame, echoing the 1px borders every surface on the page uses.
+     Inset so the card still reads as a card when a client rounds its corners. */
+  .frame {
+    position: fixed;
+    inset: 22px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    pointer-events: none;
+  }
+
+  .kicker {
+    font: 500 17px/1 var(--mono);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    margin-top: 30px;
+    max-width: 15ch;
+    font-size: 74px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.03;
+  }
+
+  .lede {
+    margin-top: 26px;
+    max-width: 58ch;
+    font-size: 23px;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  /* Mirrors the hero readout: figures behind a vertical rule, mono, tabular. */
+  .foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 48px;
+  }
+
+  /* The tools row from the page, flattened to one line. Fills the middle band
+     and says what the stack is without another sentence of prose. */
+  .strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 0;
+    margin-top: 42px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font: 400 17px/1 var(--mono);
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+  }
+
+  .strip span + span::before {
+    content: "/";
+    margin: 0 13px;
+    color: #2c3441;
+  }
+
+  .marks {
+    font: 500 19px/1.7 var(--mono);
+    letter-spacing: 0.03em;
+    color: var(--ink-3);
+  }
+
+  .marks b { color: var(--ink); font-weight: 500; }
+
+  .stats { display: flex; gap: 54px; }
+
+  .stat { padding-left: 26px; border-left: 1px solid var(--line); }
+
+  .figure {
+    display: block;
+    font-family: var(--mono);
+    font-size: 54px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .label {
+    display: block;
+    margin-top: 11px;
+    font: 500 14px/1.3 var(--mono);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+
+  <div>
+    <p class="kicker">Norbert Csicsay</p>
+    <h1>A homelab run like production.</h1>
+    <!-- Kept word for word in step with og:description in src/index.html, so
+         the card and the text preview beside it do not tell two stories. -->
+    <p class="lede">
+      Proxmox VE, GitOps-deployed containers, parity-protected storage and
+      self-hosted public access. Documented as it was built.
+    </p>
+    <p class="strip">
+      <span>Proxmox VE</span><span>Docker</span><span>Komodo</span><span>MergerFS + SnapRAID</span><span>Restic</span><span>Pangolin</span><span>Tailscale</span>
+    </p>
+  </div>
+
+  <div class="foot">
+    <p class="marks"><b>homelabor.net</b><br>docs.homelabor.net</p>
+    <div class="stats">
+      <div class="stat">
+        <span class="figure">15</span>
+        <span class="label">Nodes</span>
+      </div>
+      <div class="stat">
+        <span class="figure">2</span>
+        <span class="label">Sites</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

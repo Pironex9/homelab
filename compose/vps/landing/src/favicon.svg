@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="homelabor.net">
+  <!-- One hypervisor over two guests: the top left corner of topology.png,
+       reduced to three shapes so it still reads at 16px. Colours are the
+       page's own bg, accent, ink-2 and line tokens from style.css. Note for
+       future edits: an XML comment may not contain two hyphens in a row, so
+       the CSS custom property names cannot be written out here. -->
+  <rect width="32" height="32" rx="6" fill="#0b0e13"/>
+  <path d="M16 12.5v5.5M8.5 18v-2.5h15V18" fill="none" stroke="#3a4351" stroke-width="1.6" stroke-linecap="square"/>
+  <rect x="9.5" y="5" width="13" height="7.5" rx="1.5" fill="#e8933f"/>
+  <rect x="4" y="19" width="9" height="8" rx="1.5" fill="#a2adbb"/>
+  <rect x="19" y="19" width="9" height="8" rx="1.5" fill="#a2adbb"/>
+</svg>

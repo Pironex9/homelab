@@ -4,6 +4,10 @@
 (function () {
   "use strict";
 
+  // COUPLED to ../Caddyfile: the two /api/status-page/ routes there are pinned
+  // to this exact slug rather than a wildcard, on purpose. Changing it in only
+  // one of the two files makes both fetches 404, which hides the uptime block
+  // permanently and leaves nothing behind but a console.warn. Change both.
   var SLUG = "statuspage1";
   var WINDOW_HOURS = "720h"; // 30 days. The status-page JSON only exposes 24h.
   var TIMEOUT_MS = 4000;
