@@ -1,0 +1,597 @@
+/* ---------------------------------------------------------------------------
+   homelabor.net landing page
+   Hand-written CSS, no framework, no external fonts, no network requests.
+
+   Theme lock: dark only. The page is built around topology.png, which is a
+   dark navy plate, so a light mode would fight its own centrepiece.
+   Accent lock: one amber, taken from the hypervisor node in that diagram.
+   Green and red appear only on the status dots, where they carry real state.
+   Radius lock: 4px on every surface. Circles on the dots only.
+--------------------------------------------------------------------------- */
+
+:root {
+  --bg:        #0b0e13;
+  --surface:   #12161d;
+  --surface-2: #161b23;
+  --line:      #232a35;
+  --line-soft: #1a2028;
+
+  --ink:       #e9edf2;
+  --ink-2:     #a2adbb;
+  --ink-3:     #6d7887;
+
+  --accent:      #e8933f;
+  --accent-soft: #f2b273;
+  --accent-tint: rgba(232, 147, 63, 0.12);
+
+  --up:   #56c98a;
+  --down: #e05a52;
+
+  --r: 4px;
+
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+          system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono",
+          "Roboto Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The one rule the hidden uptime block depends on: without it, any display
+   declaration on #uptime-block would defeat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--accent-soft);
+  text-decoration-color: rgba(242, 178, 115, 0.4);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--r);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10;
+  padding: 0.7rem 1.1rem;
+  background: var(--accent);
+  color: #12161d;
+  font: 600 0.9rem/1 var(--sans);
+  border-radius: 0 0 var(--r) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Clipped rather than display:none, so the dot labels stay in the
+   accessibility tree for screen readers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 5vw, 3rem);
+}
+
+/* --- Type ---------------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+}
+
+h1 {
+  font-size: clamp(2.4rem, 6.2vw, 4.1rem);
+  letter-spacing: -0.038em;
+  line-height: 1.02;
+  max-width: 12ch;
+}
+
+h2 {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  margin-bottom: clamp(1.75rem, 3.5vw, 2.75rem);
+}
+
+h3 {
+  font-size: 1.075rem;
+  letter-spacing: -0.015em;
+}
+
+p {
+  margin: 0;
+}
+
+.kicker {
+  font: 500 0.78rem/1 var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+}
+
+.lede {
+  margin-top: 1.4rem;
+  max-width: 48ch;
+  font-size: clamp(1rem, 1.6vw, 1.125rem);
+  color: var(--ink-2);
+  line-height: 1.62;
+}
+
+/* --- Hero ---------------------------------------------------------------- */
+
+.hero {
+  padding-block: clamp(3.5rem, 8vw, 6rem) clamp(3.5rem, 7vw, 5.5rem);
+  border-bottom: 1px solid var(--line-soft);
+  background:
+    radial-gradient(120% 90% at 8% -10%, rgba(232, 147, 63, 0.07), transparent 60%),
+    var(--bg);
+}
+
+.hero-grid {
+  display: grid;
+  gap: clamp(2.75rem, 5vw, 4.5rem);
+}
+
+@media (min-width: 900px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.72fr);
+    align-items: stretch;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2.25rem;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.72rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.925rem;
+  font-weight: 550;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: transform 0.2s var(--ease), border-color 0.2s var(--ease),
+              background-color 0.2s var(--ease);
+}
+
+.btn:hover {
+  border-color: #333d4b;
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #14181f;
+  font-weight: 620;
+}
+
+.btn-primary:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: #14181f;
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+}
+
+.btn-quiet:hover {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+/* --- Readout ------------------------------------------------------------- */
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 3rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 900px) {
+  /* The rule runs the full height of the hero so the readout reads as a
+     side panel rather than a stat floating in the margin. */
+  .readout {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 2.4rem;
+    padding: 0.4rem 0 0.4rem 2.75rem;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}
+
+.figure {
+  display: block;
+  font-family: var(--mono);
+  font-size: clamp(2.6rem, 5.5vw, 3.75rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.label {
+  display: block;
+  margin-top: 0.6rem;
+  font: 500 0.72rem/1.4 var(--mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* --- Status dots (populated by status.js) -------------------------------- */
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.95rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dot {
+  position: relative;
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--up);
+  box-shadow: 0 0 0 3px rgba(86, 201, 138, 0.12);
+}
+
+.dot[data-status="down"] {
+  background: var(--down);
+  box-shadow: 0 0 0 3px rgba(224, 90, 82, 0.14);
+  animation: none;
+}
+
+/* --- Tech stack ---------------------------------------------------------- */
+
+.section {
+  padding-block: clamp(4rem, 8.5vw, 7rem);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.6rem 1.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .tools {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2.25rem 1.75rem;
+  }
+}
+
+.tools li {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.tool {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 570;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.role {
+  display: block;
+  margin-top: 0.3rem;
+  font: 400 0.775rem/1.4 var(--mono);
+  color: var(--ink-3);
+}
+
+/* --- Architecture -------------------------------------------------------- */
+
+.plate {
+  margin: 0;
+  padding: clamp(0.5rem, 1.5vw, 1rem);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+
+.plate-scroll {
+  border-radius: 2px;
+}
+
+.plate-scroll img {
+  width: 100%;
+  border-radius: 2px;
+}
+
+/* Below this width the diagram's labels stop being legible when scaled to
+   fit, so it holds its width and the reader pans instead. */
+@media (max-width: 700px) {
+  .plate-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .plate-scroll img {
+    width: 760px;
+    max-width: none;
+  }
+}
+
+.plate figcaption {
+  max-width: 62ch;
+  margin: clamp(1rem, 2vw, 1.4rem) clamp(0.25rem, 1vw, 0.6rem) clamp(0.35rem, 1vw, 0.6rem);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+/* --- Featured projects --------------------------------------------------- */
+
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    /* Gives back the space the offset column borrows from the section. */
+    padding-bottom: 3rem;
+  }
+
+  /* The right column sits lower than the left, so the section does not read
+     as a symmetrical four-up template. Layout offset, not motion. */
+  .cards .card:nth-child(even) {
+    --shift: 3rem;
+  }
+}
+
+.card {
+  --shift: 0rem;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.4rem, 2.6vw, 1.9rem);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transform: translateY(var(--shift));
+  transition: transform 0.28s var(--ease), border-color 0.28s var(--ease),
+              background-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+}
+
+.card p {
+  margin-top: 0.85rem;
+  font-size: 0.925rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.card-cta {
+  margin-top: 1.4rem;
+  font: 500 0.775rem/1 var(--mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transition: color 0.28s var(--ease);
+}
+
+.card-cta::after {
+  content: "\2192";
+  display: inline-block;
+  margin-left: 0.5em;
+  transition: transform 0.28s var(--ease);
+}
+
+.card:hover {
+  border-color: #3a4351;
+  background: var(--surface-2);
+  transform: translateY(calc(var(--shift) - 4px));
+  box-shadow: 0 14px 34px rgba(4, 6, 10, 0.55);
+}
+
+.card:hover .card-cta {
+  color: var(--accent);
+}
+
+.card:hover .card-cta::after {
+  transform: translateX(4px);
+}
+
+.card:active {
+  transform: translateY(calc(var(--shift) - 1px));
+}
+
+/* --- Footer -------------------------------------------------------------- */
+
+.site-footer {
+  padding-block: clamp(2.75rem, 5vw, 4rem);
+}
+
+.footer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+}
+
+.foot-name {
+  font-size: 0.95rem;
+  font-weight: 570;
+}
+
+.foot-note {
+  margin-top: 0.4rem;
+  max-width: 44ch;
+  font-size: 0.875rem;
+  color: var(--ink-3);
+}
+
+.foot-links {
+  display: flex;
+  gap: 1.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+/* --- Motion -------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-copy > *,
+  .readout {
+    animation: rise 0.7s var(--ease) both;
+  }
+
+  .kicker    { animation-delay: 0.02s; }
+  h1         { animation-delay: 0.08s; }
+  .lede      { animation-delay: 0.14s; }
+  .actions   { animation-delay: 0.20s; }
+  .readout   { animation-delay: 0.26s; }
+
+  /* Real state, so it earns the movement: a slow breath on the healthy
+     monitors, staggered so the row reads as several independent checks. */
+  .dot[data-status="up"] {
+    animation: breathe 3.4s ease-in-out infinite;
+  }
+
+  .dot:nth-child(2n) { animation-delay: 0.5s; }
+  .dot:nth-child(3n) { animation-delay: 1.1s; }
+  .dot:nth-child(5n) { animation-delay: 1.7s; }
+
+  /* Scroll reveal where the browser supports doing it off the main thread.
+     Both the hidden start state and the animation live inside the support
+     query, so browsers without it simply render the content. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      opacity: 0;
+      animation: rise 0.8s var(--ease) both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 26%;
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 3px rgba(86, 201, 138, 0.12);
+  }
+  50% {
+    opacity: 0.72;
+    box-shadow: 0 0 0 5px rgba(86, 201, 138, 0.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

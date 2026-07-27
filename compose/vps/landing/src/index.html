@@ -3,9 +3,187 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Norbert Csicsay - Homelab</title>
+<title>Norbert Csicsay - Homelab Infrastructure</title>
+<meta name="description" content="Self-hosted infrastructure on Proxmox VE: GitOps-deployed Docker stacks, parity-protected storage, encrypted backups and a self-hosted public tunnel. Documented in full.">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Norbert Csicsay - Homelab Infrastructure">
+<meta property="og:description" content="Proxmox VE, GitOps-deployed containers, parity-protected storage and self-hosted public access. Documented as it was built.">
+<meta property="og:url" content="https://homelabor.net/">
+<meta property="og:image" content="https://homelabor.net/topology.png">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<p><span id="stack-count">{{STACK_COUNT}}</span> Docker Compose stacks</p>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<main id="main">
+
+  <!-- 1. Hero ------------------------------------------------------------- -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+
+      <div class="hero-copy">
+        <p class="kicker">Norbert Csicsay</p>
+        <h1>A homelab run like production.</h1>
+        <p class="lede">
+          Proxmox VE, GitOps-deployed containers, parity-protected storage and
+          self-hosted public access. Documented as it was built.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="https://docs.homelabor.net/">Read the documentation</a>
+          <a class="btn" href="https://github.com/Pironex9" rel="me noopener">View the source</a>
+          <a class="btn btn-quiet" href="https://www.linkedin.com/in/norbert-csicsay-497195334" rel="me noopener">LinkedIn</a>
+        </div>
+      </div>
+
+      <aside class="readout" aria-label="Live infrastructure figures">
+        <div class="stat">
+          <span class="figure" id="stack-count">{{STACK_COUNT}}</span>
+          <span class="label">Docker Compose stacks</span>
+        </div>
+        <!-- Stays hidden unless status.js gets a real answer from Uptime Kuma.
+             No figure is better than a zero, a dash or a spinner. -->
+        <div class="stat" id="uptime-block" hidden>
+          <span class="figure" id="uptime-figure"></span>
+          <span class="label">30-day uptime</span>
+          <div id="service-dots"></div>
+        </div>
+      </aside>
+
+    </div>
+  </section>
+
+  <!-- 2. Tech stack -------------------------------------------------------- -->
+  <section class="section" id="stack">
+    <div class="wrap">
+      <h2 class="reveal">The stack</h2>
+      <ul class="tools reveal">
+        <li><span class="tool">Proxmox VE</span><span class="role">hypervisor</span></li>
+        <li><span class="tool">Docker</span><span class="role">container runtime</span></li>
+        <li><span class="tool">Komodo</span><span class="role">GitOps deploys</span></li>
+        <li><span class="tool">MergerFS + SnapRAID</span><span class="role">pooled disks, parity</span></li>
+        <li><span class="tool">Restic</span><span class="role">encrypted backups</span></li>
+        <li><span class="tool">Pangolin</span><span class="role">public ingress</span></li>
+        <li><span class="tool">Caddy</span><span class="role">local TLS proxy</span></li>
+        <li><span class="tool">Tailscale</span><span class="role">private mesh</span></li>
+        <li><span class="tool">AdGuard Home</span><span class="role">DNS and filtering</span></li>
+        <li><span class="tool">Uptime Kuma</span><span class="role">monitoring</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. Architecture ------------------------------------------------------ -->
+  <section class="section" id="architecture">
+    <div class="wrap">
+      <h2 class="reveal">How it fits together</h2>
+      <figure class="plate reveal">
+        <!-- Pannable on narrow screens: a schematic this wide is unreadable
+             scaled down to a phone, so it keeps its width and scrolls. -->
+        <div class="plate-scroll" tabindex="0" role="group" aria-label="Topology map, scrollable sideways">
+          <img src="topology.png" width="2200" height="1360" loading="lazy" decoding="async"
+               alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
+        </div>
+        <figcaption>
+          Every host, container and subnet on the node. The map is generated from a
+          single YAML file and rebuilt with the documentation, so it cannot drift
+          away from the machines it describes.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 4. Featured projects ------------------------------------------------- -->
+  <section class="section" id="work">
+    <div class="wrap">
+      <h2 class="reveal">Featured projects</h2>
+      <div class="cards reveal">
+
+        <a class="card" href="https://docs.homelabor.net/proxmox/16_Komodo_complete_setup/">
+          <h3>Komodo GitOps Migration</h3>
+          <p>
+            Twenty Docker Compose stacks moved off Dockge and onto Komodo without
+            dropping a service. Every stack now lives in Git, and Komodo pulls and
+            redeploys straight from the repository when a commit lands.
+          </p>
+          <span class="card-cta">Read the write-up</span>
+        </a>
+
+        <a class="card" href="https://docs.homelabor.net/proxmox/01_Proxmox_VE_9.1_MergerFS_SnapRAID_Installation_Documentation/">
+          <h3>Resilient Storage</h3>
+          <p>
+            Two internal and two USB drives pooled into one 8.1 TB MergerFS volume
+            with SnapRAID parity on top. It survives a single drive failure with no
+            data loss, and systemd timers run the sync and scrub unattended.
+          </p>
+          <span class="card-cta">Read the write-up</span>
+        </a>
+
+        <a class="card" href="https://docs.homelabor.net/vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup/">
+          <h3>Self-hosted Tunnel</h3>
+          <p>
+            Selected services reach the public internet through Pangolin on a Hetzner
+            VPS, joined to the homelab by a WireGuard tunnel. No Cloudflare in the
+            path and no ports forwarded on the home router.
+          </p>
+          <span class="card-cta">Read the write-up</span>
+        </a>
+
+        <a class="card" href="https://docs.homelabor.net/proxmox/15_Proxmox_Backup_System_Documentation/">
+          <h3>Backup System</h3>
+          <p>
+            Restic snapshots to a local disk and to an NFS share on a second machine,
+            driven by a shell script on a schedule. Each source carries its own
+            retention policy, and restores are tested rather than assumed.
+          </p>
+          <span class="card-cta">Read the write-up</span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 5. Contact ------------------------------------------------------------- -->
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div>
+      <p class="foot-name">Norbert Csicsay</p>
+      <p class="foot-note">Infrastructure, the documentation for it, and the scripts that keep it running.</p>
+    </div>
+    <ul class="foot-links">
+      <li><a href="https://www.linkedin.com/in/norbert-csicsay-497195334" rel="me noopener">LinkedIn</a></li>
+      <li><a href="https://github.com/Pironex9" rel="me noopener">GitHub</a></li>
+      <!-- Reserved: CV download link (public PDF), to sit alongside LinkedIn and GitHub. -->
+    </ul>
+  </div>
+</footer>
+
+<script>
+// Progressive enhancement only: counts the stack figure up once it is on screen.
+// The real number is already in the markup, so this is a no-op without JS.
+(function () {
+  var el = document.getElementById('stack-count');
+  if (!el || !('IntersectionObserver' in window)) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  var target = parseInt(el.textContent, 10);
+  if (!isFinite(target) || target < 2) return;
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      io.disconnect();
+      var start = performance.now(), dur = 900;
+      (function step(now) {
+        var p = Math.min((now - start) / dur, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(step);
+      })(start);
+    });
+  }, { threshold: 0.6 });
+  io.observe(el);
+})();
+</script>
 </body>
 </html>
