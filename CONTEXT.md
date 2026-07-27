@@ -17,7 +17,7 @@ The MkDocs site at `docs.homelabor.net` holding setup guides and host references
 _Avoid_: Docs site, wiki
 
 **Compose Stack**:
-One directory under `compose/<host>/<name>/` containing a `docker-compose.yml`. The unit this repo version-controls, and therefore the only service count that can be derived rather than asserted.
+One directory under `compose/<host>/<name>/` containing a compose file, in any of its three accepted spellings: `docker-compose.yml`, `compose.yml` or `compose.yaml`. Both `compose.yaml` spellings are in use here, so a definition naming only `docker-compose.yml` undercounts by two. A directory holding no compose file is not a Compose Stack, however it is named. This is the unit the repo version-controls, and therefore the only service count that can be derived rather than asserted.
 _Avoid_: Container, app, service
 
 **Proxmox Guest**:

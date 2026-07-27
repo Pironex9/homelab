@@ -42,7 +42,7 @@
 | `docs/index.md` | Stripped to a navigation index (modified) |
 | `docs/README.md` | GitHub-facing index; gains a link to the new public site (modified) |
 | `docs/hosts/vps.md` | Records the new stack and the apex route (modified) |
-| `compose/CLAUDE.md` | Gains the rebuild reminder for the baked-in count (modified) |
+| `AGENTS.md` | Gains the rebuild reminder for the baked-in count (modified; the CLAUDE.md copies are gitignored) |
 | `docs/assets/topology.png` | Stale export, regenerated before use (modified) |
 
 `dist/` is a build artifact and is never committed.
@@ -412,8 +412,8 @@ Open `http://localhost:8099`. The uptime block is expected to be invisible at th
 - [ ] **Step 6: Commit**
 
 ```bash
-git add compose/vps/landing/src/
-git commit -m "feat(landing): page content, styling and architecture diagram"
+git add docs/assets/topology.png compose/vps/landing/src/
+git commit -m "feat(landing): page content, styling and refreshed architecture diagram"
 ```
 
 ---
@@ -759,14 +759,22 @@ It must also carry the **maintenance contract**, prominently, because nothing el
 > ssh vps 'cd /etc/komodo/repos/github/compose/vps/landing && sh build.sh && docker rm -f landing && docker compose up -d'
 > ```
 
-Add the same one-line reminder to `compose/CLAUDE.md`, next to the existing "After editing a compose file" instruction. That file is the one actually read when a stack is added, so it is where the reminder has a chance of being seen.
+Add the same reminder to **`AGENTS.md`**, under `## Codex Workflow`, next to the existing "When changing compose stacks" and "When changing docs, keep MkDocs navigation and `docs/README.md` in sync" lines. Phrase it to match those:
+
+```markdown
+- When adding or removing a compose stack, rebuild the `landing` stack on the VPS; its published stack count is baked in at build time.
+```
+
+`AGENTS.md` specifically, **not `compose/CLAUDE.md`**. Every `CLAUDE.md` in this repo is gitignored (`.gitignore:52`, `git ls-files` returns none of them), so a reminder placed there is local-only: it never reaches a fresh clone, never reaches Komodo's checkout on the VPS, and disappears the moment anyone else works on this. `AGENTS.md` is the tracked file carrying the same content.
+
+Per this repo's convention the local `CLAUDE.md` copies are kept in sync with `AGENTS.md` by hand, so add the line there too; it just cannot be the only place it lives.
 
 The uptime figure needs none of this: it is fetched live and cannot drift.
 
 - [ ] **Step 3: Commit locally**
 
 ```bash
-git add compose/vps/landing/docker-compose.yml compose/vps/landing/README.md
+git add compose/vps/landing/docker-compose.yml compose/vps/landing/README.md AGENTS.md
 git commit -m "feat(landing): compose stack for the VPS"
 ```
 
