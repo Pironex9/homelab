@@ -245,9 +245,13 @@ cp -R "$SRC"/. "$DIST"/
 
 sed -i "s/{{STACK_COUNT}}/$stack_count/g" "$DIST/index.html"
 
-if grep -q '{{[A-Z_]*}}' "$DIST/index.html"; then
-    echo "build: an unsubstituted placeholder is still in dist/index.html" >&2
-    grep -o '{{[A-Z_]*}}' "$DIST/index.html" >&2
+# Scan the whole output, not just index.html. Tasks 3 and 4 add style.css
+# and status.js to src/, which are copied verbatim; a stray placeholder in
+# either would otherwise ship silently. -I skips binaries so topology.png
+# cannot produce a false match.
+if grep -rIq '{{[A-Z_]*}}' "$DIST"; then
+    echo "build: unsubstituted placeholders remain in dist/" >&2
+    grep -rIo '{{[A-Z_]*}}' "$DIST" >&2
     exit 1
 fi
 
@@ -546,10 +550,22 @@ In `compose/vps/landing/src/index.html`, immediately before `</body>`:
 <script src="status.js" defer></script>
 ```
 
-- [ ] **Step 4: Verify the build still passes**
+- [ ] **Step 4: Verify the build still passes, and that the guard reaches the new files**
 
 Run: `sh compose/vps/landing/test-build.sh`
-Expected: `PASS`. `build.sh` copies `src/` wholesale, so the new files need no build change. If this fails, `build.sh` was modified when it should not have been.
+Expected: `PASS`. `build.sh` copies `src/` wholesale, so the new files need no build change.
+
+The placeholder guard scans all of `dist/`, not only `index.html`. `status.js` and `style.css` are copied verbatim and never substituted, so a stray `{{TOKEN}}` in either would ship to a public page unless the guard reaches them. Confirm it does, now that there is a second file to test against:
+
+```bash
+cd compose/vps/landing
+printf '// {{LEFTOVER}}\n' >> src/status.js
+sh build.sh; echo "exit=$?"
+sed -i '$d' src/status.js
+sh build.sh >/dev/null && echo "restored ok"
+```
+
+Expected: the first build exits non-zero reporting `{{LEFTOVER}}`; after the last line is removed, the build succeeds again. If the first build exits 0, the guard is still scanning only `index.html` and Task 2's build script was not updated.
 
 - [ ] **Step 5: Commit**
 
@@ -756,17 +772,24 @@ Back the file up first (`cp dynamic_config.yml dynamic_config.yml.bak-$(date +%Y
 
 **Rollback, before running Step 3.** Steps 1 and 2 are the first externally visible changes in this plan. If verification fails, `homelabor.net` is publicly resolving to a broken route, a login page or a TLS error, and it stays that way until undone. Read this before verifying, not after:
 
-1. **Cloudflare:** delete the apex `A` record, or set it to "paused". The name stops resolving, which is strictly better than resolving to something broken.
-2. **Pangolin:** delete the `Landing` resource, or toggle it disabled. No other resource shares the apex, so nothing else is affected.
-3. **Traefik, only if the Step 2 fallback was used:** restore the dated backup and reload.
+The order depends on which path Step 2 took, because the two failure modes have different blast radii.
+
+**If the Step 2 fallback was used, or any existing subdomain has stopped working, start here.** `dynamic_config.yml` is the live Traefik file provider for the whole gateway, not just the apex, so a bad edit there can take down `jellyfin.homelabor.net`, `uptime.homelabor.net` and everything else. Deleting the apex DNS record does nothing for those. Restore first, verify the other resources, then unwind the apex:
 
 ```bash
 ssh vps 'cd /opt/pangolin/config/traefik && cp dynamic_config.yml.bak-YYYYMMDD dynamic_config.yml'
 ssh vps 'docker restart traefik'
 ssh vps 'docker logs --tail 30 traefik'
+curl -s -o /dev/null -w "uptime: %{http_code}\n" https://uptime.homelabor.net/
+curl -s -o /dev/null -w "pangolin: %{http_code}\n" https://pangolin.homelabor.net/
 ```
 
-Traefik reads the file provider on change, but restarting removes any doubt. Check the logs for certificate errors before concluding the restore worked.
+Traefik picks up file-provider changes on write, but restarting removes the doubt. Check the logs for certificate errors, and confirm those two unrelated hostnames answer, before concluding the restore worked.
+
+**Then, or as the whole rollback if the Pangolin resource path was used:**
+
+1. **Pangolin:** delete the `Landing` resource, or toggle it disabled. No other resource shares the apex, so this is contained.
+2. **Cloudflare:** delete the apex `A` record, or pause it. The name stops resolving, which is strictly better than resolving to something broken. Note this does not revoke an already-issued certificate; it only stops future public resolution.
 
 None of Tasks 1 to 5 need reverting: the container is not public on its own, and the status page curation is a fix that stands regardless.
 
@@ -793,11 +816,19 @@ Expected: `1`.
 
 In `docs/index.md`, remove the `## Tech Stack`, `## Architecture`, `## Docker Services (LXC 100)`, `## Dashboard` and `## Featured Projects` sections (lines 11 to 85 at the time of writing). Keep `## Navigation` and `## Contact`.
 
-Add near the top, under the `# Homelab Infrastructure` heading:
+Then **replace** the intro sentence under the `# Homelab Infrastructure` heading. It currently reads:
 
 ```markdown
-This is the technical documentation. For the overview, see [homelabor.net](https://homelabor.net/).
+Self-hosted infrastructure running 28 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
 ```
+
+That "28 services" is a hand-typed count, of exactly the kind this whole plan exists to stop publishing. Removing lines 11 to 85 does not touch it, so it must be replaced explicitly:
+
+```markdown
+This is the technical documentation. For the infrastructure overview and live status, see [homelabor.net](https://homelabor.net/).
+```
+
+Do not substitute a corrected number here. The Documentation Site has no build step that can derive one, so any figure written here starts drifting the moment a stack is added. The count belongs on the Landing Page, where it is derived.
 
 The four Featured Project descriptions now live on the Landing Page. They are moved, not copied: duplicated facts drift, which is the same reason the stack count is derived rather than typed.
 
