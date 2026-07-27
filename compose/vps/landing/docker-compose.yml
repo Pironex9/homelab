@@ -1,0 +1,20 @@
+services:
+  landing:
+    image: caddy:alpine
+    container_name: landing
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./dist:/usr/share/caddy:ro
+    networks:
+      pangolin:
+        ipv4_address: 172.18.0.10
+    restart: unless-stopped
+
+# Joining the existing pangolin network is load-bearing, not cosmetic.
+# UFW on this host permits port 3001 only from 172.18.0.0/16, so a container
+# on its own network could not reach Uptime Kuma. It also means no host port
+# is published on the public gateway. The address is static because Pangolin
+# addresses resource targets by IP.
+networks:
+  pangolin:
+    external: true

@@ -1,0 +1,38 @@
+:80 {
+	# The heartbeat payload is large and highly repetitive: 242 KB for 37
+	# monitors, and still around 85 KB for the curated 13. It compresses
+	# 13x (measured: 242 KB -> 18 KB gzipped), so this one line is the
+	# fix rather than trying to shrink the payload at the Kuma end.
+	# Kuma's showOnlyLastHeartbeat option does NOT help - the heartbeat
+	# route hardcodes `LIMIT 100` and never reads that flag.
+	encode zstd gzip
+
+	# Uptime Kuma runs on this same host with network_mode: host.
+	# 172.17.0.1 is the address Pangolin's own resource target uses; the
+	# architecture diagram in docs/vps/03 says 172.18.0.1 and is wrong.
+	# Only these two prefixes are proxied, not all of Kuma's API.
+	# Badges stay a wildcard because the monitor ids follow whatever Task 1
+	# curates, and Kuma gates them itself: isMonitorPublic() makes a badge
+	# for a non-public monitor render "N/A" rather than leak a figure.
+	handle /api/badge/* {
+		reverse_proxy 172.17.0.1:3001
+	}
+
+	# Status-page routes are pinned to this one slug, NOT /api/status-page/*.
+	# A wildcard would publish every status page Kuma ever hosts through the
+	# apex, including a future one created for private use. This route is on
+	# an auth-free public hostname, so it grants exactly what the widget
+	# needs and nothing else.
+	handle /api/status-page/statuspage1 {
+		reverse_proxy 172.17.0.1:3001
+	}
+
+	handle /api/status-page/heartbeat/statuspage1 {
+		reverse_proxy 172.17.0.1:3001
+	}
+
+	handle {
+		root * /usr/share/caddy
+		file_server
+	}
+}
