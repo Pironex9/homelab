@@ -92,8 +92,14 @@
         <!-- Pannable on narrow screens: a schematic this wide is unreadable
              scaled down to a phone, so it keeps its width and scrolls. -->
         <div class="plate-scroll" tabindex="0" role="group" aria-label="Topology map, scrollable sideways">
-          <img src="topology.png" width="1280" height="1360" loading="lazy" decoding="async"
-               alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
+          <!-- The image links to /topology/, the same map generated live from
+               nodes.yml instead of exported to PNG. aria-label names the
+               destination: without it the link's accessible name would be the
+               whole alt paragraph below. -->
+          <a class="plate-link" href="/topology/" aria-label="Open the interactive topology map">
+            <img src="topology.png" width="1280" height="1360" loading="lazy" decoding="async"
+                 alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
+          </a>
         </div>
         <figcaption>
           The Proxmox host with its ten containers and one virtual machine, plus the
@@ -102,6 +108,8 @@
           are not on it. Every box is generated from one YAML file, so adding a host
           is a data edit rather than a redraw, but the rebuild is a deliberate step
           and the map is only as current as the last one.
+          <a href="/topology/">Open the interactive map</a>, built from that same
+          file, where each node opens its own detail panel.
         </figcaption>
       </figure>
     </div>

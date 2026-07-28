@@ -27,11 +27,35 @@ generator would otherwise be served at `https://homelabor.net/og.html`.
 The card prints two figures, **15 nodes** and **2 sites**. Both come from the same
 `compose/proxmox-lxc-100/topology/nodes.yml` that generates `src/topology.png`, and
 the figcaption under the diagram on the page repeats them in words. Adding or removing
-a host therefore moves four things, and they must move in one go:
+a host therefore moves five things, and they must move in one go:
 
 1. edit `nodes.yml` and `npm run build` in `compose/proxmox-lxc-100/topology/`
-2. re-export `src/topology.png` (and `docs/assets/topology.png`)
-3. re-render the card, from the repo root:
+2. re-export `src/topology.png` (and `docs/assets/topology.png`, which is the same
+   file byte for byte). Serve `compose/proxmox-lxc-100/topology/dist/` on port 8899
+   and screenshot it at the size the page is already laid out for:
+
+   ```bash
+   google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+     --run-all-compositor-stages-before-draw \
+     --screenshot=compose/vps/landing/src/topology.png \
+     --window-size=1280,1360 --virtual-time-budget=9000 http://127.0.0.1:8899/
+   ```
+
+   1360 is the page's own height with the node-detail panel open on `pve`, which is
+   the state it loads in. A taller window pads the bottom with background.
+3. copy the interactive page across:
+
+   ```bash
+   cp compose/proxmox-lxc-100/topology/dist/index.html \
+      compose/vps/landing/src/topology/index.html
+   ```
+
+   `src/topology/index.html` is the only committed build artifact in `src/`, and it
+   exists because `topology/dist/` is gitignored and therefore absent from the VPS
+   checkout that `build.sh` runs against. Do not edit it: it is byte-for-byte the
+   output of `topology/build.js`, and any hand edit is lost on the next copy.
+
+4. re-render the card, from the repo root:
 
    ```bash
    google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
@@ -41,7 +65,7 @@ a host therefore moves four things, and they must move in one go:
      file://$PWD/compose/vps/landing/og.html
    ```
 
-4. update the figcaption wording in `src/index.html`
+5. update the figcaption wording in `src/index.html`
 
 `src/favicon.svg` needs none of this. Note when editing it that an XML comment may not
 contain two consecutive hyphens: an invalid SVG still copies into `dist/` happily and

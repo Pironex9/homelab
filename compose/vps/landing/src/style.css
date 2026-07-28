@@ -385,9 +385,24 @@ p {
   border-radius: 2px;
 }
 
+/* Block, so the anchor wraps the image exactly and adds no inline baseline
+   gap under it. The outline is the only affordance that the plate is
+   clickable - a border would shift the layout on hover. */
+.plate-link {
+  display: block;
+  border-radius: 2px;
+  outline-offset: 3px;
+}
+
+.plate-link:hover,
+.plate-link:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
 .plate-scroll img {
   width: 100%;
   border-radius: 2px;
+  display: block;
 }
 
 /* Below this width the diagram's labels stop being legible when scaled to

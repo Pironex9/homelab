@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>homelab.topology</title>
+<meta name="description" content="Interactive network topology map of a self-hosted Proxmox homelab.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b1120;
+  --panel: #101a30;
+  --line: #22304d;
+  --text: #d6e2f0;
+  --muted: #7d8fa9;
+  --wire: rgba(125, 165, 220, .35);
+}
+* { box-sizing: border-box; margin: 0; }
+html { scrollbar-gutter: stable; }
+body {
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--text);
+  background:
+    radial-gradient(1100px 480px at 50% -8%, rgba(92, 200, 255, .09), transparent 70%),
+    linear-gradient(rgba(125, 165, 220, .055) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(90deg, rgba(125, 165, 220, .055) 1px, transparent 1px) 0 0 / 34px 34px,
+    var(--bg);
+  min-height: 100vh;
+}
+.frame { max-width: 1280px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* ---- header ---- */
+.top { margin-bottom: 36px; }
+.brand {
+  font-family: "Big Shoulders Display", sans-serif;
+  font-weight: 800;
+  font-size: clamp(44px, 7vw, 84px);
+  line-height: .95;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+.brand em { font-style: normal; color: #5cc8ff; }
+.tagline { color: var(--muted); font-size: 13px; margin-top: 10px; }
+.tagline b { color: var(--text); font-weight: 500; }
+.meta-row {
+  display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center;
+  margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line);
+}
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; padding: 0; font-size: 12px; color: var(--muted); }
+.legend li { display: flex; align-items: center; gap: 7px; }
+.dot { width: 9px; height: 9px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.stats { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+/* ---- layout ---- */
+.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.map { display: grid; gap: 0; }
+
+/* ---- site panels ---- */
+.site {
+  position: relative;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(16, 26, 48, .8), rgba(11, 17, 32, .55));
+  padding: 20px 20px 24px;
+}
+.site[data-site="remote"] { border-style: dashed; }
+.site-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+.site-h h2 {
+  font-family: "Big Shoulders Display", sans-serif;
+  font-weight: 700; font-size: 20px; letter-spacing: .12em; text-transform: uppercase;
+}
+.subnet { font-size: 11px; color: var(--muted); border: 1px solid var(--line); padding: 3px 8px; }
+.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.wires path { fill: none; stroke: var(--wire); stroke-width: 1.2; transition: stroke .2s; }
+.wires path.active { stroke: var(--ac, #5cc8ff); stroke-width: 1.6; stroke-dasharray: 6 5; animation: flow 1.2s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -22; } }
+
+.head-row { display: flex; justify-content: center; margin-bottom: 46px; }
+.node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 40px 14px; }
+
+/* ---- node cards ---- */
+.card {
+  position: relative; z-index: 1;
+  display: grid; gap: 3px; text-align: left;
+  font-family: inherit; color: var(--text); cursor: pointer;
+  background: #0e1729;
+  border: 1px solid var(--line); border-left: 3px solid var(--c);
+  padding: 10px 12px 11px;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+}
+.card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--c) 55%, var(--line)); }
+.card:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.card.selected { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 22px -6px var(--c); }
+.card .badge { font-size: 10px; letter-spacing: .14em; color: var(--c); }
+.card .nname { font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 19px; letter-spacing: .03em; }
+.card .nip { font-size: 11px; color: var(--muted); }
+.card .nrole { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; opacity: .8; }
+.head-card { min-width: min(300px, 100%); border-left-width: 1px; border-top: 3px solid var(--c); text-align: center; justify-items: center; }
+.head-card .nname { font-size: 26px; }
+
+/* ---- uplink between sites ---- */
+.uplink { display: flex; justify-content: center; padding: 4px 0; position: relative; }
+.uplink::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px dashed var(--wire); }
+.uplink span {
+  position: relative; background: var(--bg); border: 1px dashed var(--line);
+  color: var(--muted); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  padding: 8px 16px; margin: 14px 0;
+}
+
+/* ---- detail panel ---- */
+.panel {
+  position: sticky; top: 24px;
+  border: 1px solid var(--line); background: var(--panel);
+  padding: 20px;
+}
+.panel-k { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.panel h3 {
+  font-family: "Big Shoulders Display", sans-serif; font-weight: 800;
+  font-size: 34px; line-height: 1; letter-spacing: .02em; margin-bottom: 4px;
+}
+.panel h3::after { content: "_"; color: var(--ac, #5cc8ff); animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.kind-chip {
+  display: inline-block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: #0b1120; background: var(--ac, #5cc8ff); padding: 3px 8px; margin: 6px 0 16px;
+}
+.kv { display: grid; grid-template-columns: 64px 1fr; gap: 8px 12px; font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 14px; }
+.kv dt { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: .12em; padding-top: 2px; }
+.kv dd { word-break: break-word; }
+.panel .detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.65; color: #b7c6da; }
+.panel-close { display: none; }
+
+footer { margin-top: 40px; font-size: 11px; color: var(--muted); }
+footer a { color: #5cc8ff; text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+@media (max-width: 980px) {
+  .wrap { grid-template-columns: 1fr; }
+  .panel {
+    position: fixed; inset: auto 0 0 0; z-index: 10; top: auto;
+    max-height: 55vh; overflow-y: auto;
+    border-left: 0; border-right: 0;
+    transform: translateY(105%); transition: transform .25s ease;
+  }
+  .panel.open { transform: none; box-shadow: 0 -18px 40px rgba(0, 0, 0, .5); }
+  .panel-close {
+    display: block; position: absolute; top: 12px; right: 14px;
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    font-family: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header class="top">
+    <h1 class="brand">Homelab<em>.topology</em></h1>
+    <p class="tagline">Self-hosted infrastructure map / <b>Proxmox VE 9.1</b> + <b>K3s</b> / generated 2026-07-28 from nodes.yml</p>
+    <div class="meta-row">
+      <ul class="legend"><li><span class="dot" style="--c:#e8a04c"></span>Hypervisor</li><li><span class="dot" style="--c:#5cc8ff"></span>LXC container</li><li><span class="dot" style="--c:#b18aff"></span>Virtual machine</li><li><span class="dot" style="--c:#6ee7a0"></span>K3s node</li></ul>
+      <span class="stats">15 nodes / 2 sites</span>
+    </div>
+  </header>
+  <div class="wrap">
+    <main class="map">
+      <section class="site" data-site="lan">
+    <header class="site-h">
+      <h2>SITE A / HOME LAN</h2>
+      <span class="subnet">192.168.0.0/24</span>
+    </header>
+    <svg class="wires" aria-hidden="true"></svg>
+    <div class="head-row"><button class="card head-card" type="button" data-node="pve" style="--c:#e8a04c">
+    <span class="badge">PVE</span>
+    <span class="nname">pve</span>
+    <span class="nip">192.168.0.109</span>
+    <span class="nrole">Proxmox VE 9.1</span>
+  </button></div>
+    <div class="node-grid"><button class="card" type="button" data-node="docker-host" style="--c:#5cc8ff">
+    <span class="badge">LXC 100</span>
+    <span class="nname">docker-host</span>
+    <span class="nip">192.168.0.110</span>
+    <span class="nrole">Docker host</span>
+  </button>
+<button class="card" type="button" data-node="haos" style="--c:#b18aff">
+    <span class="badge">VM 101</span>
+    <span class="nname">haos</span>
+    <span class="nip">192.168.0.202</span>
+    <span class="nrole">Home Assistant OS</span>
+  </button>
+<button class="card" type="button" data-node="adguard" style="--c:#5cc8ff">
+    <span class="badge">LXC 102</span>
+    <span class="nname">adguard</span>
+    <span class="nip">192.168.0.111</span>
+    <span class="nrole">DNS</span>
+  </button>
+<button class="card" type="button" data-node="vaultwarden" style="--c:#5cc8ff">
+    <span class="badge">LXC 103</span>
+    <span class="nname">vaultwarden</span>
+    <span class="nip">192.168.0.219</span>
+    <span class="nrole">Password manager</span>
+  </button>
+<button class="card" type="button" data-node="komodo" style="--c:#5cc8ff">
+    <span class="badge">LXC 105</span>
+    <span class="nname">komodo</span>
+    <span class="nip">192.168.0.105</span>
+    <span class="nrole">GitOps deploy</span>
+  </button>
+<button class="card" type="button" data-node="karakeep" style="--c:#5cc8ff">
+    <span class="badge">LXC 106</span>
+    <span class="nname">karakeep</span>
+    <span class="nip">192.168.0.128</span>
+    <span class="nrole">Bookmarks</span>
+  </button>
+<button class="card" type="button" data-node="n8n" style="--c:#5cc8ff">
+    <span class="badge">LXC 107</span>
+    <span class="nname">n8n</span>
+    <span class="nip">192.168.0.112</span>
+    <span class="nrole">Automation</span>
+  </button>
+<button class="card" type="button" data-node="claude-mgmt" style="--c:#5cc8ff">
+    <span class="badge">LXC 109</span>
+    <span class="nname">claude-mgmt</span>
+    <span class="nip">192.168.0.204</span>
+    <span class="nrole">AI ops</span>
+  </button>
+<button class="card" type="button" data-node="caddy" style="--c:#5cc8ff">
+    <span class="badge">LXC 110</span>
+    <span class="nname">caddy</span>
+    <span class="nip">192.168.0.208</span>
+    <span class="nrole">Reverse proxy</span>
+  </button>
+<button class="card" type="button" data-node="uzlet" style="--c:#5cc8ff">
+    <span class="badge">LXC 111</span>
+    <span class="nname">uzlet</span>
+    <span class="nip">192.168.0.115</span>
+    <span class="nrole">Scraper</span>
+  </button>
+<button class="card" type="button" data-node="agentos" style="--c:#5cc8ff">
+    <span class="badge">LXC 113</span>
+    <span class="nname">agentos</span>
+    <span class="nip">192.168.0.71</span>
+    <span class="nrole">Agentic OS</span>
+  </button></div>
+  </section>
+<div class="uplink"><span>Tailscale mesh</span></div>
+<section class="site" data-site="remote">
+    <header class="site-h">
+      <h2>SITE B / K3S CLUSTER</h2>
+      <span class="subnet">192.168.2.0/24</span>
+    </header>
+    <svg class="wires" aria-hidden="true"></svg>
+    <div class="head-row"><button class="card head-card" type="button" data-node="opt5060-i5" style="--c:#6ee7a0">
+    <span class="badge">K3S M</span>
+    <span class="nname">opt5060-i5</span>
+    <span class="nip">192.168.2.101</span>
+    <span class="nrole">K3s control plane</span>
+  </button></div>
+    <div class="node-grid"><button class="card" type="button" data-node="opt3060-i3" style="--c:#6ee7a0">
+    <span class="badge">K3S W1</span>
+    <span class="nname">opt3060-i3</span>
+    <span class="nip">192.168.2.102</span>
+    <span class="nrole">K3s worker</span>
+  </button>
+<button class="card" type="button" data-node="opt3050-i5" style="--c:#6ee7a0">
+    <span class="badge">K3S W2</span>
+    <span class="nname">opt3050-i5</span>
+    <span class="nip">192.168.2.103</span>
+    <span class="nrole">K3s worker</span>
+  </button></div>
+  </section>
+      <footer>Static build, no backend / part of <a href="https://docs.homelabor.net">docs.homelabor.net</a></footer>
+    </main>
+    <aside class="panel" id="panel" aria-live="polite">
+      <button class="panel-close" type="button" id="panelClose">close</button>
+      <p class="panel-k">// node detail</p>
+      <h3 id="pName"></h3>
+      <span class="kind-chip" id="pKind"></span>
+      <dl class="kv">
+        <dt>id</dt><dd id="pBadge"></dd>
+        <dt>ip</dt><dd id="pIp"></dd>
+        <dt>role</dt><dd id="pRole"></dd>
+        <dt>hw</dt><dd id="pHw"></dd>
+      </dl>
+      <p class="detail" id="pDetail"></p>
+    </aside>
+  </div>
+</div>
+<script>
+var DATA = {"sites":[{"id":"lan","label":"SITE A / HOME LAN","subnet":"192.168.0.0/24"},{"id":"remote","label":"SITE B / K3S CLUSTER","subnet":"192.168.2.0/24","link":"Tailscale mesh"}],"kinds":{"hypervisor":{"label":"Hypervisor","color":"#e8a04c"},"lxc":{"label":"LXC container","color":"#5cc8ff"},"vm":{"label":"Virtual machine","color":"#b18aff"},"k3s":{"label":"K3s node","color":"#6ee7a0"}},"nodes":[{"badge":"PVE","name":"pve","site":"lan","head":true,"kind":"hypervisor","ip":"192.168.0.109","role":"Proxmox VE 9.1","hw":"HP EliteDesk 800 G4","detail":"Hypervisor running every LXC and VM below. Storage: MergerFS 8.1 TB + SnapRAID over 4 USB HDDs. Backups via Restic (local + NFS)."},{"badge":"LXC 100","name":"docker-host","site":"lan","kind":"lxc","ip":"192.168.0.110","role":"Docker host","detail":"22 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."},{"badge":"VM 101","name":"haos","site":"lan","kind":"vm","ip":"192.168.0.202","role":"Home Assistant OS","detail":"Smart home hub with Zigbee2MQTT and automations."},{"badge":"LXC 102","name":"adguard","site":"lan","kind":"lxc","ip":"192.168.0.111","role":"DNS","detail":"AdGuard Home - LAN-wide DNS with ad blocking and *.lan rewrites pointing at the Caddy proxy."},{"badge":"LXC 103","name":"vaultwarden","site":"lan","kind":"lxc","ip":"192.168.0.219","role":"Password manager","detail":"Vaultwarden. Alpine community-script container, managed via pct exec only - no SSH."},{"badge":"LXC 105","name":"komodo","site":"lan","kind":"lxc","ip":"192.168.0.105","role":"GitOps deploy","detail":"Komodo (port 9120) - pulls this repo and deploys the Docker stacks on LXC 100."},{"badge":"LXC 106","name":"karakeep","site":"lan","kind":"lxc","ip":"192.168.0.128","role":"Bookmarks","detail":"Karakeep bookmark manager with AI tagging backed by Ollama."},{"badge":"LXC 107","name":"n8n","site":"lan","kind":"lxc","ip":"192.168.0.112","role":"Automation","detail":"n8n workflow automation."},{"badge":"LXC 109","name":"claude-mgmt","site":"lan","kind":"lxc","ip":"192.168.0.204","role":"AI ops","detail":"Claude Code management node - infrastructure-as-code lives here. This page was built from this machine."},{"badge":"LXC 110","name":"caddy","site":"lan","kind":"lxc","ip":"192.168.0.208","role":"Reverse proxy","detail":"Caddy - *.lan reverse proxy with local mkcert TLS for every internal service."},{"badge":"LXC 111","name":"uzlet","site":"lan","kind":"lxc","ip":"192.168.0.115","role":"Scraper","detail":"Business data scraper."},{"badge":"LXC 113","name":"agentos","site":"lan","kind":"lxc","ip":"192.168.0.71","role":"Agentic OS","detail":"Hermes + Odysseus autonomous agent stack - delegation target for mechanical subtasks."},{"badge":"K3S M","name":"opt5060-i5","site":"remote","head":true,"kind":"k3s","ip":"192.168.2.101","role":"K3s control plane","hw":"Dell OptiPlex 5060, i5","detail":"Master node of the 3-node K3s cluster at a separate location. Reached over Tailscale; kubectl from LXC 109."},{"badge":"K3S W1","name":"opt3060-i3","site":"remote","kind":"k3s","ip":"192.168.2.102","role":"K3s worker","hw":"Dell OptiPlex 3060, i3","detail":"Worker node. Longhorn distributed storage planned."},{"badge":"K3S W2","name":"opt3050-i5","site":"remote","kind":"k3s","ip":"192.168.2.103","role":"K3s worker","hw":"Dell OptiPlex 3050, i5","detail":"Worker node. Prometheus + Grafana monitoring planned."}]};
+var byName = {};
+DATA.nodes.forEach(function (n) { byName[n.name] = n; });
+
+var panel = document.getElementById('panel');
+function show(node) {
+  var color = DATA.kinds[node.kind].color;
+  panel.style.setProperty('--ac', color);
+  document.getElementById('pName').textContent = node.name;
+  document.getElementById('pKind').textContent = DATA.kinds[node.kind].label;
+  document.getElementById('pBadge').textContent = node.badge;
+  document.getElementById('pIp').textContent = node.ip || 'dhcp';
+  document.getElementById('pRole').textContent = node.role;
+  document.getElementById('pHw').textContent = node.hw || '-';
+  document.getElementById('pDetail').textContent = node.detail;
+  panel.classList.add('open');
+  document.querySelectorAll('.card.selected').forEach(function (c) { c.classList.remove('selected'); });
+  document.querySelectorAll('.wires path.active').forEach(function (p) { p.classList.remove('active'); });
+  var card = document.querySelector('.card[data-node="' + node.name + '"]');
+  if (card) {
+    card.classList.add('selected');
+    var wire = card.closest('.site').querySelector('path[data-for="' + node.name + '"]');
+    if (wire) { wire.classList.add('active'); wire.style.setProperty('--ac', color); }
+  }
+}
+
+document.querySelectorAll('.card').forEach(function (card) {
+  card.addEventListener('click', function () { show(byName[card.dataset.node]); });
+});
+document.getElementById('panelClose').addEventListener('click', function () {
+  panel.classList.remove('open');
+});
+
+function drawWires(site) {
+  var svg = site.querySelector('.wires');
+  var head = site.querySelector('.head-card');
+  var rect = site.getBoundingClientRect();
+  svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+  var hr = head.getBoundingClientRect();
+  var x1 = hr.left - rect.left + hr.width / 2;
+  var y1 = hr.bottom - rect.top;
+  var paths = [];
+  site.querySelectorAll('.node-grid .card').forEach(function (card) {
+    var cr = card.getBoundingClientRect();
+    var x2 = cr.left - rect.left + cr.width / 2;
+    var y2 = cr.top - rect.top;
+    var my = y1 + (y2 - y1) * 0.55;
+    paths.push('<path data-for="' + card.dataset.node + '" d="M' + x1 + ' ' + y1 +
+      ' C' + x1 + ' ' + my + ', ' + x2 + ' ' + my + ', ' + x2 + ' ' + y2 + '"/>');
+  });
+  svg.innerHTML = paths.join('');
+}
+var sites = document.querySelectorAll('.site');
+function drawAll() { sites.forEach(drawWires); }
+drawAll();
+var t;
+window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(function () {
+  drawAll();
+  var sel = document.querySelector('.card.selected');
+  if (sel) show(byName[sel.dataset.node]);
+}, 100); });
+document.fonts && document.fonts.ready.then(drawAll);
+
+show(byName['pve']);
+if (window.matchMedia('(max-width: 980px)').matches) panel.classList.remove('open');
+</script>
+</body>
+</html>
