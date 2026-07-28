@@ -427,6 +427,21 @@ p {
   color: var(--ink-2);
 }
 
+/* Under a diagram this wide, a single 62ch column stops around the halfway
+   mark and reads as a mistake. Two columns fill the plate while keeping the
+   measure short. `columns` rather than a grid: the text reflows into a
+   balanced pair by itself, so the caption can be reworded without anyone
+   having to rebalance it by hand. */
+@media (min-width: 900px) {
+  .plate figcaption {
+    max-width: none;
+    columns: 2;
+    column-gap: clamp(1.5rem, 3vw, 2.75rem);
+    orphans: 2;
+    widows: 2;
+  }
+}
+
 /* --- Featured projects --------------------------------------------------- */
 
 .cards {
