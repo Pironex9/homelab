@@ -18,6 +18,9 @@
     - r/selfhosted:
         - icon: si-reddit
           href: https://www.reddit.com/r/selfhosted
+    - Portfolio:
+        - icon: mdi-server-network
+          href: https://homelabor.net
     - Docs:
         - icon: si-materialformkdocs
           href: https://docs.homelabor.net
