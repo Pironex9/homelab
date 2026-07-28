@@ -1,1 +1,6 @@
-
+/* Homepage renders descriptions at text-xs font-light, which is too faint to
+   scan. Colour is already light grey on slate, so size and weight are enough. */
+.service-description {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
