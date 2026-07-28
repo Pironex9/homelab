@@ -1,7 +1,7 @@
 ---
 - Quick Links:
     - GitHub Homelab:
-        - icon: github.png
+        - icon: github-light.png
           href: https://github.com/Pironex9/homelab
     - Tailscale:
         - icon: tailscale.png
