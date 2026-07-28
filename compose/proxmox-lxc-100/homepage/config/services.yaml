@@ -249,13 +249,13 @@
         statusStyle: dot
 
 - Network:
-    - Syncthing (PVE):
+    - Syncthing:
         icon: syncthing.png
         href: http://syncthing.lan
         description: Proxmox
         siteMonitor: http://192.168.0.110:8384
         statusStyle: dot
-    - Syncthing (Nex-PC):
+    - Syncthing:
         icon: syncthing.png
         href: http://syncthing-nex.lan
         description: Nex-PC
