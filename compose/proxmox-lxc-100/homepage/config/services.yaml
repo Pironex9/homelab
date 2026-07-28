@@ -1,5 +1,5 @@
 ---
-- Monitoring:
+- Status:
     - Proxmox:
         icon: proxmox.png
         href: http://proxmox.lan
@@ -40,6 +40,8 @@
         widget:
             type: scrutiny
             url: http://192.168.0.110:8082
+
+- Status Links:
     - Notifiarr:
         icon: notifiarr.png
         href: http://notifiarr.lan
@@ -52,8 +54,32 @@
         description: SnapRAID array health, SMART, scheduled sync/scrub
         siteMonitor: http://192.168.0.109:7627
         statusStyle: dot
+    - Homelable:
+        icon: homelable.png
+        href: http://homelable.lan
+        description: Network topology map
+        siteMonitor: http://192.168.0.110:3001
+        statusStyle: dot
+    - Topology:
+        icon: mdi-lan
+        href: http://topology.lan
+        description: Interactive network topology map
+        siteMonitor: http://192.168.0.110:3009
+        statusStyle: dot
+    - Landing:
+        icon: mdi-web
+        href: https://homelabor.net
+        description: Public homelab landing page
+        siteMonitor: https://homelabor.net
+        statusStyle: dot
+    - Pangolin:
+        icon: https://pangolin.homelabor.net/favicon.ico
+        href: https://pangolin.homelabor.net
+        description: Reverse proxy tunnel
+        siteMonitor: https://pangolin.homelabor.net
+        statusStyle: dot
 
-- Infrastructure:
+- Core:
     - AdGuard Home:
         icon: adguard-home.png
         href: http://adguard.lan
@@ -77,26 +103,56 @@
             key: {{HOMEPAGE_VAR_KOMODO_KEY}}
             secret: {{HOMEPAGE_VAR_KOMODO_SECRET}}
             showSummary: true
-    - Homelable:
-        icon: homelable.png
-        href: http://homelable.lan
-        description: Network topology map
-        siteMonitor: http://192.168.0.110:3001
+    - Home Assistant:
+        icon: home-assistant.png
+        href: http://haos.lan
+        description: Home automation
+        siteMonitor: http://192.168.0.202:8123
         statusStyle: dot
-    - Topology:
-        icon: mdi-lan
-        href: http://topology.lan
-        description: Interactive network topology map
-        siteMonitor: http://192.168.0.110:3009
+        widget:
+            type: homeassistant
+            url: http://192.168.0.202:8123
+            key: {{HOMEPAGE_VAR_HAOS_TOKEN}}
+
+- Core Links:
+    - n8n:
+        icon: n8n.png
+        href: http://n8n.lan
+        description: Workflow automation
+        siteMonitor: http://192.168.0.112:5678
         statusStyle: dot
-    - Landing:
-        icon: mdi-web
-        href: https://homelabor.net
-        description: Public homelab landing page
-        siteMonitor: https://homelabor.net
+    - Dawarich:
+        icon: dawarich.png
+        href: https://dawarich.homelabor.net
+        description: GPS location history
+        siteMonitor: http://192.168.0.110:3005
+        statusStyle: dot
+    - FreshRSS:
+        icon: freshrss.png
+        href: http://freshrss.lan
+        description: RSS feed reader
+        siteMonitor: http://192.168.0.110:8083
+        statusStyle: dot
+    - Odysseus:
+        icon: mdi-compass-outline
+        href: https://agentos.lan
+        description: Agentic OS web workspace (LXC 113)
+        siteMonitor: http://192.168.0.71:7000
+        statusStyle: dot
+    - Hermes Agent:
+        icon: mdi-robot-outline
+        description: Background agent on LXC 113 - WebUI + CLI
+        href: https://hermes.lan
+        siteMonitor: http://192.168.0.71:8787/health
+        statusStyle: dot
+    - Minions:
+        icon: mdi-view-dashboard-outline
+        description: Mission Control for Hermes tasks - kanban, live streaming
+        href: https://minions.lan
+        siteMonitor: http://192.168.0.71:6969/api/health
         statusStyle: dot
 
-- Arr Stack:
+- Media:
     - Radarr:
         icon: radarr.png
         href: http://radarr.lan
@@ -141,20 +197,6 @@
             type: jellyseerr
             url: http://192.168.0.110:5055
             key: {{HOMEPAGE_VAR_SEERR_KEY}}
-    - Prowlarr:
-        icon: prowlarr.png
-        href: http://prowlarr.lan
-        description: Indexer manager
-        siteMonitor: http://192.168.0.110:9696
-        statusStyle: dot
-    - Suggestarr:
-        icon: /images/suggestarr.png
-        href: http://suggestarr.lan
-        description: Suggestarr
-        siteMonitor: http://192.168.0.110:5000
-        statusStyle: dot
-
-- Media:
     - Jellyfin:
         icon: jellyfin.png
         href: http://jellyfin.lan
@@ -179,13 +221,26 @@
             url: http://192.168.0.110:2283
             key: {{HOMEPAGE_VAR_IMMICH_KEY}}
             version: 2
+
+- Media Links:
+    - Prowlarr:
+        icon: prowlarr.png
+        href: http://prowlarr.lan
+        description: Indexer manager
+        siteMonitor: http://192.168.0.110:9696
+        statusStyle: dot
+    - Suggestarr:
+        icon: /images/suggestarr.png
+        href: http://suggestarr.lan
+        description: Suggestarr
+        siteMonitor: http://192.168.0.110:5000
+        statusStyle: dot
     - Enci Portfolio:
         icon: mdi-palette-outline
         href: http://portfolio.lan
         description: Art portfolio
         siteMonitor: http://192.168.0.110:3008
         statusStyle: dot
-
     - Calibre-Web:
         icon: calibre-web.png
         href: http://calibre.lan
@@ -197,75 +252,6 @@
         href: http://192.168.0.110:8084
         description: Automated book downloader
         siteMonitor: http://192.168.0.110:8084
-        statusStyle: dot
-
-- Automation:
-    - Home Assistant:
-        icon: home-assistant.png
-        href: http://haos.lan
-        description: Home automation
-        siteMonitor: http://192.168.0.202:8123
-        statusStyle: dot
-        widget:
-            type: homeassistant
-            url: http://192.168.0.202:8123
-            key: {{HOMEPAGE_VAR_HAOS_TOKEN}}
-    - n8n:
-        icon: n8n.png
-        href: http://n8n.lan
-        description: Workflow automation
-        siteMonitor: http://192.168.0.112:5678
-        statusStyle: dot
-    - Dawarich:
-        icon: dawarich.png
-        href: https://dawarich.homelabor.net
-        description: GPS location history
-        siteMonitor: http://192.168.0.110:3005
-        statusStyle: dot
-    - FreshRSS:
-        icon: freshrss.png
-        href: http://freshrss.lan
-        description: RSS feed reader
-        siteMonitor: http://192.168.0.110:8083
-        statusStyle: dot
-
-    - Odysseus:
-        icon: mdi-compass-outline
-        href: https://agentos.lan
-        description: Agentic OS web workspace (LXC 113)
-        siteMonitor: http://192.168.0.71:7000
-        statusStyle: dot
-    - Hermes Agent:
-        icon: mdi-robot-outline
-        description: Background agent on LXC 113 - WebUI + CLI
-        href: https://hermes.lan
-        siteMonitor: http://192.168.0.71:8787/health
-        statusStyle: dot
-    - Minions:
-        icon: mdi-view-dashboard-outline
-        description: Mission Control for Hermes tasks - kanban, live streaming
-        href: https://minions.lan
-        siteMonitor: http://192.168.0.71:6969/api/health
-        statusStyle: dot
-
-- Network:
-    - Syncthing:
-        icon: syncthing.png
-        href: http://syncthing.lan
-        description: Proxmox
-        siteMonitor: http://192.168.0.110:8384
-        statusStyle: dot
-    - Syncthing:
-        icon: syncthing.png
-        href: http://syncthing-nex.lan
-        description: Nex-PC
-        siteMonitor: http://192.168.0.100:8384
-        statusStyle: dot
-    - Pangolin:
-        icon: https://pangolin.homelabor.net/favicon.ico
-        href: https://pangolin.homelabor.net
-        description: Reverse proxy tunnel
-        siteMonitor: https://pangolin.homelabor.net
         statusStyle: dot
 
 - Utilities:
@@ -281,10 +267,6 @@
         description: Bookmark manager
         siteMonitor: http://192.168.0.128:3000
         statusStyle: dot
-    - Wake on LAN:
-        icon: https://play-lh.googleusercontent.com/KfSXnrNMIUgbTq4t1X4zwipG8f252SF4OtJY8TIPsy1fLAX791z75ydRlZcBGDrjr6c=w240-h480
-        href: http://100.120.73.44:5000
-        description: Wake on LAN for K3s cluster
     - BentoPDF:
         icon: bentopdf.png
         href: http://bentopdf.lan
@@ -303,14 +285,30 @@
         description: Browser IDE (LXC 109, Tailscale-only)
         siteMonitor: http://100.98.146.14:8443
         statusStyle: dot
-
-- Productivity:
     - Kan:
         icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/kan.png
         href: https://kanban.homelabor.net
         description: Kanban board (Trello alternative)
         siteMonitor: http://192.168.0.110:3006
         statusStyle: dot
+
+- Utilities Links:
+    - Syncthing (PVE):
+        icon: syncthing.png
+        href: http://syncthing.lan
+        description: Proxmox
+        siteMonitor: http://192.168.0.110:8384
+        statusStyle: dot
+    - Syncthing (Nex-PC):
+        icon: syncthing.png
+        href: http://syncthing-nex.lan
+        description: Nex-PC
+        siteMonitor: http://192.168.0.100:8384
+        statusStyle: dot
+    - Wake on LAN:
+        icon: https://play-lh.googleusercontent.com/KfSXnrNMIUgbTq4t1X4zwipG8f252SF4OtJY8TIPsy1fLAX791z75ydRlZcBGDrjr6c=w240-h480
+        href: http://100.120.73.44:5000
+        description: Wake on LAN for K3s cluster
 
 - Calendar:
     - Arr Calendar:
@@ -322,13 +320,13 @@
             timezone: Europe/Budapest
             integrations:
                 - type: sonarr
-                  service_group: Arr Stack
+                  service_group: Media
                   service_name: Sonarr
                   color: blue
                   params:
                       unmonitored: false
                 - type: radarr
-                  service_group: Arr Stack
+                  service_group: Media
                   service_name: Radarr
                   color: yellow
                   params:

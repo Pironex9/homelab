@@ -5,51 +5,72 @@
 title: Proxmox Home Page
 
 headerStyle: boxed
+fullWidth: true
+useEqualHeights: true
+hideVersion: true
 
 background:
   image: https://www.traveltalktours.com/wp-content/smush-webp/2024/04/Best-Places-for-Cherry-Blossoms-in-Japan-1536x1024.jpg.webp
   blur: ""
   saturate: 60 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
   brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
-  opacity: 60 # 0-100 
-
+  opacity: 60 # 0-100
 
 theme: dark
 color: slate
 
+# Every group's `columns` equals its item count, so no row is ever partially
+# filled. The `Links` groups carry `header: false` so they attach visually to
+# the widget group above them instead of reading as separate sections.
 layout:
   Quick Links:
+    icon: mdi-link-variant
     style: row
     columns: 8
     iconsOnly: true
   Uzlet:
+    icon: mdi-chart-line
     style: row
     columns: 3
     iconsOnly: true
-  Monitoring:
+
+  Status:
+    icon: mdi-heart-pulse
+    style: row
+    columns: 4
+  Status Links:
+    header: false
+    style: row
+    columns: 6
+
+  Core:
+    icon: mdi-server
+    style: row
+    columns: 3
+  Core Links:
+    header: false
+    style: row
+    columns: 6
+
+  Media:
+    icon: mdi-play-circle
+    style: row
+    columns: 6
+  Media Links:
+    header: false
     style: row
     columns: 5
-  Infrastructure:
-    style: row
-    columns: 4
-  Arr Stack:
-    style: row
-    columns: 6
-  Media:
-    style: row
-    columns: 4
-  Automation:
-    style: row
-    columns: 4
-  Network:
-    style: row
-    columns: 4
+
   Utilities:
+    icon: mdi-tools
     style: row
     columns: 6
-  Productivity:
+  Utilities Links:
+    header: false
     style: row
-    columns: 4
+    columns: 3
+
   Calendar:
+    icon: mdi-calendar
     style: row
-    columns: 2
+    columns: 1
