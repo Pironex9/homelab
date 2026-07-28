@@ -9,12 +9,14 @@ fullWidth: true
 useEqualHeights: true
 hideVersion: true
 
-# cardBlur is incompatible with background blur/saturate/brightness filters,
-# so the photo stays vivid and the cards get the frosted glass instead.
-cardBlur: md
+# No cardBlur: per-card backdrop-blur flickers on repaint. The background
+# itself is dimmed instead, which the two settings cannot both do at once.
 background:
   image: https://www.traveltalktours.com/wp-content/smush-webp/2024/04/Best-Places-for-Cherry-Blossoms-in-Japan-1536x1024.jpg.webp
-  opacity: 55
+  blur: sm
+  saturate: 50
+  brightness: 40
+  opacity: 40
 
 theme: dark
 color: slate
