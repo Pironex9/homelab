@@ -5,51 +5,76 @@
 title: Proxmox Home Page
 
 headerStyle: boxed
+fullWidth: true
+useEqualHeights: true
+hideVersion: true
 
+# cardBlur is incompatible with background blur/saturate/brightness filters,
+# so the photo stays vivid and the cards get the frosted glass instead.
+cardBlur: md
 background:
   image: https://www.traveltalktours.com/wp-content/smush-webp/2024/04/Best-Places-for-Cherry-Blossoms-in-Japan-1536x1024.jpg.webp
-  blur: ""
-  saturate: 60 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
-  brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
-  opacity: 60 # 0-100 
-
+  opacity: 55
 
 theme: dark
 color: slate
 
 layout:
   Quick Links:
+    tab: Home
     style: row
     columns: 8
     iconsOnly: true
-  Uzlet:
-    style: row
-    columns: 3
-    iconsOnly: true
   Monitoring:
+    tab: Home
+    icon: mdi-heart-pulse
+    style: row
+    columns: 6
+  Infrastructure:
+    tab: Home
+    icon: mdi-server
     style: row
     columns: 5
-  Infrastructure:
-    style: row
-    columns: 4
+
   Arr Stack:
+    tab: Media
+    icon: mdi-download
     style: row
     columns: 6
   Media:
+    tab: Media
+    icon: mdi-play-circle
     style: row
-    columns: 4
-  Automation:
-    style: row
-    columns: 4
-  Network:
-    style: row
-    columns: 4
-  Utilities:
-    style: row
-    columns: 6
-  Productivity:
-    style: row
-    columns: 4
+    columns: 5
   Calendar:
+    tab: Media
+    icon: mdi-calendar
     style: row
     columns: 2
+
+  Automation:
+    tab: Lab
+    icon: mdi-robot
+    style: row
+    columns: 7
+  Utilities:
+    tab: Lab
+    icon: mdi-tools
+    style: row
+    columns: 6
+  Network:
+    tab: Lab
+    icon: mdi-lan
+    style: row
+    columns: 3
+  Productivity:
+    tab: Lab
+    icon: mdi-clipboard-check-outline
+    style: row
+    columns: 4
+  Uzlet:
+    tab: Lab
+    icon: mdi-chart-line
+    style: row
+    columns: 3
+    iconsOnly: true

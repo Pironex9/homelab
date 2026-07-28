@@ -50,3 +50,22 @@ rsync -a --delete dist/ root@192.168.0.110:/etc/komodo/repos/github/compose/prox
 ```
 
 Caddy serves the mounted volume live - no container restart needed. LAN name (`topology.lan`) goes through the usual AdGuard rewrite + LXC 110 Caddy proxy pair.
+
+## Also published publicly at homelabor.net/topology/
+
+**Date:** 2026-07-28
+
+The same build is served a second time from the Hetzner VPS, at `https://homelabor.net/topology/`, where the landing page's `topology.png` links to it. The public copy is not this container: `dist/index.html` is copied into `compose/vps/landing/src/topology/index.html` and shipped with the landing page.
+
+The duplication is deliberate. `dist/` is gitignored, so it does not exist in the Komodo checkout on the VPS that `build.sh` runs against - there is nothing there to copy from at build time. Serving the LAN container through a tunnel instead would have made a portfolio page depend on the homelab being up, which is the exact failure the landing page was moved to the VPS to avoid.
+
+**Consequence:** editing `nodes.yml` now moves one more thing. After `npm run build`, copy the output across:
+
+```bash
+cp compose/proxmox-lxc-100/topology/dist/index.html \
+   compose/vps/landing/src/topology/index.html
+```
+
+then re-export `topology.png` and rebuild the landing page. The full five-step checklist, including the PNG export command, is in `compose/vps/landing/README.md`; nothing enforces it, and a missed copy shows up only as a public map with a stale date stamp.
+
+The public copy carries the same content as the LAN one, including every private LAN IP. That is not new exposure - the host pages on `docs.homelabor.net` list the same addresses, and the landing page's own alt text names `192.168.0.109`.

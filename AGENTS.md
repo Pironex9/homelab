@@ -53,3 +53,4 @@ Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + P
 - When changing docs, keep MkDocs navigation and `docs/README.md` in sync.
 - Leaving a file out of `nav` does not keep it off the published site: MkDocs still builds it, lists it in `sitemap.xml` and indexes it for search. Internal material under `docs/` belongs in `exclude_docs` in `mkdocs.yml`.
 - When adding or removing a compose stack, rebuild the `landing` stack on the VPS; its published stack count is baked in at build time.
+- After editing `compose/proxmox-lxc-100/topology/nodes.yml`, the rebuilt `dist/index.html` must also be copied to `compose/vps/landing/src/topology/index.html`, and `topology.png` re-exported. Five steps total, listed in `compose/vps/landing/README.md`. Nothing enforces this; a missed copy publishes a stale map at homelabor.net/topology/.

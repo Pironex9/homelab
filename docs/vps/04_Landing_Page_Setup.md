@@ -35,6 +35,8 @@ gerbil:443 -> Traefik -> 172.18.0.10:80   (Pangolin resource, no auth)
           caddy:alpine  (container "landing")
                 |
                 +-- static files from dist/
+                |     /            landing page
+                |     /topology/   interactive topology map
                 |
                 +-- /api/badge/*                        --> 172.17.0.1:3001
                 +-- /api/status-page/statuspage1        --> 172.17.0.1:3001
@@ -190,10 +192,13 @@ Two hardening options remain available and were not taken: `read_only: true` on 
 | `compose/vps/landing/build.sh` | Derives the count, substitutes, guards, writes `dist/` |
 | `compose/vps/landing/test-build.sh` | Asserts the build fails when it should |
 | `compose/vps/landing/src/` | `index.html`, `style.css`, `status.js`, `topology.png`, `og.png`, `favicon.svg` |
+| `compose/vps/landing/src/topology/index.html` | The interactive map, copied from another stack's build output |
 | `compose/vps/landing/og.html` | Generator for the Open Graph card, deliberately outside `src/` |
 | `compose/vps/landing/README.md` | Build and redeploy commands, maintenance contract |
 
 `dist/` is a build artifact and is never committed.
+
+`src/topology/index.html` is the one exception to that rule, and it is a committed build artifact on purpose. It comes from `compose/proxmox-lxc-100/topology/`, whose own `dist/` is gitignored and therefore missing from the VPS checkout `build.sh` runs against - there is nothing to copy from at build time. Never edit it: it is byte-for-byte the output of that stack's `build.js`, and a hand edit is lost on the next copy. See `26_Network_Topology_Map.md` for what has to move with it.
 
 ## Related
 
