@@ -1,39 +1,36 @@
 ---
 - Quick Links:
     - GitHub Homelab:
-        - icon: si-github
+        - icon: github.png
           href: https://github.com/Pironex9/homelab
     - Tailscale:
-        - icon: si-tailscale
+        - icon: tailscale.png
           href: https://login.tailscale.com/admin/machines
     - Hetzner:
-        - icon: si-hetzner
+        - icon: hetzner.png
           href: https://console.hetzner.com/projects/13016027/dashboard
     - Cloudflare:
-        - icon: si-cloudflare
+        - icon: cloudflare.png
           href: https://dash.cloudflare.com/47bd0954876ebc191ce6b29e6ba0df65/home/domains
     - Resend:
-        - icon: si-resend
+        - icon: si-resend-#ffffff
           href: https://app.resend.com
     - r/selfhosted:
-        - icon: si-reddit
+        - icon: reddit.png
           href: https://www.reddit.com/r/selfhosted
-    - Portfolio:
-        - icon: mdi-server-network
-          href: https://homelabor.net
     - Docs:
-        - icon: si-materialformkdocs
+        - icon: mkdocs.png
           href: https://docs.homelabor.net
     - LinkedIn:
-        - icon: si-linkedin
+        - icon: linkedin.png
           href: https://www.linkedin.com/in/norbert-csicsay-497195334
 - Uzlet:
     - Scraper API:
-        - icon: si-fastapi
+        - icon: fastapi.png
           href: http://192.168.0.115:8001/
     - Metabase:
-        - icon: si-metabase
+        - icon: metabase.png
           href: http://192.168.0.115:3000/question#eyJkYXRhc2V0X3F1ZXJ5Ijp7ImRhdGFiYXNlIjoyLCJ0eXBlIjoicXVlcnkiLCJxdWVyeSI6eyJzb3VyY2UtdGFibGUiOjExN319LCJkaXNwbGF5IjoidGFibGUiLCJ2aXN1YWxpemF0aW9uX3NldHRpbmdzIjp7fX0=
     - Dashboard:
-        - icon: si-metabase
+        - icon: mdi-chart-box-outline
           href: https://uzlet.homelabor.net/public/dashboard/d0830a24-16bf-4a0a-922e-d24f25692141
