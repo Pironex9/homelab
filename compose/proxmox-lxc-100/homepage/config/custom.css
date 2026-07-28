@@ -4,3 +4,12 @@
   font-size: 0.8rem;
   font-weight: 400;
 }
+
+/* The calendar spans the full page width, which stretches the month grid until
+   it is hard to read across. Its `columns:` setting is ignored because the
+   group holds a single widget-only service, so cap the width here instead.
+   The calendar group is the only one that renders as one column - every other
+   group is 3 or more - which is what makes this selector hit only the calendar. */
+.services-list.lg\:grid-cols-1 {
+  max-width: 52rem;
+}

@@ -70,9 +70,10 @@ layout:
     style: row
     columns: 3
 
-  # Deliberate exception to columns == item count: the calendar is a single
-  # wide widget, and at full width the month grid stretches to unusable.
+  # `columns` has no effect on a group holding a single widget-only service -
+  # this renders as lg:grid-cols-1 whatever is set here, verified in the DOM.
+  # The calendar's width is capped in custom.css instead.
   Calendar:
     icon: mdi-calendar
     style: row
-    columns: 3
+    columns: 1
