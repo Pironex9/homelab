@@ -153,6 +153,19 @@
         statusStyle: dot
 
 - Media:
+    - Jellyfin:
+        icon: jellyfin.png
+        href: http://jellyfin.lan
+        description: Media server
+        siteMonitor: http://192.168.0.110:8096
+        statusStyle: dot
+        widget:
+            type: jellyfin
+            url: http://192.168.0.110:8096
+            key: {{HOMEPAGE_VAR_JELLYFIN_KEY}}
+            version: 1
+            enableBlocks: true
+            enableNowPlaying: true
     - Radarr:
         icon: radarr.png
         href: http://radarr.lan
@@ -197,19 +210,6 @@
             type: jellyseerr
             url: http://192.168.0.110:5055
             key: {{HOMEPAGE_VAR_SEERR_KEY}}
-    - Jellyfin:
-        icon: jellyfin.png
-        href: http://jellyfin.lan
-        description: Media server
-        siteMonitor: http://192.168.0.110:8096
-        statusStyle: dot
-        widget:
-            type: jellyfin
-            url: http://192.168.0.110:8096
-            key: {{HOMEPAGE_VAR_JELLYFIN_KEY}}
-            version: 1
-            enableBlocks: true
-            enableNowPlaying: true
     - Immich:
         icon: immich.png
         href: http://immich.lan

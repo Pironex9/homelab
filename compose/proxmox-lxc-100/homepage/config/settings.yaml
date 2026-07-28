@@ -70,7 +70,9 @@ layout:
     style: row
     columns: 3
 
+  # Deliberate exception to columns == item count: the calendar is a single
+  # wide widget, and at full width the month grid stretches to unusable.
   Calendar:
     icon: mdi-calendar
     style: row
-    columns: 1
+    columns: 3
