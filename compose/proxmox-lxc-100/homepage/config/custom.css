@@ -13,13 +13,3 @@
 .services-list.lg\:grid-cols-1 {
   max-width: 52rem;
 }
-
-/* Status/Core/Media/Utilities each nest their "* Links" strip as a subgroup so
-   collapsing the parent header collapses both rows together (a sibling group
-   has its own independent, always-open collapse state - that was the bug).
-   The nesting wrapper is a CSS grid sized by the PARENT's own column count
-   (e.g. 4 for Status), so a lone subgroup would be squeezed into 1/4 width.
-   Force it to span the full row instead. */
-.subgroup {
-  grid-column: 1 / -1;
-}
