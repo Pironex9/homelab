@@ -104,6 +104,7 @@ nav:
           - 26 - Interactive Network Topology Map: proxmox/26_Network_Topology_Map.md
           - 27 - Homepage GitOps Config: proxmox/27_Homepage_GitOps_Config.md
           - 28 - SnapRAID Daemon Setup: proxmox/28_SnapRAID_Daemon_Setup.md
+          - 29 - Rails Learning Lab: proxmox/29_Rails_Learning_Lab.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md

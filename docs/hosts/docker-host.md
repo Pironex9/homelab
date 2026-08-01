@@ -102,6 +102,16 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `homelable-frontend` | `ghcr.io/pouzor/homelable-frontend` | 3001 | Network diagram and live status UI |
 | `homelable-mcp` | built from `/opt/homelable/mcp` | 8001 | MCP server - Claude Code integration |
 
+### Development
+
+| Container | Image | Port | Description |
+|-----------|-------|------|-------------|
+| `rails-lab-web` | built from `ruby:3.4-slim` | 3300 | Rails 8 learning sandbox (see [Rails Learning Lab](../proxmox/29_Rails_Learning_Lab.md)) |
+| `rails-lab-db` | `postgres:17-alpine` | - | PostgreSQL for the Rails sandbox |
+
+Not Komodo-managed. Manual stack at `/opt/rails-lab`, source of truth is
+`/root/learning/rails/lab` on LXC 109.
+
 ## Docker Volumes
 
 Most containers use **bind mounts** to `/mnt/storage` for persistent data.
@@ -131,6 +141,7 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 3009 | TCP | Topology map static site |
 | 3003 | TCP | DocuSeal |
 | 3005 | TCP | Dawarich |
+| 3300 | TCP | Rails learning lab |
 | 8001 | TCP | Homelable MCP server |
 | 9696 | TCP | Prowlarr |
 | 21027 | UDP | Syncthing discovery |
