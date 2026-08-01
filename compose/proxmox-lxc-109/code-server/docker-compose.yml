@@ -6,7 +6,7 @@ services:
       - PUID=0
       - PGID=0
       - TZ=Europe/Budapest
-      - DEFAULT_WORKSPACE=/config/workspace/root/homelab
+      - DEFAULT_WORKSPACE=/config/workspace.code-workspace
       - PASSWORD=${CODE_SERVER_PASSWORD}
     volumes:
       - /srv/docker-data/code-server:/config
