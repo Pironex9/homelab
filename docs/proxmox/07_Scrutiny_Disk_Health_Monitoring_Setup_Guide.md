@@ -4,7 +4,7 @@
 **Platform:** Proxmox VE + LXC 100 (Docker)  
 **Purpose:** SMART disk monitoring with web dashboard
 
-> **Update (2026-08-02):** switched the server image from `ghcr.io/analogj/scrutiny` to the actively maintained fork `ghcr.io/starosdev/scrutiny` - upstream AnalogJ development had slowed, the fork is a drop-in replacement (same SQLite/InfluxDB schema, no config changes). Collector setup below is unaffected.
+> **Update (2026-08-02):** switched the server image from `ghcr.io/analogj/scrutiny` to the actively maintained fork `ghcr.io/starosdev/scrutiny` - upstream AnalogJ development had slowed, the fork is a drop-in replacement (same SQLite/InfluxDB schema, no config changes). The host-side collector binary (below) had to be upgraded too - see the note in the Collector Setup section. Also added Home Assistant MQTT discovery (`SCRUTINY_WEB_MQTT_*` env vars) - disk temperature/status/power-on-hours/power-cycle-count now show up as HA entities.
 
 ---
 
@@ -290,12 +290,12 @@ http://192.168.0.110:8082
 
 ```bash
 # Get latest version
-SCRUTINY_VERSION=$(curl -s https://api.github.com/repos/AnalogJ/scrutiny/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+SCRUTINY_VERSION=$(curl -s https://api.github.com/repos/Starosdev/scrutiny/releases/latest | grep "tag_name" | cut -d '"' -f 4)
 
 echo "Latest version: $SCRUTINY_VERSION"
 
 # Download collector binary
-wget https://github.com/AnalogJ/scrutiny/releases/download/${SCRUTINY_VERSION}/scrutiny-collector-metrics-linux-amd64 -O /usr/local/bin/scrutiny-collector-metrics
+wget https://github.com/Starosdev/scrutiny/releases/download/${SCRUTINY_VERSION}/scrutiny-collector-metrics-linux-amd64 -O /usr/local/bin/scrutiny-collector-metrics
 
 # Make executable
 chmod +x /usr/local/bin/scrutiny-collector-metrics
@@ -306,8 +306,10 @@ chmod +x /usr/local/bin/scrutiny-collector-metrics
 
 **Expected output:**
 ```
-scrutiny-collector-metrics version 0.8.1
+scrutiny-collector-metrics version 1.68.0
 ```
+
+> **Update (2026-08-02):** the collector binary must come from the same repo as the server image. Keeping the AnalogJ v0.8.1 collector against a Starosdev server crashes on every run (`json: cannot unmarshal object into Go struct field Device.data.smart_support of type bool` - the fork changed that field from a bool to an object) and silently stops publishing new SMART data. Symptom: dashboard shows stale/no data, `journalctl -u scrutiny-collector.service` shows repeated `status=1/FAILURE` with a high restart counter.
 
 ---
 
