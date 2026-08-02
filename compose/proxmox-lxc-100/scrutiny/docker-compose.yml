@@ -6,6 +6,14 @@ services:
       - TZ=Europe/Budapest
       - PUID=0
       - PGID=0
+      - SCRUTINY_WEB_MQTT_ENABLED=true
+      - SCRUTINY_WEB_MQTT_BROKER=tcp://192.168.0.202:1883
+      - SCRUTINY_WEB_MQTT_USERNAME=neximus
+      - SCRUTINY_WEB_MQTT_PASSWORD=${SCRUTINY_MQTT_PASSWORD}
+      - SCRUTINY_WEB_MQTT_CLIENT_ID=scrutiny
+      - SCRUTINY_WEB_MQTT_TOPIC_PREFIX=homeassistant
+      - SCRUTINY_WEB_MQTT_QOS=1
+      - SCRUTINY_WEB_MQTT_RETAIN=true
     volumes:
       - /srv/docker-data/scrutiny/config:/opt/scrutiny/config
       - /srv/docker-data/scrutiny:/run/udev:ro
