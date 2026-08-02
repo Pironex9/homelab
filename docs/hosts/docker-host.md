@@ -97,7 +97,7 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 |-----------|-------|------|-------------|
 | `homepage` | `ghcr.io/gethomepage/homepage` | 3002 | Self-hosted dashboard |
 | `uptime-kuma` | `louislam/uptime-kuma` | - | Service uptime monitoring |
-| `scrutiny` | `ghcr.io/analogj/scrutiny` | 8082 | Hard drive S.M.A.R.T. monitoring |
+| `scrutiny` | `ghcr.io/starosdev/scrutiny` | 8082 | Hard drive S.M.A.R.T. monitoring |
 | `homelable-backend` | `ghcr.io/pouzor/homelable-backend` | - | Network topology backend (internal) |
 | `homelable-frontend` | `ghcr.io/pouzor/homelable-frontend` | 3001 | Network diagram and live status UI |
 | `homelable-mcp` | built from `/opt/homelable/mcp` | 8001 | MCP server - Claude Code integration |

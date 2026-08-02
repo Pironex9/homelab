@@ -1,6 +1,6 @@
 services:
   scrutiny:
-    image: ghcr.io/analogj/scrutiny:latest
+    image: ghcr.io/starosdev/scrutiny:latest
     container_name: scrutiny
     environment:
       - TZ=Europe/Budapest

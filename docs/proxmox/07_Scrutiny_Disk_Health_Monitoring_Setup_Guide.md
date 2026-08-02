@@ -4,6 +4,8 @@
 **Platform:** Proxmox VE + LXC 100 (Docker)  
 **Purpose:** SMART disk monitoring with web dashboard
 
+> **Update (2026-08-02):** switched the server image from `ghcr.io/analogj/scrutiny` to the actively maintained fork `ghcr.io/starosdev/scrutiny` - upstream AnalogJ development had slowed, the fork is a drop-in replacement (same SQLite/InfluxDB schema, no config changes). Collector setup below is unaffected.
+
 ---
 
 ## 📋 Table of Contents
