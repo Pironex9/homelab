@@ -191,6 +191,52 @@ curl -s "https://raw.githubusercontent.com/homeassistant-ai/skills/main/skills/h
 
 ---
 
+## Plugin token budget (memsearch recap)
+
+The [memsearch](https://github.com/memsearch-plugins) plugin gives Claude Code semantic recall over past sessions. Its `SessionStart` hook also injects a "Recent Memory" recap of the most recent daily journals into **every** session start, including `--resume`. That injection is invisible in normal use and is paid for on every single start.
+
+Measured on this machine, stock settings cost **10.5 KB, roughly 2650 tokens**, per session start - more than the entire hand-written memory index it sits next to.
+
+### What the audit found
+
+Two problems, only one of which is about size:
+
+1. **The recap was showing the wrong end of the day.** Version 0.4.6 truncated with a chronological `head -40`, so with 119 matching lines in the day's journal the injection stopped at the 05:15 session while work had continued to 09:05. The most relevant context was systematically cut away.
+2. **The payload was mostly prose.** Of 80 content lines only 25 were headings; the rest were bullets averaging 155 characters, longest 472.
+
+Upstream 0.4.17 fixes the recency bug with a `tail`-based extractor, but keeps the 2 files x 40 lines budget. Simulated on the real journals it produces **11 996 bytes** - the upgrade alone makes the recap slightly *larger*, just finally with the right content.
+
+### Current settings
+
+Three edits in the plugin's `hooks/session-start.sh`: 1 journal file instead of 2, 20 lines instead of 40, and `cut -c1-200` to clip the long bullets.
+
+| Configuration | Injection size | Tokens |
+|---|---|---|
+| 0.4.6 stock | 10 563 B | ~2650 |
+| 0.4.17 stock | 11 996 B | ~3000 |
+| **0.4.17 patched** | **3 083 B** | **~770** |
+
+Detailed lookups are unaffected: they go through the pull-based `/memory-recall` skill, which is what the hook's own comments say the recap is only meant to bootstrap.
+
+### Re-apply after every plugin update
+
+The plugin cache path is version-pinned (`~/.claude/plugins/cache/memsearch-plugins/memsearch/<version>/`), so `claude plugin update` installs a fresh unpatched copy and the recap silently returns to full size. `scripts/memsearch-trim-recap.sh` in the homelab repo re-applies the patch to whichever version is current:
+
+```bash
+./scripts/memsearch-trim-recap.sh          # apply (idempotent)
+./scripts/memsearch-trim-recap.sh --check  # report status, write nothing
+```
+
+It exits 2 if upstream reshapes the hook, rather than silently doing nothing - a quiet no-op is the failure that would go unnoticed for months. The hook change takes effect on the next session start, not the current one.
+
+### Gotchas
+
+- The plugin update needs the fully qualified name: `claude plugin update memsearch@memsearch-plugins`. The bare name returns "not found".
+- Bare `memsearch stats` fails with `collection not found`. The plugin uses per-project collections, so the correct call here is `memsearch stats -c ms_homelab_3bf86670`.
+- There is nothing to gain by changing the summarize model. The per-turn summarizer already defaults to `haiku` in both 0.4.6 and 0.4.17.
+
+---
+
 ## SSHFS Access from Nobara
 
 The `/root` directory (containing `homelab`, `learning`, `youtube`) is accessible from Nobara via SSHFS.
