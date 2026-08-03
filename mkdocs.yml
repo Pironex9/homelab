@@ -105,6 +105,7 @@ nav:
           - 27 - Homepage GitOps Config: proxmox/27_Homepage_GitOps_Config.md
           - 28 - SnapRAID Daemon Setup: proxmox/28_SnapRAID_Daemon_Setup.md
           - 29 - Rails Learning Lab: proxmox/29_Rails_Learning_Lab.md
+          - 30 - Backup Verification + Restore Test: proxmox/30_Backup_Verification_Restore_Test.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md

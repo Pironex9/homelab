@@ -142,6 +142,11 @@ ls -lh /mnt/storage/backup/proxmox/dump/
 mountpoint /mnt/pve/nobara-backup
 ```
 
+Backups being written is not the same as backups being restorable. The restic
+repository is verified weekly by a restore test, and the daily digest checks
+vzdump coverage per guest rather than just counting files: see
+[30 - Backup Verification + Restore Test](./30_Backup_Verification_Restore_Test.md).
+
 ---
 
 ## 5. Immich Database Backup
