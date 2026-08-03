@@ -4,6 +4,11 @@
 
 Automated backup using restic. Backs up Docker volumes and configs with encryption, deduplication, and automatic retention.
 
+> Not deployed. docker-host has no restic installed and no repos under
+> `$BACKUP_DEST_NFS`; its Docker data is covered by the daily vzdump of LXC 100
+> instead. The one live restic backup is on pve
+> (`/root/backup-proxmox-restic.sh`, weekly, host root only).
+
 ```bash
 ./backup.sh [service_name]
 ./backup.sh --all
@@ -12,14 +17,8 @@ Automated backup using restic. Backs up Docker volumes and configs with encrypti
 
 ### Configuration
 
-Both scripts read `scripts/.env` (gitignored). See `.env.example` for every key.
-
-```bash
-BACKUP_DEST_NFS="/mnt/backup"
-BACKUP_DEST_CLOUD="b2:bucket-name"
-RESTIC_PASSWORD="your-encryption-password"
-NTFY_URL="https://ntfy.sh/your-topic"
-```
+Both scripts read `scripts/.env` (gitignored). See `.env.example` for every key
+and for the values that match the live pve setup.
 
 ### Scheduling
 
@@ -54,10 +53,11 @@ non-zero if anything failed, so cron surfaces it.
 ### Scheduling
 
 `restic check` takes an exclusive lock, so run it well after the backup window.
+On pve the backup itself runs Sunday 04:00, so the test goes after it:
 
 ```bash
-# Restore test every Sunday at 4 AM
-0 4 * * 0 /path/to/homelab/scripts/restore-test.sh
+# Restore test every Sunday at 6 AM, two hours after the backup
+0 6 * * 0 /root/restore-test.sh
 ```
 
 Logs to `/var/log/homelab/restore-test.log`.
