@@ -57,6 +57,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [28 - SnapRAID Daemon Setup](./proxmox/28_SnapRAID_Daemon_Setup.md) - Replaced manual SnapRAID CLI + cron with snapraidd web dashboard, dpkg dependency conflict fix, doc/release drift workarounds (no auth in v1.14, explicit bind IP needed), old binary quarantine
 - [29 - Rails Learning Lab](./proxmox/29_Rails_Learning_Lab.md) - Disposable Rails 8 + PostgreSQL sandbox on docker-host, port collision on 3000 forced a move to 3300, Rails 8 host authorization, VS Code Remote-SSH editing workflow
 - [30 - Backup Verification + Restore Test](./proxmox/30_Backup_Verification_Restore_Test.md) - Restic restore test with checksum comparison and 1% data read, per-guest vzdump coverage in the daily digest, the tmpfs-on-pve trap and the .vma.zst vs .tar.zst false alarm
+- [31 - Tailscale Port Collision + DNS Audit](./proxmox/31_Tailscale_Port_Collision_DNS_Audit.md) - Four nodes sharing UDP 41641 behind one UPnP router made LXC 109 flap between direct and DERP, a LAN-only IP as tailnet global nameserver broke all mobile DNS, and both ssh.service and ssh.socket were enabled on 109
 
 ### Deprecated
 

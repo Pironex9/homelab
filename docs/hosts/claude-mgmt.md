@@ -62,10 +62,14 @@ Docker container `code-server` (image `lscr.io/linuxserver/code-server`), compos
 
 | Service | Status | Description |
 |---------|--------|-------------|
-| ssh.service | active | OpenSSH server (Restart=always, RestartSec=5) |
+| ssh.socket | active | Owns port 22, triggers `ssh.service` on connection (`Accept=no`) |
+| ssh.service | active | OpenSSH server, socket-activated. **Must stay `disabled`** - see the 2026-08-03 incident |
 | cron.service | active | Scheduled tasks |
 | docker.service | active | Runs code-server container |
 | periphery.service | active | Komodo agent, outbound to Core (LXC 105) |
+| tailscaled.service | active | Bound to UDP **41642**, not the default 41641 - see the 2026-08-03 incident |
+
+`run-rpc_pipefs.mount` is permanently in `failed` state (NFS pseudo-filesystem cannot be mounted in an unprivileged LXC). Pre-existing and harmless - ignore it when reading `systemctl --failed`.
 
 ## Open Ports
 
@@ -73,6 +77,7 @@ Docker container `code-server` (image `lscr.io/linuxserver/code-server`), compos
 |------|----------|-------|
 | 22 | TCP | SSH access |
 | 8443 | TCP | code-server, bound to Tailscale IP only (100.98.146.14) |
+| 41642 | UDP | Tailscale WireGuard/peer traffic (`PORT=` in `/etc/default/tailscaled`) |
 
 ## SSH Access
 
@@ -273,6 +278,24 @@ Also removed `firewall=1` from LXC 109's Proxmox config (`/etc/pve/lxc/109.conf`
 
 ---
 
+### 2026-08-03 - Tailscale sessions freezing, and a silently failed sshd
+
+**Symptom:** Remote SSH and code-server sessions to this LXC over Tailscale froze for seconds at a time and sometimes dropped, while every other host on the same LAN was fine. Separately, the phone lost all internet for a while after disabling Tailscale, with a "DNS unavailable" warning from the app.
+
+**Root cause 1 - UDP port collision.** Four Tailscale nodes (pve, this LXC, docker-host, alpine-komodo) were all bound to the default UDP 41641 behind a single Archer C6 whose UPnP runs in `method=single` mode, so only one of them could hold the external port mapping. pve won it; this LXC kept flapping between a direct path and a DERP relay, and each switch is a few seconds of blackholed packets. Mobile carrier symmetric CGNAT (a new source port on every negotiation) made it worse.
+
+**Root cause 2 - tailnet DNS.** The tailnet's global nameserver was 192.168.0.111 (AdGuard), a LAN-only address, so every DNS query from a remote device had to traverse the tunnel. When the path above flapped, all name resolution died, not just homelab names.
+
+**Fix:** one UDP port per node (this LXC moved to 41642), and the global nameserver removed from the Tailscale admin console, keeping only the `lan -> 192.168.0.111` split DNS route.
+
+**Root cause 3 - found while hardening, unrelated.** Both `ssh.service` and `ssh.socket` were enabled, so sshd bound port 22 standalone at boot while the socket also owned it. A `systemctl reload ssh` made sshd re-exec, fail to rebind (`Address already in use`) and die - but logins kept working because the socket re-triggered the service, so the failed unit went unnoticed. Fixed with `systemctl disable ssh.service` (socket activation retained). Under socket activation, prefer `systemctl restart ssh.socket ssh.service` over `reload`.
+
+**Hardening applied:** `ClientAliveInterval 30` + `ClientAliveCountMax 6` in `/etc/ssh/sshd_config` (was `0`, so a session behind a blackholed path hung indefinitely).
+
+Full write-up with diagnostic commands: [31 - Tailscale Port Collision + DNS Audit](../proxmox/31_Tailscale_Port_Collision_DNS_Audit.md).
+
+---
+
 ## Lessons Learned
 
 - **No root password by default:** Community script-based LXC containers do not receive a root password during provisioning. SSH password login is also disabled. The only way to add SSH keys initially is via `pct exec` from the Proxmox host.
@@ -282,6 +305,10 @@ Also removed `firewall=1` from LXC 109's Proxmox config (`/etc/pve/lxc/109.conf`
 - **Tailscale accept-routes breaks LAN SSH:** If pve advertises the homelab LAN subnet (`192.168.0.0/24`) via Tailscale and a container has `accept-routes=true`, all LAN traffic routes through Tailscale (table 52 takes priority). Use `/etc/hosts` entries with Tailscale IPs instead.
 - **Static IP is mandatory:** DHCP can cause IP changes after restarts/updates, breaking SSHFS mounts on Nobara. `/etc/network/interfaces` must use `inet static` with address 192.168.0.204. Also update `/etc/pve/lxc/109.conf` on the Proxmox host: `ip=192.168.0.204/24,gw=192.168.0.1`.
 - **SSH watchdog:** `/etc/systemd/system/ssh.service.d/restart.conf` with `Restart=always, RestartSec=5` ensures SSH restarts automatically if it crashes after an update.
+- **One Tailscale UDP port per node behind the same router:** the Archer C6's UPnP is `method=single`, so it maps external UDP 41641 to exactly one internal host. Nodes that lose the race cannot hold a direct path and keep flapping to DERP, which interactive sessions feel as freezes. There is no `tailscale set --port` - set `PORT=` in `/etc/default/tailscaled` (or `port=` in `/etc/conf.d/tailscale` on Alpine) and restart the daemon.
+- **Never point the tailnet global nameserver at a LAN-only IP:** it makes every remote DNS query depend on the subnet router being reachable. Use a split DNS route scoped to the `lan` domain instead, and leave the global resolver empty so clients fall back to their own.
+- **A failed systemd unit can hide behind a working service:** with socket activation `ssh.socket` keeps serving even when `ssh.service` is dead, so `systemctl --failed` is not enough. Verify SSH with an actual connection from another host.
+- **Don't trust `systemctl reload ssh` on a socket-activated host:** sshd re-execs on SIGHUP and tries to bind port 22 itself, which systemd already owns.
 - **`/etc/resolv.conf` doesn't match the documented static DNS:** the network config above lists `192.168.0.111` (AdGuard) as the DNS server, but Tailscale's MagicDNS (`accept-dns`) rewrites `/etc/resolv.conf` at runtime to point at public resolvers (`8.8.8.8`, `1.1.1.1`) with a `tailc6abe2.ts.net` search domain. In practice this means `*.lan` hostnames don't resolve from this host at all. Scripts that need a `*.lan` name from here (e.g. the homelab digest script below) should use `curl --resolve host.lan:443:<caddy-ip>` rather than relying on system DNS.
 
 ## Scheduled Tasks
