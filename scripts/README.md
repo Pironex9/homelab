@@ -57,8 +57,11 @@ On pve the backup itself runs Sunday 04:00, so the test goes after it:
 
 ```bash
 # Restore test every Sunday at 6 AM, two hours after the backup
-0 6 * * 0 /root/restore-test.sh
+0 6 * * 0 /root/restore-test/restore-test.sh >> /var/log/homelab/restore-test-cron.log 2>&1
 ```
+
+Deployed on pve as `/root/restore-test/restore-test.sh` with its `.env` beside
+it (the script sources `.env` from its own directory).
 
 Logs to `/var/log/homelab/restore-test.log`.
 
