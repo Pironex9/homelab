@@ -25,8 +25,13 @@ jobs:
         with:
           python-version: '3.x'
 
+      # Pinned below 10 on purpose. Material for MkDocs goes EOL on 2026-11-05
+      # and MkDocs 2.0 drops the plugin system, the theming system and YAML
+      # config, so Material cannot run on it. Material 9.x already caps its own
+      # dependency at mkdocs<2, so this one constraint holds the whole build.
+      # Review in November 2026: the migration target is Zensical.
       - name: Install MkDocs + Material
-        run: pip install mkdocs-material
+        run: pip install "mkdocs-material<10"
 
       - name: Build site
         run: mkdocs build
