@@ -40,14 +40,37 @@ else
     lines+=("LXC/VM: mind fut")
 fi
 
-# --- Backups (last vzdump run today?) ---
+# --- Backups (ma minden guest lement?) ---
 today=$(date +%Y_%m_%d)
-backup_count=$(pve "ls /mnt/storage/backup/proxmox/dump/ 2>/dev/null | grep -c '$today'")
-if [[ "${backup_count:-0}" -eq 0 ]]; then
-    lines+=("⚠️ Nincs mai vzdump backup")
-    warn=1
+# A vzdump job vmid listája = amit ma le kellett volna menteni. Sikert csak az
+# archívum jelent (.tar.zst LXC-nél, .vma.zst VM-nél); hibás futás is hagy .log-ot,
+# ezért a puszta fájlszám zöldet mutatna kiesett guestek mellett is.
+want=$(pve "grep -h vmid /etc/pve/jobs.cfg 2>/dev/null | tr -d ' \t' | sed 's/^vmid//' | tr ',' '\n' | sed '/^\$/d' | sort -un")
+have=$(pve "ls /mnt/storage/backup/proxmox/dump/ 2>/dev/null | grep '$today' | grep -E '\.(tar|vma)\.zst\$' | grep -oE 'vzdump-(lxc|qemu)-[0-9]+' | grep -oE '[0-9]+\$' | sort -un")
+
+if [[ -z "$want" ]]; then
+    # Nincs kiolvasható vmid lista - visszaesünk a "futott-e ma bármi" ellenőrzésre.
+    if [[ -z "$have" ]]; then
+        lines+=("⚠️ Nincs mai vzdump backup")
+        warn=1
+    else
+        lines+=("Backup: ma lefutott ($(echo "$have" | wc -w) guest)")
+    fi
 else
-    lines+=("Backup: ma lefutott ($backup_count fájl)")
+    missing=""
+    done_n=0
+    for id in $want; do
+        if grep -qx "$id" <<<"$have"; then
+            done_n=$((done_n + 1))
+        else
+            missing+="$id "
+        fi
+    done
+    lines+=("Backup: $done_n/$(echo "$want" | wc -w) guest ma lementve")
+    if [[ -n "$missing" ]]; then
+        lines+=("⚠️ Backup hiányzik: ${missing% }")
+        warn=1
+    fi
 fi
 
 # --- SnapRAID ---
