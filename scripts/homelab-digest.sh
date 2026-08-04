@@ -73,6 +73,25 @@ else
     fi
 fi
 
+# --- Restic (a host-config repo friss-e?) ---
+# Heti mentés (vasárnap 04:00), ezért 8 nap a küszöb: egy kihagyott futás még
+# belefér, kettő már nem. --no-lock, hogy sose ütközzön a mentéssel vagy a
+# vasárnapi restore-teszttel - ez csak olvas.
+restic_out=$(pve "RESTIC_PASSWORD_FILE=/root/.secrets/restic-password timeout 60 restic -r /mnt/disk1/backup/proxmox-host snapshots --latest 1 --no-lock 2>/dev/null")
+restic_dt=$(echo "$restic_out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' | tail -1)
+if [[ -z "$restic_dt" ]]; then
+    lines+=("⚠️ Restic: nem olvasható a repo")
+    warn=1
+else
+    restic_age=$(( ( $(date +%s) - $(date -d "$restic_dt" +%s) ) / 86400 ))
+    if [[ "$restic_age" -gt 8 ]]; then
+        lines+=("⚠️ Restic: a legutolsó snapshot ${restic_age} napos")
+        warn=1
+    else
+        lines+=("Restic: friss (${restic_age} napos snapshot)")
+    fi
+fi
+
 # --- SnapRAID ---
 snap_status=$(pve "timeout 60 snapraid status 2>&1")
 if echo "$snap_status" | grep -q "not fully synced\|NOT fully synced"; then

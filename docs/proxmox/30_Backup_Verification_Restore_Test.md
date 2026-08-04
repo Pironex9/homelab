@@ -125,17 +125,46 @@ The comparison is against the job's `vmid` list, so it catches a backup that fai
 
 ---
 
+## 3. Restic Freshness in the Daily Digest
+
+The weekly restore test proves the repository is *sound*. It does not tell you the backup still *runs*: a broken cron or a full disk would leave the last good snapshot verifiable for months while nothing new arrived. The digest now reports the age of the newest snapshot every morning:
+
+```bash
+restic_out=$(pve "RESTIC_PASSWORD_FILE=... timeout 60 restic -r ... snapshots --latest 1 --no-lock")
+restic_dt=$(echo "$restic_out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' | tail -1)
+restic_age=$(( ( $(date +%s) - $(date -d "$restic_dt" +%s) ) / 86400 ))
+```
+
+Three deliberate choices:
+
+- **`--no-lock`.** This is a read, and the digest runs at 07:00 while the backup starts at 04:00 and the restore test at 06:00. Taking a lock would put a monitoring check in a position to block a backup, which inverts the point of monitoring.
+- **8-day threshold.** The backup is weekly, so one skipped run still passes and two do not. A 7-day threshold would fire on normal jitter.
+- **An unreadable repository is its own warning,** separate from a stale one. A wrong password, an unmounted NFS share and a dead cron are different failures, and collapsing them into "stale" would send you looking in the wrong place.
+
+Both warning branches were tested by injecting a fake timestamp rather than waiting for a real failure:
+
+```
+⚠️ Restic: a legutolsó snapshot 12 napos
+⚠️ Restic: nem olvasható a repo
+```
+
+Normal output is one line: `Restic: friss (2 napos snapshot)`.
+
+---
+
 ## What This Still Does Not Cover
 
 Worth stating plainly, because partial verification invites false confidence:
 
 | Layer | Size | Verified? |
 |---|---|---|
-| vzdump, all guests, daily | ~4.1 TB | Coverage yes, restore **no** |
+| vzdump, all guests, daily | ~4.1 TB | Coverage and freshness automated; restore exercised ad hoc, never scheduled |
 | restic, pve host root, weekly | ~24 GiB | Fully, as of this document |
 | SnapRAID, media | ~8.1 TB | Sync and scrub |
 
-The restic layer is now the best-verified and it is also the smallest and the least critical, since a host filesystem is rebuildable in a way that application data is not. Everything that actually matters lives in the vzdump layer, and a real test there means restoring an archive to a throwaway VMID, booting it and checking it. That remains open.
+The restic layer is the best-verified, and it is also the smallest and the least critical, since a host filesystem is rebuildable in a way that application data is not. Everything that actually matters lives in the vzdump layer.
+
+A scheduled restore test was considered for that layer and deliberately not built. `pct restore` is not an untried path here: containers have been restored from these archives several times, as ordinary recovery after breaking something inside one. Real recoveries are stronger evidence than a synthetic test would be, and adding a ceremonial one would mostly produce a green check. What stays unverified is narrower than "can we restore at all": whether a guest that is never touched would restore correctly after a long gap, which no test short of actually doing it can answer.
 
 `scripts/backup.sh` in the repository describes a third setup, one restic repository per Docker service, that is not deployed anywhere: docker-host has no restic installed. Docker data is covered by the daily vzdump of LXC 100 instead. The script and its `.env.example` now say so, so the gap does not read as a working backup layer later.
 
