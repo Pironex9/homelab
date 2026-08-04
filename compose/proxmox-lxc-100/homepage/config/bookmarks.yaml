@@ -24,6 +24,9 @@
     - LinkedIn:
         - icon: linkedin.png
           href: https://www.linkedin.com/in/norbert-csicsay-497195334
+    - Lessons:
+        - icon: mdi-school-outline
+          href: http://192.168.0.204:8800/lessons/
 - Uzlet:
     - Scraper API:
         - icon: fastapi.png
