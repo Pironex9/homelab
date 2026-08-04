@@ -196,7 +196,7 @@ curl -s "https://raw.githubusercontent.com/homeassistant-ai/skills/main/skills/h
 
 ---
 
-## Plugin token budget (memsearch recap)
+## Memsearch plugin: recap token budget and vector store
 
 The [memsearch](https://github.com/memsearch-plugins) plugin gives Claude Code semantic recall over past sessions. Its `SessionStart` hook also injects a "Recent Memory" recap of the most recent daily journals into **every** session start, including `--resume`. That injection is invisible in normal use and is paid for on every single start.
 
@@ -234,10 +234,45 @@ The plugin cache path is version-pinned (`~/.claude/plugins/cache/memsearch-plug
 
 It exits 2 if upstream reshapes the hook, rather than silently doing nothing - a quiet no-op is the failure that would go unnoticed for months. The hook change takes effect on the next session start, not the current one.
 
+### The same upgrade silently killed all search
+
+Trimming the recap was the intended change. The version bump that carried it also broke the vector store, and that went unnoticed for a day.
+
+`memsearch 0.4.6 -> 0.4.17` pulled in `milvus-lite 3.1.1`, which changed on-disk storage from a **single SQLite file** to a **directory** (lock file, `collections/`, `databases/`). There is no in-place migration. `MilvusLite.__init__` opens with:
+
+```python
+os.makedirs(data_dir, exist_ok=True)
+```
+
+`exist_ok=True` tolerates an existing *directory*, not an existing *file*. With the old-format `~/.memsearch/milvus.db` still in place, every memsearch invocation - `search`, `stats`, `index` - died at startup:
+
+```
+FileExistsError: [Errno 17] File exists: '/root/.memsearch/milvus.db'
+```
+
+**Why it stayed hidden for a day:** the SessionStart recap is plain bash reading the journal markdown directly, so it kept rendering perfectly while the semantic index underneath was dead. A healthy-looking recap says nothing about the index. The authoritative check is per project:
+
+```bash
+python3 -c "import json;print(json.load(open('.memsearch/.index-state.json'))['status'])"
+```
+
+The journals are the source of truth and the vectors are derived, so the fix is to rotate the old file and rebuild:
+
+```bash
+mv ~/.memsearch/milvus.db ~/.memsearch/milvus.db.v2-sqlite-$(date +%Y%m%d)
+memsearch index -c "$(derive-collection.sh /root/homelab)" /root/homelab/.memsearch/memory
+```
+
+Rebuilding 137 journals across four projects took about an hour of CPU: homelab 1199 chunks, uzlet 2951, rails 4, learning 0 (its only journal is a 19-byte stub).
+
 ### Gotchas
 
 - The plugin update needs the fully qualified name: `claude plugin update memsearch@memsearch-plugins`. The bare name returns "not found".
 - Bare `memsearch stats` fails with `collection not found`. The plugin uses per-project collections, so the correct call here is `memsearch stats -c ms_homelab_3bf86670`.
+- **Never type a collection name from memory.** Derive it: `~/.claude/plugins/cache/memsearch-plugins/memsearch/<version>/scripts/derive-collection.sh <project-dir>`. A bare `memsearch index` writes to the default `memsearch_chunks` collection, reports success, and the hooks then find nothing.
+- **milvus-lite holds an exclusive `flock`** - one process at a time, for reads too. A `stats` call during an index run fails with `BlockingIOError`. Check `pgrep -f "memsearch index"` first; a SessionStart hook may already be rebuilding.
+- Opening a session in a project makes its own hook re-index it automatically. Projects you rarely open stay broken until you do it by hand.
+- `GOAWAY / too_many_pings` (gRPC) and `pthread_setaffinity_np failed` (ONNX) during indexing are cosmetic.
 - There is nothing to gain by changing the summarize model. The per-turn summarizer already defaults to `haiku` in both 0.4.6 and 0.4.17.
 
 ---
