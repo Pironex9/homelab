@@ -43,6 +43,21 @@ a host therefore moves five things, and they must move in one go:
 
    1360 is the page's own height with the node-detail panel open on `pve`, which is
    the state it loads in. A taller window pads the bottom with background.
+
+   Then re-encode the WebP from the PNG you just wrote. `src/index.html` serves the
+   diagram through a `<picture>` element with WebP first and the PNG as the fallback,
+   so a stale `topology.webp` means almost every visitor sees the **old** map while
+   the PNG next to it is correct - and nothing anywhere reports the mismatch:
+
+   ```bash
+   ffmpeg -y -i compose/vps/landing/src/topology.png \
+     -c:v libwebp -lossless 0 -quality 92 compose/vps/landing/src/topology.webp
+   ```
+
+   Quality 92 was compared against the PNG at 2.6x magnification on the node-detail
+   panel, the densest small text in the image, with no visible difference. It cuts
+   268 KB to 87 KB. Lossless WebP only reaches 200 KB, which is not worth the extra
+   113 KB on a diagram the page already downscales.
 3. copy the interactive page across:
 
    ```bash
@@ -70,6 +85,28 @@ a host therefore moves five things, and they must move in one go:
 `src/favicon.svg` needs none of this. Note when editing it that an XML comment may not
 contain two consecutive hyphens: an invalid SVG still copies into `dist/` happily and
 only shows up as a missing tab icon.
+
+## The Content-Security-Policy forbids inline script and inline style
+
+`Caddyfile` sends a strict CSP for everything except `/topology/`: no inline script,
+no inline style, no third-party origin of any kind. The landing page can afford that
+because it has none - the counter that used to sit in a `<script>` block at the
+bottom of `src/index.html` was moved into `src/ui.js` for exactly this reason.
+
+So: **do not put a `<script>` block or a `style=` attribute into `src/index.html`.**
+It will build fine, pass the tests, look correct in your editor, and then be refused
+by the browser in production with nothing but a console error to show for it. Add the
+code to `src/ui.js` and the styling to `src/style.css` instead.
+
+`/topology/` gets its own, weaker policy. That page is generator output copied in
+wholesale, and it carries an inline `<style>`, an inline `<script>`, inline style
+attributes and two Google Fonts requests. None of it can be fixed from this
+directory, so it is scoped off rather than allowed to weaken the whole site.
+
+That Google Fonts call is a genuine wart: this site's whole argument is that it is
+self-hosted end to end, and a visitor reading the topology map is handed to Google
+anyway. Fixing it means self-hosting the two faces in
+`compose/proxmox-lxc-100/topology/` and rebuilding, not editing anything here.
 
 ## `dist/` is a build artifact
 

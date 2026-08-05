@@ -36,7 +36,47 @@
 		reverse_proxy 172.17.0.1:3001
 	}
 
+	# Applies to every response, including the proxied Kuma routes above.
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	# The interactive topology map at /topology/ is a build artifact copied in
+	# from compose/proxmox-lxc-100/topology/. It carries an inline <style>, an
+	# inline <script>, inline style attributes, and it pulls two fonts from
+	# Google. None of that can be fixed here: the file is byte-for-byte
+	# generator output and any hand edit is lost on the next copy. So it gets
+	# its own, weaker policy rather than dragging the landing page down to its
+	# level.
+	#
+	# The Google Fonts dependency is worth removing at the source one day. A
+	# page arguing that everything here is self-hosted should not be telling a
+	# third party who reads it.
+	handle /topology/* {
+		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		root * /usr/share/caddy
+		file_server
+	}
+
 	handle {
+		# Strict, and it can afford to be: the landing page loads no inline
+		# script, no inline style, no external font and no third-party asset
+		# of any kind. connect-src is for status.js reaching the two Kuma
+		# routes above, which are same-origin by design.
+		#
+		# COUPLED to src/index.html: putting a <script> or a style attribute
+		# back into that file breaks it silently in the browser and nowhere
+		# else. src/ui.js exists precisely so that stays true.
+		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+
+		# The diagram is the only asset heavy enough for caching to matter,
+		# and it moves only when a host is added or removed. HTML, CSS and JS
+		# are deliberately left on Etag revalidation so a deploy is visible
+		# immediately; they are small enough that a 304 costs nothing.
+		@diagram path *.png *.webp *.svg
+		header @diagram Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
+
 		root * /usr/share/caddy
 		file_server
 	}

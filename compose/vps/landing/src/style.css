@@ -23,12 +23,29 @@
      4.5:1 on all three, worst case 4.81 on --surface-2. */
   --ink-3:     #7d8898;
 
+  /* Borders lift on hover rather than changing hue. Two steps because a card
+     is a bigger surface than a button and needs more edge to register. */
+  --line-hover:      #333d4b;
+  --line-hover-card: #3a4351;
+
   --accent:      #e8933f;
   --accent-soft: #f2b273;
-  --accent-tint: rgba(232, 147, 63, 0.12);
+  /* Reads on the accent and on the skip link, both of which are amber
+     surfaces. One value, so the two cannot drift apart again. */
+  --on-accent:   #14181f;
 
   --up:   #56c98a;
   --down: #e05a52;
+
+  /* Every translucent value below is mixed from the token above it rather
+     than written out as rgba() channels. Hand-copied channels are how a
+     palette change silently misses the glows and the shadows. */
+  --up-glow:      color-mix(in srgb, var(--up) 12%, transparent);
+  --up-glow-soft: color-mix(in srgb, var(--up) 5%, transparent);
+  --down-glow:    color-mix(in srgb, var(--down) 14%, transparent);
+  --accent-wash:  color-mix(in srgb, var(--accent) 7%, transparent);
+  --underline:    color-mix(in srgb, var(--accent-soft) 40%, transparent);
+  --shadow-card:  0 14px 34px rgba(4, 6, 10, 0.55);
 
   --r: 4px;
 
@@ -76,7 +93,7 @@ img {
 
 a {
   color: var(--accent-soft);
-  text-decoration-color: rgba(242, 178, 115, 0.4);
+  text-decoration-color: var(--underline);
   text-underline-offset: 3px;
 }
 
@@ -97,7 +114,7 @@ a:hover {
   z-index: 10;
   padding: 0.7rem 1.1rem;
   background: var(--accent);
-  color: #12161d;
+  color: var(--on-accent);
   font: 600 0.9rem/1 var(--sans);
   border-radius: 0 0 var(--r) 0;
 }
@@ -182,7 +199,7 @@ p {
   padding-block: clamp(3.5rem, 8vw, 6rem) clamp(3.5rem, 7vw, 5.5rem);
   border-bottom: 1px solid var(--line-soft);
   background:
-    radial-gradient(120% 90% at 8% -10%, rgba(232, 147, 63, 0.07), transparent 60%),
+    radial-gradient(120% 90% at 8% -10%, var(--accent-wash), transparent 60%),
     var(--bg);
 }
 
@@ -208,7 +225,10 @@ p {
 
 .btn {
   display: inline-block;
-  padding: 0.72rem 1.15rem;
+  /* 0.85rem, not 0.72: the tighter value computed to a 41px tall control,
+     under the 44px that a thumb needs. The horizontal padding was already
+     fine. */
+  padding: 0.85rem 1.15rem;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface);
@@ -223,7 +243,7 @@ p {
 }
 
 .btn:hover {
-  border-color: #333d4b;
+  border-color: var(--line-hover);
   background: var(--surface-2);
   transform: translateY(-1px);
 }
@@ -235,14 +255,14 @@ p {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #14181f;
+  color: var(--on-accent);
   font-weight: 620;
 }
 
 .btn-primary:hover {
   background: var(--accent-soft);
   border-color: var(--accent-soft);
-  color: #14181f;
+  color: var(--on-accent);
 }
 
 .btn-quiet {
@@ -319,12 +339,12 @@ p {
   height: 9px;
   border-radius: 50%;
   background: var(--up);
-  box-shadow: 0 0 0 3px rgba(86, 201, 138, 0.12);
+  box-shadow: 0 0 0 3px var(--up-glow);
 }
 
 .dot[data-status="down"] {
   background: var(--down);
-  box-shadow: 0 0 0 3px rgba(224, 90, 82, 0.14);
+  box-shadow: 0 0 0 3px var(--down-glow);
   animation: none;
 }
 
@@ -342,6 +362,15 @@ p {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* A tablet held upright is 800-odd pixels wide and used to get the phone
+   layout: two columns and a five-row ladder with half the canvas empty
+   beside it. One step in between fixes the whole band. */
+@media (min-width: 620px) {
+  .tools {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 900px) {
@@ -399,6 +428,12 @@ p {
   outline: 1px solid var(--accent);
 }
 
+/* <picture> is inline by default, which would reintroduce exactly the
+   baseline gap under the image that .plate-link is written to avoid. */
+.plate-scroll picture {
+  display: block;
+}
+
 .plate-scroll img {
   width: 100%;
   border-radius: 2px;
@@ -411,6 +446,15 @@ p {
   .plate-scroll {
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    /* The pan is the whole point here, and nothing announced it: a phone
+       showed a diagram whose title was chopped off mid-word, which reads as
+       a broken image rather than as an invitation. Fading the right edge is
+       the affordance - content that dissolves is content that continues.
+       The fade is fixed to the viewport edge rather than to the scroll
+       position, so it still shows at the far right; a scroll-driven version
+       costs more than the honesty is worth here. */
+    -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 80%, transparent 100%);
   }
 
   .plate-scroll img {
@@ -450,16 +494,25 @@ p {
   gap: 1.25rem;
 }
 
-@media (min-width: 900px) {
+/* Two columns from tablet width up. A card is a paragraph of prose in a box,
+   and one column of them at 880px runs to a measure nobody wants to read. */
+@media (min-width: 700px) {
   .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.5rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .cards {
     /* Gives back the space the offset column borrows from the section. */
     padding-bottom: 3rem;
   }
 
   /* The right column sits lower than the left, so the section does not read
-     as a symmetrical four-up template. Layout offset, not motion. */
+     as a symmetrical four-up template. Layout offset, not motion. Only from
+     900px: below that the columns are narrow enough that the offset reads as
+     a misalignment rather than as a decision. */
   .cards .card:nth-child(even) {
     --shift: 3rem;
   }
@@ -488,7 +541,13 @@ p {
 }
 
 .card-cta {
-  margin-top: 1.4rem;
+  /* auto, not a fixed gap: the grid stretches every card in a row to the
+     tallest one, so a fixed margin left the shorter card's call to action
+     stranded mid-box with dead space under it, and the two in a row never
+     lined up. This pins it to the floor of whatever height the card gets.
+     padding-top keeps the old breathing room as a minimum. */
+  margin-top: auto;
+  padding-top: 1.4rem;
   font: 500 0.775rem/1 var(--mono);
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -504,10 +563,10 @@ p {
 }
 
 .card:hover {
-  border-color: #3a4351;
+  border-color: var(--line-hover-card);
   background: var(--surface-2);
   transform: translateY(calc(var(--shift) - 4px));
-  box-shadow: 0 14px 34px rgba(4, 6, 10, 0.55);
+  box-shadow: var(--shadow-card);
 }
 
 .card:hover .card-cta {
@@ -550,11 +609,19 @@ p {
 
 .foot-links {
   display: flex;
-  gap: 1.6rem;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.6rem;
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 0.9rem;
+}
+
+/* Inline text links computed to a 23px tall target, a hair under the 24px
+   floor. inline-block so the padding actually enlarges the hit box. */
+.foot-links a {
+  display: inline-block;
+  padding-block: 0.15rem;
 }
 
 /* --- Motion -------------------------------------------------------------- */
@@ -608,11 +675,11 @@ p {
 @keyframes breathe {
   0%, 100% {
     opacity: 1;
-    box-shadow: 0 0 0 3px rgba(86, 201, 138, 0.12);
+    box-shadow: 0 0 0 3px var(--up-glow);
   }
   50% {
     opacity: 0.72;
-    box-shadow: 0 0 0 5px rgba(86, 201, 138, 0.05);
+    box-shadow: 0 0 0 5px var(--up-glow-soft);
   }
 }
 

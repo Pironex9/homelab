@@ -6,6 +6,10 @@
 <title>Norbert Csicsay - Homelab Infrastructure</title>
 <meta name="description" content="Self-hosted infrastructure on Proxmox VE: GitOps-deployed Docker stacks, parity-protected storage, encrypted backups and a self-hosted public tunnel. Documented in full.">
 <meta name="color-scheme" content="dark">
+<!-- Matches --bg in style.css. Colours the browser chrome on mobile so the
+     address bar does not sit as a light slab above a near-black page. -->
+<meta name="theme-color" content="#0b0e13">
+<link rel="canonical" href="https://homelabor.net/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Norbert Csicsay - Homelab Infrastructure">
 <meta property="og:description" content="Proxmox VE, GitOps-deployed containers, parity-protected storage and self-hosted public access. Documented as it was built.">
@@ -41,10 +45,16 @@
           Proxmox VE, GitOps-deployed containers, parity-protected storage and
           self-hosted public access. Documented as it was built.
         </p>
+        <!-- Two outcomes count on this page and they are equal: the visitor
+             reads the documentation, or the visitor makes contact. LinkedIn is
+             the only contact channel there is - no address is published on
+             purpose - so it is a peer of the other two here, not the faint
+             third social link it used to be. The label names the action rather
+             than the network for the same reason. -->
         <div class="actions">
           <a class="btn btn-primary" href="https://docs.homelabor.net/">Read the documentation</a>
+          <a class="btn" href="https://www.linkedin.com/in/norbert-csicsay-497195334" rel="me noopener">Get in touch on LinkedIn</a>
           <a class="btn" href="https://github.com/Pironex9" rel="me noopener">View the source</a>
-          <a class="btn btn-quiet" href="https://www.linkedin.com/in/norbert-csicsay-497195334" rel="me noopener">LinkedIn</a>
         </div>
       </div>
 
@@ -96,9 +106,17 @@
                nodes.yml instead of exported to PNG. aria-label names the
                destination: without it the link's accessible name would be the
                whole alt paragraph below. -->
+          <!-- WebP first, PNG as the fallback any browser still understands.
+               The diagram is the heaviest thing on the page by an order of
+               magnitude and it is the same bytes on a phone as on a desktop,
+               so the format is where the saving is. Both files are exported
+               from the same source - see the README, they move together. -->
           <a class="plate-link" href="/topology/" aria-label="Open the interactive topology map">
-            <img src="topology.png" width="1280" height="1360" loading="lazy" decoding="async"
-                 alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
+            <picture>
+              <source type="image/webp" srcset="topology.webp">
+              <img src="topology.png" width="1280" height="1360" loading="lazy" decoding="async"
+                   alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries ten LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
+            </picture>
           </a>
         </div>
         <figcaption>
@@ -179,40 +197,22 @@
       <p class="foot-name">Norbert Csicsay</p>
       <p class="foot-note">Infrastructure, the documentation for it, and the scripts that keep it running.</p>
     </div>
+    <!-- Same wording as the hero button on purpose: LinkedIn is the contact
+         route, not one social profile among several. No email address is
+         published and there is no CV download - both are deliberate, see
+         PRODUCT.md before adding either back. -->
     <ul class="foot-links">
-      <li><a href="https://www.linkedin.com/in/norbert-csicsay-497195334" rel="me noopener">LinkedIn</a></li>
+      <li><a href="https://www.linkedin.com/in/norbert-csicsay-497195334" rel="me noopener">Get in touch on LinkedIn</a></li>
       <li><a href="https://github.com/Pironex9" rel="me noopener">GitHub</a></li>
-      <!-- Reserved: CV download link (public PDF), to sit alongside LinkedIn and GitHub. -->
     </ul>
   </div>
 </footer>
 
-<script>
-// Progressive enhancement only: counts the stack figure up once it is on screen.
-// The real number is already in the markup, so this is a no-op without JS.
-(function () {
-  var el = document.getElementById('stack-count');
-  if (!el || !('IntersectionObserver' in window)) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-  var target = parseInt(el.textContent, 10);
-  if (!isFinite(target) || target < 2) return;
-
-  var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (entry) {
-      if (!entry.isIntersecting) return;
-      io.disconnect();
-      var start = performance.now(), dur = 900;
-      (function step(now) {
-        var p = Math.min((now - start) / dur, 1);
-        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
-        if (p < 1) requestAnimationFrame(step);
-      })(start);
-    });
-  }, { threshold: 0.6 });
-  io.observe(el);
-})();
-</script>
+<!-- ui.js used to be an inline <script> here. It was moved out so the
+     Content-Security-Policy in ../Caddyfile can refuse inline script outright
+     rather than having to allow 'unsafe-inline' or carry a hash that goes
+     stale the moment anyone edits the code. Keep it external. -->
+<script src="ui.js" defer></script>
 <script src="status.js" defer></script>
 </body>
 </html>
