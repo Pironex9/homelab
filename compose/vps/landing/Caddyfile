@@ -71,11 +71,19 @@
 		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 		# The diagram is the only asset heavy enough for caching to matter,
-		# and it moves only when a host is added or removed. HTML, CSS and JS
-		# are deliberately left on Etag revalidation so a deploy is visible
-		# immediately; they are small enough that a 304 costs nothing.
+		# and it moves only when a host is added or removed.
 		@diagram path *.png *.webp *.svg
 		header @diagram Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
+
+		# no-cache means "keep a copy, but ask before using it" - not "do not
+		# cache". Without it these files carry no Cache-Control at all, and a
+		# browser then invents a freshness window from the Last-Modified date:
+		# roughly a tenth of the file's age, so an index.html that had sat
+		# unchanged for nine days was treated as fresh for most of a day and
+		# the deploy simply did not arrive. An Etag does not help there,
+		# because the browser never asks. It costs one 304 per visit.
+		@revalidate path / *.html *.css *.js
+		header @revalidate Cache-Control "no-cache"
 
 		root * /usr/share/caddy
 		file_server
