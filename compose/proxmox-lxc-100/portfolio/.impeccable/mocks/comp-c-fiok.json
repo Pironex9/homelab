@@ -1,0 +1,23 @@
+{
+  "approved": true,
+  "approvedAt": "2026-08-05",
+  "model": "nano_banana_pro",
+  "aspect_ratio": "16:9",
+  "resolution": "2k",
+  "surface": "portfolio gallery, single page",
+  "direction": "Gyarapodasi naplo (museum accession register)",
+  "seedKey": "d52c906f",
+  "role": "hero composition",
+  "companions": {
+    "comp-b-leltarkonyv.png": "approved as the second view (ledger table); it is also the print source for the school's PDF / A3 sheets",
+    "comp-a-kiemelt-tetel.png": "approved as the detail view reached by opening one work"
+  },
+  "doNotLiteralize": [
+    "the leather-bound book skeuomorphism and page gutter in comp B",
+    "the invented institution name 'Magyar Nemzeti Galeria Adattar' and the attribution 'ismeretlen magyar mesterek' in comp B",
+    "every date before 2024 - the collection starts 2024-09",
+    "the generated drawings themselves; the real works are Enci's",
+    "duplicate accession numbers visible in comp C (A.001/24 appears twice)",
+    "the near-invisible fade on comp C's lowest card rows"
+  ]
+}

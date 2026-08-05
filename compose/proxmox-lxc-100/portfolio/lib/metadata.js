@@ -21,14 +21,30 @@ function asDisplayString(value) {
 export function loadImageMetadata(imagePath) {
   const sidecarPath = imagePath.slice(0, -path.extname(imagePath).length) + '.yml';
   if (fs.existsSync(sidecarPath)) {
-    const data = yaml.load(fs.readFileSync(sidecarPath, 'utf8')) || {};
+    let data;
+    try {
+      data = yaml.load(fs.readFileSync(sidecarPath, 'utf8')) || {};
+    } catch (err) {
+      // js-yaml's message describes the syntax but never says which file, and
+      // one bad sidecar aborts the whole build. Anyone adding a drawing hits
+      // this the first time a title contains a quote, so name the file.
+      throw new Error(`${sidecarPath}: hibás YAML - ${err.message}`);
+    }
     return {
       title: asDisplayString(data.title) || deriveTitleFromFilename(imagePath),
       technique: asDisplayString(data.technique) || null,
       date: asDisplayString(data.date) || null,
+      // Marks a work for the opening view. Anything truthy counts so `featured: yes`
+      // works too, which is what someone writes when they are not thinking about YAML.
+      featured: Boolean(data.featured),
     };
   }
-  return { title: deriveTitleFromFilename(imagePath), technique: null, date: null };
+  return {
+    title: deriveTitleFromFilename(imagePath),
+    technique: null,
+    date: null,
+    featured: false,
+  };
 }
 
 export function loadBio(bioPath) {

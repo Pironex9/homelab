@@ -69,6 +69,30 @@ point of starting now.
 
 ## Operating Context
 
+### What the schools actually ask for
+
+Researched 2026-08-05 across published Hungarian art-secondary admission notices
+(Jelky András, Jaschik Álmos, Kisképző, Illyés Akadémia). They are consistent, and
+**none of them asks for a website**:
+
+- **10 to 15 best works.** Made at school, in a club, or at home.
+- **Recommended themes: csendélet, portré, tájkép**, plus freely chosen subjects.
+- Technique is free, but **at least two works in a colour technique** (pastel, tempera,
+  watercolour).
+- **Good-quality photographs are accepted**, and the works need no mounting. Some
+  schools want them laid out on **three A/3 sheets** instead.
+- At several schools the **first round is an electronic submission** of the portfolio
+  plus a motivation letter.
+- There is an **oral defence**: the applicant presents their own portfolio out loud.
+
+Two of these bind this product. The submission format is a PDF or a set of A/3 sheets,
+so the site is not itself a deliverable unless it can produce one. And the oral defence
+means Enci stands next to this thing and answers for it, which is a design constraint,
+not a detail: a site that looks like an agency made it invites the question of who
+really made it.
+
+### How a drawing gets published
+
 Publishing a drawing is a folder drop, and that is deliberate:
 
 1. photograph or scan the drawing
@@ -115,6 +139,17 @@ display names live in `bio.yml` under `categories:`.
 - **`bio.yml` hardcodes `age: 13`.** That is wrong within a year and nothing reports it.
   A birth year, or dropping the age in favour of the drawing dates, is the fix.
 
+- **The site must be able to emit the format the school asks for.** A PDF, or a layout
+  that prints onto three A/3 sheets, built from the same content the gallery is built
+  from. Without it the site is a supplement to a folder someone assembles by hand, which
+  is exactly the fortnight-before-the-deadline scramble this whole project exists to
+  avoid. Not built yet, and the strongest single argument for the site existing.
+
+- **`portre` is missing from the categories and the schools name it explicitly.** Today
+  there are three: `csendelet`, `tajkep`, `anime-karakter`. This is Enci's to fix over
+  the next two years, not the build's, but the site should not pretend the gap is not
+  there.
+
 - **All six images on the host today are placeholders.** Their sidecars say so in the
   technique field ("ideiglenes helyettesito kep"). No real drawing has been photographed
   yet.
@@ -129,6 +164,15 @@ display names live in `bio.yml` under `categories:`.
   oversight to be helpfully corrected later: the site is public and the artist is a
   minor. Age is the single identifying fact that is published on purpose, because the
   panel's judgement of the work depends on knowing it.
+
+- **Register: exhibition-grade structure, her handwriting in the details.** Chosen
+  2026-08-05 over the two poles. A fully neutral professional gallery invites the
+  panel's first question at the oral defence, "who actually made this site", and that
+  question costs more than a polished frame gains. A site built entirely out of her own
+  world (marker swatches, sketchbook furniture, manga furniture) competes with pencil
+  drawings for the attention the panel is supposed to spend on them. So: the structure
+  and craft of a serious exhibition, with enough of a thirteen-year-old who draws anime
+  visible in the details that nobody has to ask.
 
 - **The intro line in `bio.yml` is Enci's own wording** ("Szeretek rajzolni, kulonosen
   anime-stilusu karaktereket."). Rewriting it into marketing copy would replace the one

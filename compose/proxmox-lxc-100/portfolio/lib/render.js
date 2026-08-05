@@ -1,3 +1,5 @@
+import { buildRegister } from './register.js';
+
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -10,281 +12,699 @@ function displayName(slug) {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-// Subtle paper grain, self-contained (no external asset).
-const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")`;
+const MONTHS = [
+  'jan', 'febr', 'márc', 'ápr', 'máj', 'jún',
+  'júl', 'aug', 'szept', 'okt', 'nov', 'dec',
+];
+
+// Dates are opaque display strings by contract, so anything that is not a
+// plain ISO date is shown exactly as it was typed rather than mangled.
+function stampDate(date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+  if (!m) return date || '';
+  return `${m[1]} ${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}.`;
+}
+
+function tableDate(date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+  return m ? `${m[1]}.${m[2]}.${m[3]}` : (date || '—');
+}
 
 const CSS = `
 :root{
-  --paper:#f5f0e6;
-  --ink:#262218;
-  --ink-soft:#6d6353;
-  --accent:#c1502e;
-  --mat:#fffdf8;
-  --shadow:0 1px 2px rgba(38,34,24,.10),0 8px 24px rgba(38,34,24,.10);
-  --shadow-hover:0 2px 4px rgba(38,34,24,.12),0 16px 40px rgba(38,34,24,.18);
+  /* The cabinet, not the gallery wall. Colours are the register's own
+     materials: japanned steel, oxblood buckram, conservation board, aniline
+     stamp ink, brass. */
+  --steel:#171a20;
+  --steel-2:#1e222a;
+  --steel-3:#262b35;
+  --ox:#6e2029;
+  --ox-lit:#8a2833;
+  --board:#9aa7b4;
+  --board-ink:#20242c;
+  --brass:#b08d4f;
+  --brass-dim:#7d6438;
+  --ink:#dfe3e9;
+  --ink-soft:#98a1af;
+  /* Two violets, because one cannot carry both grounds: the dark ink is the
+     stamp on the board card, the light one is the same stamp on steel.
+     Using the dark one on steel fails contrast outright. */
+  --stamp:#4a2d7a;
+  --stamp-lit:#9b8ae0;
+  --shadow:0 2px 4px rgba(0,0,0,.45),0 18px 44px rgba(0,0,0,.5);
+  --shadow-lift:0 3px 6px rgba(0,0,0,.5),0 26px 60px rgba(0,0,0,.6);
+  --label:600 .75rem/1.1 'Archivo Narrow',system-ui,sans-serif;
+  --data:400 .75rem/1.4 'Courier Prime',ui-monospace,monospace;
 }
-*{box-sizing:border-box}
+*,*::before,*::after{box-sizing:border-box}
 html{scrollbar-gutter:stable}
 body{
-  margin:0;padding:0 clamp(1rem,4vw,3rem) 4rem;
-  font-family:'Karla',system-ui,sans-serif;
-  color:var(--ink);background:var(--paper);
+  margin:0;
+  background:var(--steel);
+  color:var(--ink);
+  font-family:'Archivo Narrow',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
-body::before{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
-  background-image:${GRAIN};opacity:.05;
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+.skip{
+  position:absolute;left:-9999px;top:0;z-index:60;
+  background:var(--board);color:var(--board-ink);padding:.6rem 1rem;
+  font:var(--label);letter-spacing:.14em;text-transform:uppercase;
 }
-header{max-width:640px;margin:clamp(3rem,8vh,6rem) auto 0;text-align:center}
-header h1{
-  font-family:'Young Serif',Georgia,serif;font-weight:400;
-  font-size:clamp(2.6rem,8vw,4.5rem);line-height:1.05;margin:0;
-  letter-spacing:-.01em;
+.skip:focus{left:.5rem;top:.5rem}
+
+/* ---- top rail: the drawer front ------------------------------------- */
+.rail{
+  display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+  background:var(--ox);
+  border-bottom:1px solid var(--brass-dim);
+  padding:.7rem clamp(.9rem,3vw,2rem);
 }
-header h1::after{content:'.';color:var(--accent)}
-.age{
-  display:inline-block;margin:1rem 0 0;
-  font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;
-  color:var(--ink-soft);
+.rail .name{
+  font-weight:700;font-size:1.9rem;letter-spacing:.1em;text-transform:uppercase;
+  margin:0;
 }
-.age::before,.age::after{content:'—';margin:0 .6em;color:var(--accent);opacity:.6}
-.intro{color:var(--ink-soft);line-height:1.65;font-size:1.06rem;margin:1.1rem auto 0;max-width:34em}
+.rail .count{
+  font:var(--data);color:#e7d9c4;letter-spacing:.06em;margin-left:auto;
+}
+.views{display:flex;gap:0}
+.views button{
+  appearance:none;cursor:pointer;
+  font:var(--label);letter-spacing:.16em;text-transform:uppercase;
+  color:#e7d9c4;background:transparent;
+  border:1px solid rgba(231,217,196,.35);
+  padding:.45rem .85rem;
+}
+.views button + button{border-left:none}
+.views button[aria-pressed="true"]{
+  background:var(--board);color:var(--board-ink);border-color:var(--board);
+}
+
+/* ---- register title band --------------------------------------------- */
+.band{
+  padding:1.4rem clamp(.9rem,3vw,2rem);
+  border-bottom:1px solid var(--steel-3);
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem 1.4rem;
+}
+.band p{margin:0;font:var(--data);color:var(--ink-soft);max-width:68ch}
+.band .age{
+  font:var(--label);letter-spacing:.2em;text-transform:uppercase;color:var(--brass);
+}
+
+/* ---- shell: tabs | work | years -------------------------------------- */
+.shell{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:0;
+}
+@media (min-width:60rem){
+  .shell{grid-template-columns:auto minmax(0,1fr) auto}
+}
+
+/* Category tabs, standing up like drawer dividers. */
 .tabs{
-  display:flex;flex-wrap:wrap;gap:.25rem 1.75rem;justify-content:center;
-  margin:clamp(2rem,5vh,3.5rem) 0 2.5rem;
+  display:flex;gap:.4rem;overflow-x:auto;
+  padding:.9rem clamp(.9rem,3vw,2rem);
+  border-bottom:1px solid var(--steel-3);
+  /* Below the two-column breakpoint the tabs scroll sideways, and a hard cut
+     at the right edge reads as a layout bug rather than as more content.
+     The fade says there is more without spending a control on saying it. */
+  -webkit-mask-image:linear-gradient(to right,#000 88%,transparent 100%);
+  mask-image:linear-gradient(to right,#000 88%,transparent 100%);
+}
+@media (min-width:60rem){
+  .tabs{
+    flex-direction:column;overflow:visible;
+    padding:1.8rem .5rem 1.8rem 1rem;border-bottom:none;
+    border-right:1px solid var(--steel-3);
+    -webkit-mask-image:none;mask-image:none;
+  }
 }
 .tab{
-  appearance:none;border:none;background:none;padding:.4rem 0;cursor:pointer;
-  font-family:inherit;font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--ink-soft);position:relative;transition:color .2s;
-}
-.tab::after{
-  content:'';position:absolute;left:0;right:0;bottom:0;height:2px;
-  background:var(--accent);transform:scaleX(0);transform-origin:center;
-  transition:transform .25s ease;
+  appearance:none;cursor:pointer;white-space:nowrap;
+  font:var(--label);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-soft);
+  background:linear-gradient(180deg,var(--steel-3),var(--steel-2));
+  border:1px solid var(--brass-dim);border-radius:2px;
+  padding:.5rem .8rem;
 }
 .tab:hover{color:var(--ink)}
-.tab.active{color:var(--ink)}
-.tab.active::after{transform:scaleX(1)}
-#gallery{
-  columns:3 300px;column-gap:1.75rem;
-  max-width:1200px;margin:0 auto;position:relative;z-index:0;
+.tab[aria-pressed="true"]{
+  background:linear-gradient(180deg,#d3ab63,var(--brass));
+  color:#231b0c;border-color:#e0be7d;
 }
-#gallery figure{
-  margin:0 0 1.75rem;break-inside:avoid;cursor:pointer;
-  background:var(--mat);padding:12px 12px 10px;
+
+.work{padding:clamp(1.4rem,3vw,2.6rem) clamp(.9rem,3vw,2rem) 4rem;min-width:0}
+
+/* ---- the lead: selected works ---------------------------------------- */
+.lead{
+  display:grid;gap:clamp(1.2rem,3vw,2.4rem);
+  grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+  margin:0 0 clamp(2.4rem,5vw,4rem);
+}
+.lead figure{margin:0;display:flex;flex-direction:column;gap:.7rem}
+/* One height for all three, the way works are hung on a common centre line.
+   Without it a portrait beside two landscapes makes the row twice as tall as
+   it needs to be and leaves a hole where the short ones stop. */
+.lead .sheet{
+  background:#f4f2ec;padding:.75rem;box-shadow:var(--shadow);border-radius:2px;
+  height:clamp(13rem,25vw,20rem);overflow:hidden;
+}
+/* The sheet is a mount: a fixed rectangle the drawing sits inside. Sizing the
+   image itself and centring it looks equivalent and is not - max-height on a
+   grid item does not hold, and a tall drawing then bursts out of its mount
+   and over the caption below. Filling the box and letting object-fit do the
+   letterboxing cannot overflow. */
+.lead img{
+  display:block;width:100%;height:100%;object-fit:contain;border-radius:1px;
+}
+.lead figcaption{display:flex;flex-direction:column;gap:.3rem}
+.lead .t{
+  font-weight:600;font-size:1rem;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.lead .meta{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap}
+.lead .no{font:var(--data);color:var(--brass)}
+
+/* The one authored moment: the date stamps land, the way a stamp hits paper.
+   They are legible before it runs and legible if it never runs. */
+.stamp{
+  font:700 1rem/1 'Courier Prime',ui-monospace,monospace;
+  letter-spacing:.02em;color:var(--stamp-lit);
+  display:inline-block;transform:rotate(-2.5deg);transform-origin:left center;
+  animation:stamp .32s cubic-bezier(.16,1,.3,1) backwards;
+}
+@keyframes stamp{
+  from{transform:rotate(-9deg) scale(1.7);opacity:0;filter:blur(1px)}
+}
+@media (prefers-reduced-motion:reduce){.stamp{animation:none}}
+
+/* ---- the drawer: every work as a card -------------------------------- */
+.section-rule{
+  display:flex;align-items:center;gap:1rem;margin:0 0 1.4rem;
+  font:var(--label);letter-spacing:.2em;text-transform:uppercase;color:var(--brass);
+}
+.section-rule::after{content:'';flex:1;height:1px;background:var(--brass-dim)}
+
+.drawer{
+  display:grid;gap:1rem;
+  grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));
+  margin:0;padding:0;list-style:none;
+}
+.card{
+  display:flex;flex-direction:column;gap:.45rem;
+  background:var(--board);border-radius:2px;
+  padding:.5rem .5rem .55rem;
+  border:1px solid #7f8d9c;
+  box-shadow:var(--shadow);
+  cursor:pointer;text-align:left;width:100%;
+  appearance:none;font-family:inherit;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lift)}
+/* Cards in a drawer are the same size; that is what makes them a drawer
+   rather than a pile. A fixed window with the drawing contained inside keeps
+   the grid on one rhythm without cropping anything. */
+.card img{
+  display:block;width:100%;height:6.5rem;object-fit:contain;
+  background:#f4f2ec;border-radius:1px;
+}
+.card .no{
+  font:var(--data);color:var(--board-ink);letter-spacing:.03em;
+}
+.card .t{
+  font-weight:600;font-size:1rem;line-height:1.25;color:var(--board-ink);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.is-hidden{display:none !important}
+
+.empty{font:var(--data);color:var(--ink-soft);margin:2rem 0}
+
+/* ---- the ledger view -------------------------------------------------- */
+.ledger-wrap{overflow-x:auto}
+table.ledger{border-collapse:collapse;width:100%;min-width:38rem}
+table.ledger caption{
+  text-align:left;font:var(--label);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--brass);padding-bottom:.9rem;
+}
+table.ledger th{
+  font:var(--label);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--brass);text-align:left;padding:.5rem .7rem;
+  border-bottom:1px solid var(--brass-dim);white-space:nowrap;
+}
+table.ledger td{
+  padding:.35rem .7rem;border-bottom:1px solid var(--steel-3);
+  font-variant-numeric:tabular-nums;vertical-align:middle;
+}
+table.ledger tbody tr{cursor:pointer}
+table.ledger tbody tr:hover{background:var(--ox)}
+table.ledger .no,table.ledger .dt{font:var(--data);color:var(--ink-soft)}
+table.ledger tbody tr:hover .no,table.ledger tbody tr:hover .dt{color:#e7d9c4}
+table.ledger .t{font-weight:600}
+table.ledger .t{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+table.ledger .th-img{width:3.6rem}
+/* Fixed box, contained image: a register's rows have one rhythm, and letting
+   each thumbnail set its own height turns the column into a ragged mess.
+   contain rather than cover, because cropping a drawing to fit a table is
+   the one thing this page must not do. */
+table.ledger img{
+  display:block;width:3.2rem;height:2.4rem;object-fit:contain;
+  background:#f4f2ec;border-radius:1px;
+}
+
+/* ---- the year rail ---------------------------------------------------- */
+.years{
+  display:flex;gap:.4rem;overflow-x:auto;
+  padding:.9rem clamp(.9rem,3vw,2rem);
+  border-top:1px solid var(--steel-3);
+}
+@media (min-width:60rem){
+  .years{
+    flex-direction:column;overflow:visible;
+    padding:1.8rem 1rem 1.8rem .5rem;border-top:none;
+    border-left:1px solid var(--steel-3);
+  }
+}
+.year{
+  appearance:none;cursor:pointer;
+  font:var(--data);letter-spacing:.14em;color:var(--ink-soft);
+  background:transparent;border:1px solid transparent;border-radius:2px;
+  padding:.35rem .6rem;white-space:nowrap;
+}
+.year:hover{color:var(--ink)}
+.year[aria-pressed="true"]{color:#231b0c;background:var(--brass);border-color:#e0be7d}
+
+/* ---- detail overlay: one work and its catalogue card ------------------ */
+.detail{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(11,13,17,.96);
+  display:grid;grid-template-rows:auto 1fr;
+  padding:0;
+}
+.detail[hidden]{display:none}
+.detail-bar{
+  display:flex;align-items:center;gap:1rem;
+  background:var(--ox);border-bottom:1px solid var(--brass-dim);
+  padding:.55rem clamp(.9rem,3vw,2rem);
+}
+.detail-bar .pos{font:var(--data);color:#e7d9c4;letter-spacing:.08em}
+.detail-bar .spacer{flex:1}
+.detail-bar button{
+  appearance:none;cursor:pointer;background:transparent;
+  border:1px solid rgba(231,217,196,.35);color:#e7d9c4;
+  font:var(--label);letter-spacing:.12em;text-transform:uppercase;
+  padding:.4rem .7rem;
+}
+.detail-bar button:hover{background:rgba(231,217,196,.12)}
+.detail-body{
+  display:grid;gap:clamp(1rem,3vw,2.5rem);align-content:start;
+  grid-template-columns:minmax(0,1fr);
+  padding:clamp(1rem,3vw,2.4rem);overflow:auto;
+}
+@media (min-width:56rem){
+  .detail-body{grid-template-columns:minmax(0,1fr) 20rem;align-items:start}
+}
+.detail-stage{
+  display:grid;place-items:center;min-height:0;
+  background:#f4f2ec;padding:clamp(.6rem,2vw,1.1rem);
   box-shadow:var(--shadow);border-radius:2px;
-  transition:transform .25s ease,box-shadow .25s ease;
-  animation:rise .5s ease backwards;
 }
-#gallery figure:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover)}
-#gallery img{width:100%;height:auto;display:block;border-radius:1px}
-#gallery figcaption{
-  margin-top:.65rem;display:flex;justify-content:space-between;
-  align-items:baseline;gap:.75rem;
+.detail-stage img{display:block;max-width:100%;height:auto;border-radius:1px}
+.detail-stage.zoomable img{cursor:zoom-in}
+.detail-stage.zoomed{overflow:auto;place-items:start}
+.detail-stage.zoomed img{max-width:none;cursor:zoom-out}
+
+/* The catalogue card. Real text on real board - the stamp is a transform on
+   a live date, never an image, so it stays selectable and translatable. */
+.slip{
+  background:var(--board);color:var(--board-ink);
+  border:1px solid #7f8d9c;border-radius:2px;
+  box-shadow:var(--shadow);padding:1.1rem 1.2rem 1.3rem;
 }
-#gallery .t{font-family:'Young Serif',Georgia,serif;font-size:.95rem}
-#gallery .m{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
-.empty{text-align:center;color:var(--ink-soft);margin:4rem 0}
-@keyframes rise{from{opacity:0;transform:translateY(16px)}}
-@media (prefers-reduced-motion:reduce){#gallery figure{animation:none}}
+.slip dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:.55rem .9rem}
+.slip dt{
+  font:var(--label);letter-spacing:.14em;text-transform:uppercase;
+  color:#4a5361;white-space:nowrap;
+}
+.slip dd{margin:0;font:var(--data);color:var(--board-ink);word-break:break-word}
+.slip dd.title{font-family:'Archivo Narrow',system-ui,sans-serif;font-weight:600;font-size:1rem}
+.slip .stamp{color:var(--stamp);animation:none}
+
 footer{
-  text-align:center;margin-top:5rem;color:var(--ink-soft);
-  font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;
+  padding:2.5rem clamp(.9rem,3vw,2rem) 3rem;
+  border-top:1px solid var(--steel-3);
+  font:var(--data);color:var(--ink-soft);
 }
-.lightbox{
-  position:fixed;inset:0;background:rgba(24,21,15,.94);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:10;padding:1rem;
+
+/* ---- print: the ledger IS the school's sheet -------------------------- */
+@media print{
+  @page{size:A3 portrait;margin:14mm}
+  body{background:#fff;color:#000}
+  .rail,.tabs,.years,.detail,.views,.skip,footer,.section-rule{display:none !important}
+  .band{border:none;padding:0 0 8mm}
+  .band p,.band .age{color:#000}
+  .shell{display:block}
+  .work{padding:0}
+  .lead{page-break-after:always;margin-bottom:0}
+  .lead .sheet{box-shadow:none;padding:0;background:none}
+  .stamp{color:#000;animation:none}
+  #view-fiok .drawer{display:none}
+  #view-naplo{display:block !important}
+  table.ledger caption{color:#000}
+  table.ledger th{color:#000;border-bottom:1px solid #000}
+  table.ledger td{border-bottom:1px solid #bbb}
+  table.ledger .no,table.ledger .dt{color:#333}
 }
-.lightbox.hidden{display:none}
-#lightbox-stage{max-width:96vw;max-height:82vh;overflow:auto;overscroll-behavior:contain}
-#lightbox-stage img{display:block;margin:auto;max-width:96vw;max-height:82vh;box-shadow:0 24px 80px rgba(0,0,0,.6)}
-#lightbox-stage.zoomable img{cursor:zoom-in}
-#lightbox-stage.zoomed img{max-width:none;max-height:none;cursor:zoom-out}
-#lightbox-caption{color:#efe9dc;margin-top:1.25rem;text-align:center;font-size:.95rem}
-#lightbox-caption .t{font-family:'Young Serif',Georgia,serif;font-size:1.15rem;display:block;margin-bottom:.3rem}
-#lightbox-caption .m{color:#a89d89;letter-spacing:.1em;text-transform:uppercase;font-size:.72rem}
-#lightbox-counter{position:absolute;top:1.25rem;left:1.5rem;color:#a89d89;font-size:.8rem;letter-spacing:.15em}
-.lb-btn{
-  position:absolute;background:none;border:none;color:#efe9dc;cursor:pointer;
-  font-size:2rem;line-height:1;padding:.75rem;opacity:.7;transition:opacity .2s;
-  font-family:inherit;
-}
-.lb-btn:hover{opacity:1}
-#lightbox-close{top:.75rem;right:1rem}
-#lightbox-prev{left:.5rem;top:50%;transform:translateY(-50%)}
-#lightbox-next{right:.5rem;top:50%;transform:translateY(-50%)}
-@media (max-width:600px){#lightbox-prev,#lightbox-next{top:auto;bottom:.5rem;transform:none}}
 `;
 
 const CLIENT_JS = `
-let currentCategory = 'all';
-let currentImages = [];
-let currentIndex = 0;
+(function () {
+  var shell = document.getElementById('shell');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('[data-work]'));
+  var state = { cat: 'all', year: 'all' };
 
-function esc(str) {
-  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
-
-function flatten(data, category) {
-  const cats = category === 'all' ? data : data.filter(c => c.name === category);
-  return cats.flatMap(c => c.images);
-}
-
-function renderGallery() {
-  const gallery = document.getElementById('gallery');
-  currentImages = flatten(DATA, currentCategory);
-
-  if (currentImages.length === 0) {
-    gallery.innerHTML = '<p class="empty">Még nincsenek képek ebben a kategóriában.</p>';
-    return;
+  function matches(el) {
+    return (state.cat === 'all' || el.dataset.cat === state.cat)
+      && (state.year === 'all' || el.dataset.year === state.year);
   }
 
-  gallery.innerHTML = currentImages.map((img, i) => \`
-    <figure data-index="\${i}" style="animation-delay:\${Math.min(i * 45, 450)}ms">
-      <img src="\${esc(img.thumb)}" alt="\${esc(img.title)}" loading="lazy"
-        \${img.width ? \`width="\${Number(img.width)}" height="\${Number(img.height)}"\` : ''}>
-      <figcaption>
-        <span class="t">\${esc(img.title)}</span>
-        \${img.technique ? \`<span class="m">\${esc(img.technique)}</span>\` : ''}
-      </figcaption>
-    </figure>
-  \`).join('');
-
-  gallery.querySelectorAll('figure').forEach(fig => {
-    fig.addEventListener('click', () => openLightbox(Number(fig.dataset.index)));
-  });
-}
-
-// Zoom is offered only when the file actually has more pixels than we are
-// showing - blowing up a small scan just makes it blurry.
-function markZoomable() {
-  const stage = document.getElementById('lightbox-stage');
-  const el = document.getElementById('lightbox-img');
-  stage.classList.remove('zoomed');
-  stage.classList.toggle('zoomable', el.naturalWidth > el.clientWidth + 8);
-}
-
-function openLightbox(index) {
-  currentIndex = index;
-  const img = currentImages[index];
-  const el = document.getElementById('lightbox-img');
-  el.onload = markZoomable;
-  el.src = img.full;
-  el.alt = img.title;
-  document.getElementById('lightbox-stage').classList.remove('zoomed', 'zoomable');
-  const meta = [img.technique, img.date].filter(Boolean).join(' · ');
-  const cap = document.getElementById('lightbox-caption');
-  cap.innerHTML = '<span class="t">' + esc(img.title) + '</span>'
-    + (meta ? '<span class="m">' + esc(meta) + '</span>' : '');
-  document.getElementById('lightbox-counter').textContent =
-    (index + 1) + ' / ' + currentImages.length;
-  document.getElementById('lightbox').classList.remove('hidden');
-}
-
-function closeLightbox() {
-  document.getElementById('lightbox').classList.add('hidden');
-}
-
-function stepLightbox(delta) {
-  const n = currentImages.length;
-  openLightbox((currentIndex + delta + n) % n);
-}
-
-// Click to zoom to 1:1, native scroll pans. Scroll lands on the clicked spot.
-document.getElementById('lightbox-img').addEventListener('click', (e) => {
-  const stage = document.getElementById('lightbox-stage');
-  if (!stage.classList.contains('zoomable')) return;
-  const r = e.target.getBoundingClientRect();
-  const fx = (e.clientX - r.left) / r.width;
-  const fy = (e.clientY - r.top) / r.height;
-  if (stage.classList.toggle('zoomed')) {
-    stage.scrollLeft = fx * stage.scrollWidth - stage.clientWidth / 2;
-    stage.scrollTop = fy * stage.scrollHeight - stage.clientHeight / 2;
+  function applyFilter() {
+    var shown = 0;
+    cards.forEach(function (el) {
+      var ok = matches(el);
+      el.classList.toggle('is-hidden', !ok);
+      if (ok && el.dataset.view === 'fiok') shown++;
+    });
+    document.getElementById('drawer-empty').hidden = shown > 0;
+    document.getElementById('drawer-count').textContent = shown;
   }
-});
 
-document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
-document.getElementById('lightbox-prev').addEventListener('click', () => stepLightbox(-1));
-document.getElementById('lightbox-next').addEventListener('click', () => stepLightbox(1));
-document.getElementById('lightbox').addEventListener('click', (e) => {
-  if (e.target.id === 'lightbox') closeLightbox();
-});
-document.addEventListener('keydown', (e) => {
-  if (document.getElementById('lightbox').classList.contains('hidden')) return;
-  if (e.key === 'Escape') closeLightbox();
-  if (e.key === 'ArrowLeft') stepLightbox(-1);
-  if (e.key === 'ArrowRight') stepLightbox(1);
-});
+  function bindGroup(selector, key) {
+    var buttons = Array.prototype.slice.call(document.querySelectorAll(selector));
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        // Clicking the active filter clears it, which is what people try first.
+        state[key] = state[key] === btn.dataset.value ? 'all' : btn.dataset.value;
+        buttons.forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b.dataset.value === state[key]));
+        });
+        applyFilter();
+      });
+    });
+  }
 
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentCategory = tab.dataset.category;
-    renderGallery();
+  bindGroup('.tab', 'cat');
+  bindGroup('.year', 'year');
+
+  // The view lives in the hash so a link can point straight at the register -
+  // useful when the whole list is what someone asked to see.
+  function setView(view) {
+    if (view !== 'naplo') view = 'fiok';
+    shell.dataset.view = view;
+    document.querySelectorAll('.views button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.view === view));
+    });
+    document.getElementById('view-fiok').hidden = view !== 'fiok';
+    document.getElementById('view-naplo').hidden = view !== 'naplo';
+  }
+
+  document.querySelectorAll('.views button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      history.replaceState(null, '', btn.dataset.view === 'naplo' ? '#naplo' : '#fiok');
+      setView(btn.dataset.view);
+    });
   });
-});
 
-renderGallery();
+  window.addEventListener('hashchange', function () {
+    setView(location.hash.replace('#', ''));
+  });
+  if (location.hash) setView(location.hash.replace('#', ''));
+
+  /* ---- detail overlay ---- */
+  var detail = document.getElementById('detail');
+  var stage = document.getElementById('detail-stage');
+  var img = document.getElementById('detail-img');
+  var order = [];
+  var index = 0;
+  var lastFocus = null;
+
+  function visibleOfView() {
+    var view = shell.dataset.view;
+    return cards.filter(function (el) {
+      return el.dataset.view === view && !el.classList.contains('is-hidden');
+    });
+  }
+
+  function fill(el) {
+    var d = el.dataset;
+    img.src = d.full;
+    img.alt = d.title;
+    stage.classList.remove('zoomed', 'zoomable');
+    document.getElementById('d-no').textContent = d.no;
+    document.getElementById('d-title').textContent = d.title;
+    document.getElementById('d-cat').textContent = d.catLabel;
+    var tech = document.getElementById('d-tech-row');
+    document.getElementById('d-tech').textContent = d.tech || '';
+    tech.hidden = !d.tech;
+    var dateRow = document.getElementById('d-date-row');
+    document.getElementById('d-date').textContent = d.stamp || '';
+    dateRow.hidden = !d.stamp;
+    document.getElementById('d-pos').textContent = (index + 1) + ' / ' + order.length;
+  }
+
+  function open(el) {
+    order = visibleOfView();
+    index = Math.max(0, order.indexOf(el));
+    lastFocus = el;
+    fill(el);
+    detail.hidden = false;
+    document.body.style.overflow = 'hidden';
+    document.getElementById('d-close').focus();
+  }
+
+  function close() {
+    detail.hidden = true;
+    document.body.style.overflow = '';
+    if (lastFocus) lastFocus.focus();
+  }
+
+  function step(delta) {
+    if (order.length === 0) return;
+    index = (index + delta + order.length) % order.length;
+    fill(order[index]);
+  }
+
+  cards.forEach(function (el) {
+    el.addEventListener('click', function () { open(el); });
+  });
+
+  document.getElementById('d-close').addEventListener('click', close);
+  document.getElementById('d-prev').addEventListener('click', function () { step(-1); });
+  document.getElementById('d-next').addEventListener('click', function () { step(1); });
+
+  // Zoom is offered only when the file actually holds more pixels than we are
+  // showing; blowing up a small scan just makes it blurry.
+  img.addEventListener('load', function () {
+    stage.classList.toggle('zoomable', img.naturalWidth > img.clientWidth + 8);
+  });
+  img.addEventListener('click', function () {
+    if (stage.classList.contains('zoomable')) stage.classList.toggle('zoomed');
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (detail.hidden) return;
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowLeft') step(-1);
+    if (e.key === 'ArrowRight') step(1);
+  });
+
+  applyFilter();
+}());
 `;
 
+function workData(image, categoryLabel) {
+  return [
+    `data-work`,
+    `data-cat="${escapeHtml(image.category)}"`,
+    `data-cat-label="${escapeHtml(categoryLabel)}"`,
+    `data-year="${escapeHtml(image.date ? String(image.date).slice(0, 4) : 'nincs')}"`,
+    `data-no="${escapeHtml(image.accession)}"`,
+    `data-title="${escapeHtml(image.title)}"`,
+    `data-tech="${escapeHtml(image.technique || '')}"`,
+    `data-stamp="${escapeHtml(image.date ? stampDate(image.date) : '')}"`,
+    `data-full="${escapeHtml(image.full)}"`,
+  ].join(' ');
+}
+
 export function renderIndexHtml({ bio, categories }) {
-  const tabsHtml = [
-    `<button class="tab active" data-category="all">Összes</button>`,
-    ...categories.map((c) => `<button class="tab" data-category="${escapeHtml(c.name)}">${escapeHtml(bio.categories?.[c.name] || displayName(c.name))}</button>`),
-  ].join('\n');
+  const register = buildRegister(categories);
+  const label = (slug) => bio.categories?.[slug] || displayName(slug);
 
-  const dataJson = JSON.stringify(categories.map((c) => ({
-    name: c.name,
-    images: c.images.map((img) => ({
-      title: img.title,
-      technique: img.technique,
-      date: img.date,
-      full: img.full,
-      thumb: img.thumb,
-      width: img.width ?? null,
-      height: img.height ?? null,
-    })),
-  }))).replace(/</g, '\\u003c');
+  const tabs = categories.map((c) => `
+        <button class="tab" type="button" data-value="${escapeHtml(c.name)}"
+                aria-pressed="false">${escapeHtml(label(c.name))}</button>`).join('');
 
-  const year = new Date().getFullYear();
+  const years = register.years.map((y) => `
+        <button class="year" type="button" data-value="${escapeHtml(y)}"
+                aria-pressed="false">${escapeHtml(y)}</button>`).join('');
+
+  const lead = register.featured.map((image, i) => `
+          <figure>
+            <div class="sheet">
+              <img src="${escapeHtml(image.thumb)}" alt="${escapeHtml(image.title)}"
+                   ${image.width ? `width="${Number(image.width)}" height="${Number(image.height)}"` : ''}>
+            </div>
+            <figcaption>
+              <span class="t">${escapeHtml(image.title)}</span>
+              <span class="meta">
+                <span class="no">${escapeHtml(image.accession)}</span>
+                ${image.date ? `<span class="stamp" style="animation-delay:${180 + i * 130}ms">${escapeHtml(stampDate(image.date))}</span>` : ''}
+              </span>
+            </figcaption>
+          </figure>`).join('');
+
+  const drawer = register.all.map((image) => `
+          <li><button class="card" type="button" data-view="fiok" ${workData(image, label(image.category))}>
+            <img src="${escapeHtml(image.thumb)}" alt="${escapeHtml(image.title)}"
+                 loading="lazy" decoding="async"
+                 ${image.width ? `width="${Number(image.width)}" height="${Number(image.height)}"` : ''}>
+            <span class="no">${escapeHtml(image.accession)}</span>
+            <span class="t">${escapeHtml(image.title)}</span>
+          </button></li>`).join('');
+
+  const rows = register.all.map((image) => `
+              <tr data-view="naplo" ${workData(image, label(image.category))}>
+                <td class="no">${escapeHtml(image.accession)}</td>
+                <td><img src="${escapeHtml(image.thumb)}" alt="" loading="lazy" decoding="async"></td>
+                <td class="t">${escapeHtml(image.title)}</td>
+                <td>${escapeHtml(label(image.category))}</td>
+                <td>${escapeHtml(image.technique || '—')}</td>
+                <td class="dt">${escapeHtml(tableDate(image.date))}</td>
+              </tr>`).join('');
+
+  const total = register.all.length;
+  const since = register.firstDate
+    ? `${String(register.firstDate).slice(0, 4)} óta`
+    : 'dátum nélkül';
 
   return `<!DOCTYPE html>
 <html lang="hu">
 <head>
 <meta charset="utf-8">
-<title>${escapeHtml(bio.name)} – Portfólió</title>
+<title>${escapeHtml(bio.name)} – rajzok</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;500&display=swap" rel="stylesheet">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#171a20">
+<meta name="description" content="${escapeHtml(bio.name)} rajzai, leltár szerint: ${total} tétel, ${escapeHtml(since)}.">
+<link rel="stylesheet" href="fonts.css">
 <style>${CSS}</style>
 </head>
 <body>
-<header>
-  <h1>${escapeHtml(bio.name)}</h1>
-  ${bio.age ? `<p class="age">${escapeHtml(bio.age)} éves</p>` : ''}
-  <p class="intro">${escapeHtml(bio.intro)}</p>
-</header>
-<nav class="tabs">${tabsHtml}</nav>
-<main id="gallery"></main>
-<footer>${escapeHtml(bio.name)} · ${year}</footer>
-<div id="lightbox" class="lightbox hidden">
-  <span id="lightbox-counter"></span>
-  <button id="lightbox-close" class="lb-btn" aria-label="Bezárás">&times;</button>
-  <button id="lightbox-prev" class="lb-btn" aria-label="Előző">&larr;</button>
-  <button id="lightbox-next" class="lb-btn" aria-label="Következő">&rarr;</button>
-  <div id="lightbox-stage"><img id="lightbox-img" src="" alt=""></div>
-  <div id="lightbox-caption"></div>
+<!--
+THESIS: a growing accession register, not a gallery wall. It refuses the
+masonry-of-matted-thumbnails arrangement this category always ships.
+OWN-WORLD: japanned steel #171a20 ground, oxblood buckram rails, blue-grey
+conservation board cards, aniline violet reserved for dates only, brass
+hairlines and tabs; Archivo Narrow caps over Courier Prime data, 2px corners.
+STORY: the visitor sees selected work first, then that it is one numbered,
+dated collection spanning years, then looks closely at one drawing.
+FIRST VIEWPORT: oxblood rail with name and count; register band; selected
+works across the full width, each date landing as a violet stamp; the drawer
+of every work below; category tabs left, year rail right.
+FORM: candidate 3 of the grounded list (accession register), seed d52c906f.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the
+finish review, the verdict, and DESIGN.md.
+-->
+<a class="skip" href="#work">Ugrás a rajzokhoz</a>
+
+<div class="rail">
+  <p class="name">${escapeHtml(bio.name)}</p>
+  <div class="views">
+    <button type="button" data-view="fiok" aria-pressed="true">Fiók</button>
+    <button type="button" data-view="naplo" aria-pressed="false">Napló</button>
+  </div>
+  <span class="count">${total} tétel · ${escapeHtml(since)}</span>
 </div>
-<script>
-const DATA = ${dataJson};
-${CLIENT_JS}
-</script>
+
+<div class="band">
+  ${bio.age ? `<span class="age">${escapeHtml(bio.age)} éves</span>` : ''}
+  <p>${escapeHtml(bio.intro)}</p>
+</div>
+
+<div class="shell" id="shell" data-view="fiok">
+
+  <nav class="tabs" aria-label="Kategóriák">${tabs}
+  </nav>
+
+  <main class="work" id="work">
+
+    <section id="view-fiok">
+      <div class="lead">${lead}
+      </div>
+
+      <p class="section-rule"><span>Teljes leltár · <span id="drawer-count">${total}</span> tétel</span></p>
+      <ul class="drawer">${drawer}
+      </ul>
+      <p class="empty" id="drawer-empty" hidden>Ebben a szűrésben nincs tétel.</p>
+    </section>
+
+    <section id="view-naplo" hidden>
+      <div class="ledger-wrap">
+        <table class="ledger">
+          <caption>Gyarapodási napló · ${total} tétel</caption>
+          <thead>
+            <tr>
+              <th scope="col">Leltári szám</th>
+              <th scope="col" class="th-img"><span class="skip">Kép</span></th>
+              <th scope="col">Cím</th>
+              <th scope="col">Kategória</th>
+              <th scope="col">Technika</th>
+              <th scope="col">Dátum</th>
+            </tr>
+          </thead>
+          <tbody>${rows}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="years" aria-label="Évek">${years}
+  </nav>
+
+</div>
+
+<footer>${escapeHtml(bio.name)} · ${new Date().getFullYear()}</footer>
+
+<div class="detail" id="detail" hidden role="dialog" aria-modal="true" aria-label="Tétel">
+  <div class="detail-bar">
+    <span class="pos" id="d-pos"></span>
+    <span class="spacer"></span>
+    <button type="button" id="d-prev">Előző</button>
+    <button type="button" id="d-next">Következő</button>
+    <button type="button" id="d-close">Bezárás</button>
+  </div>
+  <div class="detail-body">
+    <!-- No src attribute: an empty one resolves to this page's own URL and
+         the browser fetches the HTML again as an image. JS sets it on open. -->
+    <div class="detail-stage" id="detail-stage"><img id="detail-img" alt=""></div>
+    <div class="slip">
+      <dl>
+        <dt>Leltári szám</dt><dd id="d-no"></dd>
+        <dt>Cím</dt><dd class="title" id="d-title"></dd>
+        <dt>Kategória</dt><dd id="d-cat"></dd>
+        <div id="d-tech-row" style="display:contents"><dt>Technika</dt><dd id="d-tech"></dd></div>
+        <div id="d-date-row" style="display:contents"><dt>Dátum</dt><dd><span class="stamp" id="d-date"></span></dd></div>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<script>${CLIENT_JS}</script>
 </body>
 </html>`;
 }
