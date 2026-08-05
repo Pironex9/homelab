@@ -57,9 +57,18 @@ documentation site, the public GitHub repository, and the LinkedIn profile.
 
 ## Capabilities and Constraints
 
-- Static site. No backend, no database, no session, no forms. Served by Caddy on a
-  Hetzner VPS, behind Pangolin, from a `dist/` directory generated out of `src/` by
-  `build.sh`.
+- No backend, no database, no session, no forms. Served by Caddy on a Hetzner VPS,
+  behind Pangolin, from a `dist/` directory generated out of `src/` by `build.sh`.
+- **The stack is not locked to hand-written HTML.** The incumbent implementation is
+  plain HTML, CSS and vanilla JS with a shell-script build, and that remains the
+  default: it is the simplest thing that serves this page and nothing so far has
+  needed more. But the owner has explicitly opened the door to a framework or a real
+  build step where a change genuinely calls for one. Reaching for one is a decision to
+  justify, not a constraint to work around.
+  The deployment consequence has to be part of that justification: `build.sh` is run
+  **on the VPS** (`ssh vps 'cd … && sh build.sh'`) against the Komodo checkout, so any
+  toolchain a new stack needs must either exist on that host or the built output must
+  be committed to the repository. Today the VPS needs nothing but a POSIX shell.
 - The Docker Compose stack count is baked in at build time on purpose, and goes stale
   until someone rebuilds. It is not fetched live and must not be presented as if it were.
 - The 30-day uptime figure is fetched by the browser from Uptime Kuma at request time.
