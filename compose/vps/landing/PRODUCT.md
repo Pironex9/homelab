@@ -28,7 +28,8 @@ rather than merely assembled.
 Two outcomes both count as success, and neither outranks the other:
 
 1. the visitor goes on to read the documentation at docs.homelabor.net;
-2. the visitor gets in touch.
+2. the visitor gets in touch, which means reaching the LinkedIn profile. See
+   Capabilities and Constraints: LinkedIn is the only contact channel, deliberately.
 
 ## Positioning
 
@@ -71,16 +72,19 @@ documentation site, the public GitHub repository, and the LinkedIn profile.
 - The container's network placement (`pangolin` bridge, static `172.18.0.10`) is
   load-bearing for the uptime widget and is not a cosmetic detail.
 
-**Open, deliberately undecided:** there is currently no contact channel on the page other
-than the LinkedIn and GitHub links, though "get in touch" is a named success outcome. A
-CV download link is reserved in the markup as a comment but has not been committed to as
-a product fact, and no email address has been established as public.
+**Contact is LinkedIn only, by decision.** "Get in touch" resolves to the LinkedIn
+profile and nothing else. No email address is published: the owner does not want an
+address reachable by everyone who lands on the page, and LinkedIn already carries the
+professional detail a genuine enquiry needs. There will be no CV download; the reserved
+comment in `src/index.html` is dead and can be removed. Later work must not "helpfully"
+add a contact form, a mailto link, an obfuscated address, or a CV button.
 
 ## Brand Commitments
 
 - The name **Norbert Csicsay** and the domain **homelabor.net** are fixed.
-- The LinkedIn profile link stays on the page. The owner has stopped posting there, but
-  the profile remains a wanted destination.
+- The LinkedIn profile link stays on the page, and carries more weight than its current
+  treatment suggests: it is the sole contact channel, not one social link among several.
+  The owner has stopped posting there, but the profile remains a wanted destination.
 - Voice, as established by the incumbent copy: plain, declarative, specific, and free of
   superlatives. Sentences state what exists and what it cost. Where something is a
   limitation it is said out loud, as in the figcaption admitting the map is only as
