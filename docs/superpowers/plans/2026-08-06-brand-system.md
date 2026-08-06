@@ -478,12 +478,27 @@ At the top of `compose/vps/landing/src/style.css`, before the `:root` block:
 }
 ```
 
-Then replace the `--sans` and `--mono` declarations inside `:root` (currently at lines 52 and 54) with:
+Then replace the `--sans` and `--mono` declarations inside `:root` with:
 
 ```css
   --sans: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
 ```
+
+**Each of those is a two-line declaration**, currently `52-53` and `54-55`, with
+the stack wrapping onto a continuation line:
+
+```css
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+          system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono",
+          "Roboto Mono", Menlo, Consolas, monospace;
+```
+
+Replace all four lines. Replacing only 52 and 54 leaves two orphaned
+continuation lines inside `:root`, which is invalid CSS - and the browser
+discards only the malformed declarations, so the page still renders while
+whatever follows the orphan is silently dropped.
 
 The `font-weight: 100 700` range on the variable face is what makes `font-weight: 620`, `570` and `550` elsewhere in this file resolve exactly rather than snapping. They previously resolved only on macOS and Windows, whose system faces are variable, and snapped on Linux.
 
