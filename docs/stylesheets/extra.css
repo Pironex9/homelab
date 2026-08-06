@@ -3,3 +3,51 @@
   overflow: visible !important;
   height: auto !important;
 }
+
+/* Brand faces, self-hosted. Values copied from brand/tokens.css; see
+   brand/BRAND.md. The files in assets/fonts/ are checksum-verified against
+   brand/ by .github/workflows/deploy.yml.
+
+   Material requires the faces be set through its own variables rather than
+   font-family, which would disable its system fallback. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("../assets/fonts/ibm-plex-sans-var.woff2") format("woff2");
+  font-weight: 100 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../assets/fonts/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../assets/fonts/ibm-plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root {
+  --md-text-font: "IBM Plex Sans";
+  --md-code-font: "IBM Plex Mono";
+}
+
+/* The brand reaches the header and the accent only. The reading surfaces stay
+   Material's own, in both schemes: this site is built for long-form reading,
+   the landing page is dark-only by design, and there is no light palette in
+   this repo to base one on. See brand/BRAND.md. */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:        #0b0e13;
+  --md-primary-fg-color--light: #12161d;
+  --md-primary-fg-color--dark:  #05070a;
+  --md-accent-fg-color:         #b96a1d;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #0b0e13;
+  --md-primary-fg-color--light: #12161d;
+  --md-primary-fg-color--dark:  #05070a;
+  --md-accent-fg-color:         #e8933f;
+}

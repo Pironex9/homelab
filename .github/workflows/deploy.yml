@@ -33,6 +33,17 @@ jobs:
       - name: Install MkDocs + Material
         run: pip install "mkdocs-material<10"
 
+      # brand/ holds the only committed copy of each font, but MkDocs cannot
+      # read outside docs_dir without a plugin, so this one copy has to exist.
+      # A stale .woff2 is invisible in a diff, so review is not a control here
+      # - this is. See docs/adr/0002-brand-values-are-duplicated-not-shared.md
+      - name: Verify the docs font copies match brand/
+        run: |
+          for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
+            cmp "brand/$f.woff2" "docs/assets/fonts/$f.woff2" \
+              || { echo "docs/assets/fonts/$f.woff2 differs from brand/$f.woff2"; exit 1; }
+          done
+
       - name: Build site
         run: mkdocs build
 

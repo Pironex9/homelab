@@ -18,16 +18,23 @@ repo_name: Pironex9/homelab
 docs_dir: docs
 theme:
   name: material
+  logo: assets/mark.svg
+  favicon: assets/mark.svg
+  # Stops Material fetching Roboto from Google Fonts. The faces are then set
+  # through --md-text-font and --md-code-font in stylesheets/extra.css. This
+  # site links from a landing page whose argument is that it is self-hosted
+  # end to end; a Google Fonts request here contradicts it directly.
+  font: false
   palette:
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
