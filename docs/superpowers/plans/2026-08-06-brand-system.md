@@ -17,6 +17,7 @@
 - **`compose/vps/landing/src/topology/index.html` stays exactly one file** and is never hand-edited. It is byte-for-byte the output of `topology/build.js`.
 - **Text-bearing assets are never generated.** They render locally from HTML with headless Chrome.
 - Fonts subset to Latin plus Latin Extended-A. Hungarian `ő` and `ű` must survive.
+- **Every `@font-face` uses `format("woff2")`, including the variable faces. Never `format("woff2-variations")`.** Chrome does not recognise that value and drops the whole `src` entry, so the face never loads - and it fails exactly the way everything else here fails, by rendering in a fallback and looking fine. It was a Safari 10-13 requirement and is obsolete. A browser reads variability from the file, not from the format hint. Every screenshot check in this plan runs headless Chrome, so this would have poisoned the verification too.
 - Do not `git push`. Commit locally only.
 - Spec: `docs/superpowers/specs/2026-08-06-brand-system-design.md`. Glossary: `CONTEXT.md`. See `docs/adr/0002-brand-values-are-duplicated-not-shared.md`.
 
@@ -39,16 +40,17 @@
 | `brand/big-shoulders-var.woff2` | Topology map display face, variable |
 | `docs/assets/fonts/*.woff2` | The Documentation Site's checksum-verified copies |
 | `docs/assets/mark.svg` | The Mark for `theme.logo` and `theme.favicon` |
+| `docs/assets/portrait.png` | The Portrait's docs crop, inside `docs_dir` where MkDocs can reach it |
 
 **Modified**
 
 | Path | Change |
 |---|---|
 | `compose/vps/landing/build.sh` | One `cp` of `brand/*.woff2` into `dist/fonts/` |
-| `compose/vps/landing/test-build.sh` | Assert the fonts reached `dist/fonts/` |
+| `compose/vps/landing/test-build.sh` | Assert the fonts reached `dist/fonts/`, and that both CSPs allow them |
 | `compose/vps/landing/src/style.css` | `@font-face` blocks; `--sans` and `--mono` point at Plex |
-| `compose/vps/landing/Caddyfile` | `font-src 'self'` in the CSP; `*.woff2` in `@diagram` |
-| `compose/vps/landing/og.html` | `@font-face`; the two stacks become the brand faces |
+| `compose/vps/landing/Caddyfile` | `font-src 'self'` in the page CSP, `font-src data:` in the `/topology/*` one, `*.woff2` in `@diagram`, no Google origin left in either |
+| `compose/vps/landing/og.html` | `@font-face`; the two stacks become the brand faces; the Mark, inlined |
 | `compose/vps/landing/README.md` | The `og.png` render command moves from `file://` to HTTP |
 | `compose/vps/landing/src/og.png` | Re-rendered |
 | `compose/vps/landing/src/topology/index.html` | Re-copied from the topology build |
@@ -57,6 +59,7 @@
 | `compose/proxmox-lxc-100/topology/test/build.test.js` | Assert no third-party font origin in the output |
 | `mkdocs.yml` | `primary`/`accent` custom, `font: false`, `logo`, `favicon` |
 | `docs/stylesheets/extra.css` | `@font-face`, font variables, colour variables for both schemes |
+| `docs/index.md` | The Portrait in the `## Contact` section |
 | `.github/workflows/deploy.yml` | `cmp` the docs font copies against `brand/` before building |
 | `CLAUDE.md`, `AGENTS.md` | A line for `brand/` |
 
@@ -359,6 +362,11 @@ the next reader does not fix them."
 
 In `compose/vps/landing/test-build.sh`, after the existing check 1 block and before the `backup=$(mktemp)` line of check 2, insert:
 
+The file numbers its checks `# 1.` and `# 2.`; this becomes `# 3.` but sits
+between them, because check 2 deliberately corrupts `src/index.html` and this
+one must run against a clean tree. Numbering follows when a check was written,
+not where it sits.
+
 ```sh
 # 3. The brand fonts reach dist/. src/ does not contain them - build.sh copies
 # them from brand/, which is the only committed copy. A missing font does not
@@ -434,7 +442,7 @@ At the top of `compose/vps/landing/src/style.css`, before the `:root` block:
    committed copy. */
 @font-face {
   font-family: "IBM Plex Sans";
-  src: url("fonts/ibm-plex-sans-var.woff2") format("woff2-variations");
+  src: url("fonts/ibm-plex-sans-var.woff2") format("woff2");
   font-weight: 100 700;
   font-display: swap;
 }
@@ -527,7 +535,7 @@ In `compose/vps/landing/og.html`, inside the existing `<style>` block and above 
        command serves. */
     @font-face {
       font-family: "IBM Plex Sans";
-      src: url("../../../brand/ibm-plex-sans-var.woff2") format("woff2-variations");
+      src: url("../../../brand/ibm-plex-sans-var.woff2") format("woff2");
       font-weight: 100 700;
     }
     @font-face {
@@ -551,7 +559,56 @@ Then replace the `--sans` and `--mono` declarations (currently lines 37 and 38) 
 
 The old stack put `"Liberation Sans"` and `"DejaVu Sans Mono"` first on purpose, so this Linux render machine produced a deterministic card. Self-hosting the faces makes that unnecessary and, for the first time, sets the card in the same typeface as the page it advertises.
 
-- [ ] **Step 2: Re-render the card over HTTP**
+- [ ] **Step 2: Put the Mark on the card**
+
+The spec's success criteria require the Mark on the share card. The card has
+none: `.marks` in `og.html` is a text class holding the two domain names, not
+the Mark, and the file contains no `img` and no `svg`. Without this step the
+card is regenerated in a new typeface and still carries no Mark.
+
+Inline the SVG rather than referencing the file. `brand/mark-large.svg` is
+already reachable over the HTTP server this card renders from, but inlining
+keeps the card's own rule - the comment at the top of `og.html` says it is
+self-contained on purpose - as close to true as the `@font-face` rules allow,
+and it means the Mark cannot half-load and leave a gap in a 1200x630 PNG.
+
+In the `.foot` block, replace:
+
+```html
+    <p class="marks"><b>homelabor.net</b><br>docs.homelabor.net</p>
+```
+
+with:
+
+```html
+    <div class="marks-row">
+      <!-- The Mark, inlined from brand/mark-large.svg. Copy it verbatim when
+           that file changes; nothing enforces it, and a stale copy here shows
+           up only on a share card nobody looks at twice. -->
+      <svg class="mark" viewBox="0 0 64 64" role="img" aria-label="homelabor.net">
+        <rect width="64" height="64" rx="12" fill="#0b0e13"/>
+        <path d="M32 25v11M17 36v-5h30v5" fill="none" stroke="#3a4351" stroke-width="2.4" stroke-linecap="square"/>
+        <rect x="19" y="10" width="26" height="15" rx="3" fill="#e8933f"/>
+        <rect x="8" y="38" width="18" height="16" rx="3" fill="#a2adbb"/>
+        <rect x="38" y="38" width="18" height="16" rx="3" fill="#a2adbb"/>
+      </svg>
+      <p class="marks"><b>homelabor.net</b><br>docs.homelabor.net</p>
+    </div>
+```
+
+The `rect` filling the whole viewBox is the card's own background colour, so
+the Mark's plate disappears into the card and only the three shapes read. That
+is intended: on the Landing Page favicon the plate gives the Mark an edge
+against a browser tab, and here it has none to fight.
+
+Then add to the `<style>` block, after the existing `.marks b` rule:
+
+```css
+  .marks-row { display: flex; align-items: center; gap: 18px; }
+  .mark { width: 54px; height: 54px; flex: none; }
+```
+
+- [ ] **Step 3: Re-render the card over HTTP**
 
 ```bash
 cd /root/homelab
@@ -565,17 +622,23 @@ google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
 kill %1
 ```
 
-- [ ] **Step 3: Verify the card actually picked up the face**
+- [ ] **Step 4: Verify the card actually picked up the face and the Mark**
 
-Open `compose/vps/landing/src/og.png` and compare it against the previous version in git:
+Recover the committed version by path rather than by stashing. `git stash`
+would take the uncommitted `og.html` and `README.md` edits with it, and a
+conflict on `git stash pop` leaves the working tree in a state this step has no
+business creating:
 
 ```bash
-git stash && cp compose/vps/landing/src/og.png /tmp/og-old.png && git stash pop
+git show HEAD:compose/vps/landing/src/og.png > /tmp/og-old.png
 ```
 
-Expected: the two differ visibly in typeface. If they look identical, the font did not load and the render silently fell back - check that the server was still running and that the relative path resolves.
+Open both. Expected: they differ visibly in typeface, and the new one carries
+the Mark in its footer. If the typefaces look identical, the font did not load
+and the render silently fell back - check that the server was still running and
+that the relative path resolves.
 
-- [ ] **Step 4: Update the documented procedure in `README.md`**
+- [ ] **Step 5: Update the documented procedure in `README.md`**
 
 In `compose/vps/landing/README.md`, replace the `og.png` render command in step 4 with:
 
@@ -599,14 +662,27 @@ In `compose/vps/landing/README.md`, replace the `og.png` render command in step 
    `og.html` reach up into `brand/`.
 ````
 
-Also update the comment block at the top of `og.html` itself, which repeats the old `file://` command, so the two do not disagree.
+Also update the comment block at the top of `og.html` itself, which repeats the
+old `file://` command, so the two do not disagree. That comment also claims the
+card is "Self-contained on purpose: no shared stylesheet". It is now one step
+less so, and `docs/adr/0002-brand-values-are-duplicated-not-shared.md` cites
+that claim as a reason colours are duplicated. Amend the comment rather than
+delete it:
 
-- [ ] **Step 5: Commit**
+```
+  Still self-contained in the sense that matters: no shared stylesheet, so the
+  card keeps rendering identically even if style.css moves on. The exception is
+  the three @font-face rules below, which reach into brand/ because that holds
+  the only committed copy of each face and a stale .woff2 is invisible in a
+  diff. That is the exception ADR 0002 already carves out for binaries.
+```
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add compose/vps/landing/og.html compose/vps/landing/README.md \
         compose/vps/landing/src/og.png
-git commit -m "feat(landing): set the share card in the brand faces
+git commit -m "feat(landing): set the share card in the brand faces and put the Mark on it
 
 og.html had no subresource at all, which is why it screenshotted straight
 from file:// with no flags. An @font-face is its first, and Chrome restricts
@@ -616,7 +692,11 @@ root over HTTP.
 
 The old Liberation Sans / DejaVu stack was deliberate: it made this Linux
 render machine deterministic. Self-hosted faces make it unnecessary, and the
-card and the page are now the same typeface for the first time."
+card and the page are now the same typeface for the first time.
+
+The card also had no Mark at all - .marks is a text class holding the two
+domain names - so the spec's criterion was unmet by a file nobody reads twice.
+It is inlined rather than referenced, so it cannot half-load into a gap."
 ```
 
 ---
@@ -624,7 +704,7 @@ card and the page are now the same typeface for the first time."
 ### Task 4: The topology map embeds its fonts
 
 **Files:**
-- Modify: `compose/proxmox-lxc-100/topology/build.js`, `compose/proxmox-lxc-100/topology/test/build.test.js`
+- Modify: `compose/proxmox-lxc-100/topology/build.js`, `compose/proxmox-lxc-100/topology/test/build.test.js`, `compose/vps/landing/Caddyfile`, `compose/vps/landing/test-build.sh`
 - Regenerate: `compose/vps/landing/src/topology/index.html`, `compose/vps/landing/src/topology.png`, `compose/vps/landing/src/topology.webp`
 
 **Interfaces:**
@@ -697,7 +777,7 @@ function embed(file) {
 const FONT_FACES = `
 @font-face {
   font-family: "Big Shoulders Display";
-  src: url(${embed('big-shoulders-var.woff2')}) format("woff2-variations");
+  src: url(${embed('big-shoulders-var.woff2')}) format("woff2");
   font-weight: 100 900;
 }
 @font-face {
@@ -770,11 +850,85 @@ find compose/vps/landing/src/topology -type f
 
 Expected: exactly one line, `compose/vps/landing/src/topology/index.html`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Write the failing CSP check**
+
+`/topology/*` does not use the CSP that Task 2 fixed. It has its own, weaker
+one on `Caddyfile:57`, and that policy says `font-src https://fonts.gstatic.com`
+- no `'self'`, no `data:`. The embedding from Step 3 is therefore refused by the
+browser on the live site, and `npm test` cannot see it because it only reads the
+generated HTML. The map would fall back, silently, on the one page whose fonts
+were just fixed.
+
+In `compose/vps/landing/test-build.sh`, after the `font-src 'self'` assertion
+added in Task 2:
+
+```sh
+# The /topology/ route has its own weaker CSP. The map's fonts are data: URIs
+# embedded by topology/build.js, so that policy needs font-src data: - and
+# must no longer name Google, which nothing requests any more. npm test in the
+# topology stack cannot catch this: it reads the HTML, not the policy serving
+# it.
+grep -q "font-src data:" "$DIR/Caddyfile" || fail "topology CSP has no font-src data:, the embedded fonts will be blocked"
+grep -q "fonts.gstatic.com\|fonts.googleapis.com" "$DIR/Caddyfile" && fail "Caddyfile still allows Google Fonts"
+```
+
+Note the `&&` on the last line rather than `||`. Under `set -e` a `grep` that
+finds nothing would abort the script, so this follows the existing pattern at
+line 11 of the file, which uses `grep -q ... && fail` for the same reason.
+
+- [ ] **Step 8: Run it to watch it fail**
+
+```bash
+sh compose/vps/landing/test-build.sh
+```
+
+Expected: `FAIL: topology CSP has no font-src data:, the embedded fonts will be blocked`
+
+- [ ] **Step 9: Fix the topology CSP**
+
+In `compose/vps/landing/Caddyfile`, replace the `Content-Security-Policy` line
+inside `handle /topology/* { }` with:
+
+```
+		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+```
+
+`font-src data:` and nothing else: the faces are embedded in the file, so there
+is no origin left to allow. `https://fonts.googleapis.com` leaves `style-src`
+for the same reason.
+
+Then rewrite the comment block above that `handle`, which currently documents
+the Google Fonts dependency as a known wart and ends with "worth removing at the
+source one day". It has been removed at the source, so leaving the comment makes
+the file describe a state that no longer exists:
+
+```
+	# The interactive topology map at /topology/ is a build artifact copied in
+	# from compose/proxmox-lxc-100/topology/. It carries an inline <style>, an
+	# inline <script> and inline style attributes, so it still gets its own,
+	# weaker policy rather than dragging the landing page down to its level.
+	#
+	# It no longer fetches anything from a third party. Its two faces are
+	# base64 data: URIs embedded by that stack's build.js, which is why
+	# font-src is data: and why style-src no longer names Google. If a future
+	# build goes back to linking a font, this policy blocks it - deliberately.
+```
+
+- [ ] **Step 10: Run the test to verify it passes**
+
+```bash
+sh compose/vps/landing/test-build.sh
+```
+
+Expected: exits 0, no `FAIL:` line.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add compose/proxmox-lxc-100/topology/build.js \
         compose/proxmox-lxc-100/topology/test/build.test.js \
+        compose/vps/landing/Caddyfile \
+        compose/vps/landing/test-build.sh \
         compose/vps/landing/src/topology/index.html \
         compose/vps/landing/src/topology.png \
         compose/vps/landing/src/topology.webp \
@@ -789,6 +943,12 @@ documents: the transfer stays a one-line cp with src/topology/index.html as
 the only committed build artifact in src/, and the port-3009 standalone
 render that topology.png comes from resolves the same faces as the live
 page. The file grows to about 150 KB, which is the price of staying one file.
+
+/topology/ has its own weaker CSP that said font-src https://fonts.gstatic.com,
+so it would have refused the data: URIs and rendered the map in a fallback -
+silently, and npm test cannot see it because it reads the HTML, not the policy
+serving it. test-build.sh now asserts both font-src data: and that no Google
+origin survives anywhere in the Caddyfile.
 
 Plex Mono 600 was requested from Google and never used, so it is not embedded."
 ```
@@ -902,7 +1062,7 @@ Append to `docs/stylesheets/extra.css`, keeping the existing five-line code-bloc
    font-family, which would disable its system fallback. */
 @font-face {
   font-family: "IBM Plex Sans";
-  src: url("../assets/fonts/ibm-plex-sans-var.woff2") format("woff2-variations");
+  src: url("../assets/fonts/ibm-plex-sans-var.woff2") format("woff2");
   font-weight: 100 700;
   font-display: swap;
 }
@@ -996,11 +1156,12 @@ diff."
 ### Task 6: The Portrait
 
 **Files:**
-- Create: `brand/portrait-cv.png`, `brand/portrait-avatar.png`, `brand/portrait-docs.png`
+- Create: `brand/portrait-cv.png`, `brand/portrait-avatar.png`, `brand/portrait-docs.png`, `docs/assets/portrait.png`
+- Modify: `docs/index.md`
 
 **Interfaces:**
 - Consumes: `brand/tokens.css` from Task 1 for the background colour.
-- Produces: three crops, used outside this repository (CV, GitHub profile) and on the Documentation Site.
+- Produces: two crops used outside this repository (CV header, GitHub avatar) and one wired into the Documentation Site. Creating `brand/portrait-docs.png` and stopping there would leave the spec's authorship criterion unmet by a file MkDocs cannot reach: `docs_dir` is `docs`, so nothing under `brand/` is published.
 
 This is the only task that spends a credit.
 
@@ -1046,16 +1207,66 @@ ffmpeg -y -i /tmp/portrait-cut.png -vf "scale=640:-1,pad=640:800:(ow-iw)/2:(oh-i
 
 `0x0b0e13` is `--bg` from `brand/tokens.css`. Open all three and adjust the `scale` and `pad` offsets until the crop sits well - the framing is a judgement call, not a formula.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Wire the docs crop into the Documentation Site**
+
+`docs_dir` is `docs`, so MkDocs cannot see anything under `brand/`. The crop
+needs a copy inside `docs/` to appear at all. Unlike the fonts, this one gets no
+`cmp` gate in `deploy.yml`: a stale portrait is visible the moment anyone looks
+at the page, which is the control the binary fonts do not have.
 
 ```bash
-git add brand/portrait-cv.png brand/portrait-avatar.png brand/portrait-docs.png
-git commit -m "feat(brand): add the portrait in three crops
+cd /root/homelab
+cp brand/portrait-docs.png docs/assets/portrait.png
+```
+
+Then in `docs/index.md`, replace the `## Contact` section with:
+
+```markdown
+## Contact
+
+<img src="assets/portrait.png" alt="Norbert Csicsay" width="120"
+     style="border-radius: 10px; float: right; margin: 0 0 1rem 1.5rem;">
+
+- **LinkedIn**: [Norbert Csicsay](https://www.linkedin.com/in/norbert-csicsay-497195334)
+- **GitHub**: [Pironex9](https://github.com/Pironex9)
+```
+
+This is authorship, which is what the spec asks the Portrait for here - the
+Mark already identifies the site itself through `theme.logo`. Raw HTML is used
+rather than Markdown image syntax because the float and the radius have no
+Markdown spelling, and Material passes HTML through. This is a documentation
+page, not `src/index.html`, so the Landing Page's no-`style=` constraint does
+not reach it: that rule exists because of the Landing Page's CSP, and GitHub
+Pages sets none.
+
+- [ ] **Step 6: Build and confirm the portrait is actually published**
+
+```bash
+cd /root/homelab
+mkdocs build
+[ -f site/assets/portrait.png ] && echo "ok: published" || echo "MISSING"
+grep -q 'assets/portrait.png' site/index.html && echo "ok: referenced" || echo "NOT REFERENCED"
+```
+
+Expected: `ok: published` and `ok: referenced`. Then look at the page - a
+portrait that is published but badly cropped is worse than none.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add brand/portrait-cv.png brand/portrait-avatar.png brand/portrait-docs.png \
+        docs/assets/portrait.png docs/index.md
+git commit -m "feat(brand): add the portrait in three crops and put it on the docs site
 
 A real photograph with its background removed and the brand background
 composited behind it. What differs between the CV header, the GitHub avatar
 and the docs authorship slot is background and crop, not the face, so no face
 is generated - which is also the defensible choice on a CV.
+
+The docs crop is copied into docs/assets/ and referenced from index.md.
+docs_dir is docs, so a file left in brand/ is one MkDocs cannot reach and the
+site would have carried no portrait at all. No cmp gate on this one: a stale
+portrait is visible on sight, which is the control a .woff2 lacks.
 
 The one credit spent in this whole piece of work."
 ```
@@ -1068,23 +1279,40 @@ The one credit spent in this whole piece of work."
 - None modified. This task proves the work or finds what is left.
 
 **Interfaces:**
-- Consumes: everything from Tasks 1-5.
+- Consumes: everything from Tasks 1-6.
 - Produces: nothing. It is the gate.
 
-- [ ] **Step 1: Re-run every check**
+**Nothing here touches the live sites.** This plan does not push, so
+`homelabor.net` and `docs.homelabor.net` are still serving the pre-change build
+throughout. Every check below therefore runs against the local build output. The
+live confirmations are listed separately at the end, as the deploy's checklist,
+not this task's.
+
+- [ ] **Step 1: Re-run every check, and fail on the first one that fails**
 
 ```bash
 cd /root/homelab
+set -e
 python3 brand/check-fonts.py
 sh compose/vps/landing/test-build.sh
 ( cd compose/proxmox-lxc-100/topology && npm test )
 mkdocs build
 for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
-  cmp "brand/$f.woff2" "docs/assets/fonts/$f.woff2" || echo "MISMATCH: $f"
+  cmp "brand/$f.woff2" "docs/assets/fonts/$f.woff2"
 done
+set +e
+echo "GATE PASSED"
 ```
 
-Expected: all pass, no `MISMATCH` line.
+Expected: `GATE PASSED` and nothing else on stderr.
+
+`cmp` is called bare here on purpose. The earlier draft wrote
+`cmp ... || echo "MISMATCH: $f"`, which prints a warning and exits 0 - a gate
+that cannot fail is not a gate, and this is the one check standing between a
+stale font binary and production. `cmp` is already silent on success and prints
+the differing byte offset on failure, so the `echo` bought nothing and cost the
+exit code. Same reason for `set -e`: without it the loop's failure is invisible
+behind whatever ran last.
 
 - [ ] **Step 2: Prove no page fetches a font from a third party**
 
@@ -1092,26 +1320,41 @@ Expected: all pass, no `MISMATCH` line.
 cd /root/homelab
 grep -rn "fonts.googleapis.com\|fonts.gstatic.com" \
   compose/vps/landing/src compose/vps/landing/og.html \
+  compose/vps/landing/Caddyfile \
   compose/proxmox-lxc-100/topology/build.js \
   compose/proxmox-lxc-100/topology/dist site \
   && echo "FOUND A THIRD-PARTY FONT REQUEST" || echo "ok: none"
 ```
 
-Expected: `ok: none`.
+Expected: `ok: none`. The Caddyfile is in the list because its `/topology/*`
+policy named `fonts.gstatic.com` and `fonts.googleapis.com`, and a policy still
+allowing an origin nothing requests is a claim the site can no longer back.
 
-Then confirm it in a browser, which is the only check that covers what a
-visitor actually experiences. Load `https://homelabor.net/`,
-`https://homelabor.net/topology/` and `https://docs.homelabor.net/` with the
-network panel open, filtered to third-party requests. Expected: nothing from
-`fonts.googleapis.com` or `fonts.gstatic.com` on any of the three.
+- [ ] **Step 3: Confirm the fonts carry a Cache-Control header, locally**
 
-- [ ] **Step 3: Confirm every asset carries a Cache-Control header**
+The Caddyfile cannot be tested by reading it - matcher precedence is a runtime
+property. Run the real image against the built `dist/`:
 
 ```bash
-curl -sI https://homelabor.net/fonts/ibm-plex-sans-var.woff2 | grep -i cache-control
+cd /root/homelab/compose/vps/landing
+docker run --rm -d --name caddy-check -p 8903:80 \
+  -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+  -v "$PWD/dist:/usr/share/caddy:ro" caddy:alpine
+sleep 2
+curl -sI http://127.0.0.1:8903/fonts/ibm-plex-sans-var.woff2 | grep -i 'cache-control\|^HTTP'
+curl -sI http://127.0.0.1:8903/style.css | grep -i 'cache-control'
+docker rm -f caddy-check
 ```
 
-Expected: `cache-control: public, max-age=86400, stale-while-revalidate=604800`. An empty result means `.woff2` did not reach the `@diagram` matcher and the font ships with no freshness policy at all.
+Expected: `HTTP/1.1 200 OK` and
+`Cache-Control: public, max-age=86400, stale-while-revalidate=604800` for the
+font, and `Cache-Control: no-cache` for the stylesheet. An empty result on the
+font means `.woff2` did not reach the `@diagram` matcher and it ships with no
+freshness policy at all. A 404 means `build.sh` did not copy it, which Task 2's
+test should already have caught.
+
+The Kuma proxy routes will fail in this container, which does not matter: this
+check is about the header, not the upstream.
 
 - [ ] **Step 4: Compare the Landing Page against its previous appearance**
 
@@ -1137,6 +1380,30 @@ If nothing changed, there is nothing to commit and the work is done. If a weight
 git add -A
 git commit -m "fix(brand): adjust after the cross-property verification pass"
 ```
+
+---
+
+## After the deploy, not before
+
+These three cannot run inside this plan, because this plan does not push and the
+live sites keep serving the previous build until someone does. They belong to
+whoever deploys, and they are the only checks that cover what a visitor actually
+experiences.
+
+- Load `https://homelabor.net/`, `https://homelabor.net/topology/` and
+  `https://docs.homelabor.net/` with the network panel open, filtered to
+  third-party requests. Expected: nothing from `fonts.googleapis.com` or
+  `fonts.gstatic.com` on any of the three.
+- On the same three, check the console for CSP violation reports. A blocked font
+  is reported there and nowhere else; the page renders in a fallback and looks
+  fine. This is the single most likely way this work fails in production.
+- `curl -sI https://homelabor.net/fonts/ibm-plex-sans-var.woff2 | grep -i cache-control`
+  Expected: `public, max-age=86400, stale-while-revalidate=604800`.
+
+The Documentation Site deploys from a push to `main` via
+`.github/workflows/deploy.yml`. The Landing Page and the topology map are
+separate: both are Compose stacks pulled and redeployed through Komodo, so the
+push alone does not move them.
 
 ---
 
