@@ -7,6 +7,46 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_NODES_PATH = path.join(__dirname, 'nodes.yml');
 const DEFAULT_DIST_DIR = path.join(__dirname, 'dist');
 
+// brand/ holds the only committed copy of each face. Embedding them as data:
+// URIs rather than shipping files next to the HTML is deliberate and load
+// bearing twice over:
+//
+//   1. compose/vps/landing/README.md defines the transfer of this page as a
+//      single file copy, and states that src/topology/index.html is the only
+//      committed build artifact in src/. Font files beside it would make that
+//      a directory copy and commit binaries into a public web root.
+//   2. dist/ is also served standalone on port 3009, and that is what
+//      topology.png is screenshotted from. A font that resolved on the live
+//      page but not there would render the screenshot in a different face
+//      than the page, with nothing reporting the mismatch.
+//
+// The cost is 105592 bytes of base64 in this file, measured. That is the
+// price of staying one file.
+const BRAND = path.join(__dirname, '..', '..', '..', 'brand');
+
+function embed(file) {
+  const b64 = fs.readFileSync(path.join(BRAND, file)).toString('base64');
+  return `data:font/woff2;base64,${b64}`;
+}
+
+const FONT_FACES = `
+@font-face {
+  font-family: "Big Shoulders Display";
+  src: url(${embed('big-shoulders-var.woff2')}) format("woff2");
+  font-weight: 100 900;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url(${embed('ibm-plex-mono-400.woff2')}) format("woff2");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url(${embed('ibm-plex-mono-500.woff2')}) format("woff2");
+  font-weight: 500;
+}
+`;
+
 export function loadData(nodesPath = DEFAULT_NODES_PATH) {
   const data = yaml.load(fs.readFileSync(nodesPath, 'utf8'));
   for (const key of ['sites', 'kinds', 'nodes']) {
@@ -76,10 +116,8 @@ export function renderHtml(data) {
 <title>homelab.topology</title>
 <meta name="description" content="Interactive network topology map of a self-hosted Proxmox homelab.">
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+${FONT_FACES}
 :root {
   --bg: #0b1120;
   --panel: #101a30;

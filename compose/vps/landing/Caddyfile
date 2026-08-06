@@ -44,17 +44,15 @@
 
 	# The interactive topology map at /topology/ is a build artifact copied in
 	# from compose/proxmox-lxc-100/topology/. It carries an inline <style>, an
-	# inline <script>, inline style attributes, and it pulls two fonts from
-	# Google. None of that can be fixed here: the file is byte-for-byte
-	# generator output and any hand edit is lost on the next copy. So it gets
-	# its own, weaker policy rather than dragging the landing page down to its
-	# level.
+	# inline <script> and inline style attributes, so it still gets its own,
+	# weaker policy rather than dragging the landing page down to its level.
 	#
-	# The Google Fonts dependency is worth removing at the source one day. A
-	# page arguing that everything here is self-hosted should not be telling a
-	# third party who reads it.
+	# It no longer fetches anything from a third party. Its two faces are
+	# base64 data: URIs embedded by that stack's build.js, which is why
+	# font-src is data: and why style-src no longer names Google. If a future
+	# build goes back to linking a font, this policy blocks it - deliberately.
 	handle /topology/* {
-		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 		root * /usr/share/caddy
 		file_server
 	}

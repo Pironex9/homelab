@@ -27,6 +27,14 @@ done
 # renders in a fallback face and looks fine.
 grep -q "font-src 'self'" "$DIR/Caddyfile" || fail "Caddyfile CSP has no font-src, fonts will be blocked"
 
+# The /topology/ route has its own weaker CSP. The map's fonts are data: URIs
+# embedded by topology/build.js, so that policy needs font-src data: - and
+# must no longer name Google, which nothing requests any more. npm test in the
+# topology stack cannot catch this: it reads the HTML, not the policy serving
+# it.
+grep -q "font-src data:" "$DIR/Caddyfile" || fail "topology CSP has no font-src data:, the embedded fonts will be blocked"
+grep -q "fonts.gstatic.com\|fonts.googleapis.com" "$DIR/Caddyfile" && fail "Caddyfile still allows Google Fonts"
+
 # 2. An unsubstituted placeholder is caught rather than shipped.
 #
 # This case has to dirty the real src/index.html, so the restore runs from a

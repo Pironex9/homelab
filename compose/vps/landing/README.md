@@ -111,14 +111,16 @@ by the browser in production with nothing but a console error to show for it. Ad
 code to `src/ui.js` and the styling to `src/style.css` instead.
 
 `/topology/` gets its own, weaker policy. That page is generator output copied in
-wholesale, and it carries an inline `<style>`, an inline `<script>`, inline style
-attributes and two Google Fonts requests. None of it can be fixed from this
-directory, so it is scoped off rather than allowed to weaken the whole site.
+wholesale, and it carries an inline `<style>`, an inline `<script>` and inline style
+attributes. None of it can be fixed from this directory, so it is scoped off rather
+than allowed to weaken the whole site.
 
-That Google Fonts call is a genuine wart: this site's whole argument is that it is
-self-hosted end to end, and a visitor reading the topology map is handed to Google
-anyway. Fixing it means self-hosting the two faces in
-`compose/proxmox-lxc-100/topology/` and rebuilding, not editing anything here.
+It no longer fetches anything from a third party. It used to pull two faces from
+Google, which was a genuine wart on a site whose whole argument is that it is
+self-hosted end to end. They are now base64 `data:` URIs embedded by that stack's
+`build.js` from `brand/`, so this policy's `font-src` is `data:` and nothing else.
+If a future topology build goes back to linking a font, this policy blocks it, and
+`test-build.sh` fails before it gets that far.
 
 ## Why HTML, CSS and JS carry `Cache-Control: no-cache`
 
@@ -132,8 +134,9 @@ treated as fresh for most of a day, and a visitor who had loaded the page before
 deploy kept seeing the old one without a single request reaching the server. An
 `ETag` does not save you there: it only helps once the browser decides to ask.
 
-Images are the exception and are cached hard, because they change only when a host is
-added or removed and the diagram is by far the heaviest thing here.
+Images and fonts are the exception and are cached hard. Images change only when a
+host is added or removed, fonts only on a deliberate re-subset, and the diagram is
+by far the heaviest thing here.
 
 ## `dist/` is a build artifact
 

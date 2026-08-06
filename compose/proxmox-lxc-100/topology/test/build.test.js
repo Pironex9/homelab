@@ -20,6 +20,21 @@ test('build embeds every node with badge, ip and detail data', () => {
   fs.rmSync(distDir, { recursive: true, force: true });
 });
 
+test('the generated page fetches nothing from a third party', () => {
+  const distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'topology-'));
+  build({ distDir });
+  const html = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
+
+  // The landing page's whole argument is that it is self-hosted end to end,
+  // and this map is served under that domain. A Google Fonts link here hands
+  // the visitor to a third party on the one page that claims otherwise.
+  assert.ok(!html.includes('fonts.googleapis.com'), 'output links to Google Fonts');
+  assert.ok(!html.includes('fonts.gstatic.com'), 'output preconnects to Google Fonts');
+  assert.match(html, /data:font\/woff2;base64,/, 'output has no embedded font');
+
+  fs.rmSync(distDir, { recursive: true, force: true });
+});
+
 test('loadData rejects a node with an unknown kind', () => {
   const tmp = path.join(os.tmpdir(), 'bad-nodes.yml');
   fs.writeFileSync(tmp, [
