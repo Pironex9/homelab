@@ -8,7 +8,7 @@
   and Chrome restricts font loads for the local-disk scheme, silently, so the
   card would render in a fallback face and look fine.
 
-    cd /root/homelab
+    (from the repo root)
     python3 -m http.server 8901 &
     sleep 2
     google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
