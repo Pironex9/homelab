@@ -348,12 +348,14 @@ In `CLAUDE.md`, under `## Key Directories`, after the `docs/` line:
 - `brand/` - the written brand: tokens, the Mark, and the only committed copy of the self-hosted fonts (`brand/BRAND.md`)
 ```
 
-Add the same line to the equivalent section of `AGENTS.md`. These two are kept in sync deliberately; a new key directory in one and not the other is exactly the drift they exist to prevent.
+Add the same line to the equivalent section of `AGENTS.md`, after its own `docs/` line. These two are kept in sync deliberately; a new key directory in one and not the other is exactly the drift they exist to prevent.
+
+**`CLAUDE.md` is gitignored** at `.gitignore:52` and has never been tracked. Edit it anyway - it is the file loaded into this machine's sessions, so an unedited copy is a working tool that does not know `brand/` exists - but it cannot be committed, and it must not be force-added. Only `AGENTS.md` carries the change into git. This is why the two files are described as kept in sync "by hand" rather than by review: for one of them, review is not a control that exists.
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add brand CLAUDE.md AGENTS.md
+git add brand AGENTS.md
 git commit -m "feat(brand): add brand/ with the written brand, the Mark and the self-hosted fonts
 
 Four subsetted faces, Latin plus Latin Extended-A so Hungarian survives.
