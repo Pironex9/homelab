@@ -100,21 +100,45 @@ heading CSS keeps working unchanged.
 All three are SIL OFL licensed (Big Shoulders via Google Fonts, IBM Plex via
 IBM), so self-hosting is clean.
 
-### Variable, not static instances
+### Variable where variable exists
 
-One variable `.woff2` per family - three files, against nine static instances
-(Big Shoulders 500/700/800, Plex Mono 400/500/600, Plex Sans regular/semibold/
-italic).
+Four files:
+
+| File | Source | Form |
+|---|---|---|
+| `ibm-plex-sans-var.woff2` | `google/fonts` `ofl/ibmplexsans/IBMPlexSans[wdth,wght].ttf` | variable |
+| `ibm-plex-mono-400.woff2` | `ofl/ibmplexmono/IBMPlexMono-Regular.ttf` | static |
+| `ibm-plex-mono-500.woff2` | `ofl/ibmplexmono/IBMPlexMono-Medium.ttf` | static |
+| `big-shoulders-var.woff2` | `ofl/bigshouldersdisplay/BigShouldersDisplay[wght].ttf` | variable |
+
+**IBM Plex Mono has no variable cut** - `IBMPlexMono[wght].ttf` is a 404 in the
+Google Fonts repository - so the mono role ships as static instances. That is
+not a loss: every mono weight in use is already standard. `style.css` uses 400
+and 500, and `build.js` requests 400, 500 and 600 from Google while using only
+400 and 500, so 600 is dropped.
+
+The odd weights are all on the sans role, which is variable, so they are
+unaffected.
 
 This is not only a file-count argument. `src/style.css` sets `font-weight:
-620`, `550` and `570`. Against the current static system stack those round to
-the nearest available weight and are silently doing nothing. A variable font
-makes them mean what they say.
+620`, `550` and `570`, and its stack is
+`-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", …` -
+where the first two entries are variable faces. So those weights already
+resolve exactly on macOS and Windows, and snap to the nearest static weight
+only on Linux. A variable brand font makes the rendering identical everywhere
+instead of platform-dependent, which is the actual gain; static instances would
+make it uniformly wrong.
 
-**That is a visible change to the Landing Page, not just a font swap** -
-headings that render bold today will render lighter. It is very likely what was
-intended when those values were written, but it must be confirmed by comparing
-screenshots before and after rather than assumed.
+`og.html` runs a different stack on purpose - `"Liberation Sans", "Segoe UI",
+system-ui, Arial` with `"DejaVu Sans Mono"` for the mono role. The card is
+rendered once, by headless Chrome on a Linux machine, so putting the Linux
+faces first makes that render deterministic. That is a deliberate choice, not
+drift, and self-hosting the brand faces removes the need for it: the card and
+the page become the same typeface for the first time.
+
+**The Landing Page's appearance changes**, since the typeface changes on every
+platform. Compare screenshots before and after rather than assuming the result
+is wanted.
 
 Subset to **Latin plus Latin Extended-A**, not to a hand-picked glyph list. The
 Documentation Site's body text grows over time and Hungarian `ő`/`ű` must
@@ -387,7 +411,7 @@ Mark work are independent. Rejected by the owner in favour of one document.
 ## Success criteria
 
 - `brand/` exists at the repo root with `tokens.css`, `BRAND.md`, the Mark in
-  both sizes and the three subsetted variable font files; `CLAUDE.md` and
+  both sizes and the four subsetted font files; `CLAUDE.md` and
   `AGENTS.md` both list it
 - `BRAND.md` states the three deliberate exceptions - the topology map's
   palette and display face, the Mark's translation of the map into Landing Page
