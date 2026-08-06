@@ -51,7 +51,7 @@
 | `compose/vps/landing/src/style.css` | `@font-face` blocks; `--sans` and `--mono` point at Plex |
 | `compose/vps/landing/Caddyfile` | `font-src 'self'` in the page CSP, `font-src data:` in the `/topology/*` one, `*.woff2` in `@diagram`, no Google origin left in either |
 | `compose/vps/landing/og.html` | `@font-face`; the two stacks become the brand faces; the Mark, inlined |
-| `compose/vps/landing/README.md` | The `og.png` render command moves from `file://` to HTTP |
+| `compose/vps/landing/README.md` | Task 3: the `og.png` render command moves from `file://` to HTTP, and `favicon.svg` stops being the only copy of the Mark. Task 4: the CSP section stops calling Google Fonts a known wart and stops sending the reader to the wrong directory |
 | `compose/vps/landing/src/og.png` | Re-rendered |
 | `compose/vps/landing/src/topology/index.html` | Re-copied from the topology build |
 | `compose/vps/landing/src/topology.png`, `.webp` | Re-exported |
@@ -735,7 +735,7 @@ It is inlined rather than referenced, so it cannot half-load into a gap."
 ### Task 4: The topology map embeds its fonts
 
 **Files:**
-- Modify: `compose/proxmox-lxc-100/topology/build.js`, `compose/proxmox-lxc-100/topology/test/build.test.js`, `compose/vps/landing/Caddyfile`, `compose/vps/landing/test-build.sh`
+- Modify: `compose/proxmox-lxc-100/topology/build.js`, `compose/proxmox-lxc-100/topology/test/build.test.js`, `compose/vps/landing/Caddyfile`, `compose/vps/landing/test-build.sh`, `compose/vps/landing/README.md`
 - Regenerate: `compose/vps/landing/src/topology/index.html`, `compose/vps/landing/src/topology.png`, `compose/vps/landing/src/topology.webp`
 
 **Interfaces:**
@@ -1001,6 +1001,7 @@ git add compose/proxmox-lxc-100/topology/build.js \
         compose/proxmox-lxc-100/topology/test/build.test.js \
         compose/vps/landing/Caddyfile \
         compose/vps/landing/test-build.sh \
+        compose/vps/landing/README.md \
         compose/vps/landing/src/topology/index.html \
         compose/vps/landing/src/topology.png \
         compose/vps/landing/src/topology.webp \
