@@ -49,6 +49,14 @@
      warns about it: the page builds, renders, and reads perfectly well right
      up until someone tries to find a link. Set it to the accent explicitly. */
   --md-typeset-a-color:         #a85d12;
+  /* With accent: custom in mkdocs.yml, Material emits no
+     [data-md-color-accent=custom] rule at all - verified against the built
+     palette CSS - so every accent variable we do not set here falls through
+     to main.css's :root indigo defaults. --md-accent-fg-color--transparent
+     is one of them: left alone it stays #526cfe1a, an indigo wash under
+     hover states (search results, pagination, nav icons, inline code in
+     links) that this whole branch exists to remove. */
+  --md-accent-fg-color--transparent: #a85d121a;
 }
 
 [data-md-color-scheme="slate"] {
@@ -57,4 +65,13 @@
   --md-primary-fg-color--dark:  #05070a;
   --md-accent-fg-color:         #e8933f;
   --md-typeset-a-color:         #e8933f;
+  --md-accent-fg-color--transparent: #e8933f1a;
+  /* Slate only. navigation.top ships a back-to-top button whose hover is
+     --md-accent-bg-color text on an --md-accent-fg-color background;
+     unset, the inherited white on #e8933f measures 2.42:1, below the 4.5:1
+     AA floor. #14181f (brand/tokens.css's --on-accent) on #e8933f measures
+     7.35:1. The same #14181f on the light scheme's #a85d12 accent is only
+     3.59:1, worse than the white it would replace (4.95:1) - so this value
+     must stay out of the default block above. */
+  --md-accent-bg-color:              #14181f;
 }
