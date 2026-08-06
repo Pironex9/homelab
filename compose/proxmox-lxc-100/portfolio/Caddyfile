@@ -1,4 +1,23 @@
 :80 {
-    root * /usr/share/caddy
-    file_server
+	root * /usr/share/caddy
+	file_server
+
+	header {
+		X-Content-Type-Options nosniff
+	}
+
+	# no-cache means "keep a copy, but ask before using it", not "do not cache".
+	# Without it these files carry no Cache-Control at all, and the browser then
+	# invents a freshness window from Last-Modified - roughly a tenth of the
+	# file's age. A rebuild after weeks of quiet therefore does not arrive: the
+	# visitor keeps their old copy without a single request reaching the server,
+	# and an ETag does not save you, because the browser never asks. The cost is
+	# one 304 per visit. The landing page on the VPS learned this the hard way.
+	@revalidate path / *.html *.css *.js
+	header @revalidate Cache-Control "no-cache"
+
+	# The drawings, the brass fitting and the two faces change only when content
+	# is added, and they are by far the heaviest thing here.
+	@art path *.jpg *.png *.webp *.svg *.woff2
+	header @art Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
 }
