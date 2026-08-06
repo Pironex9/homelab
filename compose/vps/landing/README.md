@@ -70,21 +70,33 @@ a host therefore moves five things, and they must move in one go:
    checkout that `build.sh` runs against. Do not edit it: it is byte-for-byte the
    output of `topology/build.js`, and any hand edit is lost on the next copy.
 
-4. re-render the card, from the repo root:
+4. re-render the card. It must be served over HTTP, not opened from `file://`:
+   `og.html` now carries `@font-face` rules, and Chrome restricts font loads
+   under `file://`. The failure is silent - the card renders in a fallback face
+   and looks fine. From the repo root:
 
    ```bash
+   python3 -m http.server 8901 &
+   sleep 2
    google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
      --run-all-compositor-stages-before-draw \
      --screenshot=compose/vps/landing/src/og.png \
      --window-size=1200,630 --virtual-time-budget=9000 \
-     file://$PWD/compose/vps/landing/og.html
+     http://127.0.0.1:8901/compose/vps/landing/og.html
+   pkill -f "http.server 8901"
    ```
+
+   The server must run from the repository root, because the font paths in
+   `og.html` reach up into `brand/`.
 
 5. update the figcaption wording in `src/index.html`
 
-`src/favicon.svg` needs none of this. Note when editing it that an XML comment may not
-contain two consecutive hyphens: an invalid SVG still copies into `dist/` happily and
-only shows up as a missing tab icon.
+`src/favicon.svg` needs none of this, but it no longer stands alone: `og.html`
+inlines the same drawing, and `brand/mark-large.svg` is the header-size variant.
+Change one and change all three, or the share card advertises a mark the site no
+longer uses. Note when editing any of them that an XML comment may not contain two
+consecutive hyphens: an invalid SVG still copies into `dist/` happily and only shows
+up as a missing tab icon.
 
 ## The Content-Security-Policy forbids inline script and inline style
 
