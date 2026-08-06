@@ -42,7 +42,13 @@
   --md-primary-fg-color:        #0b0e13;
   --md-primary-fg-color--light: #12161d;
   --md-primary-fg-color--dark:  #05070a;
-  --md-accent-fg-color:         #b96a1d;
+  --md-accent-fg-color:         #a85d12;
+  /* Load bearing. Material compiles --md-typeset-a-color:
+     var(--md-primary-fg-color), so setting primary to the brand's near-black
+     turns every link in the body the same colour as the body text. Nothing
+     warns about it: the page builds, renders, and reads perfectly well right
+     up until someone tries to find a link. Set it to the accent explicitly. */
+  --md-typeset-a-color:         #a85d12;
 }
 
 [data-md-color-scheme="slate"] {
@@ -50,4 +56,5 @@
   --md-primary-fg-color--light: #12161d;
   --md-primary-fg-color--dark:  #05070a;
   --md-accent-fg-color:         #e8933f;
+  --md-typeset-a-color:         #e8933f;
 }
