@@ -1230,6 +1230,14 @@ Append to `docs/stylesheets/extra.css`, keeping the existing five-line code-bloc
      warns about it: the page builds, renders, and reads perfectly well right
      up until someone tries to find a link. Set it to the accent explicitly. */
   --md-typeset-a-color:         #a85d12;
+  /* With accent: custom in mkdocs.yml, Material emits no
+     [data-md-color-accent=custom] rule at all - verified against the built
+     palette CSS - so every accent variable we do not set here falls through
+     to main.css's :root indigo defaults. --md-accent-fg-color--transparent
+     is one of them: left alone it stays #526cfe1a, an indigo wash under
+     hover states (search results, pagination, nav icons, inline code in
+     links) that this whole branch exists to remove. */
+  --md-accent-fg-color--transparent: #a85d121a;
 }
 
 [data-md-color-scheme="slate"] {
@@ -1238,6 +1246,15 @@ Append to `docs/stylesheets/extra.css`, keeping the existing five-line code-bloc
   --md-primary-fg-color--dark:  #05070a;
   --md-accent-fg-color:         #e8933f;
   --md-typeset-a-color:         #e8933f;
+  --md-accent-fg-color--transparent: #e8933f1a;
+  /* Slate only. navigation.top ships a back-to-top button whose hover is
+     --md-accent-bg-color text on an --md-accent-fg-color background;
+     unset, the inherited white on #e8933f measures 2.42:1, below the 4.5:1
+     AA floor. #14181f (brand/tokens.css's --on-accent) on #e8933f measures
+     7.35:1. The same #14181f on the light scheme's #a85d12 accent is only
+     3.59:1, worse than the white it would replace (4.95:1) - so this value
+     must stay out of the default block above. */
+  --md-accent-bg-color:              #14181f;
 }
 ```
 
@@ -1616,3 +1633,37 @@ push alone does not move them.
 - **No new Mark.** The existing `favicon.svg` is hand-drawn, documented, and reads at 16px. Only a larger variant is added.
 - **No change to Enci's art portfolio.** That site is hers.
 - **No `git push`.** Deploying the Documentation Site is a push to `main`, so that is the owner's call, not this plan's.
+
+---
+
+## What executing this plan found
+
+Four adversarial review rounds ran against this document before a line of it was
+executed. They caught fourteen defects. Executing it caught seven more, which is
+the part worth recording: reading a plan and running it are different tests.
+
+| Where | What only running it revealed |
+|---|---|
+| Task 1 | `git add ... CLAUDE.md` names a gitignored file. It has never been tracked, so the step could not run as written. Only `AGENTS.md` carries the change into git. |
+| Task 1 | `brand/mark-large.svg` is an exact 2x scale of `brand/mark.svg`, while its comment described ports and a second guest row that are not in it. The comment now says so. A genuine header-size redrawing is still outstanding and is a drawing decision for the owner. |
+| Task 2 | The screenshot step exported mid-animation and produced an image of a page that looks broken and is not. The hero staggers in over 0.26s with `animation-fill-mode: both`. Two implementers in a row would have reported a broken hero. |
+| Task 3 | A self-review item written for the implementer was impossible to satisfy: both files legitimately contain `file://` inside prose explaining why the render must not use it. The implementer refused to mangle verbatim text and said so, which was the right call. |
+| Task 5 | Material compiles `--md-typeset-a-color` from `--md-primary-fg-color`. Pointing primary at the brand's near-black turned every body link the colour of the body text. It built clean and read fine right up until you looked for a link. |
+| Task 5 | The light accent was asserted to clear 4.5:1 against white. Measured, `#b96a1d` gives 4.08:1. The number had been assumed, never computed. |
+| Task 5 | `accent: custom` makes Material emit no accent rule at all, so every accent variable left unset kept its indigo default - including the back-to-top button's, at 2.42:1. The same defect family as the row above, in a place that fix did not reach. |
+| Task 7 | Bare `mkdocs build` fails on a machine where MkDocs is installed and working, because pip's `/usr/local/bin` is not on every shell's `PATH`. All call sites use `python3 -m mkdocs build`. |
+
+Two patterns account for most of them.
+
+**Every failure in this work is silent.** A blocked font, a dropped `@font-face`
+format, a link the colour of its paragraph, a stale binary: the page builds, the
+tests pass, and it renders. That is why so much of this plan is assertions rather
+than implementation, and why the assertions are mutation-tested rather than
+merely written.
+
+**A check that cannot fail is worse than no check**, because it is also a claim
+that something was verified. Five were found and fixed: `cmp || echo`,
+`grep && echo || echo` in two places, a grep over a path that may not exist, and
+two `font-src` assertions scoped to the file rather than to the `handle` block
+they describe - which meant swapping the two policies left both surfaces broken
+and the suite green.
