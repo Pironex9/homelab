@@ -1038,11 +1038,14 @@ Big Shoulders is not copied. It belongs to the topology map, which embeds its ow
 ```bash
 cd /root/homelab
 for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
-  cmp "brand/$f.woff2" "docs/assets/fonts/$f.woff2" && echo "ok: $f"
+  cmp "brand/$f.woff2" "docs/assets/fonts/$f.woff2" || exit 1
+  echo "ok: $f"
 done
 ```
 
-Expected: three `ok:` lines and no output from `cmp`.
+Expected: three `ok:` lines, exit 0. The `|| exit 1` rather than `&& echo`: the
+latter prints nothing on a mismatch and still leaves the loop exiting 0, so a
+bad copy reads as two `ok:` lines and a shrug.
 
 - [ ] **Step 5: Point the theme at custom colours, the Mark, and no Google Fonts**
 
@@ -1137,10 +1140,18 @@ The light scheme uses a darker accent than `#e8933f`, because the brand orange i
 cd /root/homelab
 python3 -m pip install --break-system-packages "mkdocs-material<10"
 mkdocs build
-grep -r "fonts.googleapis.com\|fonts.gstatic.com" site/ && echo "STILL FETCHING GOOGLE FONTS" || echo "ok: no Google Fonts"
+if grep -r "fonts.googleapis.com\|fonts.gstatic.com" site/; then
+  echo "STILL FETCHING GOOGLE FONTS"; exit 1
+fi
+echo "ok: no Google Fonts"
 ```
 
-Expected: `ok: no Google Fonts`, and a clean build with no warnings about the missing `assets/mark.svg`.
+Expected: `ok: no Google Fonts`, and a clean build with no warnings about the
+missing `assets/mark.svg`.
+
+Written as an `if` rather than `grep ... && echo ... || echo ...`, which exits 0
+whichever branch it takes and would report success while Material was still
+linking Google. Same reason as the gate in Task 7.
 
 - [ ] **Step 8: Look at both schemes**
 
@@ -1223,15 +1234,28 @@ higgsfield account status
 ```bash
 cd /root/homelab
 # 1:1 avatar, 512px, for GitHub and the docs authorship slot.
-ffmpeg -y -i /tmp/portrait-cut.png -vf "scale=512:-1,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x0b0e13" \
+ffmpeg -y -i /tmp/portrait-cut.png \
+  -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x0b0e13" \
   brand/portrait-avatar.png
 cp brand/portrait-avatar.png brand/portrait-docs.png
 # 4:5 portrait for a CV header.
-ffmpeg -y -i /tmp/portrait-cut.png -vf "scale=640:-1,pad=640:800:(ow-iw)/2:(oh-ih)/2:color=0x0b0e13" \
+ffmpeg -y -i /tmp/portrait-cut.png \
+  -vf "scale=640:800:force_original_aspect_ratio=decrease,pad=640:800:(ow-iw)/2:(oh-ih)/2:color=0x0b0e13" \
   brand/portrait-cv.png
 ```
 
-`0x0b0e13` is `--bg` from `brand/tokens.css`. Open all three and adjust the `scale` and `pad` offsets until the crop sits well - the framing is a judgement call, not a formula.
+`force_original_aspect_ratio=decrease` is load bearing, not decoration. A
+portrait photograph is taller than it is wide, so `scale=512:-1` produces 512
+by something larger than 512, and `pad=512:512` then aborts with "Padded
+dimensions cannot be smaller than input dimensions" - verified against
+ffmpeg with a 600x900 input. `decrease` fits the image inside the box on
+whichever axis binds, and the pad fills the rest.
+
+`0x0b0e13` is `--bg` from `brand/tokens.css`. Open all three and adjust the
+framing until the crop sits well - where the face sits in the frame is a
+judgement call, not a formula. If the head needs to sit higher, replace the
+`(oh-ih)/2` vertical offset with a smaller value rather than changing the
+scale.
 
 - [ ] **Step 5: Wire the docs crop into the Documentation Site**
 
@@ -1270,11 +1294,12 @@ Pages sets none.
 ```bash
 cd /root/homelab
 mkdocs build
-[ -f site/assets/portrait.png ] && echo "ok: published" || echo "MISSING"
-grep -q 'assets/portrait.png' site/index.html && echo "ok: referenced" || echo "NOT REFERENCED"
+[ -f site/assets/portrait.png ] || { echo "MISSING: mkdocs did not publish it"; exit 1; }
+grep -q 'assets/portrait.png' site/index.html || { echo "NOT REFERENCED by index.html"; exit 1; }
+echo "ok: published and referenced"
 ```
 
-Expected: `ok: published` and `ok: referenced`. Then look at the page - a
+Expected: `ok: published and referenced`, exit 0. Then look at the page - a
 portrait that is published but badly cropped is worse than none.
 
 - [ ] **Step 7: Commit**
@@ -1344,17 +1369,36 @@ behind whatever ran last.
 
 ```bash
 cd /root/homelab
-grep -rn "fonts.googleapis.com\|fonts.gstatic.com" \
-  compose/vps/landing/src compose/vps/landing/og.html \
-  compose/vps/landing/Caddyfile \
-  compose/proxmox-lxc-100/topology/build.js \
-  compose/proxmox-lxc-100/topology/dist site \
-  && echo "FOUND A THIRD-PARTY FONT REQUEST" || echo "ok: none"
+for p in compose/vps/landing/src compose/vps/landing/og.html \
+         compose/vps/landing/Caddyfile \
+         compose/proxmox-lxc-100/topology/build.js \
+         compose/proxmox-lxc-100/topology/dist site; do
+  [ -e "$p" ] || { echo "GATE ERROR: $p does not exist, nothing was searched"; exit 1; }
+done
+if grep -rn "fonts.googleapis.com\|fonts.gstatic.com" \
+     compose/vps/landing/src compose/vps/landing/og.html \
+     compose/vps/landing/Caddyfile \
+     compose/proxmox-lxc-100/topology/build.js \
+     compose/proxmox-lxc-100/topology/dist site; then
+  echo "FOUND A THIRD-PARTY FONT REQUEST"
+  exit 1
+fi
+echo "ok: none"
 ```
 
-Expected: `ok: none`. The Caddyfile is in the list because its `/topology/*`
-policy named `fonts.gstatic.com` and `fonts.googleapis.com`, and a policy still
-allowing an origin nothing requests is a claim the site can no longer back.
+Expected: `ok: none`, exit 0.
+
+Two things this spells out rather than chains. `grep ... && echo FOUND || echo ok`
+exits 0 either way, so as a gate it is decoration - the same defect as the
+`cmp || echo` in Step 1. And `grep` returns 2, not 1, when a path is missing,
+so a `site/` that was never built makes the whole expression take the `||`
+branch and print `ok: none` while having searched almost nothing. The existence
+loop runs first for exactly that reason: `site/` only exists after
+`mkdocs build`, which Step 1 runs.
+
+The Caddyfile is in the list because its `/topology/*` policy named
+`fonts.gstatic.com` and `fonts.googleapis.com`, and a policy still allowing an
+origin nothing requests is a claim the site can no longer back.
 
 - [ ] **Step 3: Confirm the fonts carry a Cache-Control header, locally**
 
