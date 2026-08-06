@@ -516,15 +516,52 @@ Expected: exits 0, no `FAIL:` line.
 
 ```bash
 cd /root/homelab && python3 -m http.server 8899 --directory compose/vps/landing/dist &
-sleep 1
+sleep 2
 google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+  --force-prefers-reduced-motion \
   --run-all-compositor-stages-before-draw \
   --screenshot=/tmp/landing-after.png \
-  --window-size=1280,1600 --virtual-time-budget=9000 http://127.0.0.1:8899/
-kill %1
+  --window-size=1280,1100 --virtual-time-budget=9000 http://127.0.0.1:8899/
+pkill -f "http.server 8899"
 ```
 
-Open `/tmp/landing-after.png` and confirm the page is set in IBM Plex Sans, that headings do not look broken at the odd weights, and that nothing has reflowed badly. The typeface changes on every platform, so this is a real visual change and not a formality.
+`--force-prefers-reduced-motion` is not optional here. The hero animates in with
+`animation: rise 0.7s var(--ease) both` and staggered delays of `0.02s` through
+`0.26s` (`style.css:659-663`), and `both` holds the `from` state - opacity zero -
+until each element's delay elapses. Headless Chrome exports before the later ones
+start, so the kicker and `h1` appear and the lede, the buttons and the stack
+readout are simply absent. The screenshot looks like a broken page and is not
+one. `style.css:372` already turns the animation off under reduced motion, so
+forcing that gives the settled state the visitor actually sees.
+
+`pkill` rather than `kill %1`: job control is not reliable in a non-interactive
+shell, and a leftover server holds the port for the next run.
+
+Open `/tmp/landing-after.png` and confirm the page is set in IBM Plex Sans, that
+headings do not look broken at the odd weights, and that nothing has reflowed
+badly. The typeface changes on every platform, so this is a real visual change
+and not a formality.
+
+To judge it rather than merely observe it, render the previous state beside it.
+`git stash` will not work, because the change is already committed:
+
+```bash
+cd /root/homelab
+rm -rf /tmp/before && cp -R compose/vps/landing/dist /tmp/before
+rm -rf /tmp/before/fonts
+git show HEAD~1:compose/vps/landing/src/style.css > /tmp/before/style.css
+python3 -m http.server 8897 --directory /tmp/before &
+sleep 2
+google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+  --force-prefers-reduced-motion --run-all-compositor-stages-before-draw \
+  --screenshot=/tmp/landing-before.png --window-size=1280,1100 \
+  --virtual-time-budget=9000 http://127.0.0.1:8897/
+pkill -f "http.server 8897"; rm -rf /tmp/before
+```
+
+One caveat when reading the pair: the "before" renders on Linux, so it shows the
+fallback face this machine picks, not what a macOS or Windows visitor saw. For
+them the change is smaller than the pair suggests.
 
 - [ ] **Step 8: Commit**
 
