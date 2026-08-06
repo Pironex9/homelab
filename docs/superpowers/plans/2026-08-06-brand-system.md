@@ -1259,12 +1259,18 @@ the two sites visibly become one.
 ```bash
 cd /root/homelab
 python3 -m pip install --break-system-packages "mkdocs-material<10"
-mkdocs build
+python3 -m mkdocs build
 if grep -r "fonts.googleapis.com\|fonts.gstatic.com" site/; then
   echo "STILL FETCHING GOOGLE FONTS"; exit 1
 fi
 echo "ok: no Google Fonts"
 ```
+
+`python3 -m mkdocs` rather than bare `mkdocs`. pip puts the executable in
+`/usr/local/bin`, which is not on every shell's `PATH` here - it is missing from
+the one agents get - so the bare form fails with `command not found` on a box
+where MkDocs is installed and working. The module form does not care about
+`PATH`.
 
 Expected: `ok: no Google Fonts`, and a clean build with no warnings about the
 missing `assets/mark.svg`.
@@ -1419,7 +1425,7 @@ Pages sets none.
 
 ```bash
 cd /root/homelab
-mkdocs build
+python3 -m mkdocs build
 [ -f site/assets/portrait.png ] || { echo "MISSING: mkdocs did not publish it"; exit 1; }
 grep -q 'assets/portrait.png' site/index.html || { echo "NOT REFERENCED by index.html"; exit 1; }
 echo "ok: published and referenced"
@@ -1473,7 +1479,7 @@ set -e
 python3 brand/check-fonts.py
 sh compose/vps/landing/test-build.sh
 ( cd compose/proxmox-lxc-100/topology && npm test )
-mkdocs build
+python3 -m mkdocs build
 for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
   cmp "brand/$f.woff2" "docs/assets/fonts/$f.woff2"
 done
@@ -1520,7 +1526,7 @@ exits 0 either way, so as a gate it is decoration - the same defect as the
 so a `site/` that was never built makes the whole expression take the `||`
 branch and print `ok: none` while having searched almost nothing. The existence
 loop runs first for exactly that reason: `site/` only exists after
-`mkdocs build`, which Step 1 runs.
+`python3 -m mkdocs build`, which Step 1 runs.
 
 The Caddyfile is in the list because its `/topology/*` policy named
 `fonts.gstatic.com` and `fonts.googleapis.com`, and a policy still allowing an
