@@ -1223,7 +1223,13 @@ Append to `docs/stylesheets/extra.css`, keeping the existing five-line code-bloc
   --md-primary-fg-color:        #0b0e13;
   --md-primary-fg-color--light: #12161d;
   --md-primary-fg-color--dark:  #05070a;
-  --md-accent-fg-color:         #b96a1d;
+  --md-accent-fg-color:         #a85d12;
+  /* Load bearing. Material compiles --md-typeset-a-color:
+     var(--md-primary-fg-color), so setting primary to the brand's near-black
+     turns every link in the body the same colour as the body text. Nothing
+     warns about it: the page builds, renders, and reads perfectly well right
+     up until someone tries to find a link. Set it to the accent explicitly. */
+  --md-typeset-a-color:         #a85d12;
 }
 
 [data-md-color-scheme="slate"] {
@@ -1231,10 +1237,22 @@ Append to `docs/stylesheets/extra.css`, keeping the existing five-line code-bloc
   --md-primary-fg-color--light: #12161d;
   --md-primary-fg-color--dark:  #05070a;
   --md-accent-fg-color:         #e8933f;
+  --md-typeset-a-color:         #e8933f;
 }
 ```
 
-The light scheme uses a darker accent than `#e8933f`, because the brand orange is tuned for a near-black background and does not reach 4.5:1 against white for link text. The header bar stays the brand's dark surface in both schemes, which is where the two sites visibly become one.
+The light scheme uses a darker accent than `#e8933f`, because the brand orange
+is tuned for a near-black background. Measured against white with the WCAG
+formula: `#e8933f` gives 2.42:1, nowhere near the 4.5:1 that body-sized link
+text needs. `#a85d12` gives 4.95:1 and clears it.
+
+An earlier draft of this plan used `#b96a1d` and asserted it cleared 4.5:1. It
+gives **4.08:1** and does not. The number was never computed, only assumed. In
+the dark scheme `#e8933f` sits on Material's slate surface rather than white and
+gives 6.65:1, so it stays as it is.
+
+The header bar stays the brand's dark surface in both schemes, which is where
+the two sites visibly become one.
 
 - [ ] **Step 7: Build and check the result**
 
@@ -1283,7 +1301,13 @@ the site the landing links to first. font: false plus self-hosted faces.
 The brand takes the header, the accent and the Mark; the reading surfaces
 stay Material's own in both schemes, because this site is built for long-form
 reading and there is no light palette in the repo to base one on. The light
-scheme darkens the accent, which does not reach 4.5:1 against white.
+scheme darkens the accent to #a85d12, which measures 4.95:1 against white where
+the brand's own #e8933f gives 2.42:1.
+
+Links also needed --md-typeset-a-color set explicitly in both schemes. Material
+compiles it from --md-primary-fg-color, so pointing primary at the brand's
+near-black turned every body link the colour of the body text. It built, it
+rendered, and it read fine right up until you looked for a link.
 
 deploy.yml now cmp's the font copies against brand/ before building: this is
 the one surface that needs its own copy, and a stale woff2 is invisible in a
