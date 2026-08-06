@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-06T00:00:00Z",
+  "title": "Design System: Enci - rajzok",
+  "extensions": {
+    "colorMeta": {
+      "steel": {
+        "role": "neutral",
+        "displayName": "Japanned Steel",
+        "canonical": "#171a20",
+        "tonalRamp": ["#20242d", "#38404e", "#515b70", "#697792", "#8a95ab", "#acb4c4", "#ced3dc", "#f0f2f4"]
+      },
+      "steel-3": {
+        "role": "neutral",
+        "displayName": "Steel Divider",
+        "canonical": "#262b35",
+        "tonalRamp": ["#20242d", "#38404f", "#515b70", "#697792", "#8a95ab", "#acb4c4", "#ced3dc", "#f0f2f4"]
+      },
+      "ox": {
+        "role": "secondary",
+        "displayName": "Oxblood Buckram",
+        "canonical": "#6e2029",
+        "tonalRamp": ["#3b1116", "#681e27", "#962c38", "#c33949", "#d26470", "#df919a", "#ecbec3", "#f9ebed"]
+      },
+      "ox-lit": {
+        "role": "secondary",
+        "displayName": "Lit Oxblood",
+        "canonical": "#8a2833",
+        "tonalRamp": ["#3b1116", "#681e27", "#962b37", "#c33848", "#d26470", "#df919a", "#ecbec3", "#f9ebed"]
+      },
+      "brass": {
+        "role": "secondary",
+        "displayName": "Brass Hardware",
+        "canonical": "#b08d4f",
+        "tonalRamp": ["#352a18", "#5d4b2a", "#856b3c", "#ad8b4e", "#c1a575", "#d3bf9d", "#e5dac5", "#f7f4ed"]
+      },
+      "brass-dim": {
+        "role": "secondary",
+        "displayName": "Dimmed Brass",
+        "canonical": "#7d6438",
+        "tonalRamp": ["#352a18", "#5d4a2a", "#856b3c", "#ae8b4e", "#c1a575", "#d3bf9d", "#e5dac5", "#f7f4ed"]
+      },
+      "board": {
+        "role": "tertiary",
+        "displayName": "Conservation Board",
+        "canonical": "#9aa7b4",
+        "tonalRamp": ["#21262c", "#39434d", "#52616f", "#6b7e90", "#8c9baa", "#adb8c2", "#cfd5db", "#f0f2f4"]
+      },
+      "board-ink": {
+        "role": "tertiary",
+        "displayName": "Board Ink",
+        "canonical": "#20242c",
+        "tonalRamp": ["#20242c", "#39404e", "#515b70", "#6a7792", "#8b96ab", "#adb4c3", "#ced3dc", "#f0f2f4"]
+      },
+      "rail-ink": {
+        "role": "tertiary",
+        "displayName": "Rail Ink",
+        "canonical": "#e7d9c4",
+        "tonalRamp": ["#362916", "#604927", "#896938", "#b38849", "#c5a371", "#d6be9a", "#e7d9c3", "#f8f3ed"],
+        "note": "Warm off-white used only on oxblood. Not a CSS custom property; a literal repeated six times."
+      },
+      "paper": {
+        "role": "tertiary",
+        "displayName": "Mount Paper",
+        "canonical": "#f4f2ec",
+        "tonalRamp": ["#302b1c", "#554c31", "#7a6d47", "#9f8e5c", "#b6a880", "#cbc1a5", "#e0dbca", "#f6f4ef"],
+        "note": "The backing behind every image at every scale. Not a CSS custom property; a literal repeated six times."
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink on Steel",
+        "canonical": "#dfe3e9",
+        "tonalRamp": ["#1f252d", "#374150", "#4f5d72", "#667995", "#8897ad", "#abb5c5", "#cdd4dd", "#f0f2f5"]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#98a1af",
+        "tonalRamp": ["#21252b", "#3b424c", "#545e6d", "#6e7a8d", "#8e98a7", "#afb6c1", "#d0d4da", "#f1f2f4"]
+      },
+      "stamp": {
+        "role": "primary",
+        "displayName": "Aniline Stamp Violet (on board)",
+        "canonical": "#4a2d7a",
+        "tonalRamp": ["#221538", "#3c2462", "#56348d", "#6f44b8", "#8f6dc9", "#b097d9", "#d0c2e8", "#f1ecf8"]
+      },
+      "stamp-lit": {
+        "role": "primary",
+        "displayName": "Aniline Stamp Violet (on steel)",
+        "canonical": "#9b8ae0",
+        "tonalRamp": ["#19103c", "#2c1c6b", "#3f2899", "#5235c7", "#7861d5", "#9f8fe1", "#c6bded", "#eeebfa"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The name in the top rail. The page's only display step and its only use." },
+      "title": { "displayName": "Title", "purpose": "Drawing titles in the ledger and the catalogue slip." },
+      "body": { "displayName": "Body", "purpose": "The single intro sentence in Enci's own words, max-width 60ch. Deliberately not set in the data face." },
+      "label": { "displayName": "Label", "purpose": "Tabs, view toggles, section rules, table headers, definition terms, buttons. Uppercase, tracked 0.12em-0.2em. line-height 1.4 is mandatory for Hungarian accents." },
+      "data": { "displayName": "Data", "purpose": "Every accession number, ledger cell, count, year label and the footer. Never sets prose." },
+      "stamp": { "displayName": "Stamp", "purpose": "Dates only. Live text with a -2.5deg transform, never an image." }
+    },
+    "shadows": [
+      { "name": "cast", "value": "0 2px 4px rgba(0,0,0,.45), 0 18px 44px rgba(0,0,0,.5)", "purpose": "Surfaces that hold a drawing or its catalogue record: lead mount, folder card, detail stage, catalogue slip." },
+      { "name": "cast-lift", "value": "0 3px 6px rgba(0,0,0,.5), 0 26px 60px rgba(0,0,0,.6)", "purpose": "Folder card hover, paired with translateY(-4px) and brightness(1.06)." },
+      { "name": "seated", "value": "0 1px 2px rgba(0,0,0,.5)", "purpose": "Brass hardware at rest. Hardware is bolted to the cabinet; it never gets the wide cast shadow." },
+      { "name": "seated-pressed", "value": "0 0 0 1px #8a2833, 0 2px 6px rgba(0,0,0,.6)", "purpose": "Pressed brass tab: a 1px oxblood ring plus a tighter seat." }
+    ],
+    "motion": [
+      { "name": "stamp-land", "value": "stamp .32s cubic-bezier(.16,1,.3,1) backwards", "purpose": "The one authored moment: the date stamp lands on the lead works, staggered 180/310/440ms, from rotate(-9deg) scale(1.7) blur(1px) opacity 0. backwards fill from an already-correct resting state, so it is legible before and without the animation. Off under prefers-reduced-motion." },
+      { "name": "card-lift", "value": "transform .18s ease, box-shadow .18s ease, filter .18s ease", "purpose": "Folder card hover. The only other motion on the page." },
+      { "name": "strip-tab", "value": "opacity .15s ease, transform .15s ease", "purpose": "Filmstrip thumbnails moving between 65% and full opacity." }
+    ],
+    "breakpoints": [
+      { "name": "detail-split", "value": "56rem", "note": "Detail overlay splits into stage | 20rem catalogue slip." },
+      { "name": "shell", "value": "60rem", "note": "Shell becomes tabs | work | years three-column; both rails turn vertical." },
+      { "name": "print", "value": "A3 portrait, 14mm margin", "note": "@media print renders both views regardless of the hidden attribute; html{scrollbar-gutter:auto} is load-bearing." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Brass Category Tab",
+      "kind": "chip",
+      "refersTo": "tab-brass",
+      "description": "The category filter. Brass at rest, because an unfiltered first viewport with no brass object in it contradicts the world.",
+      "html": "<div style=\"display:flex;gap:.4rem\"><button class=\"ds-tab\" type=\"button\" aria-pressed=\"false\">Anime karakter</button><button class=\"ds-tab\" type=\"button\" aria-pressed=\"true\">Tájkép</button></div>",
+      "css": ".ds-tab{appearance:none;cursor:pointer;white-space:nowrap;font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#2a2213;background:linear-gradient(180deg,#c7a35d,var(--brass,#b08d4f) 45%,#8a6c38);border:1px solid #d8b877;border-top-color:#e8ce97;border-radius:2px;padding:.5rem .8rem;box-shadow:0 1px 2px rgba(0,0,0,.5)}.ds-tab:hover{background:linear-gradient(180deg,#d8b775,#c09b57 45%,#96773e)}.ds-tab:focus-visible{outline:2px solid var(--brass,#b08d4f);outline-offset:2px}.ds-tab[aria-pressed=\"true\"]{background:linear-gradient(180deg,#f0dcae,#dcbd7c);color:#231b0c;border-color:#fff0cc;box-shadow:0 0 0 1px var(--ox-lit,#8a2833),0 2px 6px rgba(0,0,0,.6)}"
+    },
+    {
+      "name": "Folder Card",
+      "kind": "card",
+      "refersTo": "folder-card",
+      "description": "One work in the drawer. A die-cut folder silhouette drawn with clip-path, with a brass lip along the tab and a fixed contained image window.",
+      "html": "<button class=\"ds-card\" type=\"button\" aria-label=\"TA.001/24 – Nagy hullám\"><img class=\"ds-card-img\" alt=\"\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='90'%3E%3Crect width='120' height='90' fill='%23f4f2ec'/%3E%3Cpath d='M8 66c22-30 40 6 60-14s30-8 44-16' stroke='%23566' fill='none' stroke-width='2'/%3E%3C/svg%3E\"><span class=\"ds-card-no\">TA.001/24</span></button>",
+      "css": ".ds-card{position:relative;display:flex;flex-direction:column;gap:.45rem;width:9.5rem;background:linear-gradient(180deg,#a6b2be,var(--board,#9aa7b4) 18%,#8f9dab);padding:1.5rem .5rem .6rem;box-shadow:0 2px 4px rgba(0,0,0,.45),0 18px 44px rgba(0,0,0,.5);cursor:pointer;text-align:left;appearance:none;border:none;font-family:'Archivo Narrow',system-ui,sans-serif;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;clip-path:polygon(0 .55rem,.1rem .18rem,.5rem 0,4.1rem 0,4.5rem .18rem,4.6rem .55rem,4.6rem 1.1rem,100% 1.1rem,100% 100%,0 100%)}.ds-card::before{content:'';position:absolute;left:0;top:0;width:4.6rem;height:2px;background:linear-gradient(90deg,#e0be7d,var(--brass,#b08d4f) 60%,var(--brass-dim,#7d6438));pointer-events:none}.ds-card:hover{transform:translateY(-4px);box-shadow:0 3px 6px rgba(0,0,0,.5),0 26px 60px rgba(0,0,0,.6);filter:brightness(1.06)}.ds-card:focus-visible{filter:brightness(1.06);outline:2px solid var(--brass,#b08d4f);outline-offset:2px}.ds-card-img{display:block;width:100%;height:6.5rem;object-fit:contain;background:#f4f2ec;border-radius:1px}.ds-card-no{font:400 .75rem/1.4 'Courier Prime',ui-monospace,monospace;color:var(--board-ink,#20242c);letter-spacing:.03em}"
+    },
+    {
+      "name": "Lead Mount with Date Stamp",
+      "kind": "custom",
+      "refersTo": "mount",
+      "description": "A selected work on a paper mount. The deep bottom padding exists so the violet date stamp lands on paper, never on the drawing.",
+      "html": "<figure class=\"ds-figure\"><div class=\"ds-sheet\"><img class=\"ds-sheet-img\" alt=\"Nagy hullám\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect width='300' height='200' fill='%23f4f2ec'/%3E%3Cpath d='M20 150c50-70 90 14 135-32s70-18 100-36' stroke='%23566' fill='none' stroke-width='3'/%3E%3C/svg%3E\"><span class=\"ds-stamp\">2024 okt 12.</span></div><figcaption class=\"ds-figcaption\"><span class=\"ds-no\">TA.001/24</span></figcaption></figure>",
+      "css": ".ds-figure{margin:0;display:flex;flex-direction:column;gap:.7rem;width:20rem}.ds-sheet{position:relative;background:#f4f2ec;box-shadow:0 2px 4px rgba(0,0,0,.45),0 18px 44px rgba(0,0,0,.5);border-radius:2px;height:14rem;overflow:hidden;padding:.75rem .75rem 2.5rem}.ds-sheet-img{display:block;width:100%;height:100%;object-fit:contain;border-radius:1px}.ds-stamp{font:700 1rem/1 'Courier Prime',ui-monospace,monospace;letter-spacing:.02em;color:var(--stamp-lit,#9b8ae0);display:inline-block;transform:rotate(-2.5deg);transform-origin:left center;animation:ds-stamp .32s cubic-bezier(.16,1,.3,1) backwards}.ds-sheet .ds-stamp{position:absolute;right:1rem;bottom:.7rem;color:var(--stamp,#4a2d7a);z-index:1}@keyframes ds-stamp{from{transform:rotate(-9deg) scale(1.7);opacity:0;filter:blur(1px)}}@media (prefers-reduced-motion:reduce){.ds-stamp{animation:none}}.ds-no{font:400 .75rem/1.4 'Courier Prime',ui-monospace,monospace;color:var(--brass,#b08d4f)}"
+    },
+    {
+      "name": "Year Rail Button",
+      "kind": "nav",
+      "refersTo": "year",
+      "description": "The drawer's index rail: an oxblood strip capped by a machined brass fitting, with the active year sitting inside a second copy of that fitting. Buttons rather than a slider, for keyboard operability.",
+      "html": "<nav class=\"ds-years\" aria-label=\"Évek\"><span class=\"ds-fitting\" aria-hidden=\"true\"></span><button class=\"ds-year\" type=\"button\" aria-pressed=\"false\">2024</button><button class=\"ds-year\" type=\"button\" aria-pressed=\"true\">2025</button><button class=\"ds-year\" type=\"button\" aria-pressed=\"false\">2026</button></nav>",
+      "css": ".ds-years{display:flex;gap:.4rem;align-items:center;padding:.7rem 1.2rem;background:var(--ox,#6e2029);border-top:1px solid var(--brass-dim,#7d6438)}.ds-fitting{flex:0 0 auto;width:1.9rem;height:1.2rem;border-radius:2px;background:linear-gradient(180deg,#f0dcae,#c9a75f 45%,#8a6c38);box-shadow:inset 0 1px 0 #fff0cc,0 1px 2px rgba(0,0,0,.5)}.ds-year{appearance:none;cursor:pointer;font:700 .75rem/1.4 'Courier Prime',ui-monospace,monospace;letter-spacing:.16em;color:#e7d9c4;background:transparent;border:none;border-radius:2px;padding:.4rem .55rem;white-space:nowrap}.ds-year:hover{color:#fff}.ds-year:focus-visible{outline:2px solid var(--brass,#b08d4f);outline-offset:2px}.ds-year[aria-pressed=\"true\"]{color:#2a2213;background:linear-gradient(180deg,#f0dcae,#c9a75f 45%,#8a6c38);box-shadow:inset 0 1px 0 #fff0cc,0 1px 2px rgba(0,0,0,.5);text-shadow:0 1px 0 rgba(255,244,214,.5);padding:.75rem .8rem}",
+      "note": "In the real page the fitting is assets/img/brass-fitting.png, a generated raster, not the CSS gradient used here. The gradient is a panel-only stand-in because the snippet must be self-contained; do not copy it back into the page."
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-input",
+      "description": "A brass file-tab label butted against a board-coloured card. Label and input are one object; there is no gap between them.",
+      "html": "<span class=\"ds-find\"><label class=\"ds-find-label\" for=\"ds-find-input\">Keresés</label><input class=\"ds-find-input\" id=\"ds-find-input\" type=\"search\" autocomplete=\"off\" placeholder=\"cím vagy technika\"></span>",
+      "css": ".ds-find{display:inline-flex;align-items:stretch;gap:0}.ds-find-label{font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#2a2213;background:linear-gradient(180deg,#c7a35d,var(--brass,#b08d4f) 45%,#8a6c38);padding:.4rem .7rem .35rem;clip-path:polygon(0 .3rem,.3rem 0,calc(100% - .3rem) 0,100% .3rem,100% 100%,0 100%)}.ds-find-input{font:400 .75rem/1.4 'Courier Prime',ui-monospace,monospace;color:var(--board-ink,#20242c);background:linear-gradient(180deg,#a6b2be,var(--board,#9aa7b4) 20%);border:none;border-top:2px solid var(--brass,#b08d4f);padding:.4rem .55rem;width:11rem}.ds-find-input::placeholder{color:#4a5361}.ds-find-input:focus-visible{outline:2px solid var(--brass,#b08d4f);outline-offset:2px}"
+    },
+    {
+      "name": "Catalogue Slip",
+      "kind": "card",
+      "refersTo": "slip",
+      "description": "The detail view's catalogue card: real text on board, with the date as a live violet stamp.",
+      "html": "<div class=\"ds-slip\"><dl class=\"ds-slip-dl\"><dt>Leltári szám</dt><dd>CS.018/25</dd><dt>Cím</dt><dd class=\"ds-slip-title\">Jean-Baptiste Belley</dd><dt>Kategória</dt><dd>Csendélet</dd><dt>Technika</dt><dd>akvarell</dd><dt>Dátum</dt><dd><span class=\"ds-slip-stamp\">2025 okt 23.</span></dd></dl></div>",
+      "css": ".ds-slip{width:20rem;background:var(--board,#9aa7b4);color:var(--board-ink,#20242c);border:1px solid #7f8d9c;border-radius:2px;box-shadow:0 2px 4px rgba(0,0,0,.45),0 18px 44px rgba(0,0,0,.5);padding:1.1rem 1.2rem 1.3rem}.ds-slip-dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:.55rem .9rem}.ds-slip-dl dt{font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#4a5361;white-space:nowrap}.ds-slip-dl dd{margin:0;font:400 .75rem/1.4 'Courier Prime',ui-monospace,monospace;color:var(--board-ink,#20242c);word-break:break-word}.ds-slip-title{font-family:'Archivo Narrow',system-ui,sans-serif!important;font-weight:600;font-size:1rem}.ds-slip-stamp{font:700 1rem/1 'Courier Prime',ui-monospace,monospace;letter-spacing:.02em;color:var(--stamp,#4a2d7a);display:inline-block;transform:rotate(-2.5deg);transform-origin:left center}"
+    },
+    {
+      "name": "Ledger Row",
+      "kind": "custom",
+      "refersTo": "slip",
+      "description": "Register furniture: a brass hairline around every cell, tabular numerals, and an active row that stays marked in oxblood after the pointer leaves.",
+      "html": "<table class=\"ds-ledger\"><caption>Gyarapodási napló · 34 tétel</caption><thead><tr><th scope=\"col\">Leltári szám</th><th scope=\"col\">Cím</th><th scope=\"col\">Technika</th><th scope=\"col\">Dátum</th></tr></thead><tbody><tr><td class=\"ds-l-no\">TA.001/24</td><td class=\"ds-l-t\">Nagy hullám</td><td>ceruza</td><td class=\"ds-l-dt\">2024.10.12</td></tr><tr class=\"is-active\"><td class=\"ds-l-no\">CS.018/25</td><td class=\"ds-l-t\">Jean-Baptiste Belley</td><td>akvarell</td><td class=\"ds-l-dt\">2025.10.23</td></tr></tbody></table>",
+      "css": ".ds-ledger{border-collapse:collapse;width:100%;background:var(--steel,#171a20);color:var(--ink,#dfe3e9);font-family:'Archivo Narrow',system-ui,sans-serif}.ds-ledger caption{text-align:left;font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--brass,#b08d4f);padding-bottom:.9rem}.ds-ledger th{font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--brass,#b08d4f);text-align:left;padding:.5rem .7rem;border-bottom:1px solid var(--brass-dim,#7d6438);white-space:nowrap}.ds-ledger td{padding:.35rem .7rem;border:1px solid var(--brass-dim,#7d6438);font-variant-numeric:tabular-nums;vertical-align:middle}.ds-ledger tbody tr{cursor:pointer}.ds-ledger tbody tr:hover,.ds-ledger tbody tr.is-active{background:var(--ox,#6e2029)}.ds-ledger tbody tr.is-active td{border-color:#e0be7d}.ds-l-no,.ds-l-dt{font:400 .75rem/1.4 'Courier Prime',ui-monospace,monospace;color:var(--ink-soft,#98a1af)}.ds-ledger tbody tr:hover .ds-l-no,.ds-ledger tbody tr:hover .ds-l-dt,.ds-ledger tbody tr.is-active .ds-l-no,.ds-ledger tbody tr.is-active .ds-l-dt{color:#e7d9c4}.ds-l-t{font-weight:600}"
+    },
+    {
+      "name": "Rail Buttons (view toggle and detail bar)",
+      "kind": "button",
+      "refersTo": "view-toggle",
+      "description": "Every control that sits on oxblood: ghost buttons with a rail-ink hairline. The view toggle is a butted pair whose pressed state flips to board; the detail bar's buttons stay ghosts.",
+      "html": "<div class=\"ds-rail\"><div class=\"ds-views\"><button class=\"ds-view\" type=\"button\" aria-pressed=\"true\">Fiók</button><button class=\"ds-view\" type=\"button\" aria-pressed=\"false\">Napló</button></div><span class=\"ds-rail-spacer\"></span><button class=\"ds-barbtn\" type=\"button\">Előző</button><button class=\"ds-barbtn\" type=\"button\">Bezárás</button></div>",
+      "css": ".ds-rail{display:flex;align-items:center;gap:1rem;background:var(--ox,#6e2029);border-bottom:1px solid var(--brass-dim,#7d6438);padding:.7rem 1.2rem}.ds-rail-spacer{flex:1}.ds-views{display:flex;gap:0}.ds-view{appearance:none;cursor:pointer;font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#e7d9c4;background:transparent;border:1px solid rgba(231,217,196,.35);padding:.45rem .85rem}.ds-view+.ds-view{border-left:none}.ds-view[aria-pressed=\"true\"]{background:var(--board,#9aa7b4);color:var(--board-ink,#20242c);border-color:var(--board,#9aa7b4)}.ds-barbtn{appearance:none;cursor:pointer;background:transparent;border:1px solid rgba(231,217,196,.35);color:#e7d9c4;font:600 .75rem/1.4 'Archivo Narrow',system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:.4rem .7rem}.ds-barbtn:hover{background:rgba(231,217,196,.12)}.ds-view:focus-visible,.ds-barbtn:focus-visible{outline:2px solid var(--brass,#b08d4f);outline-offset:2px}"
+    },
+    {
+      "name": "Filmstrip Tab",
+      "kind": "nav",
+      "refersTo": "folder-card",
+      "description": "The detail overlay's filmstrip: neighbouring works as small folder tabs, so moving through the collection is a place you can see rather than two unlabelled buttons.",
+      "html": "<nav class=\"ds-strip\" aria-label=\"Tételek\"><button type=\"button\" aria-label=\"TA.001/24 Nagy hullám\"><img alt=\"\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='60'%3E%3Crect width='80' height='60' fill='%23f4f2ec'/%3E%3Cpath d='M6 44c14-20 26 4 40-9s20-5 29-10' stroke='%23566' fill='none' stroke-width='2'/%3E%3C/svg%3E\"></button><button type=\"button\" aria-current=\"true\" aria-label=\"CS.018/25 Belley\"><img alt=\"\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='60'%3E%3Crect width='80' height='60' fill='%23f4f2ec'/%3E%3Ccircle cx='40' cy='30' r='16' stroke='%23566' fill='none' stroke-width='2'/%3E%3C/svg%3E\"></button><button type=\"button\" aria-label=\"PO.034/26 Utca\"><img alt=\"\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='60'%3E%3Crect width='80' height='60' fill='%23f4f2ec'/%3E%3Cpath d='M10 50L40 10l30 40' stroke='%23566' fill='none' stroke-width='2'/%3E%3C/svg%3E\"></button></nav>",
+      "css": ".ds-strip{display:flex;gap:.35rem;overflow-x:auto;align-items:flex-end;background:var(--ox,#6e2029);border-top:1px solid var(--brass-dim,#7d6438);padding:.6rem 1.2rem}.ds-strip button{appearance:none;cursor:pointer;flex:0 0 auto;width:4.2rem;padding:.55rem .25rem .3rem;background:linear-gradient(180deg,#a6b2be,var(--board,#9aa7b4) 20%,#8f9dab);border:none;clip-path:polygon(0 .3rem,.3rem 0,2rem 0,2.3rem .3rem,2.3rem .55rem,100% .55rem,100% 100%,0 100%);opacity:.65;transition:opacity .15s ease,transform .15s ease}.ds-strip button:hover{opacity:1}.ds-strip button:focus-visible{opacity:1;outline:2px solid var(--brass,#b08d4f);outline-offset:2px}.ds-strip button[aria-current=\"true\"]{opacity:1;transform:translateY(-.3rem)}.ds-strip img{display:block;width:100%;height:2.6rem;object-fit:contain;background:#f4f2ec}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Accession Register",
+    "overview": "This is a museum accession register, not a gallery wall. The collection is a numbered, dated list that grows; the drawings are the objects in the drawer. Every material on the page is a register's own material - japanned steel for the cabinet, oxblood buckram for the rails, blue-grey conservation board for the cards, brass for the hardware, aniline violet for the stamp. The world was chosen over the incumbent (warm paper, serif display, terracotta accent, masonry of matted thumbnails), which had never been decided so much as defaulted into.\n\nThe dark ground is not a style preference and is not negotiable. The works are graphite and watercolour on white paper; a dark cabinet ground is what makes them read as objects sitting on the page rather than as page background. Every surface that touches a drawing is paper-coloured (#f4f2ec), and every surface that holds paper is board, steel or buckram.\n\nDensity is high and deliberately clerical. Chrome is small, condensed and uppercase; data is monospaced; the drawings are the only large things. The one moment of personality is the date stamp landing on the lead works - a single authored gesture in a page that otherwise does not perform.",
+    "keyCharacteristics": [
+      "Dark japanned-steel ground throughout; no light theme exists and none is intended.",
+      "Violet appears on dates and on nothing else, on the whole page.",
+      "Condensed uppercase capitals for chrome, typewriter monospace for every figure.",
+      "Two-corner language: 2px on surfaces, 1px on images. Nothing is pill-shaped or circular.",
+      "Images are contained in fixed boxes, never cropped - in all four places images appear.",
+      "Flat colour fields; no texture assets, no CSS gradients pretending to be cloth.",
+      "Server-rendered in both views: the page works with JavaScript off."
+    ],
+    "rules": [
+      { "name": "The Violet-For-Dates Rule", "body": "Violet appears on dates and on nothing else. It is the only saturated violet on the page, so the eye lands on the thing the product is arguing: that this is a body of work spanning years. Spending it on a button, a link, a hover state or an active filter destroys the argument. Audit test: search the stylesheet for --stamp; every hit must be a date.", "section": "colors" },
+      { "name": "The Two Grounds Rule", "body": "There are two violet tokens because one cannot serve both grounds. --stamp on the dark ground fails contrast outright; --stamp-lit on board is washed out. They are the same ink rendered for two papers. Do not collapse them into one, and do not add a third.", "section": "colors" },
+      { "name": "The Warm-On-Red Rule", "body": "Text and hairlines on oxblood are rail-ink or brass, never --ink. Text on steel is --ink, never rail-ink. The two warm/cool text families do not cross grounds.", "section": "colors" },
+      { "name": "The Hungarian Line-Box Rule", "body": "--label carries line-height 1.4, not 1.1. At 1.1 the line box clips the marks off uppercase Á, Ó, É, Ő and Ű - a bug that is invisible in English and disfiguring in Hungarian, on a page whose UI is entirely Hungarian. Never tighten a line-height on an uppercase label below 1.3, and never test a type change on ASCII text alone.", "section": "typography" },
+      { "name": "The Latin-Ext Rule", "body": "Both self-hosted faces ship latin and latin-ext @font-face blocks. Hungarian needs U+0151 (ő) and U+0171 (ű), which the latin subset does not carry and a system stack cannot promise. Dropping latin-ext is not a saving of four files, it is a silent glyph-substitution bug in half the UI copy.", "section": "typography" },
+      { "name": "The Typewriter-Is-Data Rule", "body": "Courier Prime sets numbers, dates, codes and table cells. It never sets prose, a heading, or a button label. If a new element carries a figure, it is Courier; if it carries a word, it is Archivo Narrow.", "section": "typography" },
+      { "name": "The Register-Always-Prints Rule", "body": "What comes out of Ctrl+P must not depend on which view happened to be open. @media print forces both view sections to display:block !important (needed to beat the hidden attribute the toggle leaves behind), hides the fiók drawer and every interactive band, and emits A3 portrait: one sheet of three selected works, then the full ledger. There is no second renderer and there must never be one.", "section": "layout" },
+      { "name": "The Print Gutter Rule", "body": "@media print { html { scrollbar-gutter: auto } } is load-bearing. The reserved gutter has no meaning without a scrollbar, but the print layout keeps it and pushes every sheet left until the first character of each line falls off the left edge of the paper. Anything added to html for screen scrolling must be unwound for print.", "section": "layout" },
+      { "name": "The Drawings Cast Rule", "body": "The wide cast shadow belongs to surfaces that carry a drawing or its catalogue record. Chrome does not cast it: rails, bands, tabs, year buttons and toggles are flush with the cabinet. If a new element wants --shadow, first ask whether it holds a work.", "section": "elevation" },
+      { "name": "The Contained-Never-Cropped Rule", "body": "Every image on the page sits in a fixed box with object-fit: contain on a paper background: the clamp(13rem,25vw,20rem) lead mount, the 6.5rem folder-card window, the 3.2 x 2.4rem ledger thumbnail, and the 2.6rem filmstrip tab. The fixed box is what gives the drawer and the ledger their rhythm; cover would crop a drawing to fit a layout, which is the one thing this page must not do. Sizing the image itself instead of the box looks equivalent and is not - max-height on a grid item does not hold, and a tall drawing bursts out of its mount.", "section": "shapes" },
+      { "name": "The Countable-Flat-Shape Rule", "body": "Flat, countable geometry (folder silhouettes, chamfers, tab edges) is CSS - clip-path, gradients, borders. Lit, bevelled, material objects (the brass fitting) are real image assets. Neither medium is used for the other's job: no CSS bevel imitating machined metal, and no raster of a shape that a polygon describes exactly.", "section": "shapes" },
+      { "name": "The No-Fake-Texture Rule", "body": "Buckram and board are flat colour fields. A CSS gradient pretending to be woven cloth is worse than the flat colour. If texture is ever wanted, it arrives as a real tiling image, the way the brass fitting did.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do spend violet only on dates, and keep both violet tokens - --stamp on light grounds, --stamp-lit on dark.",
+      "Do put every new image in a fixed box with object-fit: contain on a paper (#f4f2ec) background.",
+      "Do keep line-height 1.4 on uppercase labels and test type changes on \"ÁRVÍZTŰRŐ TÜKÖRFÚRÓGÉP\", not on ASCII.",
+      "Do ship both latin and latin-ext subsets for any font added, self-hosted.",
+      "Do render new content server-side into the HTML and let the client script only filter, toggle and overlay. The page must survive with JavaScript off.",
+      "Do make anything filterable a real <button> with aria-pressed, and make clicking the active one clear it.",
+      "Do unwind screen-only html/body scroll properties inside @media print.",
+      "Do reach for clip-path for flat countable shapes and a real image asset for lit material.",
+      "Do edit lib/render.js; dist/ is build output."
+    ],
+    "donts": [
+      "Don't collapse the two violet tokens, and don't add a third violet.",
+      "Don't use violet, at any lightness, on anything that is not a date.",
+      "Don't use object-fit: cover anywhere. Cropping a drawing to fit a layout is the one thing this page must not do.",
+      "Don't dim, fade or blur real works to suggest depth - not the back rows of the drawer, not the filmstrip's ends, not a scroll mask over cards. The mask fade is for the tab strip only, where it covers chrome.",
+      "Don't add a fourth type size, a pill radius, or a circle.",
+      "Don't give chrome the wide cast shadow, and don't give a drawing-bearing surface the tight seated one.",
+      "Don't fake buckram or board texture with a CSS gradient.",
+      "Don't render the date stamp as an image, and don't move it off the mount's bottom margin onto the drawing.",
+      "Don't replace the year rail with a drag slider or a range input; keyboard operability is the reason it is buttons.",
+      "Don't make the print output depend on which view is open."
+    ]
+  }
+}

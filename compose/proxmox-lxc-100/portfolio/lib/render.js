@@ -36,7 +36,6 @@ const CSS = `
      materials: japanned steel, oxblood buckram, conservation board, aniline
      stamp ink, brass. */
   --steel:#171a20;
-  --steel-2:#1e222a;
   --steel-3:#262b35;
   --ox:#6e2029;
   --ox-lit:#8a2833;
@@ -201,10 +200,6 @@ body{
   display:block;width:100%;height:100%;object-fit:contain;border-radius:1px;
 }
 .lead figcaption{display:flex;flex-direction:column;gap:.3rem}
-.lead .t{
-  font-weight:600;font-size:1rem;line-height:1.25;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-}
 .lead .meta{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap}
 .lead .no{font:var(--data);color:var(--brass)}
 
@@ -409,28 +404,6 @@ table.ledger img{
   padding:.4rem .7rem;
 }
 .detail-bar button:hover{background:rgba(231,217,196,.12)}
-/* The filmstrip from the approved detail comp: the works either side of this
-   one as small folder tabs, so moving through the collection is a place you
-   can see rather than two unlabelled buttons. */
-.strip{
-  display:flex;gap:.35rem;overflow-x:auto;align-items:flex-end;
-  background:var(--ox);border-top:1px solid var(--brass-dim);
-  padding:.6rem clamp(.9rem,3vw,2rem);
-}
-.strip button{
-  appearance:none;cursor:pointer;flex:0 0 auto;
-  width:4.2rem;padding:.55rem .25rem .3rem;
-  background:linear-gradient(180deg,#a6b2be,var(--board) 20%,#8f9dab);
-  border:none;
-  clip-path:polygon(
-    0 .3rem, .3rem 0, 2rem 0, 2.3rem .3rem, 2.3rem .55rem,
-    100% .55rem, 100% 100%, 0 100%
-  );
-  opacity:.65;transition:opacity .15s ease,transform .15s ease;
-}
-.strip button:hover{opacity:1}
-.strip button[aria-current="true"]{opacity:1;transform:translateY(-.3rem)}
-.strip img{display:block;width:100%;height:2.6rem;object-fit:contain;background:#f4f2ec}
 .detail-body{
   display:grid;gap:clamp(1rem,3vw,2.5rem);align-content:start;
   grid-template-columns:minmax(0,1fr);
@@ -493,7 +466,6 @@ footer{
   font:var(--data);color:var(--ink-soft);
 }
 
-/* ---- print: the ledger IS the school's sheet -------------------------- */
 /* ---- print: the ledger IS the school's sheet -------------------------- */
 /* What comes out of Ctrl+P must not depend on which view happened to be open
    when someone pressed it. The register prints, always: three A/3 sheets of
