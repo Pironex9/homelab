@@ -61,3 +61,13 @@ jobs:
       - uses: actions/configure-pages@v4
       - uses: actions/deploy-pages@v4
         id: deployment
+        with:
+          # Default is 600000 (10 minutes), and this site has twice exceeded it
+          # while the Pages backend sat on deployment_in_progress. On timeout
+          # this action does not merely fail: it sends a cancel for the
+          # deployment. Both times the content shipped anyway, several minutes
+          # after the cancel, because the backend had already committed it -
+          # which is luck, not design. A slower deploy would be cut off for
+          # real. Raised so a slow backend reports honestly instead of a red
+          # run nobody can distinguish from a genuine failure.
+          timeout: 1200000
