@@ -22,17 +22,31 @@ for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
     [ -s "$DIR/dist/fonts/$f.woff2" ] || fail "build.sh did not copy $f.woff2 into dist/fonts/"
 done
 
+# Scope the font-src checks to their own handle block rather than grepping
+# the whole file. A file-scoped grep cannot tell the two CSP blocks apart: if
+# the landing and /topology/* directives were ever swapped, both strings
+# would still be present somewhere in the file and a bare grep would still
+# pass while both surfaces actually render in a fallback face. Extract each
+# block with awk (no dependency added, same as build.sh's own tool budget)
+# and grep only inside it.
+landing_block=$(awk '/^\thandle \{$/,/^\t\}$/' "$DIR/Caddyfile")
+topology_block=$(awk '/^\thandle \/topology\/\* \{$/,/^\t\}$/' "$DIR/Caddyfile")
+[ -n "$landing_block" ] || fail "could not find the bare 'handle {' block in Caddyfile"
+[ -n "$topology_block" ] || fail "could not find the 'handle /topology/*' block in Caddyfile"
+
 # The CSP has default-src 'none', so a missing font-src blocks every font the
 # page loads - including its own. This is silent in production: the page
 # renders in a fallback face and looks fine.
-grep -q "font-src 'self'" "$DIR/Caddyfile" || fail "Caddyfile CSP has no font-src, fonts will be blocked"
+echo "$landing_block" | grep -q "font-src 'self'" \
+    || fail "landing CSP has no font-src 'self', fonts will be blocked"
 
 # The /topology/ route has its own weaker CSP. The map's fonts are data: URIs
 # embedded by topology/build.js, so that policy needs font-src data: - and
 # must no longer name Google, which nothing requests any more. npm test in the
 # topology stack cannot catch this: it reads the HTML, not the policy serving
 # it.
-grep -q "font-src data:" "$DIR/Caddyfile" || fail "topology CSP has no font-src data:, the embedded fonts will be blocked"
+echo "$topology_block" | grep -q "font-src data:" \
+    || fail "topology CSP has no font-src data:, the embedded fonts will be blocked"
 grep -q "fonts.gstatic.com\|fonts.googleapis.com" "$DIR/Caddyfile" && fail "Caddyfile still allows Google Fonts"
 
 # 2. An unsubstituted placeholder is caught rather than shipped.
