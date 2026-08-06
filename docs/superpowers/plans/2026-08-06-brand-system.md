@@ -680,6 +680,19 @@ In `compose/vps/landing/README.md`, replace the `og.png` render command in step 
    `og.html` reach up into `brand/`.
 ````
 
+The README also says, of `src/favicon.svg`, that it "needs none of this". That
+is no longer true: the card now carries a copy of the same drawing, inlined, and
+nothing enforces that the two agree. Add a sentence to that paragraph:
+
+```markdown
+`src/favicon.svg` needs none of this, but it no longer stands alone: `og.html`
+inlines the same drawing, and `brand/mark-large.svg` is the header-size variant.
+Change one and change all three, or the share card advertises a mark the site no
+longer uses. Note when editing any of them that an XML comment may not contain two
+consecutive hyphens: an invalid SVG still copies into `dist/` happily and only shows
+up as a missing tab icon.
+```
+
 Also update the comment block at the top of `og.html` itself, which repeats the
 old `file://` command, so the two do not disagree. That comment also claims the
 card is "Self-contained on purpose: no shared stylesheet". It is now one step
@@ -947,7 +960,41 @@ sh compose/vps/landing/test-build.sh
 
 Expected: exits 0, no `FAIL:` line.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 11: Correct the README section this step just invalidated**
+
+`compose/vps/landing/README.md` has a section "The Content-Security-Policy
+forbids inline script and inline style" whose last two paragraphs are now false
+in three separate ways. It says `/topology/` "carries ... two Google Fonts
+requests", calls that "a genuine wart", and tells the next maintainer that
+fixing it means "self-hosting the two faces in
+`compose/proxmox-lxc-100/topology/` and rebuilding, **not editing anything
+here**" - which is exactly wrong, because this task edited the Caddyfile in that
+directory. Replace both paragraphs with:
+
+```markdown
+`/topology/` gets its own, weaker policy. That page is generator output copied in
+wholesale, and it carries an inline `<style>`, an inline `<script>` and inline style
+attributes. None of it can be fixed from this directory, so it is scoped off rather
+than allowed to weaken the whole site.
+
+It no longer fetches anything from a third party. It used to pull two faces from
+Google, which was a genuine wart on a site whose whole argument is that it is
+self-hosted end to end. They are now base64 `data:` URIs embedded by that stack's
+`build.js` from `brand/`, so this policy's `font-src` is `data:` and nothing else.
+If a future topology build goes back to linking a font, this policy blocks it, and
+`test-build.sh` fails before it gets that far.
+```
+
+Also amend the sentence in "Why HTML, CSS and JS carry `Cache-Control:
+no-cache`" that reads "Images are the exception and are cached hard":
+
+```markdown
+Images and fonts are the exception and are cached hard. Images change only when a
+host is added or removed, fonts only on a deliberate re-subset, and the diagram is
+by far the heaviest thing here.
+```
+
+- [ ] **Step 12: Commit**
 
 ```bash
 git add compose/proxmox-lxc-100/topology/build.js \
