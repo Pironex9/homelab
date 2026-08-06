@@ -14,6 +14,19 @@ grep -q '{{STACK_COUNT}}' "$DIR/dist/index.html" && fail "placeholder survived i
 grep -qE 'id="stack-count"[^>]*>[0-9]+' "$DIR/dist/index.html" \
     || fail "stack count was not substituted with a number"
 
+# 3. The brand fonts reach dist/. src/ does not contain them - build.sh copies
+# them from brand/, which is the only committed copy. A missing font does not
+# fail the build or the page; it silently falls back to a system face, so the
+# only way to notice is to assert it here.
+for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
+    [ -s "$DIR/dist/fonts/$f.woff2" ] || fail "build.sh did not copy $f.woff2 into dist/fonts/"
+done
+
+# The CSP has default-src 'none', so a missing font-src blocks every font the
+# page loads - including its own. This is silent in production: the page
+# renders in a fallback face and looks fine.
+grep -q "font-src 'self'" "$DIR/Caddyfile" || fail "Caddyfile CSP has no font-src, fonts will be blocked"
+
 # 2. An unsubstituted placeholder is caught rather than shipped.
 #
 # This case has to dirty the real src/index.html, so the restore runs from a

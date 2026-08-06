@@ -9,6 +9,32 @@
    Radius lock: 4px on every surface. Circles on the dots only.
 --------------------------------------------------------------------------- */
 
+/* Self-hosted, same-origin. The CSP is default-src 'none' with font-src
+   'self', so a third-party font would be refused - which is the point: this
+   site's argument is that it is self-hosted end to end.
+
+   Values copied from brand/tokens.css; see brand/BRAND.md. The files are
+   placed into dist/fonts/ by build.sh from brand/, which holds the only
+   committed copy. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("fonts/ibm-plex-sans-var.woff2") format("woff2");
+  font-weight: 100 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/ibm-plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
 :root {
   --bg:        #0b0e13;
   --surface:   #12161d;
@@ -49,10 +75,8 @@
 
   --r: 4px;
 
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
-          system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono",
-          "Roboto Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }

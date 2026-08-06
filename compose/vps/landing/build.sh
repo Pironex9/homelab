@@ -47,6 +47,20 @@ rm -rf "$DIST"
 mkdir -p "$DIST"
 cp -R "$SRC"/. "$DIST"/
 
+# The brand fonts are not in src/, because brand/ holds the only committed
+# copy of each - see docs/adr/0002-brand-values-are-duplicated-not-shared.md.
+# REPO_ROOT is already resolved above to count Compose Stacks, so this costs
+# no dependency. Big Shoulders is not copied: it belongs to the topology map,
+# which embeds its own.
+mkdir -p "$DIST/fonts"
+for f in ibm-plex-sans-var ibm-plex-mono-400 ibm-plex-mono-500; do
+    [ -f "$REPO_ROOT/brand/$f.woff2" ] || {
+        echo "build: brand/$f.woff2 is missing" >&2
+        exit 1
+    }
+    cp "$REPO_ROOT/brand/$f.woff2" "$DIST/fonts/"
+done
+
 sed -i "s/{{STACK_COUNT}}/$stack_count/g" "$DIST/index.html"
 
 # Scan the whole output, not just index.html. Tasks 3 and 4 add style.css
