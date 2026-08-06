@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="homelabor.net">
+  <!-- The Mark at header and CV size. brand/mark.svg is the 16px reduction of
+       the same drawing and stays three shapes; this one can afford the ports
+       and the second guest row. Colours are the Landing Page's own bg, accent,
+       ink-2 and line-hover-card tokens, per brand/BRAND.md - deliberately not
+       the topology map's node colours. Note for future edits: an XML comment
+       may not contain two hyphens in a row, so the CSS custom property names
+       cannot be written out here. -->
+  <rect width="64" height="64" rx="12" fill="#0b0e13"/>
+  <path d="M32 25v11M17 36v-5h30v5" fill="none" stroke="#3a4351" stroke-width="2.4" stroke-linecap="square"/>
+  <rect x="19" y="10" width="26" height="15" rx="3" fill="#e8933f"/>
+  <rect x="8" y="38" width="18" height="16" rx="3" fill="#a2adbb"/>
+  <rect x="38" y="38" width="18" height="16" rx="3" fill="#a2adbb"/>
+</svg>

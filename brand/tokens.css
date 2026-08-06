@@ -1,0 +1,46 @@
+/* The brand's shared values, as a document to copy from - not a file any
+   surface imports. See docs/adr/0002-brand-values-are-duplicated-not-shared.md
+   for why, and brand/BRAND.md for what is deliberately NOT shared.
+
+   The font files are the exception to that ADR: brand/ holds the only
+   committed copy, because a stale .woff2 is invisible in a diff. */
+
+:root {
+  /* Surfaces. The Landing Page is dark-only; the Documentation Site keeps its
+     own light and dark reading surfaces and takes only the accent and header
+     from here. */
+  --bg:        #0b0e13;
+  --surface:   #12161d;
+  --surface-2: #161b23;
+  --line:      #232a35;
+  --line-soft: #1a2028;
+
+  --ink:   #e9edf2;
+  --ink-2: #a2adbb;
+  --ink-3: #7d8898;
+
+  --accent:      #e8933f;
+  --accent-soft: #f2b273;
+  --on-accent:   #14181f;
+
+  --up:   #56c98a;
+  --down: #e05a52;
+
+  /* Typefaces. Self-hosted, same-origin, no third-party request. */
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* Node colours. These key node type to colour in the topology map's legend,
+   so they carry information rather than decoration. They belong to that map
+   and are recorded here only so nobody re-picks them. */
+:root {
+  --node-hypervisor: #e8a04c;
+  --node-lxc:        #5cc8ff;
+  --node-vm:         #b18aff;
+  --node-k3s:        #6ee7a0;
+}
+
+/* There is deliberately no spacing scale. style.css writes spacing inline and
+   has never had one; inventing a scale here would be adding a system, not
+   recording one. */
