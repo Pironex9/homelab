@@ -42,6 +42,10 @@ const CSS = `
   --board:#9aa7b4;
   --board-ink:#20242c;
   --brass:#b08d4f;
+  /* Warm off-white on oxblood, and the one paper colour behind every image
+     at every scale. Both repeat six times; literals here drift apart. */
+  --rail-ink:#e7d9c4;
+  --paper:#f4f2ec;
   --brass-dim:#7d6438;
   --ink:#dfe3e9;
   --ink-soft:#98a1af;
@@ -85,13 +89,13 @@ body{
   margin:0;
 }
 .rail .count{
-  font:var(--data);color:#e7d9c4;letter-spacing:.06em;margin-left:auto;
+  font:var(--data);color:var(--rail-ink);letter-spacing:.06em;margin-left:auto;
 }
 .views{display:flex;gap:0}
 .views button{
   appearance:none;cursor:pointer;
   font:var(--label);letter-spacing:.16em;text-transform:uppercase;
-  color:#e7d9c4;background:transparent;
+  color:var(--rail-ink);background:transparent;
   border:1px solid rgba(231,217,196,.35);
   padding:.45rem .85rem;
 }
@@ -183,7 +187,7 @@ body{
    Without it a portrait beside two landscapes makes the row twice as tall as
    it needs to be and leaves a hole where the short ones stop. */
 .lead .sheet{
-  background:#f4f2ec;box-shadow:var(--shadow);border-radius:2px;
+  background:var(--paper);box-shadow:var(--shadow);border-radius:2px;
   height:clamp(13rem,25vw,20rem);overflow:hidden;
   /* A deeper bottom margin on the mount, because the stamp lives there. Over
      the image it lands on whatever tone the drawing happens to have and the
@@ -289,7 +293,7 @@ body{
    the grid on one rhythm without cropping anything. */
 .card img{
   display:block;width:100%;height:6.5rem;object-fit:contain;
-  background:#f4f2ec;border-radius:1px;
+  background:var(--paper);border-radius:1px;
 }
 .card .no{
   font:var(--data);color:var(--board-ink);letter-spacing:.03em;
@@ -322,7 +326,7 @@ table.ledger tbody tr:hover,table.ledger tbody tr.is-active{background:var(--ox)
 table.ledger tbody tr.is-active td{border-color:#e0be7d}
 table.ledger .no,table.ledger .dt{font:var(--data);color:var(--ink-soft)}
 table.ledger tbody tr:hover .no,table.ledger tbody tr:hover .dt,
-table.ledger tbody tr.is-active .no,table.ledger tbody tr.is-active .dt{color:#e7d9c4}
+table.ledger tbody tr.is-active .no,table.ledger tbody tr.is-active .dt{color:var(--rail-ink)}
 table.ledger .t{font-weight:600}
 table.ledger .th-img{width:3.6rem}
 /* Fixed box, contained image: a register's rows have one rhythm, and letting
@@ -331,7 +335,7 @@ table.ledger .th-img{width:3.6rem}
    the one thing this page must not do. */
 table.ledger img{
   display:block;width:3.2rem;height:2.4rem;object-fit:contain;
-  background:#f4f2ec;border-radius:1px;
+  background:var(--paper);border-radius:1px;
 }
 
 /* ---- the year rail ---------------------------------------------------- */
@@ -363,7 +367,7 @@ table.ledger img{
 }
 .year{
   appearance:none;cursor:pointer;position:relative;
-  font:var(--data);font-weight:700;letter-spacing:.16em;color:#e7d9c4;
+  font:var(--data);font-weight:700;letter-spacing:.16em;color:var(--rail-ink);
   background:transparent;border:none;border-radius:2px;
   padding:.4rem .55rem;white-space:nowrap;
 }
@@ -395,11 +399,11 @@ table.ledger img{
   background:var(--ox);border-bottom:1px solid var(--brass-dim);
   padding:.55rem clamp(.9rem,3vw,2rem);
 }
-.detail-bar .pos{font:var(--data);color:#e7d9c4;letter-spacing:.08em}
+.detail-bar .pos{font:var(--data);color:var(--rail-ink);letter-spacing:.08em}
 .detail-bar .spacer{flex:1}
 .detail-bar button{
   appearance:none;cursor:pointer;background:transparent;
-  border:1px solid rgba(231,217,196,.35);color:#e7d9c4;
+  border:1px solid rgba(231,217,196,.35);color:var(--rail-ink);
   font:var(--label);letter-spacing:.12em;text-transform:uppercase;
   padding:.4rem .7rem;
 }
@@ -431,12 +435,12 @@ table.ledger img{
 }
 .strip button:hover{opacity:1}
 .strip button[aria-current="true"]{opacity:1;transform:translateY(-.3rem)}
-.strip img{display:block;width:100%;height:2.6rem;object-fit:contain;background:#f4f2ec}
+.strip img{display:block;width:100%;height:2.6rem;object-fit:contain;background:var(--paper)}
 .detail-body{grid-template-columns:minmax(0,1fr) 20rem;align-items:start}
 }
 .detail-stage{
   display:grid;place-items:center;min-height:0;
-  background:#f4f2ec;padding:clamp(.6rem,2vw,1.1rem);
+  background:var(--paper);padding:clamp(.6rem,2vw,1.1rem);
   box-shadow:var(--shadow);border-radius:2px;
 }
 .detail-stage img{display:block;max-width:100%;height:auto;border-radius:1px}
