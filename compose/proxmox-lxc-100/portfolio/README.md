@@ -24,26 +24,9 @@ the build tooling and a placeholder sample under `content/` for local dev/tests.
    title: "Hegyi tajkep"
    technique: "akvarell"
    date: "2026-09-01"
-   featured: true      # optional, see below
    ```
 
    If you skip this file, the title is derived from the filename.
-
-   **Put the date in.** It is optional to the build and load-bearing to the page: the
-   whole site argues that this is a collection built up over years, and an undated work
-   cannot sit on the year rail, sorts to the end of the register, and gets an accession
-   number with no year. The build prints a warning listing every undated file.
-
-   **Quote any title containing an apostrophe or a quote mark.** A stray `"` inside a
-   double-quoted YAML string aborts the build. The error names the file, but the
-   underlying message comes from the YAML parser and reads like nonsense; if you see
-   `bad indentation of a mapping entry`, look for a quote in the title.
-
-   `featured: true` marks a work for the three large slots at the top of the page.
-   With nothing marked, the build stands in three works spread evenly from the oldest
-   to the newest, so the opening view always shows the collection's whole span. That
-   fallback is honest about being a spread, not a claim about which drawings are best -
-   mark the good ones and yours win.
 4. Build (no npm on the host - run it in a throwaway Node container, bind-mounting the
    real content dir over the git-tracked one):
 
@@ -58,18 +41,6 @@ the build tooling and a placeholder sample under `content/` for local dev/tests.
    ```bash
    docker rm -f portfolio && docker compose up -d
    ```
-
-## The two faces are self-hosted, on purpose
-
-`assets/fonts.css` and `assets/fonts/` hold Archivo Narrow and Courier Prime as woff2,
-and `build.js` copies the whole `assets/` directory into `dist/` so the built page makes
-**no third-party request**. Regenerate them with `scratchpad/fetch-fonts.py` if a weight
-is ever added.
-
-Both the `latin` and `latin-ext` subsets are shipped, and dropping `latin-ext` to save
-30 KB would be a silent bug rather than an optimisation: Hungarian needs U+0151 (ő) and
-U+0171 (ű), which live only in the extended subset. The failure mode is a page that
-looks fine in English and falls back to a different font mid-word on `Csendélet`.
 
 ## Editing the bio
 

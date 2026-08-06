@@ -31,39 +31,12 @@ test('renderIndexHtml includes bio, every category name, and embedded image data
   assert.match(html, /images\/anime-karakter\/02-full\.jpg/);
 });
 
-test('the detail view has a zoom stage that only activates when the file has extra pixels', () => {
+test('lightbox has a zoom stage that only activates when the file has extra pixels', () => {
   const html = renderIndexHtml(sampleInput);
 
-  assert.match(html, /id="detail-stage"/);
-  assert.match(html, /naturalWidth > img\.clientWidth/);
+  assert.match(html, /id="lightbox-stage"/);
+  assert.match(html, /naturalWidth > el\.clientWidth/);
   assert.match(html, /classList\.toggle\('zoomed'\)/);
-});
-
-test('both views render every work, so the page works with JavaScript off', () => {
-  const html = renderIndexHtml(sampleInput);
-
-  // Once per drawer card and once per ledger row. Matched together with
-  // data-cat so the querySelectorAll('[data-work]') inside the client script
-  // is not counted as a fifth work.
-  const cards = html.match(/data-work data-cat=/g) || [];
-  assert.equal(cards.length, 4);
-  assert.match(html, /id="view-fiok"/);
-  assert.match(html, /id="view-naplo"/);
-});
-
-test('the register numbers every work and the numbers reach the page', () => {
-  const html = renderIndexHtml(sampleInput);
-
-  // csendelet is CS, anime-karakter is AN; the undated work sorts last and
-  // therefore carries no year suffix.
-  assert.match(html, /CS\.001\/26/);
-  assert.match(html, /AN\.002(?!\/)/);
-});
-
-test('the date stamp is live text, never an image', () => {
-  const html = renderIndexHtml(sampleInput);
-
-  assert.match(html, /<span class="stamp"[^>]*>2026 márc 12\.<\/span>/);
 });
 
 test('renderIndexHtml escapes HTML-sensitive characters in bio and titles', () => {

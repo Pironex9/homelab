@@ -10,7 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONTENT_DIR = path.join(__dirname, 'content');
 const DEFAULT_BIO_PATH = path.join(__dirname, 'bio.yml');
 const DEFAULT_DIST_DIR = path.join(__dirname, 'dist');
-const ASSETS_DIR = path.join(__dirname, 'assets');
 
 export async function build({
   contentDir = DEFAULT_CONTENT_DIR,
@@ -43,38 +42,13 @@ export async function build({
     }
   }
 
-  // The two faces are self-hosted: the page must make no third-party request,
-  // and Hungarian needs the latin-ext subsets that a system stack cannot
-  // promise. fonts.css sits beside index.html so its relative url()s resolve.
-  if (fs.existsSync(ASSETS_DIR)) {
-    fs.cpSync(ASSETS_DIR, distDir, { recursive: true });
-  }
-
   const html = renderIndexHtml({ bio, categories });
   fs.writeFileSync(path.join(distDir, 'index.html'), html);
   fs.writeFileSync(path.join(distDir, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
 
   verifyBuildOutput(categories, distDir);
-  warnAboutMissingDates(categories);
 
   return { bio, categories };
-}
-
-// The whole page argues chronology, so an undated work is a hole in the
-// argument rather than a cosmetic gap: it cannot sit on the year rail and it
-// sorts to the end of the register. Warn rather than fail - a drawing whose
-// date nobody remembers should still be publishable.
-export function warnAboutMissingDates(categories) {
-  const undated = [];
-  for (const category of categories) {
-    for (const image of category.images) {
-      if (!image.date) undated.push(`${category.name}/${image.file}`);
-    }
-  }
-  if (undated.length === 0) return;
-  console.warn(`  ! ${undated.length} rajzon nincs dátum, ezek az évsávon nem jelennek meg:`);
-  for (const file of undated.slice(0, 10)) console.warn(`      ${file}`);
-  if (undated.length > 10) console.warn(`      ... és még ${undated.length - 10}`);
 }
 
 export function verifyBuildOutput(categories, distDir) {
