@@ -174,7 +174,25 @@ done
 ls -l brand/*.woff2
 ```
 
-`U+0100-017F` inside the `U+0000-024F` range is Latin Extended-A, which carries `ő` and `ű`. `ccmp`, `mark` and `mkmk` keep accent composition working. Variable axes are retained by default; do not pass `--instancer`.
+`U+0100-017F` inside the `U+0000-024F` range is Latin Extended-A, which carries `ő` and `ű`. `ccmp`, `mark` and `mkmk` keep accent composition working. Variable axes are retained by default.
+
+Expected, measured by running exactly this command on 2026-08-06:
+
+| File | Size | Axes kept |
+|---|---|---|
+| `ibm-plex-sans-var.woff2` | 79048 B | `wght` 100-700, `wdth` 75-100 |
+| `big-shoulders-var.woff2` | 41512 B | `wght` 100-900 |
+| `ibm-plex-mono-500.woff2` | 18988 B | none, static |
+| `ibm-plex-mono-400.woff2` | 18688 B | none, static |
+
+One warning is expected and harmless on the two variable faces:
+`WARNING: meta NOT subset; don't know how to subset; dropped`.
+
+Plex Sans keeps a `wdth` axis nobody uses, which is a meaningful part of its
+79 KB. Leave it. Dropping it means pinning the axis with
+`fonttools varLib.instancer`, and a partially instanced variable font is a
+second artifact to reason about for a saving that arrives once, compressed,
+and cached for a day.
 
 - [ ] **Step 5: Run the check to verify it passes**
 
@@ -765,8 +783,8 @@ the existing `DEFAULT_DIST_DIR` declaration, insert:
 //      page but not there would render the screenshot in a different face
 //      than the page, with nothing reporting the mismatch.
 //
-// The cost is roughly 130 KB of base64 in this file. That is the price of
-// staying one file.
+// The cost is 105592 bytes of base64 in this file, measured. That is the
+// price of staying one file.
 const BRAND = path.join(__dirname, '..', '..', '..', 'brand');
 
 function embed(file) {
@@ -817,7 +835,14 @@ Expected: PASS. Then confirm the size is what was predicted:
 ls -l dist/index.html
 ```
 
-Expected: roughly 130-170 KB, up from about 19 KB.
+Expected: about **123 KB**, up from 19406 bytes. The three embedded faces are
+79188 bytes of woff2, which is 105592 bytes once base64-encoded; the rest is the
+page itself.
+
+Do not accept a number far below that. If it lands near 19 KB the `${FONT_FACES}`
+interpolation is not in the template at all, and the test in Step 1 would still
+pass on the `fonts.googleapis.com` assertions while failing only on the
+`data:font/woff2` one - read which assertion failed rather than assuming.
 
 - [ ] **Step 5: Copy the page across and re-export the images**
 
@@ -942,7 +967,8 @@ Embedding rather than shipping files keeps the two invariants the README
 documents: the transfer stays a one-line cp with src/topology/index.html as
 the only committed build artifact in src/, and the port-3009 standalone
 render that topology.png comes from resolves the same faces as the live
-page. The file grows to about 150 KB, which is the price of staying one file.
+page. The file grows from 19 KB to about 123 KB, which is the price of staying
+one file.
 
 /topology/ has its own weaker CSP that said font-src https://fonts.gstatic.com,
 so it would have refused the data: URIs and rendered the map in a fallback -
