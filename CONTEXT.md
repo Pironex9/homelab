@@ -47,12 +47,20 @@ The visual identity shared by the owner's public properties. There is one brand 
 ### Language
 
 **Mark**:
-The single monogram identifying Norbert Csicsay wherever his properties appear - favicon, Documentation Site header, GitHub avatar, CV. There is exactly one; the infrastructure has no separate mark of its own.
-_Avoid_: Logo (implies a company or product mark, which is the confusion this term exists to prevent), brandmark, icon
+The single symbol identifying Norbert Csicsay wherever his properties appear - favicon on both sites, Documentation Site header, share card, CV header. It is diagrammatic rather than a monogram: one hypervisor over two guests, taken from the topology map and reduced until it still reads at 16px. There is exactly one, and the infrastructure has no separate mark of its own.
+_Avoid_: Logo (implies a company or product mark, which is the confusion this term exists to prevent), monogram (it is deliberately not one), brandmark, icon
+
+**Portrait**:
+The owner's face, from a real photograph, used where a person rather than a property is being identified - GitHub avatar, Documentation Site authorship, CV. Distinct from the Mark and never a substitute for it.
+_Avoid_: Avatar, headshot, profile picture
 
 **Brand Tokens**:
-The values the properties hold in common: accent colour, type pairing and spacing scale. Background and surface colours are deliberately not among them - the Landing Page is dark-only by design, and the Documentation Site keeps its own light and dark reading surfaces.
+The values the properties hold in common: accent colour, typefaces and spacing scale. Background and surface colours are deliberately not among them - the Landing Page is dark-only by design, and the Documentation Site keeps its own light and dark reading surfaces.
 _Avoid_: Theme, palette (both imply a full surface treatment, which this deliberately is not)
+
+**Display Face**:
+A typeface used for a single surface's headline treatment rather than shared across the properties. The topology map has one; nothing else does. It sits outside the Brand Tokens on purpose, because a face chosen for one page's headline is not a claim about the others.
+_Avoid_: Heading font, brand font
 
 ## Daughter's Art Portfolio Site
 
