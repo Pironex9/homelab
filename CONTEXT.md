@@ -55,11 +55,15 @@ The owner's face, from a real photograph, used where a person rather than a prop
 _Avoid_: Avatar, headshot, profile picture
 
 **Brand Tokens**:
-The values the properties hold in common: accent colour, typefaces and spacing scale. Background and surface colours are deliberately not among them - the Landing Page is dark-only by design, and the Documentation Site keeps its own light and dark reading surfaces.
+The values the properties hold in common: accent colour and typefaces. Background and surface colours are deliberately not among them - the Landing Page is dark-only by design, and the Documentation Site keeps its own light and dark reading surfaces. There is no shared spacing scale; spacing is written inline per surface.
 _Avoid_: Theme, palette (both imply a full surface treatment, which this deliberately is not)
 
+**Framed Artifact**:
+A surface presented inside another one as a bordered inset rather than bled into it, and therefore allowed its own palette and typeface. The topology map is the only one: its colours key node type in a legend, so they carry information rather than decoration, and the Landing Page already sets it in a bordered plate. Its palette differing from the Brand Tokens is a property of what it is, not a defect.
+_Avoid_: Embed, widget, diagram (the last is what it depicts, not what it is here)
+
 **Display Face**:
-A typeface used for a single surface's headline treatment rather than shared across the properties. The topology map has one; nothing else does. It sits outside the Brand Tokens on purpose, because a face chosen for one page's headline is not a claim about the others.
+A typeface used for one surface's headline treatment rather than shared across the properties. Only a Framed Artifact gets one. It sits outside the Brand Tokens on purpose, because a face chosen for one page's headline is not a claim about the others.
 _Avoid_: Heading font, brand font
 
 ## Daughter's Art Portfolio Site

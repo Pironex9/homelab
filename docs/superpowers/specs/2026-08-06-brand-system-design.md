@@ -18,29 +18,42 @@ and **Self-Hosted End to End**, which this spec uses in their defined senses.
 
 ## What is actually wrong today
 
-### 1. The Landing Page disagrees with its own share card
+### 0. There is no drift on the Landing Page
 
-| Token | `src/style.css` | `og.html` | `src/favicon.svg` |
-|---|---|---|---|
-| background | `#0b1120` | `#0b0e13` | `#0b0e13` |
-| accent | `#e8a04c` | `#e8933f` | `#e8933f` |
+Stated first because two earlier drafts of this spec claimed otherwise and
+budgeted work against it.
 
-Two backgrounds differing by a few points of blue, two oranges differing by a
-shade nobody chose. The Mark and the share card sit on one side of the split
-and the page itself on the other.
+`src/style.css`, `og.html` and `src/favicon.svg` all use `#0b0e13` and
+`#e8933f`. They agree exactly. The `#0b1120` that looked like a competing
+background belongs to `dist/topology/index.html`, which sits under the landing
+directory only because it is the copied build artifact.
 
-The node colours from the topology legend (`#e8a04c` hypervisor, `#5cc8ff`
-LXC, `#b18aff` VM, `#6ee7a0` K3s) are coherent and stay; they become a
-documented part of the system rather than inline literals.
+The topology map's different palette is not drift either. Its colours carry
+information - the legend keys node type to colour - it has its own display
+face, and the Landing Page presents it inside a `.plate` with a border and
+padding rather than bleeding it into the page. It is framed as a separate
+artifact because it is one.
 
-### 2. The Documentation Site is an unrelated visual identity
+The Mark's colours look like a third variant and are not. Its own comment says
+"Colours are the page's own bg, accent, ink-2 and line tokens from style.css",
+and `#0b0e13`, `#e8933f`, `#a2adbb` and `#3a4351` are exactly those. The
+hypervisor reads `#e8a04c` on the map and `#e8933f` on the Mark because the
+Mark is a deliberate translation of the diagram into the Landing Page's own
+tokens, not a copy of it.
+
+So there is nothing to reconcile. What remains is that **none of this is
+written down anywhere** - the tokens live in `style.css` and in comments, and a
+second reader has no way to tell the deliberate choices from the accidents.
+That is what `brand/BRAND.md` is for.
+
+### 1. The Documentation Site is an unrelated visual identity
 
 Stock Material for MkDocs - `primary: indigo`, `accent: indigo` - with no
 `theme.logo` and no `theme.favicon`. `docs/stylesheets/extra.css` is five lines
 of code-block overflow fix and contains no colour. The two sites link to each
 other and read as different products.
 
-### 3. The pages contradict the Self-Hosted End to End claim
+### 2. The pages contradict the Self-Hosted End to End claim
 
 `compose/vps/landing/README.md` already names one instance: the topology map
 carries two Google Fonts requests, and "this site's whole argument is that it
@@ -130,18 +143,33 @@ A new top-level `brand/` holding `tokens.css`, `BRAND.md`, the Mark in both
 sizes and the subsetted `.woff2` files. Top-level because it serves four
 consumers across three hosts.
 
+`tokens.css` records the colours already in `style.css` and the typefaces. **It
+does not introduce a spacing scale** - `style.css` has none, every spacing value
+there is written inline, and inventing a scale to "consolidate" would be adding
+a system rather than recording one. If a scale is wanted later it is its own
+piece of work, on its own evidence.
+
+`BRAND.md` is the larger half of this directory's value, because it is where
+the deliberate exceptions get stated: that the topology map keeps its own
+palette and display face, that the Mark translates the map into Landing Page
+tokens rather than copying its colours, and that the Landing Page is dark-only
+while the Documentation Site is not.
+
 A new top-level directory is exactly the kind of fact that goes stale in one
 place and not the other, so `CLAUDE.md` and `AGENTS.md` both get a line.
 
 ### Landing Page
 
-- Reconcile `src/style.css`, `og.html` and `src/favicon.svg` onto one
-  background and one accent
 - `@font-face` for Plex Sans and Plex Mono, files placed by `build.sh`
-- Favicon: the existing Mark, recoloured
-- `Caddyfile` gets a cache rule for `.woff2` if it does not already fall
-  through to one
+- `Caddyfile`: `.woff2` currently matches neither cache rule - `@diagram` takes
+  `*.png *.webp *.svg` and `@revalidate` takes `/ *.html *.css *.js` - so a font
+  would ship with no `Cache-Control` at all, the exact failure the README
+  documents at length. Add `*.woff2` to `@diagram`, since a font changes only on
+  a deliberate re-subset
 - Re-render `src/og.png`, because the card's typeface changes
+
+Colours need no work here: `style.css`, `og.html` and `favicon.svg` already
+agree.
 
 The strict CSP is unaffected: every font is same-origin.
 
@@ -186,6 +214,12 @@ single-file property both invariants depend on.
 `topology.png` and `topology.webp` are re-exported, since the page's rendering
 changes.
 
+**Its palette does not change.** `#0b1120`, the panel and wire tints and the
+node colours stay as they are, and `BRAND.md` records them as a deliberate
+exception with the reason: on this one surface colour is functional rather than
+decorative, and the Landing Page already frames the map as a separate artifact.
+Nothing here is a font swap in disguise.
+
 ### Documentation Site
 
 The brand reaches the header, the accent and the Mark. **It does not take over
@@ -206,7 +240,10 @@ part of this job the part with the least evidence behind it.
   `--md-primary-fg-color`, `--md-primary-fg-color--light`,
   `--md-primary-fg-color--dark` and `--md-accent-fg-color` for both
   `[data-md-color-scheme="default"]` and `[data-md-color-scheme="slate"]`
-- Font files under `docs/assets/fonts/`, checksum-checked against `brand/`
+- Font files under `docs/assets/fonts/`. The checksum check against `brand/`
+  goes in `.github/workflows/deploy.yml` as a `sha256sum -c` step before
+  `mkdocs build` - that workflow has no test step today, and it is the only
+  place the Documentation Site's copy is guaranteed to be exercised
 - The existing five-line code-block fix stays
 
 `primary` is the dark brand background, so the header bar is dark in both
@@ -232,14 +269,18 @@ than two letters would: it is derived from what the owner actually operates. A
 person's mark need not be their initials, and this one says "this person runs
 infrastructure", which is the brand.
 
-So the Mark is kept. What it needs costs nothing:
+Its colours need no work either - they are already the Landing Page's own
+tokens, by design and by its own comment. So the Mark is kept as drawn, and
+what it needs costs nothing:
 
-- Recolour onto the reconciled tokens - it currently sits on the `og.html` side
-  of the split
 - A larger-format variant, since the existing drawing is tuned for 16px and the
-  Documentation Site header and CV need more room
+  Documentation Site header and CV need more room. The three-shape reduction
+  exists for legibility at 16px; at header size it can carry more of the
+  diagram, and that is a drawing decision, not a scaling one
 - Wiring into `theme.logo` and `theme.favicon`, where the Documentation Site
   currently has neither
+- A line in `BRAND.md` recording why its hypervisor is `#e8933f` while the map's
+  is `#e8a04c`, so the next reader does not "fix" it
 
 ### The Portrait
 
@@ -292,6 +333,19 @@ Account: Basic plan, 112 credits, 70 per month.
 
 ## Rejected alternatives
 
+**Reconciling a Landing Page palette split.** There is no split. Two earlier
+drafts of this spec were built on one, from a grep that read
+`dist/topology/index.html` as if it were the Landing Page's own stylesheet.
+
+**Absorbing the topology map into the brand palette.** Its colours key node
+type in a legend, so they are functional; it has its own display face; and the
+Landing Page already frames it in a bordered `.plate` rather than bleeding it
+into the page. Retinting it would flatten a distinction the design already
+makes, and force a re-export of `topology.png` in two places for no gain.
+
+**Introducing a spacing scale.** `style.css` has none. A scale invented here
+would be a new system presented as a consolidation.
+
 **A separate mark for the infrastructure.** Both site titles, the hero kicker
 and `PRODUCT.md` say the brand is the person.
 
@@ -335,8 +389,10 @@ Mark work are independent. Rejected by the owner in favour of one document.
 - `brand/` exists at the repo root with `tokens.css`, `BRAND.md`, the Mark in
   both sizes and the three subsetted variable font files; `CLAUDE.md` and
   `AGENTS.md` both list it
-- `style.css`, `og.html` and `favicon.svg` agree on background and accent, each
-  pointing at `brand/BRAND.md`
+- `BRAND.md` states the three deliberate exceptions - the topology map's
+  palette and display face, the Mark's translation of the map into Landing Page
+  tokens, and the Landing Page being dark-only - each with its reason
+- `tokens.css` contains no spacing scale
 - `brand/` holds the only committed copy of each font except the Documentation
   Site's, and that copy is checksum-checked against it
 - No page on any property requests a font from a third-party origin. Verified
@@ -354,6 +410,8 @@ Mark work are independent. Rejected by the owner in favour of one document.
 - The Mark serves as favicon on both sites, `theme.logo` on the Documentation
   Site, and the mark on the share card
 - One Portrait, from a real photograph, in three crops on the brand background
+- Every asset the Landing Page serves carries a `Cache-Control` header,
+  `.woff2` included
 - `build.sh` runs with no new dependency; `test-build.sh` and `node --test`
   both pass; the MkDocs build is clean
 
