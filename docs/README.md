@@ -12,6 +12,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [n8n](./hosts/n8n.md) - n8n (LXC 107) - workflow automation, Claude Code MCP integration
 - [claude-mgmt](./hosts/claude-mgmt.md) - Claude Code management node (LXC 109) - tmux persistent session, code-server (Tailscale-only), GitHub/n8n MCP
 - [nobara](./hosts/nobara.md) - Desktop PC - NVIDIA RTX 2060, Ollama GPU node, NFS/SSHFS client
+- [winpc](./hosts/winpc.md) - Windows 11 side of the Nobara dual-boot - in-box OpenSSH, key distribution, the traps that fail silently
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
 - [kan](./hosts/kan.md) - Kan kanban board (Docker stack on LXC 100) - self-hosted Trello alternative, PostgreSQL
 - [agentos](./hosts/agentos.md) - Hermes + Odysseus agentic OS layer (LXC 113) - local Ollama primary, DeepSeek fallback, restricted Claude Code delegation

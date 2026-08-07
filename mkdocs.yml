@@ -73,6 +73,7 @@ nav:
           - Kan Kanban (on LXC 100): hosts/kan.md
           - Agentos (LXC 113): hosts/agentos.md
       - Nobara PC: hosts/nobara.md
+      - Windows 11 (nobara dual-boot): hosts/winpc.md
       - Hetzner VPS: hosts/vps.md
       - K3s Cluster (3x OptiPlex): hosts/k3s-cluster.md
       - Retired:

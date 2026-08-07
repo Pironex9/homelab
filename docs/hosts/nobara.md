@@ -49,6 +49,8 @@ Not always on. GPU inference node for the homelab.
 
 ## Dual-boot with Windows 11
 
+The Windows side has its own page: [Windows 11 (nex-pc dual-boot)](winpc.md) - SSH access, key distribution, DNS.
+
 Windows lives on `nvme1n1`, Nobara on `nvme0n1`, but **both bootloaders share the single ESP on `nvme0n1p1`**. The Windows disk has no EFI System Partition of its own - only MSR (16 MB) + NTFS + WinRE. Anything that reformats `nvme0n1p1` takes out both operating systems at once.
 
 ### 2026-08-07 - Windows invisible to GRUB after the Nobara install
