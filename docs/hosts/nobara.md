@@ -180,6 +180,14 @@ Managed by `mnt-claudemgmt.service` (not automount). See [NFS Setup Documentatio
 
 ## Known Issues
 
+### SSH sessions to LXC 109 freeze for long stretches (open, 2026-08-07)
+
+An interactive SSH session to LXC 109 running Claude Code freezes completely - no output, no echo - then recovers on its own. **Unresolved.** Eight hypotheses have been excluded by measurement, two unrelated real failures were captured, and two watchers are running on LXC 109 to catch the next occurrence: `/var/log/nobara-freeze.log` and `/var/log/nobara-stall.log`.
+
+Read [32 - Nobara SSH Freeze](../proxmox/32_Nobara_SSH_Freeze_Investigation.md) before touching this again - it lists what was already ruled out and how, so the next attempt does not repeat the same tests.
+
+`IPQoS none` is now set on both ends (`/etc/ssh/sshd_config.d/99-ipqos.conf` and `~/.ssh/config`) because SSH was the only traffic on this LAN marking its packets with DSCP, which matters on a wireless backhaul. It did not fix the freeze.
+
 ### Black screen on first boot (Plymouth → SDDM race condition)
 
 **Symptom:** After a cold boot, the system shows a black screen with only a mouse cursor - KDE/SDDM doesn't load. On second boot (reboot), the GUI loads normally.
