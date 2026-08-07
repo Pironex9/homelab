@@ -47,7 +47,7 @@ tailscale ping -c 6 100.80.129.47
 
 Every switch between DERP and direct is a few seconds of blackholed packets, which an interactive SSH or WebSocket session experiences as a freeze.
 
-**Aggravating factor:** the mobile carrier uses symmetric CGNAT. In 24 hours of logs the phone appeared with a different source port on every negotiation, so a direct path could never stay stable:
+The endpoint churn in the logs shows the same thing from the other side:
 
 ```bash
 journalctl -u tailscaled --since "24 hours ago" | grep -oE 'now using [^ ]+' | sort | uniq -c | sort -rn
@@ -57,6 +57,10 @@ journalctl -u tailscaled --since "24 hours ago" | grep -oE 'now using [^ ]+' | s
 #   1 now using 10.16.7.79:53990
 #   1 now using 10.16.7.79:46713
 ```
+
+`10.16.7.79` is not a remote device - it is the Archer C6's own WAN address, in the ISP's CGNAT range (the link is double-NATed; STUN reports the carrier's public `85.248.36.200`). Confirmed with `traceroute -n 10.16.7.79`, which answers on hop 1, and with `ip route get`, which routes it via `192.168.0.1`.
+
+So those five different ports are five different UPnP mappings on the router, not five carrier NAT rebinds. Each node that lost the 41641 race tore the mapping down and asked for a new one, and the external port changed every time. This is the port collision seen from the router's side.
 
 ### Fix - one port per node
 
@@ -84,6 +88,9 @@ Final allocation:
 | claude-mgmt (LXC 109) | 192.168.0.204 | 41642 | `/etc/default/tailscaled` |
 | docker-host (LXC 100) | 192.168.0.110 | 41643 | `/etc/default/tailscaled` |
 | alpine-komodo (LXC 105) | 192.168.0.105 | 41644 | `/etc/conf.d/tailscale` |
+| nex-pc (Nobara desktop) | 192.168.0.100 | 41645 | `/etc/default/tailscaled` |
+
+Nobara was missed in the first pass and only found on 2026-08-07, still on 41641 and therefore still fighting pve for the mapping. Count the nodes behind the router, not the ones in the homelab inventory - the desktop is a tailnet node too.
 
 Verification:
 

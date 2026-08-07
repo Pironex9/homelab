@@ -106,6 +106,26 @@ sudo sysctl -p /etc/sysctl.d/99-tcp-keepalive.conf
 
 ---
 
+## Dual-homed LAN + Tailscale port (2026-08-07)
+
+This machine sits on 192.168.0.0/24 twice - Ethernet `enp39s0` 192.168.0.100 (metric 100) and WiFi `wlp41s0` 192.168.0.90 (metric 600), both with a default route. Two fixes were applied after SSH sessions to it started stalling for long stretches:
+
+```bash
+# WiFi power save off (Intel AC 3168 / iwlwifi, on by default)
+sudo nmcli connection modify Secret 802-11-wireless.powersave 2
+sudo nmcli connection up Secret
+
+# /etc/sysctl.d/99-arp-flux.conf - stop answering ARP for the other interface's IP
+net.ipv4.conf.all.arp_ignore=1
+net.ipv4.conf.all.arp_announce=2
+```
+
+Without `arp_ignore`/`arp_announce`, Linux answers an ARP request for 192.168.0.100 on the WiFi interface as well, so a peer can end up sending Ethernet-addressed traffic over the power-saving WiFi link. The neighbour table showed exactly that - the same LAN hosts cached on both interfaces at once.
+
+Tailscale port: this node is the fifth Tailscale node behind the Archer C6 and was still on the default UDP 41641, colliding with pve. Changed to 41645 in `/etc/default/tailscaled`, see [31 - Tailscale Port Collision + DNS Audit](../proxmox/31_Tailscale_Port_Collision_DNS_Audit.md).
+
+---
+
 ## NVIDIA + Wayland Configuration
 
 ### nvidia_drm.fbdev=1 kernel parameter
