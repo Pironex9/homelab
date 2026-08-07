@@ -23,9 +23,9 @@
 
 | Property | Value |
 |----------|-------|
-| OS | Nobara Linux 43 (KDE Plasma Desktop Edition) |
-| Kernel | 6.19.11-201.nobara.fc43.x86_64 |
-| NVIDIA driver | 595.58.03 |
+| OS | Nobara Linux 44 (KDE Plasma Desktop Edition) |
+| Kernel | 7.1.4-200.nobara.fc44.x86_64 |
+| NVIDIA driver | 595.84 |
 | Desktop | KDE Plasma / Wayland |
 
 Not always on. GPU inference node for the homelab.
@@ -36,10 +36,66 @@ Not always on. GPU inference node for the homelab.
 
 | Device | Size | FS | Mount | Notes |
 |--------|------|----|-------|-------|
+| nvme0n1p1 | 600 MB | vfat | /boot/efi | **The only ESP on the machine** - holds both GRUB and the Windows bootloader |
+| nvme0n1p2 | 2 GB | ext4 | /boot | |
 | nvme0n1p3 | 1.8 TB | btrfs | /home | Main OS drive |
-| nvme1n1p2 | 465 GB | ntfs | /mnt/nvme | Secondary NVMe |
+| nvme0n1p4 | 8.8 GB | swap | [SWAP] | |
+| nvme1n1p2 | 465 GB | ntfs | /mnt/nvme | Secondary NVMe - **also the Windows 11 system partition** |
+| nvme1n1p3 | 642 MB | ntfs | - | Windows recovery (WinRE) |
 | sda1 | 3.6 TB | ntfs | /mnt/hdd | External HDD, backup target |
 | zram0 | 8 GB | swap | [SWAP] | Compressed RAM swap |
+
+---
+
+## Dual-boot with Windows 11
+
+Windows lives on `nvme1n1`, Nobara on `nvme0n1`, but **both bootloaders share the single ESP on `nvme0n1p1`**. The Windows disk has no EFI System Partition of its own - only MSR (16 MB) + NTFS + WinRE. Anything that reformats `nvme0n1p1` takes out both operating systems at once.
+
+### 2026-08-07 - Windows invisible to GRUB after the Nobara install
+
+Windows originally lived on `nvme0n1`. When Nobara was installed there, the installer reformatted the ESP and deleted `\EFI\Microsoft`. The Windows install itself stayed intact (`Windows\System32\winload.efi`, registry hives, and the pristine `Windows\Boot\EFI\bootmgfw.efi` copy were all present), but with no bootloader and no BCD there was nothing for `os-prober` to find. Not a GRUB detection bug - the boot files were simply gone.
+
+No BitLocker was in play (the NTFS partition mounted and read fine from Linux), so the fix was non-destructive.
+
+**Repair, from a Windows 11 installer USB.** Boot it in UEFI mode and press `Shift+F10` at any setup screen for a command prompt. Do **not** use Startup Repair - only run `bcdboot`:
+
+```
+diskpart
+list vol
+```
+
+Identify the volumes carefully before continuing. On this machine `C:` in WinPE is the 3.6 TB data HDD, *not* Windows:
+
+| Volume | Ltr | Size | What it is |
+|---|---|---|---|
+| 1 | C | 3726 GB NTFS | data HDD (`sda1`) - do not touch |
+| 2 | - | 600 MB FAT32 (Hidden) | the ESP |
+| 3 | D | 465 GB NTFS | the Windows install |
+| 4 | - | 642 MB NTFS (Hidden) | WinRE |
+
+```
+sel vol 2
+assign letter=S
+exit
+bcdboot D:\Windows /s S: /f UEFI
+```
+
+Expected output: `Boot files successfully created.` This writes `\EFI\Microsoft\Boot\bootmgfw.efi` + BCD, copying the boot files from the *target* install - so a Windows 10 PE can repair a Windows 11 install just as well. It does not touch `\EFI\fedora`.
+
+**Then in Nobara.** `GRUB_DISABLE_OS_PROBER` was unset, which on Fedora/Nobara means *disabled*, so os-prober never ran:
+
+```bash
+echo 'GRUB_DISABLE_OS_PROBER=false' | sudo tee -a /etc/default/grub
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+# Found Windows Boot Manager on /dev/nvme0n1p1@/EFI/Microsoft/Boot/bootmgfw.efi
+```
+
+`bcdboot` normally also puts Windows Boot Manager first in the firmware boot order; here it did not, and GRUB still came up first. If a Windows feature update ever steals the order back:
+
+```bash
+sudo efibootmgr              # note the entry numbers
+sudo efibootmgr -o <Nobara>,<Windows>
+```
 
 ---
 
