@@ -51,6 +51,7 @@ private/
 # Claude Code files
 CLAUDE.md
 .claude/
+.codex/
 
 # Private keys
 *.key
