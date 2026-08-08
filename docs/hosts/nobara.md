@@ -297,6 +297,43 @@ sudo grubby --update-kernel=ALL --remove-args=rhgb
 
 **Status:** Fix was included in kwin 6.5.2+ (system is on 6.6.4) but the race condition still appeared - the sleep delay is the active workaround.
 
+### Display wakes at 640x480 after the monitor sleeps (won't fix, 2026-08-08)
+
+**Symptom:** After leaving the machine alone for a few hours, KDE reports "display has been disconnected" and the desktop is stuck at 640x480. The session is alive and reachable over SSH the whole time.
+
+**Root cause:** The monitor goes to sleep (DPMS). On re-attach KWin re-reads the EDID over DisplayPort, and rarely that read comes back corrupt. With no parseable mode list, the output falls back to the VESA-mandatory 640x480@59.94. Not a crash, not a driver fault - a rare race in the wake path.
+
+**Fix - 10 seconds, no reboot, the desktop session survives:**
+
+Power-cycle the monitor with its own power button and wait ~10 seconds. This forces a clean re-read. If that ever fails:
+
+```bash
+# from the machine itself - nobara has no passwordless sudo
+sudo sh -c 'echo detect > /sys/class/drm/card1-DP-1/status'
+```
+
+Reboot only as a last resort. It fixes the symptom but tells you nothing.
+
+**Diagnosis over SSH** - the display state is fully queryable remotely:
+
+```bash
+XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 kscreen-doctor -o
+```
+
+One single mode listed means a broken link; ~24 modes means healthy. The signature in the journal is `kwin_wayland: EDID colorimetry ... is invalid`, which has occurred exactly 4 times in the entire journal history (2x 2026-04-06, 2x 2026-08-08).
+
+**Three log lines that look like evidence and are not:**
+
+| Log line | Why it is noise |
+|---|---|
+| `nvidia-gpu 0000:2d:00.3: i2c timeout error` | `2d:00.3` is the card's USB-C/UCSI controller (VirtualLink port, nothing plugged in), driven by `i2c-nvidia-gpu`. Nothing to do with the DisplayPort DDC line. It fires on every boot, and fired again *after* the fault was already fixed. |
+| `There are no outputs - creating placeholder screen` | Logged by every KDE process, several times a day since March. This is just normal monitor sleep. |
+| `/sys/class/drm/card1-DP-1/edid` reads 0 bytes | The NVIDIA open kernel module never populates it, healthy or not. |
+
+**Decision: not worth fixing.** Twice in 4.5 months against a 10-second workaround. `drm.edid_firmware=DP-1:edid/custom.bin` would genuinely eliminate it by removing the wire read entirely, but it costs an EDID dump, a kernel parameter and initramfs work, redone on every monitor change. Disabling monitor sleep avoids the wake path but burns the panel and wastes power - worse than the disease. Revisit only if the rate goes from quarterly to weekly, which would mean a new cause.
+
+Not caused by the driver update: NVIDIA went to 595.84 on 2026-08-07, but the April occurrence predates it.
+
 ---
 
 ## Virtualization (KVM/libvirt)
