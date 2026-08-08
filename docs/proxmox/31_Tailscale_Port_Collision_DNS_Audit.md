@@ -92,6 +92,15 @@ Final allocation:
 
 Nobara was missed in the first pass and only found on 2026-08-07, still on 41641 and therefore still fighting pve for the mapping. Count the nodes behind the router, not the ones in the homelab inventory - the desktop is a tailnet node too.
 
+**A package upgrade wants to undo this.** On 2026-08-08 `apk upgrade tailscale` on LXC 105 (1.90.9 -> 1.98.5) shipped a new `/etc/conf.d/tailscale` as `/etc/conf.d/tailscale.apk-new` rather than overwriting the edited one, and its diff is exactly the regression:
+
+```diff
+-port=41644
++#port=41641
+```
+
+The live file was left alone, so the port survived - but anyone who later moves the `.apk-new` into place restores the collision, and it will present as the same intermittent direct/DERP flapping rather than as an obvious DNS or config error. After any tailscale package upgrade, confirm the port on the running daemon, not in the config file: `ps -eo args | grep -o 'port=[0-9]*'` on Alpine, `ss -ulnp | grep tailscaled` elsewhere. Note also that `apk upgrade` replaces the binary without restarting the daemon - `tailscale version` reported 1.98.5 while the running server was still 1.90.9, with the client printing a version-mismatch warning. `rc-service tailscale restart` is required.
+
 Verification:
 
 ```bash
