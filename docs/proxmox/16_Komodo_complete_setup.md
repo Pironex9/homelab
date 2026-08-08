@@ -519,6 +519,23 @@ pct exec 105 -- docker logs komodo --tail 50
 - Firewall blocking port 8120
 - LXC network bridge issues
 
+### PullStack + DeployStack leaves containers in "Created" state, never started
+
+**Cause:** Fired via the API in a tight batch (28 stacks, `PullStack` then `DeployStack` a few seconds apart) after DNS to LXC 105 had been broken for a while, so most stacks were several commits behind. Two of the heavier stacks (multi-container, larger images) had `docker compose up -d` get created but not started - likely the periphery-side compose command was cut short by image-pull time under the batch load.
+
+**Check:**
+```bash
+docker compose -f <stack>/docker-compose.yml ps -a   # containers show "Created", not "Up"
+docker logs <container>                               # empty - never actually started
+```
+
+**Fix:** Re-run manually on the host, bypassing Komodo:
+```bash
+cd /etc/komodo/repos/github/compose/proxmox-lxc-100/<stack> && docker compose up -d
+```
+
+**Lesson:** after a mass Komodo update (many stacks behind at once), don't trust `ListStacks`' `deployed_hash`/`state` alone - spot check `docker compose ps -a` on any stack that was materially behind, especially multi-container ones.
+
 ---
 
 ## 9. Current Setup Summary
