@@ -184,6 +184,31 @@ Tailscale port: this node is the fifth Tailscale node behind the Archer C6 and w
 
 ---
 
+## DNS pinned to AdGuard, ignoring what DHCP offers (2026-08-08)
+
+This host was resolving through the router instead of AdGuard, so it had no ad, tracker or malware filtering and `.lan` names were unreliable. `resolvectl status` showed the cause:
+
+```
+DNS Servers: 192.168.0.111 192.168.0.1
+Current DNS Server: 192.168.0.1
+```
+
+Nothing local added the second entry - `ipv4.dns` was empty and `ipv4.ignore-auto-dns` was `no`. The Archer C6 appends its own LAN IP to DHCP option 6 even with Secondary DNS set to `0.0.0.0`, and no router setting turns that off. See `docs/hosts/adguard.md` for the measurement.
+
+```bash
+sudo nmcli con mod "Wired connection 1" ipv4.ignore-auto-dns yes ipv4.dns 192.168.0.111
+sudo nmcli con mod "Secret"             ipv4.ignore-auto-dns yes ipv4.dns 192.168.0.111
+# apply now without bouncing the link
+sudo resolvectl dns enp39s0 192.168.0.111
+sudo resolvectl dns wlp41s0 192.168.0.111
+```
+
+**One resolver, deliberately - do not add a public fallback here.** systemd-resolved picks a server by responsiveness rather than walking the list in order, which is exactly how the router won. That is the opposite of the LXC convention (`192.168.0.111 1.1.1.1`), where the glibc resolver keeps strict order and only moves on after a timeout. The cost is that this host has no DNS while AdGuard is down; revert with `ipv4.ignore-auto-dns no` and an empty `ipv4.dns`.
+
+`tailscale0` is untouched and keeps MagicDNS for `.ts.net`. Verified after the change: both links show a single `192.168.0.111`, `doubleclick.net` returns a blocked answer, `jellyfin.lan` resolves to 192.168.0.208.
+
+---
+
 ## NVIDIA + Wayland Configuration
 
 ### nvidia_drm.fbdev=1 kernel parameter
