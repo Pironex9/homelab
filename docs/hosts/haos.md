@@ -12,7 +12,7 @@
 | Kernel       | 6.12.67-haos                        |
 | Purpose      | Home automation platform            |
 | Web UI       | http://192.168.0.202:8123           |
-| HA Version   | 2026.4.2                            |
+| HA Version   | 2026.8.1                            |
 
 > **Note:** HAOS is a full KVM VM, not an LXC container. It is listed here for consistency. The SSH shell runs inside the Advanced SSH & Web Terminal add-on sandbox (Alpine Linux), not on the host HAOS system directly.
 
@@ -144,6 +144,31 @@ curl -s -X POST \
   -d '{"entity_id": "light.example"}' \
   http://192.168.0.202:8123/api/services/light/turn_on
 ```
+
+## HTTP config moved out of YAML (2026-08-08)
+
+Home Assistant deprecated the `http:` block in `configuration.yaml`; it stops working in 2027.2.0. The block here held only the reverse-proxy settings, which is exactly the risky case - the UI page under **Settings > System > Network** does not expose `use_x_forwarded_for` or `trusted_proxies`, so "just delete it and check the UI" is not a safe verification:
+
+```yaml
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 192.168.0.0/24
+    - 172.16.0.0/12
+    - 100.64.0.0/10
+```
+
+The real check is the storage file the import writes. Read it **before** deleting anything:
+
+```bash
+ssh hassio@192.168.0.202 'sudo cat /config/.storage/http'
+```
+
+Both settings were present there with `"yaml_migration_done": true`, so removing the YAML block was safe. Verified after the restart that the file still held all three proxy ranges, that `haos.lan` through Caddy still answered 200, and that the log contained no "X-Forwarded-For header from an untrusted proxy" warnings.
+
+Backups left in place: `/config/configuration.yaml.bak-2026-08-08` and `/config/.storage/http.bak-2026-08-08`.
+
+Note: `ha core check` does not work from the SSH add-on (no Supervisor token). Use the REST API instead - `POST /api/services/homeassistant/check_config`, then look for a new `persistent_notification.*` entity, which is where a failure would show up.
 
 ## Scheduled Maintenance
 
