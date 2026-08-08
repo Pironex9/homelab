@@ -42,7 +42,7 @@ Generate `SECRET_KEY_BASE` with: `openssl rand -hex 64`
 ## Key Configuration Notes
 
 - Dawarich uses `DATABASE_HOST` / `DATABASE_USERNAME` / `DATABASE_NAME` env vars - NOT `POSTGRES_HOST` or `DATABASE_URL`
-- `APPLICATION_HOSTS` must include all hostnames used to access the app - LAN IP, localhost, and any public domain (e.g. `dawarich.homelabor.net`)
+- `APPLICATION_HOSTS` must include **every** hostname used to reach the app, the internal ones too - LAN IP, localhost, the public domain (`dawarich.homelabor.net`) and the Caddy name (`dawarich.lan`). A missing entry does not fail at startup; Rails host authorization rejects the request at runtime with `Blocked hosts: <name>`, so it looks like a proxy fault rather than a config one. Adding a `.lan` name to the Caddyfile is only half the job - the app has to be told about it as well
 - `APPLICATION_PROTOCOL` must be `http` - Pangolin handles TLS termination. Setting `https` causes Rails to force-redirect HTTP to HTTPS, creating a redirect loop through the Pangolin tunnel.
 - The `bin/rails server` command must be specified explicitly - the image has no default entrypoint command for the app service
 - Migrations do NOT run automatically on startup - run manually after first deploy (see below)
