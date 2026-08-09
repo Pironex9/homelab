@@ -131,7 +131,8 @@ All service domains resolve to `192.168.0.208` (Caddy reverse proxy). Direct hos
 | `100.0.168.192.in-addr.arpa` | `nobara.lan` |
 
 PTR records use the `in-addr.arpa` format in the rewrites section.
-`private_networks` is set to `192.168.0.0/24` so AdGuard handles PTR queries for the local subnet locally.
+`private_networks` is set to `192.168.0.0/24` so AdGuard handles PTR queries for the local subnet locally,
+and `use_private_ptr_resolvers: false` keeps the ones that have no rewrite from leaving the LAN at all.
 
 ### Blocklists
 
@@ -194,10 +195,11 @@ AdGuard serves `.lan` DNS for all Tailscale nodes via split DNS configured in th
 
 This makes `.lan` hostnames resolve correctly on all Tailscale-connected devices - both local (e.g. Proxmox, which uses `100.100.100.100` as its DNS via Tailscale) and remote (e.g. laptop, phone over Tailscale). AdGuard is reachable from remote Tailscale nodes via Proxmox's subnet router (`192.168.0.0/24` advertised).
 
-All DNS queries from all devices go through AdGuard → Quad9 (DoH/DoT). No third-party resolver (e.g. Cloudflare) sees any queries. If AdGuard or Proxmox goes down, remote Tailscale devices lose DNS - acceptable tradeoff for a homelab.
+All DNS queries from all devices go through AdGuard → Quad9 (DoH/DoT). No third-party resolver (e.g. Cloudflare) sees any queries - true for forward lookups since day one, and for reverse lookups only since 2026-08-09, see the gotcha below. If AdGuard or Proxmox goes down, remote Tailscale devices lose DNS - acceptable tradeoff for a homelab.
 
 DNS query flow:
 - `.lan` queries (any device) → AdGuard (192.168.0.111) → local rewrites
+- Reverse lookups of `192.168.0.x` → AdGuard → answered locally or NXDOMAIN, never forwarded
 - All other queries (Tailscale devices) → AdGuard (192.168.0.111) → Quad9 (DoH/DoT, encrypted)
 - LAN devices without Tailscale → AdGuard (192.168.0.111) → Quad9 (DoH/DoT, encrypted)
 
@@ -248,6 +250,7 @@ Applied on: Proxmox (`192.168.0.109`). Also needed on any other subnet router (e
     Two ways out. Per client, which is what Nobara got: `ipv4.ignore-auto-dns yes` plus `ipv4.dns 192.168.0.111`. Do **not** add a public resolver as a second entry on a systemd-resolved host - it selects by responsiveness rather than strict order, which is how the router won in the first place. That is the opposite of the LXC convention (`192.168.0.111 1.1.1.1`), where the glibc resolver does keep strict order and only falls back on timeout. The trade-off is that the host has no DNS at all while AdGuard is down. Fleet-wide, the only real fix is to disable the router's DHCP server and let AdGuard Home serve DHCP instead - not done, since it makes LXC 102 a single point of failure for addressing as well as for resolution.
 - **Low resource usage:** 1 GB RAM and 1 core is sufficient. Actual memory usage stays around 415 MB even with the full blocklist set loaded.
 - **PTR rewrites require `enabled: true`:** AdGuard Home v0.107.71 automatically adds `enabled: false` to rewrite entries when it serializes the config. New rewrites added directly to the YAML must explicitly include `enabled: true`, otherwise they are silently ignored.
+- **17% of all queries were still reaching Cloudflare, and the upstream table did not show it (2026-08-09):** the yesterday's fleet-wide DNS work left LXC 102 itself on `nameserver 1.1.1.1`, deliberately, because AdGuard must resolve its own DoH/DoT upstream hostnames before it can start. The unnoticed consequence: `use_private_ptr_resolvers: true` with an empty `local_ptr_upstreams` means AdGuard sends reverse lookups for the private range **to the container's own OS resolver** - so 508 of the last 3000 queries, every one of them a `*.0.168.192.in-addr.arpa` PTR, went to Cloudflare in plaintext on port 53. Only the addresses without a rewrite entry leak, which is why the nine documented PTRs above hid the problem; 326 of the 508 were repeated lookups of `192.168.0.100`. Cloudflare answers all of them NXDOMAIN, so nothing was gained in exchange for handing a public resolver a map of the internal network. Fix: `use_private_ptr_resolvers: false`, which makes AdGuard answer private PTRs from its rewrites and client list only. **The Upstream column of the query log is the place to catch this** - the general statistics page shows only totals, and a config file whose `upstream_dns:` block lists nothing but Quad9 is not evidence that nothing else is being queried.
 - **PTR via `in-addr.arpa` rewrites:** AdGuard Home does not have a dedicated PTR record UI. Reverse DNS is handled by adding entries like `109.0.168.192.in-addr.arpa → proxmox.lan` to the rewrites section. Requires `private_networks` to include the local subnet so AdGuard handles PTR queries locally instead of forwarding to upstream.
 - **Config edits need Python over SSH:** Editing the YAML config directly via SSH heredoc is unreliable due to shell quoting issues. The correct approach is to write a Python script locally, `scp` it to the host, and execute it there.
 - **`update` command not available:** This LXC was installed before the community script update function was added. Use the full binary path instead: `/opt/AdGuardHome/AdGuardHome --update`. Add to PATH permanently: `echo 'export PATH=$PATH:/opt/AdGuardHome' >> /root/.bashrc`
