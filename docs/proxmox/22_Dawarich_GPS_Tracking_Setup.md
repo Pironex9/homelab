@@ -262,6 +262,35 @@ Removing it collapsed the automation back to two triggers and one command per br
 
 **The one thing the constraint was buying - fast exit detection - has a better root fix.** The `Location zone` sensor uses geofences, which report an exit in seconds regardless of how sparsely the phone is otherwise reporting. A ten-minute delay is not the design working as intended; it points at Android battery management throttling the app's background callbacks. Check that Home Assistant is set to **Unrestricted** battery usage and is not in the device's sleeping-apps list, rather than papering over it with a constraint.
 
+#### Every zone was below Android's minimum geofence radius (2026-08-09)
+
+The ten-minute delay was chased through sparse reporting and battery management before the actual cause turned up: **all six zones were far below the radius Android needs for reliable geofencing.**
+
+| Zone | Was | Now |
+|---|---|---|
+| `home` | 40 m | 100 m |
+| `apa` | 39 m | 100 m |
+| `suli` | 83 m | 100 m |
+| `kepzomuveszeti` | 27 m | 100 m |
+| `zdenka` | 27 m | 100 m |
+| `uzlet` | 25 m | 100 m |
+
+[Android's geofencing guidance](https://developer.android.com/develop/sensors-and-location/location/geofencing) puts the minimum at **100-150 m**, "to account for the location accuracy of typical Wi-Fi networks, and also to reduce device power consumption". Home Assistant's own default for the home zone is 100 m. Below that, exit events are delayed or missed outright - which is exactly what a 40 m home zone produced.
+
+This matters more now than it did before. When the only consequence was a late `not_home` on the map, ten minutes was cosmetic. Now that the same transition is what switches high accuracy on, those ten minutes are missing from the track.
+
+Checked first, and worth checking before any similar change: **nothing else referenced the zones.** `grep` over `automations.yaml` found only this document's own three automations (`to: not_home` / `from: not_home`), and no script or scene mentioned a zone at all. Enlarging them therefore could not break a light or a presence automation.
+
+The home zone is not an ordinary zone - its radius lives in core config, so it takes `config/core/update` over the websocket API rather than `zone/update`:
+
+```python
+await call({"type": "zone/list"})                                    # the other five
+await call({"type": "zone/update", "zone_id": z["id"], "radius": 100})
+await call({"type": "config/core/update", "radius": 100})            # home
+```
+
+No device changed zone as a result, so the enlargement produced no spurious enter/exit events. The phones re-register their geofences when they next sync the zone list; opening the app once on each is the quick way to be sure.
+
 **Turning the app's own `High accuracy mode` toggle on is not the answer either.** It is the master switch, so with no constraint it means permanently on: GPS held open at home, a permanent notification, and a point every 60 s into Dawarich while sitting still. That toggle is the automation's to own, and its resting value is off. It was found on once during this work - `binary_sensor.<device>_high_accuracy_mode` reading `on` while the tracker said `home` is what caught it.
 
 #### The rest of the location settings, and what each one costs
