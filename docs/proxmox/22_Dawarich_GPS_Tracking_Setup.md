@@ -218,10 +218,10 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 | Where | Setting | Value |
 |---|---|---|
 | Home Assistant | one automation per phone, `mode: queued` | `to: not_home` → `force_on`, `from: not_home` → `force_off`, both excluding `unknown`/`unavailable` |
-| Home Assistant | every zone radius | **100 m** |
+| Home Assistant | every zone radius | **100 m** or more, and a zone for every place anyone lingers |
 | Companion App | High accuracy mode (master toggle) | **off** - the automation owns it |
 | Companion App | zone constraint, bluetooth constraint, trigger range | **all empty** |
-| Companion App | high accuracy interval | 10 s - set by the automation on every departure, see below |
+| Companion App | high accuracy interval | 5 s - set by the automation on every departure, see below |
 | Companion App | Location sent | Exact |
 | Companion App | diagnostic sensors *High accuracy mode* and *High accuracy update interval* | enabled |
 | Android | battery usage for Home Assistant | Unrestricted |
@@ -308,31 +308,42 @@ The interval survives the mode being switched off again, so this is a one-off pe
 
 The manual `force_on → set → force_off` sequence is still the way to fix a phone immediately, but it only works while that phone is awake.
 
-#### Choosing the interval
+#### Choosing the interval, and why zones decide it
 
-The interval is **10 s**. The earlier value of 60 s was chosen partly to spare the battery, and that reasoning was wrong: the documentation describes high accuracy mode as "permanent usage of GPS", so the radio is held open for as long as the mode is on regardless of how often it reports. The interval buys track detail and costs disk, not battery.
+The interval is **5 s** - the app's minimum, and the densest track it can produce. Getting there was not a matter of taste; it needed the zone list fixed first.
 
-What the numbers look like in practice - metres between consecutive points:
+The battery argument that originally pushed this to 60 s does not hold. The documentation describes high accuracy mode as "permanent usage of GPS", so the radio is held open for as long as the mode is on, however rarely it reports. The interval buys track detail and costs disk. Metres between consecutive points:
 
-| | 5 s | **10 s** | 30 s | 60 s |
+| | **5 s** | 10 s | 30 s | 60 s |
 |---|---|---|---|---|
-| walking, 5 km/h | 6 m | **14 m** | 41 m | 83 m |
-| running, 11 km/h | 15 m | **30 m** | 91 m | 183 m |
-| city driving, 50 km/h | 69 m | **139 m** | 416 m | 833 m |
-| motorway, 130 km/h | 180 m | **361 m** | 1083 m | 2166 m |
+| walking, 5 km/h | **6 m** | 14 m | 41 m | 83 m |
+| running, 11 km/h | **15 m** | 30 m | 91 m | 183 m |
+| city driving, 50 km/h | **69 m** | 139 m | 416 m | 833 m |
+| motorway, 130 km/h | **180 m** | 361 m | 1083 m | 2166 m |
 
-At 60 s a car cuts every corner and a motorway journey becomes a series of two-kilometre straight lines - the same defect that made the baseline run look like a polygon.
+The cost is real and was measured rather than assumed: the `points` table holds 74 291 rows in 116 MB, about 1.6 kB each including indexes and the raw JSON. LXC 100's root has 12 GB free, on the LVM thin pool that has run short before.
 
-The cost is measurable rather than theoretical. The `points` table holds 74 291 rows in 116 MB, so about 1.6 kB per point including indexes and the raw JSON. Three devices, two hours a day outside a zone:
+**What decided it was measuring how long anyone is actually outside a zone**, from `device_tracker` history rather than from anyone's impression of it:
 
-| interval | points/hour | growth |
+| | before zones were fixed | after |
 |---|---|---|
-| 5 s | 720 | 2.6 GB/year |
-| **10 s** | **360** | **1.3 GB/year** |
-| 30 s | 120 | 0.43 GB/year |
-| 60 s | 60 | 0.22 GB/year |
+| Ancsi | 410 min/day | **99** |
+| Norbi | 348 min/day | **82** |
+| Enci | 61 min/day | **54** |
+| **total** | **13.7 h/day** | **3.9 h/day** |
+| cost at 5 s | 5.9 GB/year | **1.68 GB/year** |
 
-LXC 100's root is 51 GB with 12 GB free, on the LVM thin pool that has caused capacity trouble before, so 5 s was not a free choice.
+The intuition being tested was "we are rarely outside a zone". The measurement said otherwise - nearly seven hours a day each for two people - and the reason was that the places they spend those hours had no zones. Ancsi's was **289 m from home**; Norbi's was one location 16 km away holding **67 % of his remaining away time**. Adding zones for them cut the total by 72 %, which is worth far more than any interval tuning: it stops the GPS running for hours while somebody sits still, keeps stationary clusters out of the tracks, *and* is what makes 5 s affordable.
+
+Find them with a time-weighted count over `device_tracker` history - not a sample count, which is biased towards moving periods and pointed at the wrong places here:
+
+```python
+# for each not_home interval, if its coordinates fall in no zone,
+# add its duration to a bucket keyed on the rounded position
+buckets[(round(lat, 3), round(lon, 3))] += (next_ts - ts).total_seconds()
+```
+
+Two details worth copying: derive each zone's centre from the **mean of the samples near it**, since coordinates rounded to three decimals are only accurate to about 100 m and would put the circle off centre; and size the radius from the observed spread of those samples, not from a default - `Radvány` needed 150 m and `Webasto` 200 m, while 100 m was right for the rest.
 
 #### Every zone was below Android's minimum geofence radius (2026-08-09)
 
