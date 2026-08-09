@@ -217,7 +217,7 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 
 | Where | Setting | Value |
 |---|---|---|
-| Home Assistant | one automation per phone, `mode: queued` | `to: not_home` → `force_on`, `from: not_home` → `force_off`, both excluding `unknown`/`unavailable` |
+| Home Assistant | one automation per device, `mode: queued` | `to: not_home` held **30 s** → `force_on`; `from: not_home` → `force_off`; plus a guard branch, see below |
 | Home Assistant | every zone radius | **100 m** or more, and a zone for every place anyone lingers |
 | Companion App | High accuracy mode (master toggle) | **off** - the automation owns it |
 | Companion App | zone constraint, bluetooth constraint, trigger range | **all empty** |
@@ -226,7 +226,7 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 | Companion App | diagnostic sensors *High accuracy mode* and *High accuracy update interval* | enabled |
 | Android | battery usage for Home Assistant | Unrestricted |
 
-Not covered: the tablet, which has no automation on purpose. A stationary device gains nothing from dense GPS.
+The tablet has the same automation as the phones, added after the fact. It was left out at first on the theory that a mostly-stationary device gains nothing from dense GPS, and that turned out to be the wrong reason to leave it out: **the omission is what let it sit in high accuracy at home indefinitely**, because nothing existed to switch the mode back off after it had been enabled by hand during setup. An automation that only ever turns the mode *on* is optional; the branch that turns it off is not.
 
 **None of this has been tested in the field yet.** The one run on record predates every part of it and measured the untouched baseline: 19 points over 56 minutes. The next trip outside a zone is the first real test, and `binary_sensor.<device>_high_accuracy_mode` is what to read afterwards - it gives the delay between setting off and dense tracking starting, which previously could only be guessed at from point density.
 
@@ -241,7 +241,9 @@ data:
     high_accuracy_update_interval: 60      # minimum 5
 ```
 
-Each automation has two state triggers on the person's `device_tracker` - `to: not_home` turns it on, `from: not_home` turns it off - with `not_from`/`not_to` excluding `unknown` and `unavailable`, so a phone dropping off the network is not mistaken for a journey. `mode: queued`, because rapid zone flapping must be processed in order rather than dropped. **`not_home` is exactly the right condition and not a rough approximation:** any named zone (`Apa`, `Suli`, `Uzlet`, …) means parked somewhere, where dense tracking would burn battery to draw a dot.
+Each automation has state triggers on that device's `device_tracker` - `to: not_home` turns it on, `from: not_home` turns it off - and `mode: queued`, because rapid zone flapping must be processed in order rather than dropped. **`not_home` is exactly the right condition and not a rough approximation:** any named zone means parked somewhere, where dense tracking would burn battery to draw a dot.
+
+The `to: not_home` trigger is held for **30 s** and carries no `not_from` filter. Both details are corrections made the same day, for reasons that only showed up in the field: see *The arrival flush replays the whole trip's zone history* below.
 
 Verified by reading the automation trace rather than trusting that it triggered - "triggered" does not prove the intended branch ran:
 
@@ -254,7 +256,7 @@ The commands sent are `force_on` / `force_off` rather than `turn_on` / `turn_off
 
 Two things to know about this design:
 
-- **It only ever reacts to a zone transition,** so it cannot correct a wrong starting state. If high accuracy is somehow left on while the phone sits in a zone, nothing turns it off until a full leave-and-return cycle. A one-off `force_off` to each phone establishes the baseline the automation assumes; do that after any manual fiddling. (An earlier version of this document claimed the mode's state could not be observed from Home Assistant at all. That was wrong - the Companion App does expose it, see the settings table below.)
+- **It originally only ever reacted to a zone transition,** so it could not correct a wrong starting state: high accuracy left on while the phone sat in a zone stayed on until a full leave-and-return cycle. That hole is now closed by the guard branch described below, which makes the design self-correcting rather than dependent on a manual `force_off` after any fiddling. (An earlier version of this document claimed the mode's state could not be observed from Home Assistant at all. That was wrong - the Companion App does expose it, see the settings table below.)
 - **A dense burst of points does not mean high accuracy is stuck on.** An awake phone reports every 9-11 seconds on its own. Distinguish them by where the burst starts and when it stops, not by its density: check the spacing of the newest points against the time now.
 
 **The zone exit is detected as late as the reporting is sparse - which is the point of the whole exercise, and it bites here too.** A run on 2026-08-09 started at 08:30 and the tracker only went `not_home` at **08:40**, despite a `home` zone radius of just 40 m. The phone had physically left within seconds; Home Assistant simply had no update saying so. So high accuracy engages roughly ten minutes into a run that starts from home, and the first stretch stays sparse.
@@ -372,6 +374,68 @@ No device changed zone as a result, so the enlargement produced no spurious ente
 
 **Turning the app's own `High accuracy mode` toggle on is not the answer either.** It is the master switch, so with no constraint it means permanently on: GPS held open at home, a permanent notification, and a point every 60 s into Dawarich while sitting still. That toggle is the automation's to own, and its resting value is off. It was found on once during this work - `binary_sensor.<device>_high_accuracy_mode` reading `on` while the tracker said `home` is what caught it.
 
+#### The arrival flush replays the whole trip's zone history in seconds (2026-08-09)
+
+A phone that has been offline hands its entire backlog to Home Assistant the moment it reconnects. Home Assistant recomputes the zone for every point in that backlog, so **the zone history of the whole journey is replayed at upload speed**, in the wrong order. One arrival produced five states in four seconds:
+
+```
+20:34:21.809  not_home
+20:34:25.331  <a zone 1.4 km away>
+20:34:25.540  not_home
+20:34:25.792  home
+```
+
+The automation, correctly set to `mode: queued`, dutifully processed all of it: `force_on`, `force_off`, `force_on`, `force_off` inside four seconds. The device received them roughly ten minutes later and **applied `force_on` last** - `binary_sensor.<device>_high_accuracy_mode` read `on` while the tracker read `home`. That is the whole failure: the server's ordering is not the device's ordering, and four commands four seconds apart is an invitation to find out.
+
+Three changes, in the order they matter:
+
+**1. Hold the away trigger for 30 s.** A replay never keeps `not_home` continuously for half a minute, so the flapping stops producing commands at all. The cost is 30 s of sparse track at the start of a real journey, against 100 m zones that already take longer than that to exit.
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: device_tracker.<device>
+    to: not_home
+    for: {seconds: 30}
+    id: away
+```
+
+**2. Drop `not_from: [unknown, unavailable]` from the away trigger.** It was there to stop a phone dropping off the network being mistaken for a journey, and it silenced the exact transition where the command is most needed: an app restarting *while away* goes `unavailable` → `not_home`, and the filter threw that away, leaving the rest of the trip sparse. The filter is unnecessary anyway once the trigger is held for 30 s, and it cannot misfire at home, because a phone reconnecting at home transitions to `home`, not to `not_home`. (`not_to` on the *back* trigger stays: turning the mode off on a dropout is harmless.)
+
+**3. Add a guard branch that switches the mode off whenever it is on inside a zone.** This is the one that makes the design self-correcting, and it catches every cause at once - a late or reordered push, a manually flipped toggle, an app restart:
+
+```yaml
+  - trigger: state
+    entity_id: binary_sensor.<device>_high_accuracy_mode
+    to: "on"
+    for: {minutes: 2}
+    id: stuck
+# and, in the choose:
+  - conditions:
+      - {condition: trigger, id: stuck}
+      - condition: not                       # i.e. the device is in some zone
+        conditions:
+          - condition: state
+            entity_id: device_tracker.<device>
+            state: [not_home, unknown, unavailable]
+    sequence: [ … force_off … ]
+```
+
+Verified live rather than assumed: `force_on` sent deliberately to a phone sitting at home at 21:11:08, the sensor confirmed `on` at 21:11:23, and the guard switched it off at 21:13:23.
+
+#### A device with no data connection cannot be commanded (2026-08-09)
+
+The whole design rests on a push command reaching the device. One family phone had exhausted its mobile data allowance, and for the 23 minutes it was away it **sent nothing and received nothing**. The independent proof is the battery sensor, which reports about every 15 minutes: it skipped both of its slots inside that window and resumed in the same second as the location backlog, so the outage was the entire app-to-server channel and not the location subsystem.
+
+Two consequences, and only one of them is fixable here:
+
+- **High accuracy never engages during the trip,** because the `force_on` cannot be delivered. It is delivered on arrival instead, which is what strands the mode on at home. The guard branch above is the answer to that half.
+- **The timestamps of the whole trip collapse.** The Companion App hands queued points to Home Assistant with no fix time, so they are stored at receipt time. Confirmed in Dawarich's own database, not just in the Home Assistant recorder: about 200 points covering a 23-minute walk all carry timestamps inside a three-second window, out of order. **The route survives, the clock does not.** Nothing on the server can repair this; `mobile_app`'s device tracker has no timestamp field to carry a fix time.
+
+If real times matter more than the Home Assistant integration does, a logger that posts straight to Dawarich keeps them, because the payload carries the timestamp from the device: GPSLogger to `/api/v1/owntracks/points` with `"tst": "%TIMESTAMP"`, and its *Send on Wi-Fi only* toggle suits a device that has no mobile data at all.
+
+**A wifi-only device is the permanent version of this, and it fails more quietly.** Its tracker never even reaches `not_home` while away, because no update arrives to say it left, so the away branch never fires and there is nothing in the logs to look at. Expect presence plus a coarse, time-collapsed track from such a device, and let a phone travelling alongside it carry the real one.
+
 #### The rest of the location settings, and what each one costs
 
 Verified on the running phone:
@@ -426,4 +490,7 @@ Issues encountered during setup and their fixes:
 | Points in Dawarich all labelled `device_id: Dawarich` | The config entry's **Name** field is sent as `device_id`, and its default is `Dawarich` | Reconfigure the entry with the person's name. The reconfigure form does not prefill the device tracker or API key - re-enter both or they are cleared |
 | Second device for the same person aborts with `already_configured` | The integration treats host + API key as the uniqueness key | Point that entry at the same server by another address - `dawarich.homelabor.net:443` with SSL on. `dawarich.lan` will not work, HA cannot resolve `.lan` |
 | A tracker sensor sits at `unknown` and never sends | No state-change event has fired for that `device_tracker` since the entry was created | `notify.mobile_app_<device>` with `request_location_update`, then wait. `unknown` is the initial state, not an error - it says nothing has been forwarded yet, not that anything is broken |
+| High accuracy mode runs while the device is sitting in a zone | Either no automation exists for that device, or a `force_on` from an earlier zone transition was delivered late and out of order, or the app's master toggle was switched on by hand | The guard branch on `binary_sensor.<device>_high_accuracy_mode` now clears all three within 2 minutes. Every tracked device needs the automation, including ones that never travel |
+| The mode never switches on during a whole journey | The away trigger was filtered with `not_from: [unknown, unavailable]` and the app restarted while away, or the device has no data connection and the push was never delivered | Remove the filter. If the device has no mobile data, the command cannot arrive at all - see *A device with no data connection cannot be commanded* |
+| An entire journey appears in Dawarich at one timestamp, points out of order | The device was offline and flushed its backlog on arrival; Home Assistant stores queued points at receipt time because `mobile_app` carries no fix time | Not repairable server-side. Use a logger that posts to Dawarich directly with `"tst": "%TIMESTAMP"` if the times matter |
 | That sensor is *still* `unknown` after hours, and `request_location_update` gets no response | The device is not producing location updates at all. Check `last_updated` on the `device_tracker` itself: if it is hours old, the problem is on the phone, not in the integration | In the Companion App: background location permission (Android 13+ needs "Allow all the time" as a separate grant), **Manage sensors > Location** toggles, and whether battery optimisation is killing the app. `device_tracker.enci_tablet` was in this state on 2026-08-09, last updated 05:47 with nothing an hour and a half later |
