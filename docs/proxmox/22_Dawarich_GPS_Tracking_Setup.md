@@ -229,14 +229,22 @@ Each automation has two state triggers on the person's `device_tracker` - `to: n
 Verified by reading the automation trace rather than trusting that it triggered - "triggered" does not prove the intended branch ran:
 
 ```
-07:47:49  trigger id=away  home -> not_home   steps: … choose/0/sequence/0   (turn_on)
-07:47:52  trigger/1                            steps: … choose/1/sequence/0   (turn_off)
+07:47:49  trigger id=away  home -> not_home   steps: … choose/0/sequence/0   (on)
+07:47:52  trigger/1                            steps: … choose/1/sequence/0   (off)
 ```
+
+The commands sent are `force_on` / `force_off` rather than `turn_on` / `turn_off`. With no zone or bluetooth constraint configured in the app the two are identical, but if a constraint is ever added, the plain form obeys it and would refuse to switch on far from home - which is precisely where the dense track is wanted.
 
 Two things to know about this design:
 
 - **It only ever reacts to a zone transition,** so it cannot correct a wrong starting state. If high accuracy is somehow left on while the phone sits in a zone, nothing turns it off until a full leave-and-return cycle. There is no entity reporting whether the mode is on, so this cannot be observed from Home Assistant either. A one-off `turn_off` to each phone establishes the baseline the automation assumes; do that after any manual fiddling.
 - **A dense burst of points does not mean high accuracy is stuck on.** An awake phone reports every 9-11 seconds on its own. Distinguish them by where the burst starts and when it stops, not by its density: check the spacing of the newest points against the time now.
+
+**The zone exit is detected as late as the reporting is sparse - which is the point of the whole exercise, and it bites here too.** A run on 2026-08-09 started at 08:30 and the tracker only went `not_home` at **08:40**, despite a `home` zone radius of just 40 m. The phone had physically left within seconds; Home Assistant simply had no update saying so. So high accuracy engages roughly ten minutes into a run that starts from home, and the first stretch stays sparse.
+
+The app-side fix is `High accuracy mode only when entering zone` = *Home* plus `High accuracy mode trigger range for zone (meters)` = ~500, under **Settings > Companion App > Manage Sensors > Location Sensors > Background Location**. Note what that setting actually does, because the name suggests otherwise: it draws an *expanded* boundary around the zone and runs high accuracy between that boundary and the zone edge, deactivating on entry. It is designed for precise **arrival** detection. It happens to cover departure too, since the band is the same on the way out - but do not reach for it expecting a "switch on before leaving" feature, because that is not what it is.
+
+Worth measuring before configuring: the automation alone already covered 46 of that run's 56 minutes. The trigger range buys the remaining ten, at the cost of per-phone setup and GPS running whenever anyone is within 500 m of home. It is worth it only on a phone that actually goes running.
 
 ### Other supported apps
 
