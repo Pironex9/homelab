@@ -160,7 +160,7 @@ The Companion App reports for zone presence, so the rate varies enormously by de
 | `enci_telo` | 360 |
 | `enci_tablet` | 54 |
 
-A phone produces roughly one point every 1.5-2 minutes while awake. That is the concrete shape of the "sparser than a dedicated tracker" trade-off, and it is also why a mostly-stationary tablet writing into the same account as its owner's phone is tolerable rather than ruinous. If the stationary clusters ever become annoying, they can be deleted by `device_id`.
+A phone produces roughly one point every 1.5-2 minutes averaged over a day, but the rate is bursty rather than steady - an awake phone was measured reporting every 9-11 seconds for minutes at a time, with nothing in between. That is the concrete shape of the "sparser than a dedicated tracker" trade-off, and it is also why a mostly-stationary tablet writing into the same account as its owner's phone is tolerable rather than ruinous. If the stationary clusters ever become annoying, they can be deleted by `device_id`.
 
 **Do not read the tablet's 54 as "one every 13 minutes."** That average hides long silences: on the day of setup the tablet last updated at 05:47 and had still produced nothing 1.5 hours later, ignoring a `request_location_update` in between. A daily average is the wrong statistic for a device that reports in bursts and then sleeps.
 
@@ -208,6 +208,35 @@ target: {entity_id: update.dawarich_update}
 The moment the author ships a real stable release, turn `switch.dawarich_pre_release` off. HACS then only offers stable tags and this whole hazard disappears.
 
 If an update misbehaves, `update.install` with an explicit older `version` rolls back, and VM 101 is in the nightly vzdump set as a second line of defence.
+
+### High accuracy mode, driven by zone (2026-08-09)
+
+The Companion App reports too sparsely to draw a clean line while travelling, and its high accuracy mode is the fix - but running it permanently is not, because it holds GPS open continuously and shows a **permanent notification the user cannot dismiss** (an Android system requirement, not an app choice). So it is switched on only outside every zone, by one automation per phone: `automation.high_accuracy_<person>_zonan_kivul`.
+
+The command is Android-only, and its default interval is 5 seconds - which would mean about 720 points per hour per device landing in Dawarich. The interval was set to 60 s on each phone first, and only then were the automations created:
+
+```yaml
+action: notify.mobile_app_<device>
+data:
+  message: "command_high_accuracy_mode"
+  data:
+    command: "high_accuracy_set_update_interval"
+    high_accuracy_update_interval: 60      # minimum 5
+```
+
+Each automation has two state triggers on the person's `device_tracker` - `to: not_home` turns it on, `from: not_home` turns it off - with `not_from`/`not_to` excluding `unknown` and `unavailable`, so a phone dropping off the network is not mistaken for a journey. `mode: queued`, because rapid zone flapping must be processed in order rather than dropped. **`not_home` is exactly the right condition and not a rough approximation:** any named zone (`Apa`, `Suli`, `Uzlet`, …) means parked somewhere, where dense tracking would burn battery to draw a dot.
+
+Verified by reading the automation trace rather than trusting that it triggered - "triggered" does not prove the intended branch ran:
+
+```
+07:47:49  trigger id=away  home -> not_home   steps: … choose/0/sequence/0   (turn_on)
+07:47:52  trigger/1                            steps: … choose/1/sequence/0   (turn_off)
+```
+
+Two things to know about this design:
+
+- **It only ever reacts to a zone transition,** so it cannot correct a wrong starting state. If high accuracy is somehow left on while the phone sits in a zone, nothing turns it off until a full leave-and-return cycle. There is no entity reporting whether the mode is on, so this cannot be observed from Home Assistant either. A one-off `turn_off` to each phone establishes the baseline the automation assumes; do that after any manual fiddling.
+- **A dense burst of points does not mean high accuracy is stuck on.** An awake phone reports every 9-11 seconds on its own. Distinguish them by where the burst starts and when it stops, not by its density: check the spacing of the newest points against the time now.
 
 ### Other supported apps
 
