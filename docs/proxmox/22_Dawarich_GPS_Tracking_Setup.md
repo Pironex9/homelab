@@ -144,6 +144,8 @@ Each person gets their own config entry with their own API key and their own `de
 | Enci telefon | `device_tracker.enci_telo` | `henczeniko@` | `192.168.0.110:3005` |
 | Enci tablet | `device_tracker.enci_tablet` | `henczeniko@` | `dawarich.homelabor.net:443` |
 
+The first three were confirmed sending, per account rather than in aggregate - points arriving under the right user with the right `device_id`. **The tablet has not forwarded anything yet**: its entry loads and reads the server fine, but the tablet itself stopped producing location updates, so there is nothing to relay. See the last row of the troubleshooting table.
+
 The last row is not a mistake. **The integration rejects a new entry when host *and* API key both match an existing one** (`_async_abort_entries_match` on `CONF_HOST` + `CONF_API_KEY`), so a second device belonging to the same Dawarich user aborts with `already_configured`. The fix is to reach the same server by a different address: the public URL works, needs no infrastructure change, and costs only that the tablet's points travel out to the VPS and back. `dawarich.lan` is not an option here - **Home Assistant cannot resolve `.lan` at all** (`NXDOMAIN` from its Supervisor DNS), even though every LXC can.
 
 Which account belongs to which person is worth pinning down before configuring, not after: Dawarich leaves `first_name`/`last_name` `nil`, the family record carries no member names, and older points have no `device_id`, so the database cannot tell you. Sending one person's live location into another person's account is not something to guess at.
@@ -158,7 +160,9 @@ The Companion App reports for zone presence, so the rate varies enormously by de
 | `enci_telo` | 360 |
 | `enci_tablet` | 54 |
 
-A phone produces roughly one point every 1.5-2 minutes while awake; the tablet manages one per 13 minutes. That is the concrete shape of the "sparser than a dedicated tracker" trade-off, and it is also why a mostly-stationary tablet writing into the same account as its owner's phone is tolerable rather than ruinous. If the stationary clusters ever become annoying, they can be deleted by `device_id`.
+A phone produces roughly one point every 1.5-2 minutes while awake. That is the concrete shape of the "sparser than a dedicated tracker" trade-off, and it is also why a mostly-stationary tablet writing into the same account as its owner's phone is tolerable rather than ruinous. If the stationary clusters ever become annoying, they can be deleted by `device_id`.
+
+**Do not read the tablet's 54 as "one every 13 minutes."** That average hides long silences: on the day of setup the tablet last updated at 05:47 and had still produced nothing 1.5 hours later, ignoring a `request_location_update` in between. A daily average is the wrong statistic for a device that reports in bursts and then sleeps.
 
 To count these properly, ask the history API **without** `minimal_response`:
 
@@ -240,4 +244,5 @@ Issues encountered during setup and their fixes:
 | HACS shows the integration but offers nothing to download | The repository has no stable release, only pre-release tags | Enable *Show beta versions* on the repository, then download the newest non-`-debug` tag |
 | Points in Dawarich all labelled `device_id: Dawarich` | The config entry's **Name** field is sent as `device_id`, and its default is `Dawarich` | Reconfigure the entry with the person's name. The reconfigure form does not prefill the device tracker or API key - re-enter both or they are cleared |
 | Second device for the same person aborts with `already_configured` | The integration treats host + API key as the uniqueness key | Point that entry at the same server by another address - `dawarich.homelabor.net:443` with SSL on. `dawarich.lan` will not work, HA cannot resolve `.lan` |
-| A tracker sensor sits at `unknown` and never sends | No state-change event has fired for that `device_tracker` since the entry was created; a tablet can go 13 minutes between updates | `notify.mobile_app_<device>` with `request_location_update`, then wait. `unknown` is the initial state, not an error |
+| A tracker sensor sits at `unknown` and never sends | No state-change event has fired for that `device_tracker` since the entry was created | `notify.mobile_app_<device>` with `request_location_update`, then wait. `unknown` is the initial state, not an error - it says nothing has been forwarded yet, not that anything is broken |
+| That sensor is *still* `unknown` after hours, and `request_location_update` gets no response | The device is not producing location updates at all. Check `last_updated` on the `device_tracker` itself: if it is hours old, the problem is on the phone, not in the integration | In the Companion App: background location permission (Android 13+ needs "Allow all the time" as a separate grant), **Manage sensors > Location** toggles, and whether battery optimisation is killing the app. `device_tracker.enci_tablet` was in this state on 2026-08-09, last updated 05:47 with nothing an hour and a half later |
