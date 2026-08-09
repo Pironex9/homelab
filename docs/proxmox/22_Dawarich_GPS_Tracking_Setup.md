@@ -221,7 +221,7 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 | Home Assistant | every zone radius | **100 m** |
 | Companion App | High accuracy mode (master toggle) | **off** - the automation owns it |
 | Companion App | zone constraint, bluetooth constraint, trigger range | **all empty** |
-| Companion App | high accuracy interval | 60 s |
+| Companion App | high accuracy interval | 60 s - only settable while the mode is on, see below |
 | Companion App | Location sent | Exact |
 | Companion App | diagnostic sensors *High accuracy mode* and *High accuracy update interval* | enabled |
 | Android | battery usage for Home Assistant | Unrestricted |
@@ -278,6 +278,31 @@ Without the constraint this cannot happen: `force_on` arrives with no constraint
 Removing it collapsed the automation back to two triggers and one command per branch. A five-minute delay with a re-assert, and `mode: restart` to stop an arrival queueing behind that delay, existed only to survive point 2 and went with it.
 
 **The one thing the constraint was buying - fast exit detection - has a better root fix.** The `Location zone` sensor uses geofences, which report an exit in seconds regardless of how sparsely the phone is otherwise reporting. A ten-minute delay is not the design working as intended; it points at Android battery management throttling the app's background callbacks. Check that Home Assistant is set to **Unrestricted** battery usage and is not in the device's sleeping-apps list, rather than papering over it with a constraint.
+
+#### The interval command is silently ignored unless the mode is on
+
+Setting the interval from Home Assistant looks like it works and often does not:
+
+```yaml
+action: notify.mobile_app_<device>
+data:
+  message: "command_high_accuracy_mode"
+  data:
+    command: "high_accuracy_set_update_interval"
+    high_accuracy_update_interval: 60
+```
+
+The service call returns HTTP 200, the phone receives it, and the value does not change. **The app only applies this command while high accuracy mode is actually running** - which mirrors its own UI, where the interval field is greyed out until the master toggle is on. Sent with the mode off, it is accepted and dropped without a word.
+
+One phone ended up on 60 s and another stayed on the 5 s default from the same batch of commands, and the difference went unnoticed until the diagnostic sensor was enabled and read them back. The working sequence:
+
+```
+force_on  →  high_accuracy_set_update_interval  →  force_off
+```
+
+The interval survives the mode being switched off again, so this is a one-off per phone. Verify with `sensor.<device>_high_accuracy_update_interval`; if the reading looks stale, `command_update_sensors` forces the app to report immediately.
+
+**HTTP 200 on a notify command means Home Assistant handed it to the push service - nothing more.** It is not evidence the phone acted on it, and for a fire-and-forget command there is no error path back. The only proof is a sensor that reads the value back, which is the argument for enabling those two diagnostic sensors on every phone rather than just one. `command_update_sensors` is the cheap liveness check: if the battery sensor's timestamp jumps immediately afterwards, the phone is receiving commands and any failure is the command's own, not delivery.
 
 #### Every zone was below Android's minimum geofence radius (2026-08-09)
 
