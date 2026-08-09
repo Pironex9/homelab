@@ -36,6 +36,11 @@ services:
   dawarich_app:
     image: freikin/dawarich:latest
     container_name: dawarich_app
+    # web-entrypoint.sh runs db:migrate, data:migrate and db:seed before execing
+    # the command, so a new image can never boot against an older schema. Without
+    # it the image's default entrypoint is a bare `bundle exec` and migrations
+    # never run - see the doc, 18 of them silently piled up.
+    entrypoint: web-entrypoint.sh
     command: "bin/rails server -p 3000 -b ::"
     volumes:
       - ${DOCKER_DATA}/dawarich-public:/var/app/public
@@ -76,7 +81,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       retries: 3
-      start_period: 60s
+      start_period: 180s   # migrations now run before Puma boots
     networks:
       - dawarich
     logging:
@@ -88,7 +93,8 @@ services:
   dawarich_sidekiq:
     image: freikin/dawarich:latest
     container_name: dawarich_sidekiq
-    command: bundle exec sidekiq
+    entrypoint: sidekiq-entrypoint.sh
+    command: sidekiq
     volumes:
       - ${DOCKER_DATA}/dawarich-public:/var/app/public
       - ${DOCKER_DATA}/dawarich-storage:/var/app/storage
