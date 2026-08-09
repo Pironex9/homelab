@@ -221,7 +221,7 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 | Home Assistant | every zone radius | **100 m** |
 | Companion App | High accuracy mode (master toggle) | **off** - the automation owns it |
 | Companion App | zone constraint, bluetooth constraint, trigger range | **all empty** |
-| Companion App | high accuracy interval | 60 s - only settable while the mode is on, see below |
+| Companion App | high accuracy interval | 10 s - set by the automation on every departure, see below |
 | Companion App | Location sent | Exact |
 | Companion App | diagnostic sensors *High accuracy mode* and *High accuracy update interval* | enabled |
 | Android | battery usage for Home Assistant | Unrestricted |
@@ -303,6 +303,36 @@ force_on  →  high_accuracy_set_update_interval  →  force_off
 The interval survives the mode being switched off again, so this is a one-off per phone. Verify with `sensor.<device>_high_accuracy_update_interval`; if the reading looks stale, `command_update_sensors` forces the app to report immediately.
 
 **HTTP 200 on a notify command means Home Assistant handed it to the push service - nothing more.** It is not evidence the phone acted on it, and for a fire-and-forget command there is no error path back. The only proof is a sensor that reads the value back, which is the argument for enabling those two diagnostic sensors on every phone rather than just one. `command_update_sensors` is the cheap liveness check: if the battery sensor's timestamp jumps immediately afterwards, the phone is receiving commands and any failure is the command's own, not delivery.
+
+**So the automation sets it, rather than a person doing it once per phone.** The away branch sends `force_on`, waits five seconds, then sends the interval - at which point the mode is running, so the command lands. That also solves the delivery problem, because a phone that is leaving a zone is by definition awake and reporting, whereas one sitting on a table at midday may ignore commands entirely. During this work one phone stopped acknowledging anything for twenty minutes: `command_update_sensors` did not move its battery timestamp, so the commands were not being delivered at all, and no amount of retrying would have helped.
+
+The manual `force_on → set → force_off` sequence is still the way to fix a phone immediately, but it only works while that phone is awake.
+
+#### Choosing the interval
+
+The interval is **10 s**. The earlier value of 60 s was chosen partly to spare the battery, and that reasoning was wrong: the documentation describes high accuracy mode as "permanent usage of GPS", so the radio is held open for as long as the mode is on regardless of how often it reports. The interval buys track detail and costs disk, not battery.
+
+What the numbers look like in practice - metres between consecutive points:
+
+| | 5 s | **10 s** | 30 s | 60 s |
+|---|---|---|---|---|
+| walking, 5 km/h | 6 m | **14 m** | 41 m | 83 m |
+| running, 11 km/h | 15 m | **30 m** | 91 m | 183 m |
+| city driving, 50 km/h | 69 m | **139 m** | 416 m | 833 m |
+| motorway, 130 km/h | 180 m | **361 m** | 1083 m | 2166 m |
+
+At 60 s a car cuts every corner and a motorway journey becomes a series of two-kilometre straight lines - the same defect that made the baseline run look like a polygon.
+
+The cost is measurable rather than theoretical. The `points` table holds 74 291 rows in 116 MB, so about 1.6 kB per point including indexes and the raw JSON. Three devices, two hours a day outside a zone:
+
+| interval | points/hour | growth |
+|---|---|---|
+| 5 s | 720 | 2.6 GB/year |
+| **10 s** | **360** | **1.3 GB/year** |
+| 30 s | 120 | 0.43 GB/year |
+| 60 s | 60 | 0.22 GB/year |
+
+LXC 100's root is 51 GB with 12 GB free, on the LVM thin pool that has caused capacity trouble before, so 5 s was not a free choice.
 
 #### Every zone was below Android's minimum geofence radius (2026-08-09)
 
