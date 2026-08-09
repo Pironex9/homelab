@@ -92,38 +92,67 @@ Note: Use single quotes around the Ruby code to avoid bash `!` interpretation is
 
 There is no default demo user - the account must be created manually.
 
-## Mobile App Setup
+## Location Source
 
-### Recommended: Colota (Android)
+### Current: Home Assistant relays the Companion App (2026-08-09)
 
-[Colota](https://colota.app) is the recommended GPS tracking client for Android. It sends location data directly to Dawarich with smart battery profiles and GPS accuracy filtering.
+No dedicated tracker app runs on any phone. The HA Companion App - already installed for zone automations - is the only GPS source, and a custom integration on Home Assistant forwards each of its updates to Dawarich.
 
-**Why Colota over alternatives:**
-- Intelligent tracking profiles - faster updates when moving/in car, slower when stationary
-- GPS accuracy filtering - discards bad GPS points automatically
-- Offline queue - stores points when offline, syncs later
-- Open source (AGPL), no telemetry
+**Why the change.** Colota was the recommendation here and it did not survive contact with the family: it froze or crashed on their phones and silently stopped sending, which is the worst failure mode a tracker has. Every dedicated tracker shares that risk, because it is one more background app that has to stay alive on someone else's phone. The Companion App is the app they already keep alive for other reasons.
 
-**Setup:**
-1. Install Colota from Google Play or IzzyOnDroid
-2. In Dawarich: Settings - API Keys - copy your API key
-3. In Colota: Settings - API Settings - select **Dawarich** template
-4. Enter the full endpoint URL:
-   ```
-   https://dawarich.homelabor.net/api/v1/owntracks/points?api_key=YOUR_API_KEY
-   ```
-5. Tap Test Connection to verify
+**The other half of the argument is retention.** Home Assistant's recorder defaults to `purge_keep_days: 10`, so HA is structurally incapable of being the location archive - it deletes the history. HA answers "where is everyone now", Dawarich answers "where was I in March". Both are needed; only one of them needs an app on the phone.
 
-**Note:** The full endpoint path `/api/v1/owntracks/points?api_key=...` is required - the base URL alone returns 404.
+**Trade-offs, stated plainly:**
 
-### Home Assistant Companion App
+| | |
+|---|---|
+| Two hops | phone → HA → Dawarich. Points produced while HA is down are lost; a dedicated app would queue them. The nightly `qm reboot 101` at 04:10 is a gap in principle, at an hour when nobody moves |
+| Track shape | the Companion App reports for zone presence, not for drawing a line. Points are sparser than a dedicated tracker's. "High accuracy mode" in the Companion App improves it at the cost of battery |
+| Maturity | the integration is a community project, explicitly labelled experimental, unaffiliated with Dawarich. Not a load-bearing dependency |
 
-Use the HA Companion App alongside Colota for zone-based presence detection (home/away automations). These serve different purposes and run simultaneously without conflict:
+Measured after cutover: points arriving with 7-19 m accuracy, several per minute while the phone was awake.
 
-| App | Purpose |
-|-----|---------|
-| Colota | Continuous GPS history in Dawarich |
-| HA Companion App | Zone entry/exit detection for HA automations |
+### Installing the integration
+
+[AlbinLind/dawarich-home-assistant](https://github.com/AlbinLind/dawarich-home-assistant), installed through HACS so it stays updatable. Two things about it are not obvious:
+
+- **It has no stable release.** Every tag is a pre-release (`1.0.0-beta6` at the time of writing), so HACS will not offer it until *Show beta versions* is enabled for the repository - otherwise the download silently has nothing to fetch.
+- **The newest tag is not the one you want.** `1.0.0-beta6-debug` is a debug build, and HACS offers it as an update. Skip that version on the `update.dawarich_update` entity, otherwise the nag stays and someone eventually installs a debug build.
+
+Note that the shipped `manifest.json` still says `1.0.0-beta2` regardless of the tag installed - the author does not bump it. Trust the HACS `installed_version`, not the manifest.
+
+Configuration (Settings > Devices & Services > Add Integration > Dawarich):
+
+| Field | Value | Why |
+|---|---|---|
+| Host / Port | `192.168.0.110` / `3005` | straight to the container. Going through `dawarich.homelabor.net` would send LAN traffic out to the VPS and back; `dawarich.lan` would drag in the mkcert CA |
+| SSL / Verify SSL | off / on | plain HTTP on the LAN, so neither matters |
+| Name | the person, e.g. `Norbi telefon` | **this becomes `device_id` on every point in Dawarich.** Left at the default, every family member's points arrive labelled `Dawarich`. The account statistics are per-API-key anyway, so naming the entry after the person is correct on both counts |
+| Device tracker | `device_tracker.norbi_telo` | must be a GPS-source tracker; the integration logs a warning and sends nothing for router- or bluetooth-source trackers |
+| API key | that person's own key | Dawarich > Settings > API Keys |
+
+The API key is asked for on a **second** step, after the host is contacted - the first form has no key field at all, which reads like a bug and is not one.
+
+Adding a family member later means a second config entry with their own API key and their own `device_tracker`, not a change to this one.
+
+**Verifying it actually sends**, without waiting for someone to drive somewhere:
+
+```bash
+# ask the phone for a fresh fix
+POST /api/services/notify/mobile_app_<device>  {"message": "request_location_update"}
+```
+
+Then `sensor.dawarich_tracker` should read `success`, and on the Dawarich side the newest point should carry the right label:
+
+```ruby
+Point.order(timestamp: :desc).first.raw_data.dig("properties", "device_id")
+```
+
+`sensor.dawarich_tracker` reads `unknown` until the first forward after every reload - that is the initial state, not an error.
+
+### Other supported apps
+
+Still available if the HA path is ever dropped: the official Dawarich apps for [Android](https://play.google.com/store/apps/details?id=app.dawarich.Dawarich) and iOS, a community Android client, OwnTracks, Overland, GPSLogger and PhoneTrack. Note the official Android app was rewritten and republished under a new package - the old one is now listed as **Dawarich (old)** and should not be installed.
 
 ### Other Supported Apps
 
@@ -152,3 +181,6 @@ Issues encountered during setup and their fixes:
 | Map V2 blank in all browsers | `/maps_maplibre/styles/light.json` returns 404 - static style files in the Docker image are shadowed by the `/var/app/public` volume mount | Copy style files from the image to the host volume: `docker run --rm -v /srv/docker-data/dawarich-public:/target freikin/dawarich:latest sh -c "cp -r /var/app/public/maps_maplibre /target/"` - files persist across updates |
 | `dawarich.lan` unreachable, `dawarich.homelabor.net` worked | LAN Caddyfile on LXC 110 never had a `dawarich.lan` block, and `APPLICATION_HOSTS` didn't include it either | Add `@dawarich host dawarich.lan { reverse_proxy 192.168.0.110:3005 }` to the Caddyfile, and append `,dawarich.lan` to `APPLICATION_HOSTS` |
 | `/map/v2` 500s with `PG::UndefinedTable: relation "posters" does not exist` | Stack hadn't been redeployed in months (blocked by the LXC 105 DNS issue), so `freikin/dawarich:latest` jumped ~18 migrations ahead of the DB schema on the next pull | `docker exec dawarich_app bin/rails db:migrate` - all 18 pending migrations ran clean, no data loss |
+| Family members' phones stop sending, silently | Colota froze or crashed and nothing reports that a tracker went quiet | Dropped the dedicated tracker app entirely; the HA Companion App is now the source, see Location Source above |
+| HACS shows the integration but offers nothing to download | The repository has no stable release, only pre-release tags | Enable *Show beta versions* on the repository, then download the newest non-`-debug` tag |
+| Points in Dawarich all labelled `device_id: Dawarich` | The config entry's **Name** field is sent as `device_id`, and its default is `Dawarich` | Reconfigure the entry with the person's name. The reconfigure form does not prefill the device tracker or API key - re-enter both or they are cleared |

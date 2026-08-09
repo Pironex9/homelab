@@ -65,6 +65,16 @@ KVM VM (VMID 101)
 - `dlna_dmr` - letiltva (nappali TV DLNA renderer, duplikátum volt a Cast/Android TV Remote mellett)
 - `dlna_dms` - törölve (NEX-PC DLNA médiaserver, Jellyfin miatt felesleges)
 
+**Egyedi (HACS) integrációk:**
+
+| Integráció | Verzió | Mire jó |
+|---|---|---|
+| `hacs` | 2.0.5 | maga a HACS |
+| `view_assist` | - | Voice/dashboard assist |
+| `dawarich` | 1.0.0-beta6 | a Companion App helyadatait továbbítja a Dawarich szervernek (LXC 100, `192.168.0.110:3005`), 2026-08-09 óta |
+
+A `dawarich` bejegyzés helyettesíti a telefonokon futó külön tracker appot - a részletek, a kompromisszumok és a telepítés buktatói: [22 - Dawarich GPS Tracking](../proxmox/22_Dawarich_GPS_Tracking_Setup.md#location-source). Egy config entry = egy személy (saját API kulcs + saját `device_tracker`).
+
 **Külső MQTT kliensek (nem HA add-on, a Mosquitto brokerre kívülről csatlakoznak):**
 - `scrutiny` (LXC 100, `192.168.0.110:8082`) - lemez S.M.A.R.T. állapot, 2026-08-02 óta. MQTT discovery-vel 5 eszközre publikál (temperature/status/power_on_hours/power_cycle_count sensor + problem binary_sensor), auth: meglévő HA user (`neximus`), broker `tcp://192.168.0.202:1883`. Jelszó: `/srv/docker-compose/.env` → `SCRUTINY_MQTT_PASSWORD` (LXC 100).
 
