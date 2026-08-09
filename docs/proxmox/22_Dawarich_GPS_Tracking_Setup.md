@@ -44,8 +44,8 @@ Generate `SECRET_KEY_BASE` with: `openssl rand -hex 64`
 - Dawarich uses `DATABASE_HOST` / `DATABASE_USERNAME` / `DATABASE_NAME` env vars - NOT `POSTGRES_HOST` or `DATABASE_URL`
 - `APPLICATION_HOSTS` must include **every** hostname used to reach the app, the internal ones too - LAN IP, localhost, the public domain (`dawarich.homelabor.net`) and the Caddy name (`dawarich.lan`). A missing entry does not fail at startup; Rails host authorization rejects the request at runtime with `Blocked hosts: <name>`, so it looks like a proxy fault rather than a config one. Adding a `.lan` name to the Caddyfile is only half the job - the app has to be told about it as well
 - `APPLICATION_PROTOCOL` must be `http` - Pangolin handles TLS termination. Setting `https` causes Rails to force-redirect HTTP to HTTPS, creating a redirect loop through the Pangolin tunnel.
-- The `bin/rails server` command must be specified explicitly - the image has no default entrypoint command for the app service
-- Migrations do NOT run automatically on startup - run manually after first deploy (see below)
+- **Both services must set `entrypoint:` as well as `command:`.** The image's own entrypoint is a bare `bundle exec`, so a compose file that sets only `command:` gets a working server that never migrates. The scripts to name are `web-entrypoint.sh` and `sidekiq-entrypoint.sh`, both shipped in the image at `/usr/local/bin/`; the web one creates the database if absent, waits for it, runs `db:migrate`, `rake data:migrate` and `db:seed`, then `exec bundle exec "$@"` - which is why `command:` stays `bin/rails server -p 3000 -b ::` and the sidekiq one is just `sidekiq`, with no `bundle exec` prefix of its own
+- Because of that, **migrations run on every start** and must not be run by hand. `start_period` on the healthcheck is 180 s to cover them
 
 ## SMTP Setup (Family Invitations)
 
@@ -70,17 +70,18 @@ To invite family members:
 
 Add Stack Environment in Komodo, then deploy. After the stack is running:
 
-### 2. Run database migrations
+### 2. Check that the migrations ran themselves
+
+Nothing to do here, but worth confirming once: the entrypoint migrates before Puma starts, so the startup log is where the evidence is.
 
 ```bash
-docker exec dawarich_app bin/rails db:migrate
+docker logs dawarich_app 2>&1 | head -20        # "Running migrations for all databases..."
+docker logs dawarich_app 2>&1 | grep -c "migrated ("
 ```
 
-Verify with:
+**Do not run `db:migrate` by hand in a running container.** It updates the database while the live Rails process keeps its boot-time schema cache, and the app then 500s on any page touching a changed model - see the troubleshooting table. If a migration is genuinely outstanding, restart the container and let the entrypoint do it.
 
-```bash
-docker exec dawarich_app bin/rails db:migrate:status
-```
+`db:migrate:status` only covers schema migrations. The data migrations (`rake data:migrate`) are a separate track it does not report on at all, so a clean status there proves less than it looks.
 
 ### 3. Create admin user
 
@@ -488,7 +489,7 @@ Issues encountered during setup and their fixes:
 | `Blocked hosts: dawarich.homelabor.net` | Public domain not in allowed hosts | Added domain to `APPLICATION_HOSTS` |
 | Socket connection instead of TCP | Wrong env var names | Use `DATABASE_HOST`/`USERNAME`/`NAME`, not `POSTGRES_*` |
 | App crashes on startup | `DATABASE_URL` not supported | Use individual `DATABASE_*` vars instead |
-| White page on sign in | Migrations not run | Run `docker exec dawarich_app bin/rails db:migrate` |
+| White page on sign in | Migrations not run | Restart the app container and let `web-entrypoint.sh` migrate. Historically this was fixed with a manual `docker exec dawarich_app bin/rails db:migrate`, which is what later caused the stale-schema-cache fault two rows down |
 | No default login | No demo user exists | Create user via `rails runner` command above |
 | Colota 404 on test connection | Base URL entered instead of full endpoint | Use full `/api/v1/owntracks/points?api_key=...` URL |
 | `dawarich.homelabor.net` returns 503 / no available server | `APPLICATION_PROTOCOL: https` causes Rails force_ssl redirect loop through Pangolin | Set `APPLICATION_PROTOCOL: http` - Pangolin handles TLS |
