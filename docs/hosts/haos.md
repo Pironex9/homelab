@@ -24,7 +24,7 @@ HAOS uses a layered architecture:
 KVM VM (VMID 101)
 └── Home Assistant OS (haos kernel 6.12.67)
     └── Supervisor (Docker-based)
-        ├── Home Assistant Core (2026.2.3)
+        ├── Home Assistant Core (2026.8.1)
         ├── Mosquitto broker add-on
         ├── Zigbee2MQTT add-on
         ├── go2rtc add-on
