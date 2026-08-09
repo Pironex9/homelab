@@ -71,7 +71,7 @@ KVM VM (VMID 101)
 |---|---|---|
 | `hacs` | 2.0.5 | maga a HACS |
 | `view_assist` | - | Voice/dashboard assist |
-| `dawarich` | 1.0.0-beta6 | a Companion App helyadatait továbbítja a Dawarich szervernek (LXC 100, `192.168.0.110:3005`), 2026-08-09 óta |
+| `dawarich` | 1.0.0-beta6 | a Companion App helyadatait továbbítja a Dawarich szervernek (LXC 100, `192.168.0.110:3005`), 2026-08-09 óta. **4 config entry**: Norbi/Ancsi/Enci telefon + Enci tablet |
 
 A `dawarich` bejegyzés helyettesíti a telefonokon futó külön tracker appot - a részletek, a kompromisszumok és a telepítés buktatói: [22 - Dawarich GPS Tracking](../proxmox/22_Dawarich_GPS_Tracking_Setup.md#location-source). Egy config entry = egy személy (saját API kulcs + saját `device_tracker`).
 

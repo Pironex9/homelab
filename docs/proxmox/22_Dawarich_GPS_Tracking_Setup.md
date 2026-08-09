@@ -133,7 +133,38 @@ Configuration (Settings > Devices & Services > Add Integration > Dawarich):
 
 The API key is asked for on a **second** step, after the host is contacted - the first form has no key field at all, which reads like a bug and is not one.
 
-Adding a family member later means a second config entry with their own API key and their own `device_tracker`, not a change to this one.
+### One entry per device, and the duplicate check that gets in the way
+
+Each person gets their own config entry with their own API key and their own `device_tracker`. Four are live:
+
+| Entry | Device tracker | Dawarich account | Host |
+|---|---|---|---|
+| Norbi telefon | `device_tracker.norbi_telo` | `xnex88@` | `192.168.0.110:3005` |
+| Ancsi telefon | `device_tracker.ancsi_telo` | `bertalananiko@` | `192.168.0.110:3005` |
+| Enci telefon | `device_tracker.enci_telo` | `henczeniko@` | `192.168.0.110:3005` |
+| Enci tablet | `device_tracker.enci_tablet` | `henczeniko@` | `dawarich.homelabor.net:443` |
+
+The last row is not a mistake. **The integration rejects a new entry when host *and* API key both match an existing one** (`_async_abort_entries_match` on `CONF_HOST` + `CONF_API_KEY`), so a second device belonging to the same Dawarich user aborts with `already_configured`. The fix is to reach the same server by a different address: the public URL works, needs no infrastructure change, and costs only that the tablet's points travel out to the VPS and back. `dawarich.lan` is not an option here - **Home Assistant cannot resolve `.lan` at all** (`NXDOMAIN` from its Supervisor DNS), even though every LXC can.
+
+Which account belongs to which person is worth pinning down before configuring, not after: Dawarich leaves `first_name`/`last_name` `nil`, the family record carries no member names, and older points have no `device_id`, so the database cannot tell you. Sending one person's live location into another person's account is not something to guess at.
+
+### How often each device actually reports
+
+The Companion App reports for zone presence, so the rate varies enormously by device. Measured over 12 hours, counting attribute-only updates (which is what the integration forwards on - plain state history hides them, since the *state* only changes when a zone boundary is crossed):
+
+| Device | Updates / 12 h |
+|---|---|
+| `norbi_telo` | 494 |
+| `enci_telo` | 360 |
+| `enci_tablet` | 54 |
+
+A phone produces roughly one point every 1.5-2 minutes while awake; the tablet manages one per 13 minutes. That is the concrete shape of the "sparser than a dedicated tracker" trade-off, and it is also why a mostly-stationary tablet writing into the same account as its owner's phone is tolerable rather than ruinous. If the stationary clusters ever become annoying, they can be deleted by `device_id`.
+
+To count these properly, ask the history API **without** `minimal_response`:
+
+```
+GET /api/history/period/<iso8601>?filter_entity_id=device_tracker.<device>
+```
 
 **Verifying it actually sends**, without waiting for someone to drive somewhere:
 
@@ -149,6 +180,30 @@ Point.order(timestamp: :desc).first.raw_data.dig("properties", "device_id")
 ```
 
 `sensor.dawarich_tracker` reads `unknown` until the first forward after every reload - that is the initial state, not an error.
+
+### Updating the integration
+
+HACS notices a new tag on its own and flips `update.dawarich_update` to `on`; the update surfaces under Settings > Updates or in HACS itself. The entity supports `INSTALL`, `SPECIFIC_VERSION`, `PROGRESS` and `RELEASE_NOTES` - but **not** `BACKUP`, so nothing is snapshotted before the files are replaced.
+
+```yaml
+service: update.install
+target: {entity_id: update.dawarich_update}
+# data: {version: "1.0.0-beta7"}   # a specific tag, also used to roll back
+
+# a custom integration is not live-reloaded - the restart is mandatory
+service: homeassistant.restart
+```
+
+**Read the version before installing every single time.** Pre-release is switched on for this repository (it has to be - there is no stable tag at all), and the consequence is that *every* new tag is offered, `-debug` builds included. The rule is simply: anything ending in `-debug` gets skipped.
+
+```yaml
+service: update.skip
+target: {entity_id: update.dawarich_update}
+```
+
+The moment the author ships a real stable release, turn `switch.dawarich_pre_release` off. HACS then only offers stable tags and this whole hazard disappears.
+
+If an update misbehaves, `update.install` with an explicit older `version` rolls back, and VM 101 is in the nightly vzdump set as a second line of defence.
 
 ### Other supported apps
 
@@ -184,3 +239,5 @@ Issues encountered during setup and their fixes:
 | Family members' phones stop sending, silently | Colota froze or crashed and nothing reports that a tracker went quiet | Dropped the dedicated tracker app entirely; the HA Companion App is now the source, see Location Source above |
 | HACS shows the integration but offers nothing to download | The repository has no stable release, only pre-release tags | Enable *Show beta versions* on the repository, then download the newest non-`-debug` tag |
 | Points in Dawarich all labelled `device_id: Dawarich` | The config entry's **Name** field is sent as `device_id`, and its default is `Dawarich` | Reconfigure the entry with the person's name. The reconfigure form does not prefill the device tracker or API key - re-enter both or they are cleared |
+| Second device for the same person aborts with `already_configured` | The integration treats host + API key as the uniqueness key | Point that entry at the same server by another address - `dawarich.homelabor.net:443` with SSL on. `dawarich.lan` will not work, HA cannot resolve `.lan` |
+| A tracker sensor sits at `unknown` and never sends | No state-change event has fired for that `device_tracker` since the entry was created; a tablet can go 13 minutes between updates | `notify.mobile_app_<device>` with `request_location_update`, then wait. `unknown` is the initial state, not an error |
