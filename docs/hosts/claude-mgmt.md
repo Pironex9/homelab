@@ -287,7 +287,7 @@ Nobara's root SSH key (`root@nex-pc`) is in `/root/.ssh/authorized_keys` on this
 
 | Key | User | Notes |
 |-----|------|-------|
-| `xnex88@hotmail.com` | nex (Nobara) | Personal key |
+| personal key (comment is an email address) | nex (Nobara) | Personal key |
 | `termux` | nex (Android/Termux) | Mobile access |
 | `root@nex-pc` | root (Nobara) | Used by systemd SSHFS service |
 | `claude-mgmt` | root (LXC 109) | Outbound SSH to Nobara (nex@192.168.0.100) |

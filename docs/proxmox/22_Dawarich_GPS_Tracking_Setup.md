@@ -139,10 +139,10 @@ Each person gets their own config entry with their own API key and their own `de
 
 | Entry | Device tracker | Dawarich account | Host |
 |---|---|---|---|
-| Norbi telefon | `device_tracker.norbi_telo` | `xnex88@` | `192.168.0.110:3005` |
-| Ancsi telefon | `device_tracker.ancsi_telo` | `bertalananiko@` | `192.168.0.110:3005` |
-| Enci telefon | `device_tracker.enci_telo` | `henczeniko@` | `192.168.0.110:3005` |
-| Enci tablet | `device_tracker.enci_tablet` | `henczeniko@` | `dawarich.homelabor.net:443` |
+| Norbi telefon | `device_tracker.norbi_telo` | account 1 | `192.168.0.110:3005` |
+| Ancsi telefon | `device_tracker.ancsi_telo` | account 2 | `192.168.0.110:3005` |
+| Enci telefon | `device_tracker.enci_telo` | account 3 | `192.168.0.110:3005` |
+| Enci tablet | `device_tracker.enci_tablet` | account 3 | `dawarich.homelabor.net:443` |
 
 The first three were confirmed sending, per account rather than in aggregate - points arriving under the right user with the right `device_id`. **The tablet has not forwarded anything yet**: its entry loads and reads the server fine, but the tablet itself stopped producing location updates, so there is nothing to relay. See the last row of the troubleshooting table.
 
@@ -333,7 +333,7 @@ The cost is real and was measured rather than assumed: the `points` table holds 
 | **total** | **13.7 h/day** | **3.9 h/day** |
 | cost at 5 s | 5.9 GB/year | **1.68 GB/year** |
 
-The intuition being tested was "we are rarely outside a zone". The measurement said otherwise - nearly seven hours a day each for two people - and the reason was that the places they spend those hours had no zones. Ancsi's was **289 m from home**; Norbi's was one location 16 km away holding **67 % of his remaining away time**. Adding zones for them cut the total by 72 %, which is worth far more than any interval tuning: it stops the GPS running for hours while somebody sits still, keeps stationary clusters out of the tracks, *and* is what makes 5 s affordable.
+The intuition being tested was "we are rarely outside a zone". The measurement said otherwise - nearly seven hours a day each for two people - and the reason was that the places they spend those hours had no zones. One was a few hundred metres from home; another was a single out-of-town location holding **67 % of that person's remaining away time**. Adding zones for them cut the total by 72 %, which is worth far more than any interval tuning: it stops the GPS running for hours while somebody sits still, keeps stationary clusters out of the tracks, *and* is what makes 5 s affordable.
 
 Find them with a time-weighted count over `device_tracker` history - not a sample count, which is biased towards moving periods and pointed at the wrong places here:
 
@@ -343,7 +343,7 @@ Find them with a time-weighted count over `device_tracker` history - not a sampl
 buckets[(round(lat, 3), round(lon, 3))] += (next_ts - ts).total_seconds()
 ```
 
-Two details worth copying: derive each zone's centre from the **mean of the samples near it**, since coordinates rounded to three decimals are only accurate to about 100 m and would put the circle off centre; and size the radius from the observed spread of those samples, not from a default - `Radvány` needed 150 m and `Webasto` 200 m, while 100 m was right for the rest.
+Two details worth copying: derive each zone's centre from the **mean of the samples near it**, since coordinates rounded to three decimals are only accurate to about 100 m and would put the circle off centre; and size the radius from the observed spread of those samples, not from a default - two of the new ones needed 150 m and 200 m, while 100 m was right for the rest.
 
 #### Every zone was below Android's minimum geofence radius (2026-08-09)
 
@@ -351,12 +351,8 @@ The ten-minute delay was chased through sparse reporting and battery management 
 
 | Zone | Was | Now |
 |---|---|---|
-| `home` | 40 m | 100 m |
-| `apa` | 39 m | 100 m |
-| `suli` | 83 m | 100 m |
-| `kepzomuveszeti` | 27 m | 100 m |
-| `zdenka` | 27 m | 100 m |
-| `uzlet` | 25 m | 100 m |
+| home | 40 m | 100 m |
+| five others | 25-83 m | 100 m |
 
 [Android's geofencing guidance](https://developer.android.com/develop/sensors-and-location/location/geofencing) puts the minimum at **100-150 m**, "to account for the location accuracy of typical Wi-Fi networks, and also to reduce device power consumption". Home Assistant's own default for the home zone is 100 m. Below that, exit events are delayed or missed outright - which is exactly what a 40 m home zone produced.
 
