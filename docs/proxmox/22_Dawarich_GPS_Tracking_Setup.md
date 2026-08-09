@@ -228,7 +228,17 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 
 The tablet has the same automation as the phones, added after the fact. It was left out at first on the theory that a mostly-stationary device gains nothing from dense GPS, and that turned out to be the wrong reason to leave it out: **the omission is what let it sit in high accuracy at home indefinitely**, because nothing existed to switch the mode back off after it had been enabled by hand during setup. An automation that only ever turns the mode *on* is optional; the branch that turns it off is not.
 
-**None of this has been tested in the field yet.** The one run on record predates every part of it and measured the untouched baseline: 19 points over 56 minutes. The next trip outside a zone is the first real test, and `binary_sensor.<device>_high_accuracy_mode` is what to read afterwards - it gives the delay between setting off and dense tracking starting, which previously could only be guessed at from point density.
+**What the cycle costs, on a device that has a working data connection.** Three numbers to expect, none of them a fault:
+
+| | |
+|---|---|
+| Delay before dense tracking starts | roughly a minute: geofence exit in seconds, plus the 30 s hold, plus push delivery. At 50 km/h that is about 700 m of sparse track at the start of a journey |
+| Passing *through* another zone en route | the mode switches off on entry and back on 30 s after leaving, leaving a short sparse stretch. A direct consequence of "any zone turns it off", and not worth complicating the design to avoid |
+| Battery while the mode is on | about 10 %/h. Measured once, as 4 % over 23 minutes, so treat it as an order of magnitude rather than a figure |
+
+That battery cost is the argument for zones, not against high accuracy: adding a zone for the place someone actually spends the day cut one person's out-of-zone time from 302 to 82 minutes, which is what makes the whole thing cheap.
+
+**The full outbound cycle has still not been observed in the field.** The guard branch and the switch-off path are verified; what is not is that the mode reliably comes *on* shortly after a real departure. The one run on record predates every part of this design and measured the untouched baseline: 19 points over 56 minutes. On the next trip outside a zone, read `binary_sensor.<device>_high_accuracy_mode` for the moment it flipped and compare it against the departure - that single number is the one piece of evidence still missing, and it can only be guessed at from point density otherwise.
 
 The command is Android-only, and its default interval is 5 seconds - which would mean about 720 points per hour per device landing in Dawarich. The interval was set to 60 s on each phone first, and only then were the automations created:
 
