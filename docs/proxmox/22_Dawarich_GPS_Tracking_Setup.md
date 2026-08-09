@@ -237,7 +237,7 @@ The commands sent are `force_on` / `force_off` rather than `turn_on` / `turn_off
 
 Two things to know about this design:
 
-- **It only ever reacts to a zone transition,** so it cannot correct a wrong starting state. If high accuracy is somehow left on while the phone sits in a zone, nothing turns it off until a full leave-and-return cycle. There is no entity reporting whether the mode is on, so this cannot be observed from Home Assistant either. A one-off `turn_off` to each phone establishes the baseline the automation assumes; do that after any manual fiddling.
+- **It only ever reacts to a zone transition,** so it cannot correct a wrong starting state. If high accuracy is somehow left on while the phone sits in a zone, nothing turns it off until a full leave-and-return cycle. A one-off `force_off` to each phone establishes the baseline the automation assumes; do that after any manual fiddling. (An earlier version of this document claimed the mode's state could not be observed from Home Assistant at all. That was wrong - the Companion App does expose it, see the settings table below.)
 - **A dense burst of points does not mean high accuracy is stuck on.** An awake phone reports every 9-11 seconds on its own. Distinguish them by where the burst starts and when it stops, not by its density: check the spacing of the newest points against the time now.
 
 **The zone exit is detected as late as the reporting is sparse - which is the point of the whole exercise, and it bites here too.** A run on 2026-08-09 started at 08:30 and the tracker only went `not_home` at **08:40**, despite a `home` zone radius of just 40 m. The phone had physically left within seconds; Home Assistant simply had no update saying so. So high accuracy engages roughly ten minutes into a run that starts from home, and the first stretch stays sparse.
@@ -245,6 +245,40 @@ Two things to know about this design:
 The app-side fix is `High accuracy mode only when entering zone` = *Home* plus `High accuracy mode trigger range for zone (meters)` = ~500, under **Settings > Companion App > Manage Sensors > Location Sensors > Background Location**. Note what that setting actually does, because the name suggests otherwise: it draws an *expanded* boundary around the zone and runs high accuracy between that boundary and the zone edge, deactivating on entry. It is designed for precise **arrival** detection. It happens to cover departure too, since the band is the same on the way out - but do not reach for it expecting a "switch on before leaving" feature, because that is not what it is.
 
 Worth measuring before configuring: the automation alone already covered 46 of that run's 56 minutes. The trigger range buys the remaining ten, at the cost of per-phone setup and GPS running whenever anyone is within 500 m of home. It is worth it only on a phone that actually goes running.
+
+#### The zone constraint can cancel the automation's own command
+
+Once a zone constraint exists, the notification command changes meaning. From the notification-commands documentation: `force_on` "will make high accuracy mode active until either `force_off` is sent, **or the constraints go from active to inactive**."
+
+That sets up a failure that gets *more* likely as the setup gets better:
+
+1. The phone leaves the 40 m home zone but is still inside the 500 m band, so the constraint switches high accuracy on by itself.
+2. Reporting every 60 s, Home Assistant now sees `not_home` within a minute instead of ten - and the automation sends `force_on`.
+3. A few minutes later the phone crosses 500 m. The constraint goes active → inactive, and that transition **cancels the `force_on`**. High accuracy switches off for the rest of the run.
+
+Without the constraint this cannot happen, because `force_on` arrives roughly ten minutes in, already outside every band, with no transition left to cancel it. The trigger range speeds up detection, and the faster detection is exactly what lands the command inside the dangerous window.
+
+The automation therefore sends `force_on`, waits five minutes, re-checks that the phone is still `not_home`, and sends `force_on` again - by then it is well beyond every band, so no transition remains that could revoke it. Its mode is `restart` rather than `queued` for the same reason: arriving home must cancel a run that is still sleeping in that delay, instead of queueing the `force_off` behind it.
+
+This behaviour is inferred from the sentence quoted above rather than observed - the documentation says nothing more about constraints during a forced state, and the transition has not been reproduced deliberately. Treat the re-assert as cheap insurance, not as a fix for a confirmed bug.
+
+#### The rest of the location settings, and what each one costs
+
+Verified on the running phone:
+
+| Setting | Value | Verdict |
+|---|---|---|
+| Single accurate location | enabled, *Get location on sensor update* on, min time 60000 ms | correct - this is what `request_location_update` uses, throttled to once a minute |
+| Location zone | enabled | correct - this drives the automation's triggers |
+| Background location | enabled | correct - the main feed into Dawarich |
+| High accuracy mode (app toggle) | **off** | correct - the automation owns it |
+| High accuracy interval | 60 s | confirmed by `sensor.<device>_high_accuracy_update_interval` |
+| Bluetooth constraint | none, and the "zone **and** bluetooth" toggle off | correct - requiring both would rarely be satisfied |
+| Zone constraint | all six zones | works, but a 500 m band around the shop and the school costs battery for nothing. Narrowing it to `zone.home` is the tidier choice |
+| Location sent | *Exact* | required, a coarse fix would ruin the track |
+| **Minimum accuracy** | **80 m** | fixes worse than this are dropped and never reach Home Assistant at all. The run's points ranged 5-72 m so they passed, but anything filtered is invisible - it looks like a gap, not like a rejection. The documentation's own advice is to raise the number when reports appear to be skipped |
+
+Enable the two diagnostic sensors, **High accuracy mode** and **High accuracy update interval**, in *Manage Sensors > Location*. They are off by default and they are what turns "I sent the command" into "the mode is on at 60 s" - `binary_sensor.<device>_high_accuracy_mode` and `sensor.<device>_high_accuracy_update_interval`. Without them the only evidence is the density of incoming points, which is ambiguous.
 
 ### Other supported apps
 
