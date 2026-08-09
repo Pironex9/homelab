@@ -46,6 +46,7 @@ Generate `SECRET_KEY_BASE` with: `openssl rand -hex 64`
 - `APPLICATION_PROTOCOL` must be `http` - Pangolin handles TLS termination. Setting `https` causes Rails to force-redirect HTTP to HTTPS, creating a redirect loop through the Pangolin tunnel.
 - **Both services must set `entrypoint:` as well as `command:`.** The image's own entrypoint is a bare `bundle exec`, so a compose file that sets only `command:` gets a working server that never migrates. The scripts to name are `web-entrypoint.sh` and `sidekiq-entrypoint.sh`, both shipped in the image at `/usr/local/bin/`; the web one creates the database if absent, waits for it, runs `db:migrate`, `rake data:migrate` and `db:seed`, then `exec bundle exec "$@"` - which is why `command:` stays `bin/rails server -p 3000 -b ::` and the sidekiq one is just `sidekiq`, with no `bundle exec` prefix of its own
 - Because of that, **migrations run on every start** and must not be run by hand. `start_period` on the healthcheck is 180 s to cover them
+- **The first deploy after restoring the entrypoint is not a free container recreate.** Twenty-four data migrations that had never run went off at once, and one of them backfilled a column across every point in the database. Expect a burst: all five sidekiq workers busy, five postgres backends alongside them, and a load average of 6.78 on a 6-core host for about ten minutes. It is one-off - the migrations are recorded as done afterwards - but pick the moment rather than discovering it
 
 ## SMTP Setup (Family Invitations)
 
@@ -465,6 +466,18 @@ Verified on the running phone:
 
 Enable the two diagnostic sensors, **High accuracy mode** and **High accuracy update interval**, in *Manage Sensors > Location*. They are off by default and they are what turns "I sent the command" into "the mode is on at 60 s" - `binary_sensor.<device>_high_accuracy_mode` and `sensor.<device>_high_accuracy_update_interval`. Without them the only evidence is the density of incoming points, which is ambiguous.
 
+### Open: points are not getting a country assigned
+
+After the backfill above finished, roughly a thousand points still had `country_id` null, and **the number keeps climbing as new points arrive** - so this is not leftover work from the migration, it is that incoming points are not being assigned a country at all:
+
+```
+2026-04-01     976    the initial import
+2024-08-03      16
+2026-08-09     126    and rising, today's live points
+```
+
+`sensor.dawarich_total_reverse_geocoded_points` also sits at 0, which points at reverse geocoding never having been configured as the common cause. Cosmetic - it affects country statistics only, not the tracks or the map - and untouched so far.
+
 ### Other supported apps
 
 Still available if the HA path is ever dropped: the official Dawarich apps for [Android](https://play.google.com/store/apps/details?id=app.dawarich.Dawarich) and iOS, a community Android client, OwnTracks, Overland, GPSLogger and PhoneTrack. Note the official Android app was rewritten and republished under a new package - the old one is now listed as **Dawarich (old)** and should not be installed.
@@ -496,6 +509,7 @@ Issues encountered during setup and their fixes:
 | Map V2 blank in all browsers | `/maps_maplibre/styles/light.json` returns 404 - static style files in the Docker image are shadowed by the `/var/app/public` volume mount | Copy style files from the image to the host volume: `docker run --rm -v /srv/docker-data/dawarich-public:/target freikin/dawarich:latest sh -c "cp -r /var/app/public/maps_maplibre /target/"` - files persist across updates |
 | `dawarich.lan` unreachable, `dawarich.homelabor.net` worked | LAN Caddyfile on LXC 110 never had a `dawarich.lan` block, and `APPLICATION_HOSTS` didn't include it either | Add `@dawarich host dawarich.lan { reverse_proxy 192.168.0.110:3005 }` to the Caddyfile, and append `,dawarich.lan` to `APPLICATION_HOSTS` |
 | `/map/v2` 500s with `PG::UndefinedTable: relation "posters" does not exist` | **The compose never set `entrypoint:`**, so the image's default `bundle exec` ran and the shipped `web-entrypoint.sh` - which migrates before starting Rails - was skipped. Migrations therefore only ever ran by hand, and 18 of them piled up unnoticed | Root fix: `entrypoint: web-entrypoint.sh` on `dawarich_app` and `entrypoint: sidekiq-entrypoint.sh` on `dawarich_sidekiq`, matching upstream. Every start now runs `db:migrate`, `data:migrate` and `db:seed` before Puma boots, so the image can never be ahead of the schema. **`rake data:migrate` is a separate track and `db:migrate:status` says nothing about it** - 24 data migrations were still pending here while schema migrations reported zero outstanding, and they only ran once the entrypoint was restored |
+| Proxmox CPU at 60-70 % and load near 7 for several minutes, starting right after a Dawarich deploy | `DataMigrations::SetPointsCountryIdsJob` backfilling `country_id` over the whole points table - about 40 000 jobs in three minutes here, against 79 865 points. It is a data migration that had never run before, released by restoring the entrypoint | Nothing. Wait it out and confirm it is finishing: `select count(*) from points where country_id is null;` should fall steadily, and `docker stats dawarich_sidekiq` drops from ~66 % to under 1 % when it is done. It cannot repeat - the migration is marked as run |
 | Every page works except the map, which 500s with `Undeclared attribute type for enum ... Enums must be backed by a database column` | **Rails caches the schema at boot.** Migrations run with `docker exec` inside an *already running* container update the database but not the live Puma process, so models keep their old attribute set. The column exists, `db:migrate:status` shows nothing pending, and a fresh `bin/rails runner` sees the enum fine - only the long-lived web process is wrong | Restart the app container. Better, do not migrate by hand at all: with the entrypoint above, migrations always run before the server starts and this state cannot arise |
 | Family members' phones stop sending, silently | Colota froze or crashed and nothing reports that a tracker went quiet | Dropped the dedicated tracker app entirely; the HA Companion App is now the source, see Location Source above |
 | HACS shows the integration but offers nothing to download | The repository has no stable release, only pre-release tags | Enable *Show beta versions* on the repository, then download the newest non-`-debug` tag |
