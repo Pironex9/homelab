@@ -213,6 +213,23 @@ If an update misbehaves, `update.install` with an explicit older `version` rolls
 
 The Companion App reports too sparsely to draw a clean line while travelling, and its high accuracy mode is the fix - but running it permanently is not, because it holds GPS open continuously and shows a **permanent notification the user cannot dismiss** (an Android system requirement, not an app choice). So it is switched on only outside every zone, by one automation per phone: `automation.high_accuracy_<person>_zonan_kivul`.
 
+**The settled configuration**, stated once, because the sections below arrive at it through several corrections and reversals:
+
+| Where | Setting | Value |
+|---|---|---|
+| Home Assistant | one automation per phone, `mode: queued` | `to: not_home` → `force_on`, `from: not_home` → `force_off`, both excluding `unknown`/`unavailable` |
+| Home Assistant | every zone radius | **100 m** |
+| Companion App | High accuracy mode (master toggle) | **off** - the automation owns it |
+| Companion App | zone constraint, bluetooth constraint, trigger range | **all empty** |
+| Companion App | high accuracy interval | 60 s |
+| Companion App | Location sent | Exact |
+| Companion App | diagnostic sensors *High accuracy mode* and *High accuracy update interval* | enabled |
+| Android | battery usage for Home Assistant | Unrestricted |
+
+Not covered: the tablet, which has no automation on purpose. A stationary device gains nothing from dense GPS.
+
+**None of this has been tested in the field yet.** The one run on record predates every part of it and measured the untouched baseline: 19 points over 56 minutes. The next trip outside a zone is the first real test, and `binary_sensor.<device>_high_accuracy_mode` is what to read afterwards - it gives the delay between setting off and dense tracking starting, which previously could only be guessed at from point density.
+
 The command is Android-only, and its default interval is 5 seconds - which would mean about 720 points per hour per device landing in Dawarich. The interval was set to 60 s on each phone first, and only then were the automations created:
 
 ```yaml
