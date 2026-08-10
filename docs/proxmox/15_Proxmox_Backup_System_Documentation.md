@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-07-16
+**Updated:** 2026-08-10
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -258,6 +258,45 @@ done
 ```
 First run reclaimed ~25.3GB (69.93% -> 65.65%); CT 100 (docker-host, 13.2GB) and CT 109 (6.4GB) were the largest single reclaims.
 
+### 2026-08-09: backup failed again, and the weekly fstrim cron had never run
+
+Pool hit 81.24% and the nightly vzdump failed for the same 9/10 guests with the identical `Cannot create new thin volume` error. The 10th guest (VM 101, haos) succeeded because it is a QEMU VM and uses `vma` streaming, not an LVM snapshot.
+
+The important part is not the pool percentage but why it climbed back at all: **the `/etc/cron.weekly/lxc-fstrim` job added on 2026-07-24 had never executed once.** Two lines had been appended to `/etc/crontab` without the username field:
+
+```
+0 4 * * 0 /root/backup-proxmox-restic.sh
+0 11,19 * * 0 /root/sync-to-nobara.sh
+```
+
+`/etc/crontab` and `/etc/cron.d/*` take six fields, where the sixth is the user to run as. A user crontab (`crontab -e`) takes five. Cron parsed `/root/backup-proxmox-restic.sh` as a username, failed, and **discarded the entire file** rather than just the bad lines. Everything driven from `/etc/crontab` stopped: `cron.hourly`, `cron.daily`, `cron.weekly`, `cron.monthly`, and with them `logrotate`, `apt-compat`, `man-db`, `netdata-updater`, `sysstat` and `lxc-fstrim`.
+
+Nothing about this is visible from the outside. `systemctl is-active cron` reports `active`, and jobs in `/etc/cron.d/` and in root's user crontab keep running normally, so the scheduler looks healthy. The one reliable check:
+
+```bash
+# 0 means /etc/crontab is being rejected wholesale
+journalctl --since '30 days ago' | grep -c run-parts
+```
+
+Both offending lines were duplicates of entries already present and correct in root's user crontab, so removing them lost no functionality:
+
+```bash
+cp /etc/crontab /etc/crontab.bak
+sed -i '/backup-proxmox-restic.sh/d; /sync-to-nobara.sh/d' /etc/crontab
+```
+
+Cron logged `(*system*) RELOAD (/etc/crontab)` within a minute. Confirmed working when `cron.hourly` fired at the next `:17` and logged `(root) CMD (cd / && run-parts --report /etc/cron.hourly)`.
+
+Manual `pct fstrim` across all 10 containers in the meantime took the pool from 79.89% to 68.02%, about 19.6GB reclaimed (CT 100 13.1GB, CT 111 10.6GB, CT 113 7.4GB).
+
+### Why 80% is a hard failure line, not a warning
+
+`/etc/lvm/lvm.conf` has `thin_pool_autoextend_threshold = 80`, but VG `pve` has only 1.00GB free, so the autoextend can never actually fire. Above 80% LVM refuses to create any new thin volume, which means every `vzdump` LXC snapshot fails immediately. The whole backup job aborts in about 70 seconds.
+
+With a 164.94GB pool, the gap between "backups fine" and "no backups at all" is roughly 0.1%, about 180MB. Observed growth is around 1%/day, so from a post-trim 68% there are roughly 12 days of headroom.
+
 ### Status
 
-fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`. The weekly fstrim cron (above) now runs automatically, so this should only need manual attention again if the pool approaches the 80% autoextend threshold between runs.
+fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`.
+
+The weekly fstrim cron now genuinely runs (Sundays 06:47). Note it fires *after* the 02:00 backup on the same night, so if the pool crosses 80% mid-week the backup still fails once before the trim cleans up. Moving `lxc-fstrim` from `cron.weekly` to `cron.daily` (06:25) would close that gap.
