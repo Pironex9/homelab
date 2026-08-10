@@ -299,4 +299,12 @@ With a 164.94GB pool, the gap between "backups fine" and "no backups at all" is 
 
 fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`.
 
-The weekly fstrim cron now genuinely runs (Sundays 06:47). Note it fires *after* the 02:00 backup on the same night, so if the pool crosses 80% mid-week the backup still fails once before the trim cleans up. Moving `lxc-fstrim` from `cron.weekly` to `cron.daily` (06:25) would close that gap.
+The trim job was moved off `run-parts` entirely on 2026-08-10, because both `cron.weekly` (Sundays 06:47) and `cron.daily` (06:25) fire *after* the 02:00 vzdump. If the pool crossed 80% overnight the backup would still fail once before the trim cleaned up. It now runs daily at 01:30, half an hour before the backup:
+
+```bash
+mv /etc/cron.weekly/lxc-fstrim /usr/local/bin/lxc-fstrim
+# in root's crontab:
+30 1 * * * /usr/local/bin/lxc-fstrim >> /var/log/homelab/lxc-fstrim.log 2>&1
+```
+
+Growth is roughly 1%/day against a ~12% cushion from a post-trim 68%, so a daily trim keeps the pool clear of the threshold with room to spare. Check `/var/log/homelab/lxc-fstrim.log` if the pool climbs anyway.
