@@ -489,7 +489,9 @@ The cause is one sentence in *Every zone was below Android's minimum geofence ra
 
 So after any zone edit, open the Companion App once on every tracked device, and check that Home Assistant's battery usage is **Unrestricted** while there.
 
-What would have settled this in one glance is a sensor that is off by default: **Last update trigger**, in *Manage Sensors > Location*. It labels each update with its cause, so `Geofence Exit` against `Manual` distinguishes a working geofence from a user opening the app, which is exactly the ambiguity that cost the morning. Enable it alongside the two high accuracy diagnostics.
+What would have settled this in one glance is a sensor that is off by default: **Last Update Trigger**. It labels each update with its cause, so `Geofence Exit` against `Manual` distinguishes a working geofence from a user opening the app, which is exactly the ambiguity that cost the morning. Enable it alongside the two high accuracy diagnostics.
+
+It is not under *Location Sensors* where the rest of this document's toggles live. In *Settings > Companion App > Manage Sensors* it has a group of its own, **Last Update**, holding that one sensor. [The companion docs](https://companion.home-assistant.io/docs/core/sensors/) list it for both Android and iOS but do not name the group, which is worth knowing before hunting through the Location section for it.
 
 #### The rest of the location settings, and what each one costs
 
