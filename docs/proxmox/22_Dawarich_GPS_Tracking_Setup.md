@@ -219,7 +219,7 @@ The Companion App reports too sparsely to draw a clean line while travelling, an
 
 | Where | Setting | Value |
 |---|---|---|
-| Home Assistant | one automation per device, `mode: queued` | `to: not_home` held **30 s** → `force_on`; `from: not_home` → `force_off`; plus a guard branch, see below |
+| Home Assistant | one automation per device, `mode: queued` | `to: not_home` held **30 s** → `force_on`; `from: not_home` held **2 min** → `force_off`; plus a guard branch, see below |
 | Home Assistant | every zone radius | **100 m** or more, and a zone for every place anyone lingers |
 | Companion App | High accuracy mode (master toggle) | **off** - the automation owns it |
 | Companion App | zone constraint, bluetooth constraint, trigger range | **all empty** |
@@ -255,7 +255,7 @@ data:
 
 Each automation has state triggers on that device's `device_tracker` - `to: not_home` turns it on, `from: not_home` turns it off - and `mode: queued`, because rapid zone flapping must be processed in order rather than dropped. **`not_home` is exactly the right condition and not a rough approximation:** any named zone means parked somewhere, where dense tracking would burn battery to draw a dot.
 
-The `to: not_home` trigger is held for **30 s** and carries no `not_from` filter. Both details are corrections made the same day, for reasons that only showed up in the field: see *The arrival flush replays the whole trip's zone history* below.
+**Both triggers are held, and neither hold was there originally.** `to: not_home` for **30 s**, `from: not_home` for **2 min**, and the away trigger carries no `not_from` filter. All three are corrections made in the field, each after a journey that behaved wrongly: see *The arrival flush replays the whole trip's zone history* and *Driving through a zone switched the mode back off* below. An unheld trigger on a `device_tracker` is the recurring mistake in this design - a tracker reports transitions that are real for a second and meaningless for the journey.
 
 Verified by reading the automation trace rather than trusting that it triggered - "triggered" does not prove the intended branch ran:
 
@@ -448,6 +448,49 @@ If real times matter more than the Home Assistant integration does, a logger tha
 
 **A wifi-only device is the permanent version of this, and it fails more quietly.** Its tracker never even reaches `not_home` while away, because no update arrives to say it left, so the away branch never fires and there is nothing in the logs to look at. Expect presence plus a coarse, time-collapsed track from such a device, and let a phone travelling alongside it carry the real one.
 
+#### Driving through a zone switched the mode back off (2026-08-10)
+
+The first journey after the guard branch went in looked, from the phone, like the mode simply never started. The history says otherwise: it started twice, and was switched off twice, both times by the automation itself.
+
+```
+05:18:42  not_home                 departure finally registers
+05:20:05  high accuracy  on        30 s hold plus push, as designed
+05:22:10  -> a 100 m zone          driven through, in it for about 20 s
+05:24:54  high accuracy  off       the back trigger, delivered late
+
+05:33:49  not_home
+05:34:21  high accuracy  on        2 s after the trigger this time
+05:37:27  -> a 150 m zone          driven through
+05:37:28  high accuracy  off
+```
+
+**The away trigger was given a 30 s hold and the back trigger was not, and only half the problem was fixed.** `from: not_home` fires the instant the tracker reports any named zone, and a car crossing a 150 m circle is inside it for a few seconds. Every zone on a route is therefore a switch that turns dense tracking off for the rest of the journey, and the further the route runs past known places, the worse it gets.
+
+The fix is the same instrument, applied symmetrically:
+
+```yaml
+  - trigger: state
+    entity_id: device_tracker.<device>
+    from: not_home
+    not_to: [unknown, unavailable]
+    for: {minutes: 2}
+    id: back
+```
+
+Two minutes because that is what already separates *arrived* from *passed through* elsewhere in this design: it matches the guard branch's own hold. A pass-through never satisfies it, the trigger is cancelled when the tracker leaves the zone again, and a genuine arrival pays two extra minutes of dense tracking, which is nothing against a journey.
+
+One narrow hole is left deliberately. If the guard branch's own trigger comes due at the exact moment the device is mid-pass-through, its condition sees a zone and switches the mode off. That window is a couple of seconds wide, opens at most once per journey, and closes itself on the next `not_home`, which is 30 s later. Widening the guard to exclude it would cost more than it saves.
+
+#### The departure is invisible until something makes the phone report (2026-08-10)
+
+Under the trace above sits a second, independent fault, and it is the one that is actually felt: **the phone left home at 05:12 and Home Assistant did not know until 05:18:42, when the app was opened by hand.** The command path was never the problem. The second departure that morning switched the mode on 2 s after its trigger, with nothing touched. Opening the app did not deliver a command, it delivered the *departure*, and until that arrived the automation had nothing to fire on.
+
+The cause is one sentence in *Every zone was below Android's minimum geofence radius*, written the day before and never acted on: the phones re-register their geofences when they next sync the zone list. The zones were enlarged from 40 m to 100 m on 2026-08-09; until an app is opened, that device is still watching the old circle, at the radius Android was documented as unreliable at. **Enlarging a zone server-side is half a change. The other half happens on each device, and nothing reports that it is outstanding.**
+
+So after any zone edit, open the Companion App once on every tracked device, and check that Home Assistant's battery usage is **Unrestricted** while there.
+
+What would have settled this in one glance is a sensor that is off by default: **Last update trigger**, in *Manage Sensors > Location*. It labels each update with its cause, so `Geofence Exit` against `Manual` distinguishes a working geofence from a user opening the app, which is exactly the ambiguity that cost the morning. Enable it alongside the two high accuracy diagnostics.
+
 #### The rest of the location settings, and what each one costs
 
 Verified on the running phone:
@@ -518,5 +561,7 @@ Issues encountered during setup and their fixes:
 | A tracker sensor sits at `unknown` and never sends | No state-change event has fired for that `device_tracker` since the entry was created | `notify.mobile_app_<device>` with `request_location_update`, then wait. `unknown` is the initial state, not an error - it says nothing has been forwarded yet, not that anything is broken |
 | High accuracy mode runs while the device is sitting in a zone | Either no automation exists for that device, or a `force_on` from an earlier zone transition was delivered late and out of order, or the app's master toggle was switched on by hand | The guard branch on `binary_sensor.<device>_high_accuracy_mode` now clears all three within 2 minutes. Every tracked device needs the automation, including ones that never travel |
 | The mode never switches on during a whole journey | The away trigger was filtered with `not_from: [unknown, unavailable]` and the app restarted while away, or the device has no data connection and the push was never delivered | Remove the filter. If the device has no mobile data, the command cannot arrive at all - see *A device with no data connection cannot be commanded* |
+| The mode switches on at departure, then goes off partway through the journey and stays off | The route passed through a named zone. Without a hold, `from: not_home` fires on a few seconds inside a 150 m circle | Hold the back trigger for 2 minutes. Confirm with the `device_tracker` history: a zone name appearing for one or two samples, followed by `force_off` |
+| The mode only starts after the Companion App is opened by hand | Home Assistant did not know the device had left. The phone is still watching a stale geofence, typically because the zones were edited server-side and that device has not synced since | Open the app once on every tracked device after any zone edit, and set the app's battery usage to Unrestricted. Enable the **Last update trigger** sensor to tell `Geofence Exit` from `Manual` next time |
 | An entire journey appears in Dawarich at one timestamp, points out of order | The device was offline and flushed its backlog on arrival; Home Assistant stores queued points at receipt time because `mobile_app` carries no fix time | Not repairable server-side. Use a logger that posts to Dawarich directly with `"tst": "%TIMESTAMP"` if the times matter |
 | That sensor is *still* `unknown` after hours, and `request_location_update` gets no response | The device is not producing location updates at all. Check `last_updated` on the `device_tracker` itself: if it is hours old, the problem is on the phone, not in the integration | In the Companion App: background location permission (Android 13+ needs "Allow all the time" as a separate grant), **Manage sensors > Location** toggles, and whether battery optimisation is killing the app. `device_tracker.enci_tablet` was in this state on 2026-08-09, last updated 05:47 with nothing an hour and a half later |
