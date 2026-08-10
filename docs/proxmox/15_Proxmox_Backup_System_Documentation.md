@@ -110,6 +110,10 @@ fi
 
 Runs Sundays at 11:00 and 19:00. If Nobara is offline, it logs and skips.
 
+The 11:00 run skipping is normal, not a fault - Nobara is a desktop and is usually still off in the morning. That is exactly why there is a second attempt at 19:00. Both 2026-08-02 and 2026-08-09 followed this pattern: `NFS not mounted, skipping` at 11:00, full sync at 19:00.
+
+While Nobara is off, the soft mount retries in the background and fills the journal with `nfs: server 192.168.0.100 not responding, timed out` (~600/hour), and `mountpoint /mnt/pve/nobara-backup` returns `Input/output error` rather than a clean "is not a mountpoint". Both are expected noise from `soft,x-systemd.automount` and recover on their own when Nobara boots. Do not "fix" this by unmounting or by switching to a hard mount.
+
 ### NFS mount
 See `15_NFS-Setup_Documentation.md` for mount configuration.
 
@@ -288,6 +292,8 @@ sed -i '/backup-proxmox-restic.sh/d; /sync-to-nobara.sh/d' /etc/crontab
 Cron logged `(*system*) RELOAD (/etc/crontab)` within a minute. Confirmed working when `cron.hourly` fired at the next `:17` and logged `(root) CMD (cd / && run-parts --report /etc/cron.hourly)`.
 
 Manual `pct fstrim` across all 10 containers in the meantime took the pool from 79.89% to 68.02%, about 19.6GB reclaimed (CT 100 13.1GB, CT 111 10.6GB, CT 113 7.4GB).
+
+The 9 missed backups were deliberately **not** re-run by hand. The 2026-08-10 nightly job completed all 10/10 on its own, so every guest has a current restore point and retention (`keep-daily=7`) still covers the window. A manual catch-up would only have added a duplicate of a day already covered, at the cost of pushing the pool back up while it was the thing being fixed.
 
 ### Why 80% is a hard failure line, not a warning
 
