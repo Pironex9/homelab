@@ -481,6 +481,25 @@ Two minutes because that is what already separates *arrived* from *passed throug
 
 One narrow hole is left deliberately. If the guard branch's own trigger comes due at the exact moment the device is mid-pass-through, its condition sees a zone and switches the mode off. That window is a couple of seconds wide, opens at most once per journey, and closes itself on the next `not_home`, which is 30 s later. Widening the guard to exclude it would cost more than it saves.
 
+**Verified the same day on a 16 km drive, watched end to end rather than reconstructed afterwards.** Both zones that had killed the mode that morning were driven through again, and neither did anything:
+
+```
+14:04:12  not_home                239 m past a 200 m workplace zone
+14:04:42  away branch             force_on
+14:04:43  high accuracy  on       1 s after the command
+14:12:44  -> a 150 m zone         20 s inside, mode stays on
+14:13:04  not_home
+14:13:34  away branch again       force_on, harmless, already on
+14:24:54  -> a 100 m zone         12 s inside, mode stays on
+14:25:26  home
+14:27:26  back branch             force_off
+14:27:27  high accuracy  off      2 min 1 s after arriving
+```
+
+The guard branch also ran, at 14:06:43, exactly 2 minutes after the mode came on. It found `not_home` and did nothing, which is the branch working, not the branch idle. After the second pass-through the away trigger did not fire at all, because home was reached 20 s later and the 30 s hold cancelled it.
+
+**The mode being on is worth confirming from the data rather than from the phone's notification icon**, which is easy to miss on a locked screen and which the app itself suggests minimising. Two independent measurements say it ran: reports arrived every 5 s without a break for the 23 minutes between the two commands, and `gps_accuracy` held at 3-4 m throughout. Both reverted within seconds of the `force_off` - the interval stretched to minutes and accuracy fell to 15-58 m. **A `force_off` that only flips the sensor and does not visibly relax the reporting has not actually been applied**, and that distinction matters, see the delayed-delivery case below. The battery cost of the drive was about 5 points in half an hour, in line with the 10 %/h figure above.
+
 #### The departure is invisible until something makes the phone report (2026-08-10)
 
 Under the trace above sits a second, independent fault, and it is the one that is actually felt: **the phone left home at 05:12 and Home Assistant did not know until 05:18:42, when the app was opened by hand.** The command path was never the problem. The second departure that morning switched the mode on 2 s after its trigger, with nothing touched. Opening the app did not deliver a command, it delivered the *departure*, and until that arrived the automation had nothing to fire on.
@@ -489,9 +508,51 @@ The cause is one sentence in *Every zone was below Android's minimum geofence ra
 
 So after any zone edit, open the Companion App once on every tracked device, and check that Home Assistant's battery usage is **Unrestricted** while there.
 
-What would have settled this in one glance is a sensor that is off by default: **Last Update Trigger**. It labels each update with its cause, so `Geofence Exit` against `Manual` distinguishes a working geofence from a user opening the app, which is exactly the ambiguity that cost the morning. Enable it alongside the two high accuracy diagnostics.
+A sensor that is off by default looked like it would settle this in one glance: **Last Update Trigger**, which labels each update with its cause. It is not under *Location Sensors* where the rest of this document's toggles live - in *Settings > Companion App > Manage Sensors* it has a group of its own, **Last Update**, holding that one sensor. [The companion docs](https://companion.home-assistant.io/docs/core/sensors/) list it for both Android and iOS but do not name the group.
 
-It is not under *Location Sensors* where the rest of this document's toggles live. In *Settings > Companion App > Manage Sensors* it has a group of its own, **Last Update**, holding that one sensor. [The companion docs](https://companion.home-assistant.io/docs/core/sensors/) list it for both Android and iOS but do not name the group, which is worth knowing before hunting through the Location section for it.
+**It is not the instrument it sounds like, and this is worth knowing before relying on it.** Watched across a full 23-minute drive on Android, it never once reported a geofence event. The only values it produced were `SensorWorker` for the periodic worker, `io.homeassistant.companion.android.UPDATE_SENSORS`, and one `android.net.wifi.STATE_CHANGE` on joining home wifi. **It tracks what caused a *sensor* update, not what caused a *location* update**, so a geofence exit driving the `device_tracker` passes through it invisibly. The iOS value list in the docs includes region entry and exit; the Android one does not, and reading the shared page quickly gives the opposite impression.
+
+Two smaller uses survive, and they are the reason to leave it enabled:
+
+- **Evidence by absence.** Opening the app by hand produces `UPDATE_SENSORS` at that instant. On the verified drive the sensor did not move when `not_home` arrived, which is what rules out a human having caused the departure - the exact doubt that cost the morning.
+- **The wifi transition is a real arrival signal.** `android.net.wifi.STATE_CHANGE` landed 20 s after the home zone was entered, independent of GPS.
+
+#### A short trip cannot be covered, and that is arithmetic rather than a fault (2026-08-10)
+
+A complaint that the mode "switched on slowly, if at all" on a second phone turned out to be neither. The ride was a bicycle trip to a shop, and reconstructing it from the coordinates rather than from the zone states settles it:
+
+| | |
+|---|---|
+| Last report genuinely at home | 2 m from the zone centre, `gps_accuracy` 17 m |
+| Speed once moving | 17-19 km/h throughout, so a bicycle |
+| Home boundary (100 m) crossed | about 10:35:04, back-computed from speed and distance |
+| `not_home` reaches Home Assistant | 10:35:46, **42 s later** |
+| Automation fires, `force_on` sent | 10:36:16, after the 30 s hold |
+| Mode confirmed on | 10:36:17, **1 s after the command** |
+| Arrives at the shop | 10:36:53 |
+
+Nothing here is broken. **The spin-up costs about 73 s - 42 s of detection, 30 s of hold, 1 s of delivery - and the entire ride lasted about 110 s.** Dense tracking therefore covered the last 36 seconds of it and nothing else.
+
+That is the design's floor, and it is worth stating plainly so the next short trip does not get investigated again. Only the 30 s hold is ours to trade away, and it is the one thing stopping the arrival flush from generating command storms, so it stays. **Any journey shorter than roughly three minutes will be tracked sparsely, and no setting on this page changes that.** Read a "the mode barely ran" report against the trip length before treating it as a fault.
+
+#### A phone that switches the mode on by itself, and applies force_off an hour late (2026-08-10)
+
+The same phone produced two faults on the same day that the automation cannot cause and cannot fully fix.
+
+**It enabled high accuracy twice while parked**, at 11:14:31 and 11:36:40, with no automation run behind either - the logbook shows the automation firing only afterwards, on the guard branch, to undo it. The device tracker never left the shop's zone, so the away branch had nothing to trigger on. Reports at 5 s intervals confirm the mode was genuinely running and not merely reported.
+
+**The guard branch caught it, and the phone ignored the command for 57 minutes:**
+
+```
+11:16:31  guard fires  ->  11:16:32  off      1 s
+11:38:40  guard fires  ->  12:35:18  off      56 min 38 s
+```
+
+Same phone, same command, same day. The battery went from 99 % to 89 % over the two hours it sat there tracking at 5 s while stationary.
+
+Both symptoms point at the same place, and it is not Home Assistant: **Android battery management killing and restarting the app, and throttling FCM delivery**. A restarted Companion App restores its persisted high accuracy setting, which explains an unexplained `on`; a throttled push explains a `force_off` that arrives an hour late. The fix is on the device, under *Settings > Apps > Home Assistant > Battery*: set **Unrestricted**, and on Samsung also remove it from *Sleeping apps* and *Deep sleeping apps*, which is the usual cause of hour-scale push delays.
+
+**The guard branch is what makes this survivable rather than invisible.** It cannot make the push arrive, but it does mean every stuck-on episode is bounded, logged with a timestamp, and measurable afterwards. Without it the same phone would have tracked at 5 s until someone noticed the battery.
 
 #### The rest of the location settings, and what each one costs
 
@@ -564,6 +625,8 @@ Issues encountered during setup and their fixes:
 | High accuracy mode runs while the device is sitting in a zone | Either no automation exists for that device, or a `force_on` from an earlier zone transition was delivered late and out of order, or the app's master toggle was switched on by hand | The guard branch on `binary_sensor.<device>_high_accuracy_mode` now clears all three within 2 minutes. Every tracked device needs the automation, including ones that never travel |
 | The mode never switches on during a whole journey | The away trigger was filtered with `not_from: [unknown, unavailable]` and the app restarted while away, or the device has no data connection and the push was never delivered | Remove the filter. If the device has no mobile data, the command cannot arrive at all - see *A device with no data connection cannot be commanded* |
 | The mode switches on at departure, then goes off partway through the journey and stays off | The route passed through a named zone. Without a hold, `from: not_home` fires on a few seconds inside a 150 m circle | Hold the back trigger for 2 minutes. Confirm with the `device_tracker` history: a zone name appearing for one or two samples, followed by `force_off` |
+| The mode switches on with no automation run behind it, or a `force_off` takes tens of minutes to land | Android battery management is killing and restarting the app, and throttling push delivery. A restarted app restores its saved high accuracy setting | On the device: battery usage **Unrestricted**, and on Samsung remove it from *Sleeping apps* and *Deep sleeping apps*. Nothing server-side fixes this; the guard branch only bounds it |
+| The mode "barely ran" on a short trip | Arithmetic, not a fault. Spin-up is about 73 s against a trip that may last 110 s | Check the trip length before investigating. Under roughly three minutes, sparse tracking is the expected result |
 | The mode only starts after the Companion App is opened by hand | Home Assistant did not know the device had left. The phone is still watching a stale geofence, typically because the zones were edited server-side and that device has not synced since | Open the app once on every tracked device after any zone edit, and set the app's battery usage to Unrestricted. Enable the **Last update trigger** sensor to tell `Geofence Exit` from `Manual` next time |
 | An entire journey appears in Dawarich at one timestamp, points out of order | The device was offline and flushed its backlog on arrival; Home Assistant stores queued points at receipt time because `mobile_app` carries no fix time | Not repairable server-side. Use a logger that posts to Dawarich directly with `"tst": "%TIMESTAMP"` if the times matter |
 | That sensor is *still* `unknown` after hours, and `request_location_update` gets no response | The device is not producing location updates at all. Check `last_updated` on the `device_tracker` itself: if it is hours old, the problem is on the phone, not in the integration | In the Companion App: background location permission (Android 13+ needs "Allow all the time" as a separate grant), **Manage sensors > Location** toggles, and whether battery optimisation is killing the app. `device_tracker.enci_tablet` was in this state on 2026-08-09, last updated 05:47 with nothing an hour and a half later |
