@@ -78,6 +78,18 @@ Runs Sundays at 04:00.
 RESTIC_PASSWORD_FILE=/root/.secrets/restic-password restic -r /mnt/disk1/backup/proxmox-host snapshots
 ```
 
+Note `restic` will not read `REPO` from the backup script's environment, so `-r` is required even when running as root on pve. Without it the command fails with `Fatal: Please specify repository location`, which looks like a broken repo but is not.
+
+Verified 2026-08-10: 7 weekly snapshots, unbroken from 2026-06-28 to 2026-08-09, latest 24.834 GiB. The Sunday run does `backup` then `forget`/`prune` then `check` in one pass, and the log ends with the line worth grepping for:
+
+```
+check snapshots, trees and blobs
+[0:00] 100.00%  7 / 7 snapshots
+no errors were found
+```
+
+The restic repo lives on `/mnt/disk1`, not on the NVMe, so it is unaffected by the `pve/data` thin pool problems in section 7.
+
 ---
 
 ## 3. Rsync to Nobara PC
@@ -127,6 +139,8 @@ See `15_NFS-Setup_Documentation.md` for mount configuration.
 | 04:00 | Restic host OS backup |
 | 11:00 | Rsync to Nobara |
 | 19:00 | Rsync to Nobara (second attempt, in case Nobara was offline at 11:00) |
+
+Because the offsite copy is weekly while vzdump is nightly, **the Nobara copy can be up to 7 days behind the local one.** That is by design, but it matters when reading a failure: after the 2026-08-09 outage the Sunday sync ran while 9 of the 10 daily dumps were missing, so Nobara carried 2026-08-08 dumps for those guests until the following Sunday, even though the local copy was already current again on 2026-08-10. When judging whether an incident cost real redundancy, check both copies, not just `/mnt/storage/backup/proxmox/`.
 
 ---
 
