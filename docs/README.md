@@ -41,7 +41,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [11 - Jellyfin Hardware Transcoding](./proxmox/11_Jellyfin_Hardware_Transcoding_Setup.md) - Jellyfin GPU hardware transcoding
 - [12 - Karakeep AI Tagging with Ollama](./proxmox/12_Karakeep_AI_Tagging_with_Ollama_Setup_Documentation.md) - Karakeep AI tagging with Ollama
 - [13 - USB Disk Unmount Problem Resolution](./proxmox/13_USB_Disk_Unmount_Problem_Resolution_disk4_ADATA_HD710_PRO.md) - USB disk troubleshooting
-- [14 - NFS Setup](./proxmox/14_NFS-Setup_Documentation.md) - NFS share configuration
+- [14 - NFS Setup](./proxmox/14_NFS-Setup_Documentation.md) - NFS share configuration, plus the Windows SMB client
 - [15 - Backup System](./proxmox/15_Proxmox_Backup_System_Documentation.md) - Backup system and schedules
 - [16 - Komodo Complete Setup](./proxmox/16_Komodo_complete_setup.md) - Komodo container management platform
 - [17 - SuggestArr Setup](./proxmox/17_SuggestArr_Setup_Troubleshooting_Guide.md) - SuggestArr media suggestion automation

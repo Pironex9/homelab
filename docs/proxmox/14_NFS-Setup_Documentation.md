@@ -1,5 +1,6 @@
 **Date:** 2026-02-11
 **Updated:** 2026-04-08 (replace SSHFS automount with systemd service)
+**Updated:** 2026-08-11 (add Windows SMB client section)
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -11,6 +12,8 @@ NFS is used in both directions:
 
 - **Proxmox → LAN**: exports the media storage pool so Nobara (and others) can mount it
 - **Nobara → Proxmox**: exports a backup HDD so Proxmox can rsync LXC backups onto it
+
+The Windows side of the dual-boot machine uses SMB instead - see [Windows Client (SMB)](#windows-client-smb) below.
 
 ---
 
@@ -221,6 +224,86 @@ Should show: `homelab  learning  youtube`
 - If LXC 109 goes down: `reconnect` + `ServerAliveInterval=5, ServerAliveCountMax=2` detects the drop in 10 seconds, retries in background. File accesses return I/O errors immediately - no desktop freeze.
 - When LXC 109 comes back: reconnect re-establishes automatically, no manual intervention needed.
 - If reconnect gives up: process exits, `Restart=on-failure` restarts the service after 30 seconds.
+
+---
+
+## Windows Client (SMB)
+
+The dual-boot desktop (192.168.0.100) reaches the same storage over SMB when booted to Windows, not over NFS.
+
+### Why SMB and not NFS
+
+The Windows "Client for NFS" is an optional feature, speaks NFSv2/v3 only, and has no real UID mapping - every write lands as an anonymous UID unless you set `AnonymousUid`/`AnonymousGid` in the registry. Samba was already running on the Proxmox host, so the Windows side needed no new server component at all.
+
+### Shares on the Proxmox host
+
+Defined in `/etc/samba/smb.conf`:
+
+| Share | Path | Access |
+|---|---|---|
+| `Storage` | `/mnt/storage` | `smbuser`, normal permissions |
+| `Media` | `/mnt/storage/media` | `smbuser`, normal permissions |
+| `Downloads` | `/mnt/storage/media/downloads` | `smbuser`, normal permissions |
+| `AllDisks` | `/mnt` | `smbuser`, runs as root - full access everywhere |
+
+### The `AllDisks` share
+
+The default shares cannot write everywhere: `/mnt/storage` itself is `root:root 755`, and the `immich/` and `syncthing/` subtrees are owned by UID 100000/101000 because unprivileged LXCs use a +100000 offset. `AllDisks` solves this by running as root:
+
+```ini
+[AllDisks]
+   comment = All Disks (disk1-4, storage) - full access
+   path = /mnt
+   browseable = yes
+   read only = no
+   valid users = @users
+   force user = root
+   force group = root
+   inherit owner = unix only
+   create mask = 0664
+   directory mask = 0775
+```
+
+`inherit owner = unix only` is the part that matters. Without it, everything created from Windows would be owned by host root, which appears as `nobody` inside an unprivileged container - the Immich and Syncthing containers could then read but not modify their own files. With it, new files inherit the parent directory's owner, so container-owned subtrees stay container-owned.
+
+This is a root-equivalent share. Anyone who can authenticate as `smbuser` can overwrite or delete anything under `/mnt`, including `.snapraid.content`. It is LAN-only and guest access is denied (`valid users` blocks the `map to guest = bad user` fallback).
+
+### Mounting from Windows
+
+In an Administrator prompt:
+
+```cmd
+net use Z: \\192.168.0.109\AllDisks /user:smbuser <password> /persistent:yes
+```
+
+The password is **not** in this repository - it is in `private/.env`, which is gitignored. The same `smbuser` account is used by the Home Assistant backup job writing to `\\192.168.0.109\Storage\backup\proxmox`, so resetting it with `smbpasswd -a smbuser` requires updating the HA side too, or those backups fail silently.
+
+To store the credential separately instead of passing it inline:
+
+```cmd
+cmdkey /add:192.168.0.109 /user:smbuser /pass:<password>
+net use Z: \\192.168.0.109\AllDisks /persistent:yes
+```
+
+If `net use` still prompts for a username after `cmdkey`, the stored credential was rejected - Windows falls back to prompting rather than reporting the failure. Clear it with `cmdkey /delete:192.168.0.109` and verify the password from the Proxmox host before retrying:
+
+```bash
+smbclient //192.168.0.109/AllDisks -U "smbuser%<password>" -c "ls"
+```
+
+`NT_STATUS_LOGON_FAILURE` there means the password is wrong. To rule out a disabled account rather than a bad password, check the flags - `[U]` is a normal enabled user, `[D]` is disabled:
+
+```bash
+pdbedit -L -v smbuser | grep -i flags
+```
+
+### Applying smb.conf changes
+
+`smbd` re-reads `smb.conf` when a client opens a new connection, so a share edit takes effect on the next mount without a restart. `systemctl reload smbd` only matters for sessions that are already open. Validate first:
+
+```bash
+testparm -s
+```
 
 ---
 
