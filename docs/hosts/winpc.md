@@ -199,7 +199,77 @@ Clear-DnsClientCache
 
 `Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ResetServerAddresses` hands control back to DHCP.
 
-`.lan` names resolve to the Caddy reverse proxy and are served over HTTPS with a mkcert CA. Until that CA is installed in the Windows certificate store, browsers will warn; direct `IP:port` access sidesteps it (Home Assistant, for example, at `192.168.0.202:8123`).
+`.lan` names resolve to the Caddy reverse proxy and are served over HTTPS with a mkcert CA - see the next section for making that CA trusted. Until it is, browsers warn; direct `IP:port` access sidesteps it (Home Assistant, for example, at `192.168.0.202:8123`).
+
+---
+
+## HTTPS for .lan services
+
+Every `.lan` name resolves to Caddy (192.168.0.208), which serves a certificate signed by the mkcert CA that lives on LXC 110. Nothing outside the LAN issued it, so a fresh Windows install does not trust it and the browser says so.
+
+### Read the error before doing anything
+
+The three failures look similar in the address bar and have nothing to do with each other:
+
+| What the browser shows | Firefox code | Cause | Fix |
+|---|---|---|---|
+| Warning page, "Potential Security Risk Ahead" | `SEC_ERROR_UNKNOWN_ISSUER` | The mkcert CA is not trusted on this machine | Install the CA, below |
+| Warning page, "does not apply to the name" | `SSL_ERROR_BAD_CERT_DOMAIN` | The domain is not in the cert's SAN list | Regenerate the cert on LXC 110 with the domain added ([caddy → Regenerating the cert](caddy.md#regenerating-the-cert)) |
+| No warning page, "Not secure" beside the URL | - | The address is `http://`, not `https://` | Type the `https://` scheme, or fix the bookmark |
+
+The last one is easy to mistake for a certificate problem. Caddy deliberately serves the same handlers on port 80 for devices that cannot hold the CA, so `http://jellyfin.lan` works and is honestly labelled insecure.
+
+### Two trust stores, not one
+
+Windows keeps one store; **Firefox keeps its own (NSS) and consults the Windows store only when `security.enterprise_roots.enabled` is set**. `mkcert -install` cannot bridge that gap here - mkcert supports the Firefox store on macOS and Linux only. So Edge and Chrome can be working perfectly while Firefox still refuses, which is exactly what it looks like when the CA install "did not take".
+
+### The script
+
+`scripts/install-lan-ca-windows.ps1` in this repo does all of it. Elevated PowerShell, Firefox closed:
+
+```powershell
+.\install-lan-ca-windows.ps1 -Fetch
+```
+
+`-Fetch` pulls `rootCA.pem` off the Caddy LXC over the existing SSH access. Without it, pass `-CertPath` to a copy already on disk. The script:
+
+1. imports the CA into `LocalMachine\Root` - covers Edge, Chrome, `curl.exe` and .NET
+2. copies the CA into `%LOCALAPPDATA%\Mozilla\Certificates` and merges a `distribution\policies.json` next to `firefox.exe` setting `Certificates.Install` plus `Certificates.ImportEnterpriseRoots` - covers Firefox
+3. warns if DNS is not pointing at AdGuard (192.168.0.111), then flushes the resolver cache
+4. fetches `https://homepage.lan` and reports whether the chain validated
+
+It is idempotent and backs up an existing `policies.json` to `policies.json.bak`.
+
+### Doing it by hand
+
+```powershell
+# 1. get the CA
+ssh root@192.168.0.109 "pct pull 110 /etc/caddy/certs/rootCA.pem /tmp/rootCA.pem"
+scp root@192.168.0.109:/tmp/rootCA.pem $env:USERPROFILE\Downloads\mkcert-rootCA.pem
+
+# 2. Windows store (elevated) - Chrome, Edge, curl.exe
+Import-Certificate -FilePath $env:USERPROFILE\Downloads\mkcert-rootCA.pem `
+  -CertStoreLocation Cert:\LocalMachine\Root
+
+# 3. verify it landed
+Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like '*mkcert*'
+```
+
+For Firefox, either flip **Settings → Privacy & Security → Certificates → "Allow Firefox to automatically trust third-party root certificates you install"** (this is `security.enterprise_roots.enabled`, so step 2 then suffices), or import the file directly: **View Certificates → Authorities → Import → mkcert-rootCA.pem → tick "Trust this CA to identify websites"**. Either way Firefox reads the change at startup only, so restart it fully - closing the window is not enough if it is still in the tray.
+
+### Verifying
+
+```powershell
+Resolve-DnsName homepage.lan          # must answer 192.168.0.208
+curl.exe -sI https://homepage.lan     # Schannel, so this proves the Windows store
+Invoke-WebRequest https://homepage.lan -UseBasicParsing | Select-Object StatusCode
+```
+
+`curl.exe` succeeding while Firefox still warns is the normal intermediate state, and means only the Firefox half is outstanding.
+
+### Expiry
+
+The current server cert runs to **2028-10-19**. New `.lan` domains added after that cert was issued produce `SSL_ERROR_BAD_CERT_DOMAIN` on every device until the cert is regenerated - the CA in the Windows store does not need touching for that, only the server cert on LXC 110.
 
 ---
 

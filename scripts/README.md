@@ -65,6 +65,25 @@ it (the script sources `.env` from its own directory).
 
 Logs to `/var/log/homelab/restore-test.log`.
 
+## install-lan-ca-windows.ps1
+
+Makes `https://<service>.lan` trusted on a Windows machine. The `.lan` certs are
+signed by the mkcert CA on the Caddy LXC (110), and Windows carries two
+independent trust stores: the system one, and Firefox's own NSS store, which
+`mkcert -install` cannot write to on Windows at all. The script feeds both,
+then checks DNS and proves the result with a real HTTPS request.
+
+```powershell
+# elevated PowerShell, Firefox closed
+.\install-lan-ca-windows.ps1 -Fetch                       # pull rootCA.pem over SSH first
+.\install-lan-ca-windows.ps1 -CertPath C:\path\rootCA.pem # use a local copy
+.\install-lan-ca-windows.ps1 -SkipFirefox                 # Windows store only
+```
+
+Idempotent; an existing Firefox `policies.json` is merged, not replaced, and
+backed up to `policies.json.bak`. Firefox reads the policy at startup only.
+
 ## Related Documentation
 
 - [Backup Strategy](../docs/proxmox/15_Proxmox_Backup_System_Documentation.md)
+- [HTTPS for .lan on Windows](../docs/hosts/winpc.md#https-for-lan-services)
