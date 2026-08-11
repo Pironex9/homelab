@@ -9,8 +9,14 @@ fullWidth: true
 useEqualHeights: true
 hideVersion: true
 
+# Served from /srv/docker-data/homepage/images -> /app/public/images, the same
+# runtime mount the service icons use. It was a hotlink to a travel site until
+# that site moved off WordPress and took its whole /wp-content tree with it:
+# the URL began returning a real 404 and the dashboard lost its background on
+# every device that had not cached the file. A dashboard on the LAN has no
+# business depending on a third party's URL structure.
 background:
-  image: https://www.traveltalktours.com/wp-content/smush-webp/2024/04/Best-Places-for-Cherry-Blossoms-in-Japan-1536x1024.jpg.webp
+  image: /images/background.webp
   blur: ""
   saturate: 60 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
   brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
