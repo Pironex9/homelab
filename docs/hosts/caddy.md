@@ -46,6 +46,15 @@ Generated with mkcert using a local CA (CAROOT=/etc/caddy/certs):
 
 **Cert expiry:** 2028-10-19
 
+The CA and the server cert expire on different dates, and only one of them is a client-side job:
+
+| | Subject / expiry | Where it lives |
+|---|---|---|
+| CA root | `CN=mkcert root@alpine-caddy, O=mkcert development CA`, expires **2036-03-30**, SHA-1 `B9AD08DF8742CF1049CFAF33A31D3EE2B7D726F0` | every client's trust store |
+| Server cert | expires **2028-10-19** | LXC 110 only |
+
+Renewing the server cert therefore touches nothing on the clients. Use the thumbprint to confirm a device received the right root - `Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq ...` on Windows, `openssl x509 -in rootCA.pem -noout -fingerprint -sha1` anywhere else.
+
 **Note:** Wildcard `*.lan` certs are rejected by Firefox (second-level wildcard). All .lan domains must be listed explicitly as SANs in the cert. To add a new domain, regenerate the cert with mkcert including the new domain name.
 
 ### Regenerating the cert
@@ -125,6 +134,16 @@ scp root@192.168.0.109:/tmp/rootCA.pem ~/mkcert-rootCA.pem
 
 **Firefox Nightly on Android:** Nightly does not trust Android user-installed CA certs. Use `http://service.lan` (port 80) instead - the HTTP listener serves identical content without TLS. The Tailscale mesh provides transport encryption so plain HTTP is acceptable over Tailscale.
 
+**Windows:** two separate trust stores have to be fed, and `mkcert -install` cannot do the second one - mkcert supports the Firefox/NSS store on macOS and Linux only. Run the script instead, from an elevated PowerShell on the Windows box:
+
+```powershell
+git clone https://github.com/Pironex9/homelab   # or use an existing checkout
+cd homelab\scripts
+.\install-lan-ca-windows.ps1 -Fetch
+```
+
+It imports the CA into `LocalMachine\Root` (Edge, Chrome, `curl.exe`, .NET), writes a Firefox `distribution\policies.json` that installs the same CA into Firefox's own store, checks that DNS points at AdGuard, and verifies with a real HTTPS request. Details and the manual equivalent: [winpc → HTTPS for .lan](winpc.md#https-for-lan-services). Firefox must be fully restarted afterwards.
+
 ### Proxied Services
 
 All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
@@ -176,4 +195,5 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 - **Installation:** Deployed via community-scripts Alpine LXC script (successor to tteck/Proxmox scripts).
 - **HTTP + HTTPS in one Caddyfile:** Caddy does not allow a `tls` directive in a block that matches both HTTP and HTTPS. Solution: define handlers once in a named snippet `(lan_services)` and `import` it from both the `*.lan` (HTTPS) and `http://*.lan` (HTTP) blocks.
 - **Firefox Nightly Android cannot trust user CAs:** Android user-installed CA certificates are ignored by Firefox Nightly regardless of `security.enterprise_roots.enabled`. The workaround is HTTP access on port 80.
+- **On Windows, `mkcert -install` does not cover Firefox:** mkcert writes to the NSS store on macOS and Linux only, so on Windows it silently leaves Firefox untrusting while Edge and Chrome start working. That asymmetry reads as "Firefox is broken" when nothing is. Firefox needs either `security.enterprise_roots.enabled` (so it picks the CA up from the Windows store) or its own copy of the CA - `scripts/install-lan-ca-windows.ps1` sets both.
 - **"TLS alert: internal error" from curl/wget but not openssl - always check SNI first:** while wiring up `ntfy.lan` (2026-07-24), testing via `curl -k https://192.168.0.208/ -H 'Host: ntfy.lan'` (IP + Host header, no DNS) consistently failed with a raw TLS `internal_error` alert - reproduced with curl, wget, and even a from-scratch `openssl s_client` test that mimicked curl's full cipher/extension list. The actual cause: connecting by IP with a `Host:` header sets the HTTP virtual-host but sends **no SNI** at the TLS layer, and Caddy has no way to pick a certificate/site block for `*.lan` without it - so it fails hard with an opaque alert instead of a clean error. Packet capture (`tcpdump` + `tshark`, temporarily installed via `apk add`, then removed) confirmed the only real difference between the failing and passing ClientHellos was the presence of the `server_name` (SNI) extension. Testing via the actual hostname (`curl -sk --resolve ntfy.lan:443:192.168.0.208 https://ntfy.lan/`, or normal DNS resolution) works every time. **Lesson: when a `*.lan` domain "doesn't work" with curl, test with the real hostname (or `--resolve`) before suspecting Caddy - an IP+Host-header test isn't equivalent to a real request and produces a misleading server-side error.**
