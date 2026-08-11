@@ -46,6 +46,15 @@ Generated with mkcert using a local CA (CAROOT=/etc/caddy/certs):
 
 **Cert expiry:** 2028-10-19
 
+The CA and the server cert expire on different dates, and only one of them is a client-side job:
+
+| | Subject / expiry | Where it lives |
+|---|---|---|
+| CA root | `CN=mkcert root@alpine-caddy, O=mkcert development CA`, expires **2036-03-30**, SHA-1 `B9AD08DF8742CF1049CFAF33A31D3EE2B7D726F0` | every client's trust store |
+| Server cert | expires **2028-10-19** | LXC 110 only |
+
+Renewing the server cert therefore touches nothing on the clients. Use the thumbprint to confirm a device received the right root - `Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq ...` on Windows, `openssl x509 -in rootCA.pem -noout -fingerprint -sha1` anywhere else.
+
 **Note:** Wildcard `*.lan` certs are rejected by Firefox (second-level wildcard). All .lan domains must be listed explicitly as SANs in the cert. To add a new domain, regenerate the cert with mkcert including the new domain name.
 
 ### Regenerating the cert
