@@ -160,8 +160,18 @@ suspecting versions:
 ssh nobara 'nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv'
 ```
 
-Nothing needs fixing in Immich if a game or Ollama holds the memory - the jobs
-retry once the GPU frees up.
+Nothing needs fixing in Immich if a game or Ollama holds the memory. But it does
+**not** recover on its own once the GPU frees up: the container stays stuck on the
+failed model load and keeps answering 500 without writing a single new log line,
+which makes it look like the GPU is still full. Free the VRAM, then restart it:
+
+```bash
+ssh nobara 'docker restart immich_machine_learning_remote'
+```
+
+A healthy load holds roughly 3 GB of VRAM in the `python` process, so
+`nvidia-smi --query-compute-apps` is also how you confirm the model is really on
+the GPU and not on a CPU fallback.
 
 ---
 
