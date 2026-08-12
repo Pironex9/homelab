@@ -193,8 +193,8 @@ Caddyfile.
 ## Backups
 
 This stack is stateless: `src/`, `Caddyfile`, and `docker-compose.yml` are all in git,
-and `dist/` is disposable and rebuilt on demand. `scripts/backup.sh` has nothing to
-cover here.
+and `dist/` is disposable and rebuilt on demand. There is nothing here for a backup
+to cover.
 
 ## Running tests
 

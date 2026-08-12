@@ -169,23 +169,30 @@ vzdump coverage per guest rather than just counting files: see
 
 ## 5. Immich Database Backup
 
-Immich stores its data outside `/srv/docker-data/`, so it is not covered by the standard Docker volume backup. A dedicated routine runs `pg_dumpall` before the main restic sweep.
+Immich stores its data at `/mnt/storage/immich`, not in `/srv/docker-data`, and that path reaches LXC 100 as the bind mount `mp0: /mnt/storage,mp=/mnt/storage`. **vzdump skips bind mounts**, so nothing under it has ever been in a container archive - only the 52 GB rootfs is. Until 2026-08-12 the Postgres data directory was therefore protected by SnapRAID parity alone, which for a running database means a torn copy of files that are being written: enough to restore the blocks, not enough to start Postgres from them.
 
-### How it works
+Two things fixed that, in this order.
 
-1. `pg_dumpall` dumps the entire Immich Postgres instance to `/tmp/immich-db-dump/`
-2. Restic backs up the dump to `$BACKUP_DEST_NFS/immich-db`
-3. Temp dump is deleted after backup
+### The dump
 
-### Usage
+`/root/immich-pgdump.sh` on LXC 100, daily at 00:30 UTC (02:30 CEST) via `/etc/cron.d/immich-pgdump`:
 
 ```bash
-# Run Immich DB backup only
-./scripts/backup.sh immich-db
-
-# Runs automatically as part of full backup
-./scripts/backup.sh --all
+docker exec immich_postgres pg_dumpall --clean --if-exists -U postgres \
+  | gzip > "$D/immich-$(date +%Y%m%d).sql.gz.tmp"
+mv "$D/immich-$(date +%Y%m%d).sql.gz.tmp" "$D/immich-$(date +%Y%m%d).sql.gz"
+ls -t "$D"/immich-*.sql.gz | tail -n +8 | xargs -r rm -f
 ```
+
+`$D` is `/mnt/storage/immich/pgdump`, inside the SnapRAID-protected pool, so the weekly sync picks the dump up as an ordinary file. Roughly 61 MB gzipped, seven kept.
+
+Two details that are not decoration. The dump writes to `.tmp` and is renamed only on success, so an interrupted run cannot leave a truncated file under a name that looks complete. And **the cron hour is UTC while the SnapRAID schedule is CEST**: LXC 100 runs on UTC, pve does not, so `30 2` in that crontab would have fired at 04:30 CEST, an hour *after* the Sunday 03:00 sync it is supposed to precede.
+
+### The exclusion
+
+`/etc/snapraid.conf` now carries `exclude /immich/pgdata/` in place of the narrower `exclude /immich/pgdata/pg_stat_tmp/`. This is not only about wasted parity. A live Postgres changes `pg_wal`, `pg_control` and `pg_xact` while SnapRAID reads them, which produces `Unexpected attribute change` soft errors; **any** soft error makes sync exit with `warning`, and the daemon's maintenance chain stops there without running the scrub. One such sync on 2026-08-12 carried 68 of them. Excluding the data directory removes the only recurring source of them.
+
+Changing this exclusion costs one manual run: the 1697 already-indexed `pgdata` files show up as deletions on the next sync and would trip `sync_threshold_deletes`, so the first sync after the change needs `ignore_thresholds`.
 
 ### What is NOT backed up by this
 

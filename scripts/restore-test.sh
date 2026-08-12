@@ -1,9 +1,10 @@
 #!/bin/bash
-# Restore test for the restic repositories that backup.sh creates.
+# Restore test for the restic repositories under $BACKUP_DEST_NFS.
 #
-# backup.sh writes one repository per service under $BACKUP_DEST_NFS, so this
-# script discovers them instead of carrying a service list of its own. For every
-# repository it:
+# It discovers them rather than carrying a repository list of its own, so a new
+# restic repo is picked up without editing this script. Live on pve that is one
+# repo, proxmox-host, written weekly by /root/backup-proxmox-restic.sh. For
+# every repository it:
 #   1. reports the age of the newest snapshot and fails past RESTORE_TEST_MAX_AGE_DAYS
 #   2. runs `restic check --read-data-subset=<RESTORE_TEST_SUBSET>`
 #   3. restores a few files from a randomly picked snapshot into a temp dir and
@@ -19,7 +20,7 @@
 
 set -uo pipefail
 
-# Source configuration (same .env as backup.sh)
+# Source configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/.env" ]; then
     # shellcheck disable=SC1091
@@ -38,7 +39,7 @@ TMPDIR_BASE="${RESTORE_TEST_TMPDIR:-/tmp}"
 NTFY_TOPIC="${NTFY_TOPIC:-homelab-digest}"
 NTFY_CURL_OPTS="${NTFY_CURL_OPTS:-}"
 
-# backup.sh stores NTFY_URL as a full URL including its own topic; if no explicit
+# An older NTFY_URL key holds a full URL including its own topic; if no explicit
 # base URL is configured, reuse it with the topic stripped off.
 NTFY_BASE_URL="${NTFY_BASE_URL:-}"
 if [ -z "$NTFY_BASE_URL" ] && [ -n "${NTFY_URL:-}" ]; then

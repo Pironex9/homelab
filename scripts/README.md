@@ -1,33 +1,20 @@
 # Scripts
 
-## backup.sh
+There is no backup script here. `backup.sh` used to sit in this directory,
+describing one restic repository per Docker service under `$BACKUP_DEST_NFS`,
+and it was never deployed anywhere - docker-host has no restic installed. It was
+deleted on 2026-08-12 because it read as a working backup layer and misled a
+reader who went looking for where Immich was covered. What actually runs:
 
-Automated backup using restic. Backs up Docker volumes and configs with encryption, deduplication, and automatic retention.
+| Layer | Where | When |
+|---|---|---|
+| vzdump of every guest (LXC 100's rootfs carries all of `/srv/docker-data`) | `/mnt/storage/backup/proxmox` | daily 02:00 |
+| restic of the pve host root | `/mnt/disk1/backup/proxmox-host` | Sunday 04:00 |
+| rsync of both to the Nobara NFS share | `/mnt/pve/nobara-backup` | Sunday 11:00 and 19:00 |
+| `pg_dumpall` of Immich into the SnapRAID-protected pool | `/mnt/storage/immich/pgdump` | daily 02:30 CEST, on LXC 100 |
 
-> Not deployed. docker-host has no restic installed and no repos under
-> `$BACKUP_DEST_NFS`; its Docker data is covered by the daily vzdump of LXC 100
-> instead. The one live restic backup is on pve
-> (`/root/backup-proxmox-restic.sh`, weekly, host root only).
-
-```bash
-./backup.sh [service_name]
-./backup.sh --all
-./backup.sh --dry-run service_name
-```
-
-### Configuration
-
-Both scripts read `scripts/.env` (gitignored). See `.env.example` for every key
-and for the values that match the live pve setup.
-
-### Scheduling
-
-```bash
-# Daily backup at 2 AM
-0 2 * * * /path/to/homelab/scripts/backup.sh --all
-```
-
-Logs to `/var/log/homelab/backup.log`.
+Configuration for the script below lives in `scripts/.env` (gitignored). See
+`.env.example` for every key and for the values that match the live pve setup.
 
 ## restore-test.sh
 
