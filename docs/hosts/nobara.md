@@ -120,7 +120,7 @@ sudo efibootmgr -o <Nobara>,<Windows>
 
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
-| `immich_machine_learning_remote` | `ghcr.io/immich-app/immich-machine-learning:v2.7.4-cuda` | 3003 | Immich remote ML (face recognition, smart search) - GPU accelerated |
+| `immich_machine_learning_remote` | `ghcr.io/immich-app/immich-machine-learning:v3-cuda` | 3003 | Immich remote ML (face recognition, smart search) - GPU accelerated |
 
 ---
 

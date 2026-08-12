@@ -1,6 +1,6 @@
 services:
   immich-machine-learning:
-    image: ghcr.io/immich-app/immich-machine-learning:v2.7.4-cuda
+    image: ghcr.io/immich-app/immich-machine-learning:v3-cuda
     container_name: immich_machine_learning_remote
     deploy:
       resources:

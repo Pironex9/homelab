@@ -1,5 +1,5 @@
 
-**Version:** Immich v2.6.3  
+**Version:** Immich v3.1.0  
 **Date:** 2026-04-02  
 **Platform:** Proxmox VE 9.1 / LXC 100 (Docker)  
 **Hardware:** Intel i5-8400, 32GB RAM, NVMe + HDD
@@ -1192,19 +1192,50 @@ cat backup.sql | docker exec -i immich_postgres psql -U postgres
 
 ### **Update Immich:**
 
-```bash
-cd /srv/docker-compose/immich
+The stack is deployed by Komodo (GitOps), so the version pin does not live in a
+file on LXC 100. `IMMICH_VERSION` is set in the Komodo Stack Environment, and
+Komodo writes it into `.env` before every deploy. Editing `.env` on the host by
+hand gets overwritten on the next deploy.
 
-# Pull new images
-docker compose pull
+Patch releases need nothing: the pin is a floating major tag (`v3`) and the stack
+has `auto_update = true`, so Komodo pulls new v3.x images on its own.
 
-# Restart with new images
-docker compose up -d
+A major version bump = change one line in the Komodo Stack Environment, then Deploy:
 
-# Check version
-docker compose logs immich_server | grep "Immich"
-# Immich Server is running [v2.x.x]
 ```
+IMMICH_VERSION=v3
+```
+
+```bash
+# Check what is actually running
+curl -s -H "x-api-key: $KEY" http://192.168.0.110:2283/api/server/about | jq .version
+
+# Migrations ran cleanly?
+docker logs immich_server 2>&1 | grep -i migration
+```
+
+The external ML container on Nobara (`compose/nobara/immich-ml/`) carries its own
+hardcoded tag and must be bumped in the same major version as the server.
+
+#### v2 → v3 (2026-08-12)
+
+The `docker-compose.yml` needed no changes at all. Checked against the
+[v3 migration guide](https://immich.app/blog/v3-migration):
+
+| Breaking change | Applied here? |
+|---|---|
+| pgvecto.rs support dropped | No - `vchord 0.4.3` was already the vector extension |
+| `MACHINE_LEARNING_PRELOAD__*` renames, `IMMICH_MACHINE_LEARNING_PING_TIMEOUT` removed | No - none of them were set |
+| OAuth insecure requests now blocked by default | No - no OAuth configured |
+| Removed API endpoints (`/assets/random`, `/sync/full-sync`, `/server/theme`, ...) | No - the only consumer is the Homepage widget, which reads `server/statistics`, unchanged |
+| ML now needs an x86-64-v2 CPU | No - Nobara's CPU is far newer |
+
+**The `/data` trap:** upstream's compose template mounts the library at `/data`
+instead of `/usr/src/app/upload` since v1.137.0. That was an explicitly optional
+template change, **not** a breaking one, and the old path keeps working. People
+who "helpfully" switched the mount during the upgrade ended up with missing
+thumbnails and transcoded videos, because the media location recorded in the
+database no longer matched. Leave the mount alone.
 
 ---
 
@@ -1354,4 +1385,4 @@ Proxmox Host (192.168.0.109):
 
 **Created:** 2025-12-26  
 **Version:** 1.1  
-**System:** Proxmox VE 9.1 / Immich v2.6.3 / Docker
+**System:** Proxmox VE 9.1 / Immich v3.1.0 / Docker
