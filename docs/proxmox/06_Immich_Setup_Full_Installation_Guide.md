@@ -39,11 +39,19 @@
 ```
 LXC 100 - Docker (192.168.0.110)
 ├─ Immich Server (port 2283) - WebUI + API
-├─ Immich ML (port 3003) - Face recognition, CLIP search
 ├─ PostgreSQL (port 5432) - Database
 ├─ Redis (port 6379) - Cache
 └─ Storage: /mnt/storage/immich/
+
+Nobara desktop (192.168.0.100)
+└─ Immich ML (port 3003) - Face recognition, CLIP search, on the RTX 2060 SUPER
 ```
+
+The ML container was moved off LXC 100 to the Nobara desktop for its GPU, so the
+walkthrough below - which installs it alongside the server on the iGPU - is the
+original v2.6.3 install and no longer matches the running stack. Current ML
+details, including the shared-VRAM failure mode, are in
+[Nobara](../hosts/nobara.md).
 
 ---
 

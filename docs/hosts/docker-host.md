@@ -52,7 +52,7 @@ Homepage is also GitOps-managed at the application config level. Its YAML/CSS/JS
 
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
-| `immich_server` | `ghcr.io/immich-app/immich-server:v2` | 2283 | Photo/video backup and management |
+| `immich_server` | `ghcr.io/immich-app/immich-server:v3` | 2283 | Photo/video backup and management |
 | `immich_postgres` | `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` | 5432 | PostgreSQL with pgvectors extension |
 | `immich_redis` | `valkey/valkey:9` | 6379 | Redis-compatible cache |
 
