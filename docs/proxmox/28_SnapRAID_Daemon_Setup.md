@@ -1,6 +1,7 @@
 # SnapRAID Daemon Setup
 
 **Date:** 2026-07-25
+**Updated:** 2026-08-12
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -59,6 +60,55 @@ sys_engine = /usr/bin/snapraid
 | `net_port` | `0.0.0.0:7627` | Reach the dashboard from LAN/Tailscale, not just localhost |
 | `net_acl` | `+100.0.0.0/8,+192.168.0.0/24,+127.0.0.1` | Restrict access to Tailscale CGNAT range + LAN + loopback |
 | `maintenance_schedule` | `Sun 03:00` | Matches the old cron's timing; avoids the 02:00 nightly `vzdump` job |
+
+### Tuning pass 2026-08-12: the weekly job had been failing silently for ten days
+
+The daemon was up with two weeks of uptime and the dashboard looked healthy, but `snapraid status` told a different story: the whole array sat at exactly ten days since the last scrub or sync, and only one scrub had run in four weekly slots. Three separate problems, each of which hid the next.
+
+| Setting | Was | Now | Why |
+|---|---|---|---|
+| `scrub_older_than` | `10` | `6` | With a weekly schedule, a ten-day floor means blocks touched last Sunday are only seven days old and are not eligible, so the scrub selects nothing and skips itself every other week |
+| `scrub_percentage` | `0.7` | `5` | 0.7% a week is a full pass every 143 weeks, roughly 2.7 years. At 5% it is about 20 weeks |
+| `sync_threshold_deletes` | `50` | `1000` | The guard is there to stop a sync after a disk fails to mount. But the `vzdump` backups on d1 rotate weekly and the downloads directory is cleaned regularly, so ordinary housekeeping crossed 50 routinely |
+
+**The delete threshold was the one actually breaking things.** The 2026-08-09 sync aborted with `Too many files were removed (324, limit is 50). Sync aborted.`, and because the daemon runs maintenance as a chain (`up → sync → scrub → report`), the scrub never got a turn either. Three days later the pending count was 996, so the next Sunday would have aborted the same way. Parity had been ten days stale while nothing on the dashboard said so.
+
+Before raising the threshold, confirm the deletions are real rather than a missing mount - the failure mode the guard exists for. Read them, do not just count them:
+
+```console
+root@pve:~# grep "^scan:remove" /var/log/snapraid/20260812-131059-diff.log | head
+scan:remove:d1:backup/proxmox/dump/vzdump-lxc-109-2026_07_28-02_09_47.tar.zst
+scan:remove:d1:media/downloads/Kindergarten Cop (1990) [1080p]/WWW.YIFY-TORRENTS.COM.jpg
+...
+```
+
+Rotating backups and cleaned-up downloads, all on a disk that is mounted. A missing mount looks different: every path on one disk disappears at once, and the count is in the tens of thousands.
+
+### The `exit:warning` trap: one soft error costs the whole week's scrub
+
+Any non-zero `error_soft` makes sync exit `warning`, and the maintenance chain stops there. It does not matter that parity was written correctly; the scrub simply never runs. Two things produced soft errors here:
+
+1. **A live database inside the array.** Immich's `pgdata` sits on the MergerFS pool, and Postgres rewrites `pg_wal`, `pg_control` and `pg_xact` while SnapRAID is reading them, giving `Unexpected attribute change`. Fixed by widening `exclude /immich/pgdata/pg_stat_tmp/` to `exclude /immich/pgdata/` and dumping the database into the pool instead - see [15 - Backup System](./15_Proxmox_Backup_System_Documentation.md).
+2. **Moving files while a sync is running.** 30205 `Open error. No such file or directory` in one run, all from a 14 GB directory that was relocated mid-sync. Harmless to the data, fatal to that week's scrub.
+
+Changing an `exclude` costs one manual run: the already-indexed files become deletions on the next sync, 1694 of them here, which trips `sync_threshold_deletes` on purpose. Absorb it once through the API rather than by loosening the guard permanently:
+
+```console
+root@pve:~# curl -s -X POST http://127.0.0.1:7627/snapraid/v1/maintenance \
+    -H 'Content-Type: application/json' -d '{"ignore_thresholds":true}'
+{ "success": true }
+```
+
+`ignore_thresholds` is documented in `/usr/share/doc/snapraid-daemon/snapraidd.yaml` under `CommandRequest`. There is no CLI trigger - `snapraidd -H` lists only daemon lifecycle flags, so the REST API on port 7627 is the only way to start a run by hand. Watch it with `GET /snapraid/v1/activity`.
+
+Result of the first clean chain since 2026-08-02:
+
+```
+sync:  added 1, removed 1694, error_soft 0, exit ok
+scrub: "Scrub plan: auto. 5.0% of the array, older than 6 days"  ->  error_soft 0, exit ok
+```
+
+**The general lesson: a green service status says the daemon is running, not that its work is getting done.** `systemctl is-active` was `active` throughout. The two commands that actually answer the question are `snapraid status`, whose histogram shows the age spread of the scrubbed blocks, and `ls /var/log/snapraid/ | grep -vE 'probe|down_idle'`, where a week with a sync but no scrub is visible at a glance.
 
 ### Doc/release drift found during setup (both required workarounds)
 
