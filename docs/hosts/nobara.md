@@ -139,6 +139,30 @@ Services using this instance: Karakeep (`INFERENCE_TEXT_MODEL`), Suggestarr (`OP
 
 **Note:** Nobara is not 24/7. When offline, Karakeep AI tagging, Suggestarr LLM, and Immich ML (smart search, face recognition) are unavailable.
 
+### The 8 GB VRAM is shared, and it runs out quietly
+
+Ollama (~5.2 GB for qwen3:8b), the Immich ML container, and any running game all
+compete for the same 8 GB on the RTX 2060 SUPER. When it fills up, the failure
+does not look like a memory problem:
+
+- The ML container still reports **healthy** - its healthcheck only pings the HTTP
+  server, it never touches the GPU
+- `immich_server` logs `Machine learning request '{"clip":{"textual":{"modelName":"nllb-clip-large-siglip__mrl"...}}}' failed for all URLs`, which reads exactly like a server/ML version mismatch
+- The real cause is only in the ML container's own log: `BFCArena ... Failed to
+  allocate memory for requested buffer of size 33554432`, then `CUDNN failure
+  4000: CUDNN_STATUS_INTERNAL_ERROR ... expr=cudnnCreate(&cudnn_handle_)`.
+  cuDNN cannot open a handle at all with no VRAM left
+
+So on any Immich smart search or face recognition 500, check the GPU before
+suspecting versions:
+
+```bash
+ssh nobara 'nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv'
+```
+
+Nothing needs fixing in Immich if a game or Ollama holds the memory - the jobs
+retry once the GPU frees up.
+
 ---
 
 ## TCP Keepalive Configuration
