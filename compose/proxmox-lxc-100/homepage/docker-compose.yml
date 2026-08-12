@@ -13,6 +13,10 @@ services:
       - ./config:/app/config
       - /srv/docker-data/homepage/logs:/app/config/logs
       - /srv/docker-data/homepage/images:/app/public/images
+      # The background ships with the repo so a clean rebuild keeps it. Mounted
+      # as a single file on top of the directory above, which still supplies the
+      # service icons that only live on the host.
+      - ./images/background.webp:/app/public/images/background.webp:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/storage:/mnt/storage:ro
     ports:
