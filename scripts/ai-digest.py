@@ -18,6 +18,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 FRESHRSS = "http://192.168.0.110:8083/api/greader.php"
+KARAKEEP = "http://192.168.0.128:3000/api/v1"
 CATEGORIES = {"AI": 300, "AI Video": 100}
 OUT_DIR = "/root/homelab/private/ai-digest"
 PROMPT_FILE = f"{OUT_DIR}/prompt.md"
@@ -134,6 +135,41 @@ def telegram(text):
                 print(f"! Telegram ({mode}): {e}", file=sys.stderr)
 
 
+def kept_urls(digest, items):
+    """A digestben linkelt tételek = amit a modell megtartott.
+
+    Nem kérünk külön listát a modelltől: amire linkelt, az a döntése.
+    """
+    linked = set(re.findall(r'<a href="([^"]+)"', digest))
+    return [i for i in items if i["url"] in linked]
+
+
+def archive(items, day):
+    """A megtartott tételek a Karakeepbe: link + oldal-pillanatkép + címke."""
+    try:
+        key = secret("karakeep-api-key")
+    except FileNotFoundError:
+        return 0
+    saved = 0
+    for i in items:
+        try:
+            body = json.dumps({"type": "link", "url": i["url"], "title": i["title"]}).encode()
+            req = urllib.request.Request(f"{KARAKEEP}/bookmarks", data=body, method="POST")
+            req.add_header("Authorization", f"Bearer {key}")
+            req.add_header("Content-Type", "application/json")
+            with urllib.request.urlopen(req, timeout=30) as r:
+                bid = json.load(r)["id"]
+            tags = json.dumps({"tags": [{"tagName": "ai-digest"}, {"tagName": day}]}).encode()
+            req = urllib.request.Request(f"{KARAKEEP}/bookmarks/{bid}/tags", data=tags, method="POST")
+            req.add_header("Authorization", f"Bearer {key}")
+            req.add_header("Content-Type", "application/json")
+            urllib.request.urlopen(req, timeout=30).close()
+            saved += 1
+        except Exception as e:
+            print(f"! Karakeep ({i['url']}): {e}", file=sys.stderr)
+    return saved
+
+
 def main():
     now = int(time.time())
     try:
@@ -165,9 +201,10 @@ def main():
         f.write(f"# AI digest {day}\n\n_{len(items)} tétel {MAX_LOOKBACK_H}h ablakból_\n\n{digest}\n")
 
     telegram(digest)
+    saved = archive(kept_urls(digest, items), day)
     with open(STATE_FILE, "w") as f:
         f.write(str(now))
-    print(f"{len(items)} tétel -> {path}")
+    print(f"{len(items)} tétel -> {path}, {saved} a Karakeepbe")
 
 
 def selftest():
@@ -177,6 +214,9 @@ def selftest():
     assert sanitize_html("<b>cím</b> szöveg") == "<b>cím</b> szöveg"  # nem vág, ha elöl van
     assert split_chunks("a\nb\nc", limit=3) == ["a\nb", "c"]
     assert len(split_chunks("x" * 50, limit=10)) == 1  # a limitnél hosszabb sor nem vész el
+    its = [{"url": "https://a.hu", "title": "a"}, {"url": "https://b.hu", "title": "b"}]
+    assert [i["url"] for i in kept_urls('<a href="https://b.hu">x</a>', its)] == ["https://b.hu"]
+    assert kept_urls("<b>semmi link</b>", its) == []
     long = "\n".join("y" * 30 for _ in range(400))
     assert all(len(c) <= TG_LIMIT for c in split_chunks(long))
     assert "".join(split_chunks(long)).replace("\n", "") == long.replace("\n", "")
