@@ -60,6 +60,7 @@ Chronological setup guides - how the homelab was built, step by step.
 - [30 - Backup Verification + Restore Test](./proxmox/30_Backup_Verification_Restore_Test.md) - Restic restore test with checksum comparison and 1% data read, per-guest vzdump coverage in the daily digest, the tmpfs-on-pve trap and the .vma.zst vs .tar.zst false alarm
 - [31 - Tailscale Port Collision + DNS Audit](./proxmox/31_Tailscale_Port_Collision_DNS_Audit.md) - Four nodes sharing UDP 41641 behind one UPnP router made LXC 109 flap between direct and DERP, a LAN-only IP as tailnet global nameserver broke all mobile DNS, and both ssh.service and ssh.socket were enabled on 109
 - [32 - Nobara SSH Freeze (open)](./proxmox/32_Nobara_SSH_Freeze_Investigation.md) - Unresolved: eight hypotheses excluded with the measurement that killed each, two real failures captured (port 22 blackholed in one direction with the MSS collapsing to 64, and a 17-minute root-only connect timeout with no UID mechanism to explain it), plus the two watchers now running to catch the next occurrence
+- [33 - Daily AI News Digest Pipeline](./proxmox/33_AI_News_Digest_Pipeline.md) - Twenty sources into eight items a morning: why FreshRSS does the fetching and the script holds no feed list, why the archive is a separate system (FreshRSS deletes after three months), why Telegram HTML instead of MarkdownV2, and the three feeds that were dead or blocking before a single line was written
 
 ### Deprecated
 

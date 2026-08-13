@@ -11,7 +11,7 @@
 | Kernel | 6.17.4-1-pve |
 | CPU | 2 cores |
 | RAM | 4 GB |
-| Disk | 18 GB (local-lvm, 58% used - grown from 10 GB on 2026-08-13 for the container images) |
+| Disk | 18 GB (local-lvm, 50% used) - grown from 10 GB on 2026-08-13, see Lessons Learned |
 | Purpose | Self-hosted bookmarking and read-later service |
 
 ## Running Services
@@ -40,9 +40,9 @@ deployed by Komodo, like every other stack in the homelab.
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| karakeep | 0.33.2 | Pinned image tag, bumped via git + Komodo redeploy |
-| meilisearch | v1.41.0 | Full-text search and vector store |
-| karakeep-chrome | 151.0.7922.47-r1 | Tagged by Chromium version, **not** by Karakeep version |
+| karakeep | `release` | Floating tag, Komodo auto-updates |
+| meilisearch | v1.41.0 | **Pinned on purpose** - see Lessons Learned |
+| karakeep-chrome | `release` | Tagged by Chromium version when pinned, **not** by Karakeep version |
 | docker | 29.7.2 | Installed 2026-08-13 |
 
 ## Configuration
@@ -51,9 +51,10 @@ deployed by Komodo, like every other stack in the homelab.
 **Secrets:** Komodo Stack Environment (`NEXTAUTH_SECRET`, `MEILI_MASTER_KEY`, `OPENAI_API_KEY`)
 **Data directory:** `/opt/karakeep_data/` (65 MB) - bind mounted into the container at `/data`
 
-The old `/etc/karakeep/karakeep.env` and the systemd units are left in place but
-disabled, as a rollback path. Data backup before the migration:
-`/root/karakeep_data-2026-08-13.tar.gz`.
+The old source install (`/opt/karakeep`, 3.5 GB), its four systemd units and the
+old Meilisearch index were deleted on 2026-08-13 once the compose stack was
+verified. The data backup taken before the migration is kept:
+`/root/karakeep_data-2026-08-13.tar.gz` (49 MB).
 
 ### Key Settings
 
@@ -95,9 +96,30 @@ Gemini exposes an OpenAI-compatible API, so no Gemini-specific support is needed
 in Karakeep - it is configured through the `OPENAI_*` variables. Both
 `.../v1beta` and `.../v1beta/openai` work as the base URL.
 
-Semantic search (embeddings) arrived in Karakeep 0.33.1. On the older
-source install the `EMBEDDING_*` variables were accepted but silently ignored,
-because the config schema did not know them yet.
+### Semantic search and the embedding backfill
+
+Semantic search (embeddings) arrived in Karakeep 0.33.1. On the older source
+install the `EMBEDDING_*` variables were accepted but silently ignored, because
+the config schema did not know them yet. The give-away was that the workers log
+contained no embedding job at all - the settings looked applied and did nothing.
+
+After the upgrade, new bookmarks are embedded automatically, but the existing 183
+were not. The admin `reindexAllBookmarks` action needs a logged-in admin session
+and is not reachable with an API key, so the backfill was done by inserting jobs
+straight into the queue database:
+
+```
+queue:   embeddings_queue
+payload: {"type":"embed","bookmarkId":"...","force":true,"runTaggingOnComplete":false}
+```
+
+The payload schema was read out of the shipped worker bundle. All 183 embeddings
+were generated with no failures.
+
+**Caveat:** the embeddings exist and are indexed at 3072 dimensions, but the REST
+`/api/v1/bookmarks/search` endpoint does not appear to use them - an English query
+matches, a Hungarian paraphrase of the same content does not. Semantic search is
+most likely a separate mode in the web UI. This has not been confirmed.
 
 ## Lessons Learned
 
@@ -110,4 +132,6 @@ because the config schema did not know them yet.
 - **`SERVER_VERSION` in the env file lied:** It read `1.37.0`, which is a Meilisearch version, not a Karakeep one - Karakeep is versioned `0.33.x`. The community-script update rewrites this line with `sed`, so a stale value survives indefinitely. Never read the version from there; read it from the running workers log.
 - **The helper script rebuilt from source on every update:** `CLEAN_INSTALL=1` wiped `/opt/karakeep`, then `pnpm install && pnpm build` ran for three apps, plus `pnpm rebuild better-sqlite3` and a DB migration. The script also pins Node 22 with a comment pointing at an upstream crash (`karakeep-app/karakeep#2989`). None of that is version controlled, and the build needs a temporary CPU/RAM bump. This is what motivated the move to compose.
 - **The two installs cannot run in parallel:** Both write the same SQLite database, so a side-by-side comparison on the same data directory would corrupt it. The migration is a clean cutover with a backup, not a gradual one.
-- **Disk:** grown to 18 GB on 2026-08-13. The images are ~3 GB; the 3.5 GB `/opt/karakeep` source tree can be deleted once the compose stack has proven itself.
+- **The disk had to grow before it could shrink:** only 3.0 GB was free, and Docker plus the three images needs about 3 GB. Deleting the 3.5 GB source tree first would have freed the space but destroyed the rollback path, so the disk went 10 GB -> 18 GB and the cleanup came afterwards. It is not shrunk back: `pct resize` only grows, and the volume is thin-provisioned anyway, so the unused capacity costs nothing in the pool.
+- **Pin the search engine even when everything else floats:** Karakeep and its Chromium image run the `release` tag with Komodo auto-update. Meilisearch does not. A major version bump changes the on-disk index format, and an unattended upgrade would quietly break search - the exact capability the migration was for. The recovery is not catastrophic (Karakeep can rebuild the index from `db.db`), but it should be a deliberate step, not a surprise.
+- **A successful deploy that changes nothing:** the first Komodo deploy after switching to the `release` tag reported success while the containers kept running the old pinned images. The deploy had run against the repo clone before the pull landed. Checking `docker ps` image column, not the deploy result, is what catches this.

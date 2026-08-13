@@ -116,6 +116,7 @@ nav:
           - 30 - Backup Verification + Restore Test: proxmox/30_Backup_Verification_Restore_Test.md
           - 31 - Tailscale Port Collision + DNS Audit: proxmox/31_Tailscale_Port_Collision_DNS_Audit.md
           - 32 - Nobara SSH Freeze (open): proxmox/32_Nobara_SSH_Freeze_Investigation.md
+          - 33 - Daily AI News Digest Pipeline: proxmox/33_AI_News_Digest_Pipeline.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
