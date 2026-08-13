@@ -8,7 +8,7 @@
 # ugyanaz a db.db és assets/ mappa, mint a régi telepítésnél.
 services:
   web:
-    image: ghcr.io/karakeep-app/karakeep:0.33.2
+    image: ghcr.io/karakeep-app/karakeep:release
     container_name: karakeep-web
     restart: unless-stopped
     ports:
@@ -42,8 +42,7 @@ services:
       - chrome
 
   chrome:
-    # A chrome image a Chromium verzióját követi, nem a Karakeepét.
-    image: ghcr.io/karakeep-app/karakeep-chrome:151.0.7922.47-r1
+    image: ghcr.io/karakeep-app/karakeep-chrome:release
     container_name: karakeep-chrome
     restart: unless-stopped
     init: true
@@ -62,7 +61,9 @@ services:
       MEILI_NO_ANALYTICS: "true"
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
     volumes:
-      # Új kötet: a régi index v1.13.3-as formátumú, a Karakeep újraindexel a db-ből.
+      # A Meilisearch tagje szándékosan fix: major verzióváltásnál az index
+      # formátuma inkompatibilis lesz, és egy automata frissítés csendben
+      # elvinné a keresést. Ezt kézzel, tudatosan kell lépni.
       - meilisearch:/meili_data
 
 volumes:
