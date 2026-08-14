@@ -133,6 +133,11 @@ Telegram message arrives, and the reason is in the log file next to the digests.
 - **Let the existing system do the boring work.** FreshRSS already handles polling,
   deduplication, retries and storage. Reimplementing that with a feed parser would
   have added a dependency, a feed list in code, and a second thing to maintain.
+- **A manual test run proves nothing about cron.** The first scheduled run died on
+  `FileNotFoundError: 'claude'`: the CLI lives in `~/.local/bin`, which the cron
+  environment does not have on its `PATH`. Absolute path in the script, and the
+  selftest now asserts the binary is executable. Test with `env -i`, not from a
+  login shell.
 - **Deliver where the reading already happens.** A generated file nobody opens is
   the same as no digest. Telegram was chosen over a static page for exactly this
   reason, and over Discord for its 4096-character limit and simpler delivery.
