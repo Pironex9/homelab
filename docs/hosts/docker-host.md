@@ -150,11 +150,13 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 ## Storage Layout
 
 ```
-/                    → local-lvm (48 GB LVM thin volume, 70% used)
-/mnt/storage         → ZFS pool via Proxmox mountpoint (8.1 TB, 34% used)
+/                    → local-lvm (52 GB LVM thin volume, ~86% used)
+/mnt/storage         → the pve MergerFS pool, passed in as mp0 (8.1 TB)
 ```
 
 Most Docker container data (media, photos, books) lives on `/mnt/storage` to avoid filling the root disk.
+
+**`/mnt/storage` is the only storage path that exists here.** The four member disks of the pool - `/mnt/disk1` through `/mnt/disk4` - are mounts on **pve**, not in this container; `mp0: /mnt/storage,mp=/mnt/storage` passes in the merged view alone. Writing to a `/mnt/diskN` path from inside LXC 100 therefore does not fail. It silently creates an ordinary directory on the 52 GB root filesystem, which is the trap described in Lessons Learned below.
 
 ## Komodo Integration
 
@@ -162,6 +164,20 @@ The `periphery.service` agent connects this host to Komodo Core (LXC 105). This 
 
 ## Lessons Learned
 
+- **`No space left on device` on a disk with 2.7 TB free (2026-08-12):** a `mv` into `/mnt/disk1/media/anime/tv/...` from inside LXC 100 filled the container's root filesystem to 100% and aborted partway through a 14 GB move. The path was chosen deliberately, to keep the operation on one member disk of the pool instead of letting MergerFS decide - which is sound reasoning on **pve**, where `/mnt/disk1` is a mounted 5.5 TB disk, and wrong here, where it is nothing at all. `mkdir -p` created a plain directory on the 52 GB rootfs and `mv` copied into it until the space ran out.
+
+    Two things make this hard to read from the error alone. The message names a disk that genuinely has terabytes free, so the natural next step - `df -h /mnt/disk1` - is misleading unless you notice it reports the *root* filesystem. And `mv` deletes each source file only after copying it successfully, so the failure leaves the set split in two: the files that made it are on the wrong filesystem and gone from the source, while the rest are untouched. The last file attempted is a third case, partially written and present in both places at different sizes.
+
+    Recovery is to move the rescued files onward to their real destination through `/mnt/storage`, delete the truncated one and re-copy it from the source, then remove the bogus tree. Verify the result against something outside the filesystem rather than by counting files - for a torrented set the `.torrent` metadata carries every declared length:
+
+    ```python
+    for f in info[b"files"]:
+        name = f[b"path"][-1].decode()
+        if os.path.getsize(os.path.join(target, name)) != f[b"length"]:
+            print("MISMATCH:", name)
+    ```
+
+    The general rule: **before writing to an absolute path inside a container, confirm it is a mount and not just a name.** `findmnt /mnt/disk1` answers this in one line and says nothing when the path is an ordinary directory. A `df` of the target does too, but only if you read which filesystem it names rather than how much room it reports.
 - **Homepage config source of truth (Jul 2026):** Homepage app config moved from live `/srv/docker-data/homepage/*.yaml` files into git under `compose/proxmox-lxc-100/homepage/config/`. Komodo deploy now mounts `/etc/komodo/repos/github/compose/proxmox-lxc-100/homepage/config` to `/app/config`, with logs and images kept on `/srv/docker-data/homepage/`. Any dashboard change should be made in git, committed, pushed, then deployed through Komodo.
 - **Komodo repo credential hygiene:** The LXC 100 Komodo checkout currently uses a tokenized HTTPS remote. Treat that token as a secret, avoid copying it into docs or logs, and migrate to a GitHub deploy key or SSH remote when practical; rotate the old PAT afterwards.
 - **LVM thin pool vs filesystem usage:** The Proxmox LVM thin pool `Data%` tracks historically allocated blocks, not current usage. Old Docker images, deleted files, and rotated logs leave "phantom" allocations until TRIM runs. In one incident LXC 100 showed 99.73% thin pool usage while `df` only showed 72% filesystem usage - `pct fstrim 100` freed 14 GB instantly and dropped it to 74%.
