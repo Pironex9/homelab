@@ -96,6 +96,51 @@ Gemini exposes an OpenAI-compatible API, so no Gemini-specific support is needed
 in Karakeep - it is configured through the `OPENAI_*` variables. Both
 `.../v1beta` and `.../v1beta/openai` work as the base URL.
 
+### Tagging: why `$tags` had to go
+
+The custom tagging prompt originally ended with `Reuse an existing tag when it
+fits: $tags`. That placeholder is expanded in the worker as:
+
+```js
+const tagsString = `[${tags.map((tag) => tag.name).join(", ")}]`;
+```
+
+No filter, no sort, no cap. With 873 tags that is 15,972 characters, roughly
+4,000 tokens of an 8,000-token `INFERENCE_CONTEXT_LENGTH`. And the content is
+what gets sacrificed for it:
+
+```js
+const available = Math.max(0, contextLength - promptSize);
+const truncatedContent = await truncateContent(content, available);
+```
+
+Karakeep already does the same job far better on its own. When `curatedTagIds`
+is empty it calls `getPotentiallyRelevantTags()`, which vector-searches the ten
+most similar bookmarks and offers only their tags, truncated to 1,000 characters
+(`RELEVANT_TAG_TRUNCATE_LENGTH`), injected as *"Similar bookmarks were tagged
+with the following tags (reuse if possible, ignore if irrelevant)"*. In practice
+that is ~34 relevant tags instead of 873 arbitrary ones. **This path needs
+embeddings**, so it did nothing until the backfill below.
+
+The prompt's formatting rule was redundant too: `user.tagStyle` is
+`titlecase-spaces`, from which the built-in prompt already generates *"Use title
+case with spaces between words"*. The built-in prompt also already says *"Keep
+each tag short: ideally 1-3 words. Do not include parenthetical explanations"* -
+which is exactly the rule `Artificial Intelligence (AI)` broke while 4,000 tokens
+of tag noise drowned it out.
+
+The whole custom prompt is now one sentence: `Assign 3-5 tags. Prefer fewer
+precise tags over many overlapping ones.`
+
+Cleanup done at the same time (2026-08-14): 410 orphan tags with zero bookmarks
+deleted, 88 of them snake_case wreckage from an Ollama-era degenerate loop
+(`ai_automation_evolution_evolution_reporting` and about eighty siblings).
+873 tags -> 462.
+
+Note that `normalizeTagName` already collapses case, spaces, hyphens and
+underscores, so exact duplicates cannot exist. Only semantic near-variants
+survive, and those are the ones a bloated candidate list produces.
+
 ### Semantic search and the embedding backfill
 
 Semantic search (embeddings) arrived in Karakeep 0.33.1. On the older source
@@ -128,7 +173,9 @@ most likely a separate mode in the web UI. This has not been confirmed.
 - **SQLite WAL mode:** `DB_WAL_MODE=true` enables Write-Ahead Logging, which improves concurrent read performance and reduces lock contention between the web process and background workers.
 - **Disk usage watch:** At 65% of 10 GB, the disk is filling up. The `assets/` directory grows as more pages are snapshotted. Consider increasing the disk or periodically pruning old snapshots.
 - **A local model that is not always on is worse than no local model:** Ollama ran on a desktop that is powered off most of the day. Tagging did not fail loudly, it just recorded `taggingStatus: failure` and moved on, so bookmarks quietly accumulated without tags. Privacy was never the deciding factor here - availability was.
-- **Prompt guardrails are a symptom of a weak model:** The Ollama-era tagging prompt shouted `HARD LIMIT: Generate EXACTLY 3 to 5 tags total. Never generate more than 5 tags under any circumstances.` With Gemini and a structured output schema, one calm sentence does the same job. The rewritten prompt also uses the `$tags` placeholder, which shows the model the existing tags so it reuses them instead of inventing `LLM`, `LLMs` and `Large Language Model` as three separate tags.
+- **Prompt guardrails are a symptom of a weak model:** The Ollama-era tagging prompt shouted `HARD LIMIT: Generate EXACTLY 3 to 5 tags total. Never generate more than 5 tags under any circumstances.` With Gemini and a structured output schema, one calm sentence does the same job.
+- **Read what a template placeholder actually expands to.** `$tags` reads like "show the model the existing tags so it reuses them". It expands to every tag name you own, unsorted and uncapped, and it crowds out the page content it is supposed to help classify. It also fed the model eighty snake_case junk tags as examples while the prompt forbade snake_case. The application's own vector-selected list was already better and was being drowned by it.
+- **A feature you enable can silently switch on a second one.** The embedding backfill was done for semantic search. It also activated `getPotentiallyRelevantTags()`, which had been returning `null` on every tagging job until then. Nothing announced this; it is one debug line in the workers log (`Will use N potential tags`).
 - **`SERVER_VERSION` in the env file lied:** It read `1.37.0`, which is a Meilisearch version, not a Karakeep one - Karakeep is versioned `0.33.x`. The community-script update rewrites this line with `sed`, so a stale value survives indefinitely. Never read the version from there; read it from the running workers log.
 - **The helper script rebuilt from source on every update:** `CLEAN_INSTALL=1` wiped `/opt/karakeep`, then `pnpm install && pnpm build` ran for three apps, plus `pnpm rebuild better-sqlite3` and a DB migration. The script also pins Node 22 with a comment pointing at an upstream crash (`karakeep-app/karakeep#2989`). None of that is version controlled, and the build needs a temporary CPU/RAM bump. This is what motivated the move to compose.
 - **The two installs cannot run in parallel:** Both write the same SQLite database, so a side-by-side comparison on the same data directory would corrupt it. The migration is a clean cutover with a backup, not a gradual one.
