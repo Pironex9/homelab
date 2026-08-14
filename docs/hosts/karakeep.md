@@ -141,6 +141,49 @@ Note that `normalizeTagName` already collapses case, spaces, hyphens and
 underscores, so exact duplicates cannot exist. Only semantic near-variants
 survive, and those are the ones a bloated candidate list produces.
 
+### Re-tagging the back catalogue
+
+Re-tagging is safe to run over existing bookmarks because `connectTags` is a
+**replace, not an append**:
+
+```js
+await tx.delete(tagsOnBookmarks)
+  .where(and(eq(tagsOnBookmarks.attachedBy, "ai"), eq(tagsOnBookmarks.bookmarkId, bookmarkId)))
+```
+
+Only AI-attached rows are dropped; anything tagged by hand survives. And
+`if (inferredTags.length == 0) return;` guards the case where the model returns
+nothing, so a failed call cannot strip a bookmark bare.
+
+There is no REST endpoint for it, so jobs go into the queue database directly,
+the same way as the embedding backfill:
+
+```
+queue:   openai_queue
+payload: {"bookmarkId":"...","type":"tag"}
+```
+
+183 bookmarks (everything not carrying the `ai-digest` tag) were re-tagged this
+way on 2026-08-14. Results:
+
+| | before | after |
+|---|---|---|
+| tags | 873 | **183** |
+| tags per bookmark (mean) | ~6 | **4.3** |
+| `Claude Code` | 23 uses | 88 uses |
+| `Agentic Systems` | 24 uses | 61 uses |
+| `taggingStatus: failure` | 19 | 0 |
+
+The big jump in the top tags is the point: the same bookmarks were always about
+those topics, but each pass had invented a fresh phrasing instead of reusing the
+existing tag.
+
+Seven bookmarks ended with zero tags, and all seven are correct: six are
+YouTube's "Before you continue" cookie wall and one is a local login page. The
+built-in prompt explicitly tells the model to ignore consent screens and login
+walls, so an empty result is the right answer, not a failure. Re-tagging also
+orphaned another 297 tags, so the orphan sweep is worth re-running afterwards.
+
 ### Semantic search and the embedding backfill
 
 Semantic search (embeddings) arrived in Karakeep 0.33.1. On the older source
