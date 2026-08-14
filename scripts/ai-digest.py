@@ -27,6 +27,9 @@ MAX_LOOKBACK_H = 36  # ha rég futott, ennél régebbre nem megyünk vissza
 TG_LIMIT = 4000      # a Telegram limit 4096, hagyunk ráhagyást
 # A Telegram csak ezeket a tageket fogadja el, minden más 400-as hibát ad.
 TG_TAGS = "b|strong|i|em|u|s|strike|del|a|code|pre|blockquote|tg-spoiler"
+# Abszolút út: a cron PATH-jában nincs benne a ~/.local/bin. Ez a symlink stabil,
+# a mögötte lévő verziós könyvtár frissüléskor cserélődik.
+CLAUDE = "/root/.local/bin/claude"
 
 
 def secret(name):
@@ -188,7 +191,7 @@ def main():
         prompt = f.read()
 
     result = subprocess.run(
-        ["claude", "-p", "--model", "sonnet", prompt],
+        [CLAUDE, "-p", "--model", "sonnet", prompt],
         input=render_input(items), capture_output=True, text=True, timeout=900)
     if result.returncode != 0:
         raise SystemExit(f"claude hiba: {result.stderr[:500]}")
@@ -208,6 +211,7 @@ def main():
 
 
 def selftest():
+    assert os.access(CLAUDE, os.X_OK), f"{CLAUDE} nincs meg - cronból ez volt az első hiba"
     assert clean("<p>a &amp;  b</p>", 99) == "a & b"
     assert sanitize_html("<h2>x</h2><b>y</b><a href='u'>z</a>") == "<b>y</b><a href='u'>z</a>"
     assert sanitize_html("Íme a digest:\n<b>cím</b>") == "<b>cím</b>"
