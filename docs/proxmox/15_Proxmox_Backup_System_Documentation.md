@@ -367,6 +367,32 @@ env -i PATH=/usr/bin:/bin HOME=/root /usr/local/bin/lxc-fstrim
 
 13.4GB came back, 78.71% to 70.59%. CT 100 alone gave up 12.5GiB and CT 106 (karakeep) 7GiB.
 
+### Proving it, without waiting for 01:30
+
+`env -i` reproduces cron's environment, but it is still not cron. Given that this job had already been declared fixed twice before, the fix was verified end to end with a temporary every-minute entry, then the crontab restored from a backup taken first:
+
+```bash
+crontab -l > /root/crontab.bak-20260814
+(crontab -l; echo '* * * * * /usr/local/bin/lxc-fstrim >> /var/log/homelab/lxc-fstrim.log 2>&1  # TEMP') | crontab -
+# wait for one firing, then:
+crontab /root/crontab.bak-20260814
+diff <(crontab -l) /root/crontab.bak-20260814   # must be empty
+```
+
+The evidence is the pairing of the two logs - cron says it launched the wrapper, the job's own log says what the command inside it did:
+
+```
+Aug 14 10:56:01 pve CRON[2388286]: (root) CMD (/usr/local/bin/lxc-fstrim ...)
+
+=== 2026-08-14 10:56:01 ===
+/var/lib/lxc/100/rootfs/: 7 GiB (7519141888 bytes) trimmed
+/var/lib/lxc/109/rootfs/: 1.2 GiB (1241018368 bytes) trimmed
+```
+
+The same run confirmed `arping-keepalive.sh`: six real cron firings, and its new error log still 0 bytes, which it could not be if `arping` were unresolvable.
+
+**`fstrim` does not always finish in one pass on a live filesystem.** The second run twenty minutes later reclaimed another 7GiB from CT 100, which looks like runaway growth and is not - the container's own `df` went 38G to 37G across both runs, so nothing was consuming space. The first pass simply had five days of backlog to work through. Daily runs do not hit this.
+
 Two things worth carrying forward:
 
 - **This is the third distinct way the same job has failed to run**, after a malformed `/etc/crontab` and a `run-parts` schedule that fired after the backup. The verification that would have caught all three is the same one: read the log for *output*, not for existence. "The file is there and cron logged the CMD" proves the wrapper ran, not the command inside it.
