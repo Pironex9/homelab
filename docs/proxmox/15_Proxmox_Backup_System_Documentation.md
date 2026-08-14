@@ -335,3 +335,54 @@ mv /etc/cron.weekly/lxc-fstrim /usr/local/bin/lxc-fstrim
 ```
 
 Growth is roughly 1%/day against a ~12% cushion from a post-trim 68%, so a daily trim keeps the pool clear of the threshold with room to spare. Check `/var/log/homelab/lxc-fstrim.log` if the pool climbs anyway.
+
+### 2026-08-14: the daily trim ran every night and trimmed nothing
+
+The daily digest reported the pool at 78.69%, up 9.2 points in the three days since the 2026-08-11 low of 69.49%. The trim job was supposed to be holding it flat.
+
+It was not broken in any of the ways the previous incident taught us to check. The crontab entry was correct, `journalctl -u cron` showed the job firing at 01:30 on the 12th, 13th and 14th, and the log file was being written. The log content was the problem:
+
+```
+/usr/local/bin/lxc-fstrim: line 2: pct: command not found
+```
+
+**`pct` lives in `/usr/sbin`, and cron's default `PATH` is `/usr/bin:/bin`.** The script had always been called with a bare `pct`, which works in an interactive root shell because the login profile puts `/usr/sbin` on the path, and fails silently under cron. The job had therefore never once succeeded since being moved to root's crontab on 2026-08-10 - the ten successful trim lines at the top of the log were the manual run from that day, into the same file.
+
+Fixed with the absolute path, plus a timestamp line so the log says which run produced which numbers:
+
+```bash
+#!/bin/bash
+# FIGYELEM: abszolut utvonal kell. A cron PATH-jaban nincs /usr/sbin, ahol a pct lakik.
+echo "=== $(date +%F\ %T) ==="
+for id in $(/usr/sbin/pct list | awk 'NR>1 && $2=="running"{print $1}'); do
+  /usr/sbin/pct fstrim "$id"
+done
+```
+
+Verified by running it under a stripped environment rather than from the current shell, which is the only way to reproduce what cron actually does:
+
+```bash
+env -i PATH=/usr/bin:/bin HOME=/root /usr/local/bin/lxc-fstrim
+```
+
+13.4GB came back, 78.71% to 70.59%. CT 100 alone gave up 12.5GiB and CT 106 (karakeep) 7GiB.
+
+Two things worth carrying forward:
+
+- **This is the third distinct way the same job has failed to run**, after a malformed `/etc/crontab` and a `run-parts` schedule that fired after the backup. The verification that would have caught all three is the same one: read the log for *output*, not for existence. "The file is there and cron logged the CMD" proves the wrapper ran, not the command inside it.
+- **Test cron jobs with `env -i`.** Running the script by hand proves nothing about the environment it will actually execute in. The identical bug hit the `ai-digest` job two days earlier with `claude` in `~/.local/bin`, so every script in a crontab on this host was audited in the same pass rather than waiting for the next incident.
+
+**The audit found a second one.** `/usr/local/bin/arping-keepalive.sh`, which sends a gratuitous ARP every five minutes to keep the router's MAC table from being corrupted by the RE605X extender, calls a bare `arping` - also `/usr/sbin`. It had never worked either, and it was better hidden than the trim job, because of these two lines together:
+
+```bash
+arping -c 1 -U -I vmbr0 192.168.0.109 > /dev/null 2>&1
+exit 0
+```
+
+`2>&1` to `/dev/null` discards the `command not found`, and the hard-coded `exit 0` means cron sees a success and never mails. **A script that discards stderr and forces exit 0 cannot report that it did nothing** - it is indistinguishable from one that works, in the logs, in cron's mail, and in its own exit status. Fixed with the absolute path and stderr redirected to `/var/log/homelab/arping-keepalive.err` instead of `/dev/null`, keeping `exit 0` so a transient failure does not mail every five minutes. An empty error log now means it ran.
+
+Everything else in root's crontab (`restic`, `sync-to-nobara.sh`, `restore-test.sh`) resolves under `PATH=/usr/bin:/bin` and was left alone. Quick check for the whole set:
+
+```bash
+env -i PATH=/usr/bin:/bin bash -c 'command -v restic arping pct qm vzdump'
+```
