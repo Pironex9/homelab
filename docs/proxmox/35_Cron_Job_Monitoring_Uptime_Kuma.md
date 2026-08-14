@@ -215,26 +215,62 @@ env -i PATH=/usr/bin:/bin bash -c 'command -v curl'
 Resulting state, read from Kuma's own database rather than the dashboard:
 
 ```
-name                            iv      allapot  utolso_ping
-------------------------------  ------  -------  -------------------
-cron: lxc-fstrim (pve)           90000  UP       2026-08-14 10:23:44
-cron: restic backup (pve)       612000  UP       2026-08-14 10:22:24
-cron: restore-test (pve)        612000  UP       2026-08-14 10:22:24
-cron: arping-keepalive (pve)       900  UP       2026-08-14 10:25:02
-cron: immich-pgdump (LXC 100)    90000  UP       2026-08-14 10:24:19
-cron: homelab-digest (LXC 109)   90000  UP       2026-08-14 10:25:19
-cron: ai-digest (LXC 109)        90000  UP       2026-08-14 10:25:29
+name                            iv      allapot  utolso_ping          uzenet
+------------------------------  ------  -------  -------------------  -----------------------
+cron: lxc-fstrim (pve)           90000  UP       2026-08-14 10:23:44  OK
+cron: restic backup (pve)       612000  UP       2026-08-14 10:22:24  initial-seed-2026-08-14
+cron: restore-test (pve)        612000  UP       2026-08-14 10:22:24  initial-seed-2026-08-14
+cron: sync-to-nobara (pve)      612000  UP       2026-08-14 12:23:47  synced
+cron: arping-keepalive (pve)       900  UP       2026-08-14 12:20:02  arping-rc-1
+cron: immich-pgdump (LXC 100)    90000  UP       2026-08-14 12:23:58  OK
+cron: homelab-digest (LXC 109)   90000  UP       2026-08-14 10:25:19  OK
+cron: ai-digest (LXC 109)        90000  UP       2026-08-14 10:25:29  initial-seed-2026-08-14
 ```
+
+**Timestamps in the database are UTC** even though the container runs with `TZ=Europe/Budapest`; the dashboard converts them. Comparing a DB timestamp against a host log line without accounting for that is the same UTC/CEST confusion that put the Immich dump cron two hours late (see [15 - Backup System](./15_Proxmox_Backup_System_Documentation.md) section 5).
+
+The `msg` column is what makes this table readable. Setting a distinct message per outcome is not decoration - `arping-rc-1` and `synced` are the difference between "a ping arrived" and "this specific code path produced it", and without it the seeds are indistinguishable from real runs.
+
+The `arping-keepalive` entry at 12:20:02 UTC (14:20 CEST) is the one that matters most here: it is not a manual test but an ordinary automatic firing of the five-minute cron job, so it is the first end-to-end proof in production of cron → fixed script → Kuma.
 
 The weekly monitors were seeded with a manual ping (`msg=initial-seed-2026-08-14`) so they start green; a push monitor that has never been pinged goes down when its first interval expires, which would have meant an alert before the job's first real run.
 
 `ai-digest` was seeded rather than executed, because running it sends a Telegram message and spends Claude tokens. Its cron line is the same `&&` form as `homelab-digest`, which was executed in full.
+
+### Testing a job can mean actually doing its work
+
+`sync-to-nobara.sh` was run to verify its ping, on the assumption it would take the skip path because the desktop is usually off. The desktop was on, so it started the real weekly rsync and ran for two hours:
+
+```console
+root@pve:~# f=$(ls -1 /mnt/pve/nobara-backup/proxmox-vms/dump/.*.tar.zst.* | head -1)
+30s alatt: 1531 MB  => 51 MB/s
+eddig atment ebbol a fajlbol: 11 GB / 20.2 GB
+```
+
+About 200 GB at 51 MB/s over NFS to a desktop disk. Nothing was wrong, but two details are worth knowing before assuming a test has hung:
+
+- **A file counter that stops moving is not a stall.** `rsync -v` logs a line per completed file, so it goes silent for minutes at a time inside a single 20 GB vzdump archive. Measure the growth of the in-progress temp file (`.name.XXXXXX` in the target directory) instead of counting log lines.
+- **Killing it would have been the wrong call.** The work was legitimate and would otherwise have run on Sunday; aborting would have left a partial temp file on the target and no ping.
+
+### Push tokens leak into temp files
+
+The monitor-creation flow writes tokens twice into `/tmp` on the VPS - once in the generator script, once in the SQL it produces:
+
+```console
+root@homelab-vps:~# ls -la /tmp/insert.sql /tmp/mk-cron-monitors.sh
+-rw-r--r-- 1 root root 3506 Aug 14 10:08 /tmp/insert.sql
+-rw-r--r-- 1 root root 1406 Aug 14 10:08 /tmp/mk-cron-monitors.sh
+```
+
+Keeping the tokens out of the repository is only half the job if they are then left world-readable on disk. Both were removed after the inserts. A push token is not catastrophic on its own - the worst an attacker can do is report a job as healthy - but that is precisely the failure this whole exercise exists to prevent.
 
 ## What this still does not cover
 
 - **SnapRAID sync and scrub** are scheduled by `snapraidd`, not cron, so there is no line to append a ping to. The daemon's own state is reported in the daily digest instead. See [28 - SnapRAID Daemon Setup](./28_SnapRAID_Daemon_Setup.md).
 - **Duration and content are not checked.** A push monitor proves the job ran and exited 0. A backup that completes in one second because its source directory vanished still pings green. That is the known ceiling of the dead man's switch pattern, and it is why the weekly restore test exists alongside it.
 - **The 27 unmonitored jobs** were a deliberate cut, not an oversight. Adding all of them would turn the Kuma dashboard into something nobody reads, which is how the original problem started.
+- **Two monitors have not yet seen a real production ping.** `ai-digest` gets its first at 07:30 the next morning, `restic backup` on Sunday at 04:00; both are currently green only because of the seed. If either fails to turn over, that is a genuine finding rather than a setup error, and it is the reason to check them once rather than assume.
+- **This does not fix the thin pool.** A working daily trim buys days, not headroom. The second NVMe in the free M.2 slot is still the actual fix, tracked in `private/todo.md`.
 
 ## Related Documentation
 
