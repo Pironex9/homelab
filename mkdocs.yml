@@ -132,6 +132,7 @@ nav:
   - Projects:
       - Factory Defect Map Import Script: other/factory-copy-script.md
       - Prompt Self-Audit Script: other/prompt-analysis.md
+      - Custom Claude Code Output Style: other/claude-output-style.md
 
 plugins:
   - search

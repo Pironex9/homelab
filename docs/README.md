@@ -77,6 +77,7 @@ Side projects outside the homelab.
 
 - [factory-copy-script](./other/factory-copy-script.md) - PowerShell script to fix broken defect map imports on an industrial laser cutter (self-initiated, factory job)
 - [prompt-analysis](./other/prompt-analysis.md) - Python script that audits my own Claude Code prompting habits from session transcripts
+- [claude-output-style](./other/claude-output-style.md) - Custom Claude Code output style: why tone rules belong in the system prompt, not CLAUDE.md
 
 ## vps/
 
