@@ -72,6 +72,11 @@ backed up to `policies.json.bak`. Firefox reads the policy at startup only.
 
 ## seelen-webview-guard.ps1
 
+**Retired 2026-08-19.** Seelen UI was removed from the Windows machine the same
+day it was written; the script is kept because the technique transfers to any
+long-running app whose WebView2 runtime can be swapped underneath it, and
+because the reasoning is documented. It is not deployed anywhere.
+
 Keeps [Seelen UI](../docs/hosts/winpc.md#seelen-ui) alive on the Windows side of
 the dual boot. Every Seelen widget is a separate WebView2 instance, so when Edge
 Update installs a new Evergreen runtime the already-running shell is left talking
@@ -107,6 +112,13 @@ a SYSTEM task would kill Seelen and never bring it back.
 The `.vbs` hardcodes the path to the `.ps1`; change both if the deploy location
 moves. And note that `wscript.exe` exits 0 whether or not the script it launched
 did anything, so a task result of `0` is not evidence that the guard ran.
+
+Why it was retired: the guard caught the WebView2-update failure exactly as
+designed, but four hours later a different widget died from a different WebView2
+error (`0x8007139F`, with the runtime versions matching) that no process-level
+check can see. Guarding a web-shell one symptom at a time is not a fight worth
+picking - the full argument is in
+[docs/hosts/winpc.md](../docs/hosts/winpc.md#why-it-was-removed).
 
 ## Related Documentation
 

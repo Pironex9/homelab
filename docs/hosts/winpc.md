@@ -295,7 +295,11 @@ winget install --id tailscale.tailscale
 
 ## Seelen UI
 
-[Seelen UI](https://github.com/eythaann/Seelen-UI) 2.8.2 replaces the Windows shell on this machine: its own taskbar, dock, app menu and tiling window manager. It comes from the Microsoft Store as `Seelen.SeelenUI_p6yyn03m1894e`, so it also updates itself from there.
+!!! warning "Removed on 2026-08-19"
+
+    Seelen UI is no longer installed on this machine. This section is kept as a record of the diagnosis and of why it was dropped; see [Why it was removed](#why-it-was-removed) at the end. Everything below describes how it *was* set up.
+
+[Seelen UI](https://github.com/eythaann/Seelen-UI) 2.8.2 replaced the Windows shell on this machine: its own taskbar, dock, app menu and tiling window manager. It came from the Microsoft Store as `Seelen.SeelenUI_p6yyn03m1894e`, so it also updated itself from there.
 
 Every widget it draws is a **separate WebView2 instance**. That is the architecture, and it is also the source of the only real trouble this machine has had with it.
 
@@ -432,3 +436,45 @@ Plus 82 CPU-seconds over 26.3 minutes of uptime, or roughly **5.2% of one core, 
 That is a lot for a shell, and it stays anyway. This machine is the games half of the dual boot; the daily desktop is [Nobara](nobara.md). 1 GB out of 32 GB and 5% of one core buy a desktop that is pleasant to be in for the few hours a week it runs, and the failure that prompted all of this is now handled in fifteen lines of PowerShell.
 
 If that ever changes - if real work happens on the Windows side - the durable replacement is **komorebi plus YASB**: a tiling window manager and a status bar with no browser engine anywhere in the loop, so no runtime update can reach them. The cost is TOML and JSON configuration and `whkd` for the key bindings, with no settings GUI at all. [GlazeWM](https://github.com/glzr-io/glazewm) is the obvious third option and is not recommended here: as of 2026-08-19 it carries 400 open issues with no commit since 2026-06-20, and Zebar, its companion bar, has not been touched since 2026-03-31.
+
+### Why it was removed
+
+The guard worked. It was also, within four hours, clearly fixing one instance of a class of problem rather than the problem.
+
+At 11:05:15 the same day, `@seelen/wallpaper-manager` began failing, and the shell showed the same "stopped responding too many times" dialog. This time it was **not** the WebView2 update:
+
+| | Morning failure | Midday failure |
+|---|---|---|
+| HRESULT | `0x80010108` `RPC_E_DISCONNECTED` | `0x8007139F` `ERROR_INVALID_STATE` |
+| Registered runtime vs. Seelen's child | `.93` vs `.78` - mismatch | `.93` vs `.93` - identical |
+| Widgets lost | nine | one |
+| Guard's verdict | restart | do nothing |
+
+The guard's verdict was **correct** both times. There was no runtime mismatch at 11:05, so restarting Seelen was not its call to make. The trigger was mundane: a window closed (`Removing: Window(0xb0788)`), and the wallpaper manager's webview never came back. Six liveness attempts over forty seconds, then `giving up`.
+
+What settled it was what happened next. The automatic wallpaper rotation kept firing on its five-minute timer against a widget that no longer existed, and the log went from 785 KB to 937 KB in twenty seconds - **7 602 bytes per second**, 2 173 copies of the same error, with no upper bound and no self-recovery. CPU stayed low (1.7% of one core), so nothing was on fire; it was simply going to grind on until someone restarted the shell by hand.
+
+That is the argument against the whole arrangement. `0x8007139F` is a known WebView2 failure with [several distinct causes reported upstream](https://github.com/MicrosoftEdge/WebView2Feedback/issues/4216), and Tauri has [its own long-running issue for it](https://github.com/tauri-apps/tauri/issues/8640). Guarding against each new symptom means writing a new detector every time, and the only detector that would have caught this one is log-grepping for `giving up` - which cannot distinguish a widget that failed once from a widget that fails on every start, so it risks a restart loop on the desktop it is supposed to protect.
+
+Weighed against 1 GB of RAM and 5% of a core for a shell on a machine that exists to run games, that was not a trade worth defending. Windows 11's own shell went back on.
+
+### What removing it touched
+
+```powershell
+Unregister-ScheduledTask -TaskName 'Seelen WebView2 guard' -Confirm:$false
+Get-Process seelen-ui, slu-service | Stop-Process -Force
+Get-AppxPackage Seelen.SeelenUI | Remove-AppxPackage
+Unregister-ScheduledTask -TaskName 'Seelen UI Service' -TaskPath '\Seelen\' -Confirm:$false
+Remove-Item "$env:APPDATA\com.seelen.seelen-ui", "$env:LOCALAPPDATA\com.seelen.seelen-ui" -Recurse -Force
+Stop-Process -Name explorer -Force        # rebuilds the native taskbar
+```
+
+Two things are worth knowing before doing this on a machine you are sitting at.
+
+**`slu-service.exe` is what hides the native taskbar**, through `HideNativeTaskbar` IPC calls. Removing the package while it is hidden can leave a desktop with no taskbar at all, so the order matters: stop the processes first, uninstall second, and restart `explorer.exe` at the end to rebuild `Shell_TrayWnd` from scratch. If that is ever missed, **Ctrl+Shift+Esc → Run new task → `explorer.exe`** is the way back.
+
+**A second scheduled task survives the uninstall.** `\Seelen\Seelen UI Service` is registered outside the MSIX package and `Remove-AppxPackage` leaves it behind, along with its `\Seelen\` folder in the Task Scheduler tree.
+
+Removed: the 2.8.2.0 package, a 38.1 MB local data directory, 3 KB of settings, two scheduled tasks and four guard files. `explorer.exe` restarted cleanly (pid 9712 to 10656).
+
+One thing SSH cannot answer: whether the taskbar is actually on screen. `FindWindow('Shell_TrayWnd', ...)` from an SSH session returns a null handle **regardless**, because that session cannot see the interactive desktop's windows - the same trap as reading monitor geometry remotely, where `[System.Windows.Forms.Screen]::AllScreens` reports a phantom 1024x768. Neither is evidence of anything. Only a human looking at the screen can confirm it.
