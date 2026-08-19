@@ -352,11 +352,13 @@ It works, and it was **not** used. WebView2 is not Seelen's private dependency: 
 
 `scripts/seelen-webview-guard.ps1` in this repo, deployed to `C:\Users\Nex\seelen-webview-guard.ps1` and driven by a scheduled task named `Seelen WebView2 guard`. It watches the exact condition that breaks the shell - Seelen's own webview child running from a directory other than the registered runtime - and restarts Seelen when it sees it. Nothing is grepped, nothing is guessed.
 
+The task does not call PowerShell directly. It runs `scripts/seelen-webview-guard.vbs`, a small launcher whose only job is to start PowerShell with no window; the reason is the third trap below.
+
 ```powershell
 $me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\Nex\seelen-webview-guard.ps1"'
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' `
+  -Argument '"C:\Users\Nex\seelen-webview-guard.vbs"'
 $t1 = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 5)
 $t2 = New-ScheduledTaskTrigger -AtLogOn -User $me
 
@@ -366,11 +368,13 @@ Register-ScheduledTask -TaskName 'Seelen WebView2 guard' -Action $action -Trigge
               -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew)
 ```
 
-Two traps in those five lines:
+Three traps:
 
 **`$env:USERDOMAIN` is `WORKGROUP` on a machine that is not domain-joined**, and `Register-ScheduledTask` rejects `WORKGROUP\nex` with `No mapping between account names and security IDs was done` - an error that reads like a permissions problem rather than a bad string. `[System.Security.Principal.WindowsIdentity]::GetCurrent().Name` returns `DESKTOP-BO661M2\Nex`, which it accepts.
 
 **`-LogonType Interactive` is not optional.** Relaunching an MSIX app means `Start-Process explorer.exe 'shell:AppsFolder\<PackageFamilyName>!App'`, and that needs a desktop session to appear on. A task running as SYSTEM or with a stored password would kill Seelen and never bring it back - the worst possible outcome for a script whose job is keeping the shell alive. `-RunLevel Limited` is deliberate too: none of this needs administrator.
+
+**`powershell.exe -WindowStyle Hidden` still flashes a console window.** The console host is created before PowerShell parses its own parameters, so the window exists for a few hundred milliseconds no matter what the flag says. On a five-minute schedule that is a blink on the desktop twelve times an hour, and it can take focus off whatever is in front of it - which is how this was noticed at all, from the desk rather than from a log. `wscript.exe` has no console of its own, so a `.vbs` doing `CreateObject("WScript.Shell").Run cmd, 0, True` starts PowerShell hidden and waits for it, keeping the task's runtime and its execution time limit meaningful.
 
 The `-AtLogOn` trigger exists because the repeating trigger alone is not dependable across a reboot. `IgnoreNew` keeps a slow run from stacking, and the script writes a `seelen-webview-guard.last` stamp so a mismatch that somehow refuses to clear cannot turn into a restart every five minutes.
 
@@ -392,6 +396,14 @@ webview child     : 6192  ...\EdgeWebView\Application\151.0.4129.93\msedgewebvie
 ```
 
 Then it was run a second time, which is the half that actually matters: **pid 8064 stayed 8064** and the log stayed two lines. A guard that restarts things is only safe once you have watched it decline to.
+
+Moving the task onto the `.vbs` launcher needed one more proof, because **`wscript.exe` returns 0 whether or not the script it launched did anything**. A task result of `0` says nothing about the PowerShell underneath. So the guard was swapped for a one-line stand-in that writes a file unconditionally, the task was fired, and the stand-in reported back:
+
+```
+ran at 2026-08-19T10:13:31 as desktop-bo661m2\nex session 1
+```
+
+`session 1` is the interactive desktop session, which is the property the MSIX relaunch depends on. The real script was then restored and its SHA256 compared against the copy in this repo to prove the swap left nothing behind.
 
 ### Three log lines that are not evidence
 

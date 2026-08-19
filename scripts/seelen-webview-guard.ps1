@@ -29,6 +29,10 @@
     session to appear on, so a SYSTEM task would kill Seelen and never bring it
     back. It does not need administrator rights.
 
+    The task runs seelen-webview-guard.vbs rather than powershell.exe directly,
+    because powershell.exe flashes a console window on every fire even with
+    -WindowStyle Hidden.
+
 .NOTES
     Documented in docs/hosts/winpc.md#seelen-ui
 #>

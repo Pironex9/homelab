@@ -84,9 +84,15 @@ own `msedgewebview2.exe` child and restarts Seelen only when they differ. No log
 parsing, no heuristics, and a 10-minute cooldown stamp so a mismatch that refuses
 to clear cannot become a restart loop.
 
+`seelen-webview-guard.vbs` goes with it. The scheduled task runs the `.vbs`, not
+PowerShell directly, because `powershell.exe -WindowStyle Hidden` still flashes a
+console window - the host window is created before PowerShell reads the flag, so
+a 5-minute task blinks on the desktop twelve times an hour and can steal focus.
+
 ```powershell
-# deploy
+# deploy both
 scp scripts/seelen-webview-guard.ps1 winpc:'C:/Users/<user>/seelen-webview-guard.ps1'
+scp scripts/seelen-webview-guard.vbs winpc:'C:/Users/<user>/seelen-webview-guard.vbs'
 
 # schedule (see docs/hosts/winpc.md for the full Register-ScheduledTask call)
 $me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name   # NOT $env:USERDOMAIN
@@ -97,6 +103,10 @@ Two things the task cannot get wrong: the principal must come from
 not domain-joined and `Register-ScheduledTask` rejects it, and the logon type
 must be `Interactive` because relaunching an MSIX app needs a desktop session -
 a SYSTEM task would kill Seelen and never bring it back.
+
+The `.vbs` hardcodes the path to the `.ps1`; change both if the deploy location
+moves. And note that `wscript.exe` exits 0 whether or not the script it launched
+did anything, so a task result of `0` is not evidence that the guard ran.
 
 ## Related Documentation
 
