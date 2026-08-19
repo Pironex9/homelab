@@ -290,3 +290,133 @@ Windows is its own tailnet node, `nex-windows` (100.80.75.55), separate from Nob
 ```powershell
 winget install --id tailscale.tailscale
 ```
+
+---
+
+## Seelen UI
+
+[Seelen UI](https://github.com/eythaann/Seelen-UI) 2.8.2 replaces the Windows shell on this machine: its own taskbar, dock, app menu and tiling window manager. It comes from the Microsoft Store as `Seelen.SeelenUI_p6yyn03m1894e`, so it also updates itself from there.
+
+Every widget it draws is a **separate WebView2 instance**. That is the architecture, and it is also the source of the only real trouble this machine has had with it.
+
+### The widget that stopped responding
+
+On 2026-08-19 the shell came apart a piece at a time. Clicking the tray, the settings, the quick settings or a context menu produced:
+
+> The widget 'XY' stopped responding too many times. You can try restarting the app.
+
+The taskbar and the dock kept working, which made it read as a random partial failure. The log said otherwise:
+
+```
+[2026-08-19][07:28:19][ERROR][tauri_runtime_wry] failed to create webview: WebView2 error:
+  WindowsError(Error { code: HRESULT(0x80010108), message: "The object invoked has disconnected from its clients." })
+[2026-08-19][07:29:24][ERROR][seelen_ui::widgets::loader] Liveness prove failed for @seelen/system-tray too many times, giving up.
+```
+
+`0x80010108` is `RPC_E_DISCONNECTED`. Lining those timestamps up against the WebView2 install directory explains all of it:
+
+| Time | Event |
+|---|---|
+| 07:13:09 | `seelen-ui.exe` starts, spawning WebView2 processes from `151.0.4129.78` |
+| 07:14:30 | Edge Update creates `...\EdgeWebView\Application\151.0.4129.93` |
+| 07:24:47 | the installer finishes and the old version's directory goes away |
+| 07:28:03 | first `Liveness prove failed`; nine widgets give up over the next ninety seconds |
+
+**The Evergreen WebView2 runtime updated underneath a process that was already running.** Widgets that already held a webview carried on, which is why the taskbar looked healthy. Anything that had to create a *new* one was asking for a runtime that no longer existed on disk. Nine gave up: `tooltip`, `context-menu` (two instances), `user-menu`, `settings`, `notifications`, `quick-settings`, `keyboard-selector`, `system-tray`.
+
+A process in this state never recovers on its own. Only a restart fixes it, and the same thing will happen at the next runtime update - this is design, not a bug that gets patched.
+
+### Diagnosing it without reading the log
+
+Compare the registered runtime version against what Seelen's children are actually running:
+
+```powershell
+(Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}').pv
+Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe' AND ParentProcessId=$((Get-Process seelen-ui).Id)" |
+  Select-Object ProcessId, ExecutablePath
+```
+
+Two things about that second command. The GUID is the **WebView2 Runtime**'s, not the Edge browser's. And it returns exactly **one** row, not the eleven `msedgewebview2.exe` processes visible in Task Manager: only the browser process is a direct child of `seelen-ui.exe`, the renderers are children of *it*. If that one path does not carry the version from the first command, the shell is already broken and has no way to tell you.
+
+### The fix that was rejected
+
+There is a one-line way to stop this permanently:
+
+```powershell
+reg add "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "Update{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /t REG_DWORD /d 0 /f
+```
+
+It works, and it was **not** used. WebView2 is not Seelen's private dependency: the new Outlook, Teams and a long tail of Store apps render web content with the same runtime, some of it from the open internet. Freezing the runtime freezes their engine's security patches too. That is a bad trade on a machine in daily use, to spare a three-second restart every few weeks.
+
+### The guard
+
+`scripts/seelen-webview-guard.ps1` in this repo, deployed to `C:\Users\Nex\seelen-webview-guard.ps1` and driven by a scheduled task named `Seelen WebView2 guard`. It watches the exact condition that breaks the shell - Seelen's own webview child running from a directory other than the registered runtime - and restarts Seelen when it sees it. Nothing is grepped, nothing is guessed.
+
+```powershell
+$me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' `
+  -Argument '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\Nex\seelen-webview-guard.ps1"'
+$t1 = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 5)
+$t2 = New-ScheduledTaskTrigger -AtLogOn -User $me
+
+Register-ScheduledTask -TaskName 'Seelen WebView2 guard' -Action $action -Trigger @($t1,$t2) `
+  -Principal (New-ScheduledTaskPrincipal -UserId $me -LogonType Interactive -RunLevel Limited) `
+  -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+              -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew)
+```
+
+Two traps in those five lines:
+
+**`$env:USERDOMAIN` is `WORKGROUP` on a machine that is not domain-joined**, and `Register-ScheduledTask` rejects `WORKGROUP\nex` with `No mapping between account names and security IDs was done` - an error that reads like a permissions problem rather than a bad string. `[System.Security.Principal.WindowsIdentity]::GetCurrent().Name` returns `DESKTOP-BO661M2\Nex`, which it accepts.
+
+**`-LogonType Interactive` is not optional.** Relaunching an MSIX app means `Start-Process explorer.exe 'shell:AppsFolder\<PackageFamilyName>!App'`, and that needs a desktop session to appear on. A task running as SYSTEM or with a stored password would kill Seelen and never bring it back - the worst possible outcome for a script whose job is keeping the shell alive. `-RunLevel Limited` is deliberate too: none of this needs administrator.
+
+The `-AtLogOn` trigger exists because the repeating trigger alone is not dependable across a reboot. `IgnoreNew` keeps a slow run from stacking, and the script writes a `seelen-webview-guard.last` stamp so a mismatch that somehow refuses to clear cannot turn into a restart every five minutes.
+
+### Verifying it
+
+The first run was a real one - the shell was still broken at the time, so the guard had actual work to do:
+
+```
+task last run     : 08/19/2026 07:46:35  result=0
+seelen pid        : 9428 -> 8064  (started 07:46:38)
+webview child     : 6192  ...\EdgeWebView\Application\151.0.4129.93\msedgewebview2.exe
+```
+
+`%LOCALAPPDATA%\seelen-webview-guard.log`:
+
+```
+2026-08-19T07:46:37 restart: bejegyzett runtime=151.0.4129.93, futo=...\151.0.4129.78\msedgewebview2.exe
+2026-08-19T07:46:40 ujrainditva
+```
+
+Then it was run a second time, which is the half that actually matters: **pid 8064 stayed 8064** and the log stayed two lines. A guard that restarts things is only safe once you have watched it decline to.
+
+### Three log lines that are not evidence
+
+Every Seelen start writes these, including the 2026-08-11 start that predates all of the above:
+
+```
+[ERROR][seelen_ui::error] WMI(HResultError { hres: -2147217396 })
+[ERROR][seelen_ui::error] Windows(Error { code: HRESULT(0x80040154), message: "Class not registered" })
+```
+
+And `telemetry.seelen.io` fails DNS resolution on every run, because AdGuard blocks it. Neither has anything to do with the widget failure, and both are easy to seize on when hunting for a cause.
+
+### What it costs, and why it stays
+
+Measured on 2026-08-19 with the shell idle:
+
+| | |
+|---|---|
+| `seelen-ui.exe` | 152 MB |
+| `msedgewebview2.exe` x11 | 926 MB |
+| `slu-service.exe` | 4 MB |
+| **total** | **1 082 MB** |
+
+Plus 82 CPU-seconds over 26.3 minutes of uptime, or roughly **5.2% of one core, sustained, doing nothing** - a good part of it the per-second window preview capture that the log shows on every single second.
+
+That is a lot for a shell, and it stays anyway. This machine is the games half of the dual boot; the daily desktop is [Nobara](nobara.md). 1 GB out of 32 GB and 5% of one core buy a desktop that is pleasant to be in for the few hours a week it runs, and the failure that prompted all of this is now handled in fifteen lines of PowerShell.
+
+If that ever changes - if real work happens on the Windows side - the durable replacement is **komorebi plus YASB**: a tiling window manager and a status bar with no browser engine anywhere in the loop, so no runtime update can reach them. The cost is TOML and JSON configuration and `whkd` for the key bindings, with no settings GUI at all. [GlazeWM](https://github.com/glzr-io/glazewm) is the obvious third option and is not recommended here: as of 2026-08-19 it carries 400 open issues with no commit since 2026-06-20, and Zebar, its companion bar, has not been touched since 2026-03-31.

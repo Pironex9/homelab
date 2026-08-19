@@ -70,7 +70,36 @@ then checks DNS and proves the result with a real HTTPS request.
 Idempotent; an existing Firefox `policies.json` is merged, not replaced, and
 backed up to `policies.json.bak`. Firefox reads the policy at startup only.
 
+## seelen-webview-guard.ps1
+
+Keeps [Seelen UI](../docs/hosts/winpc.md#seelen-ui) alive on the Windows side of
+the dual boot. Every Seelen widget is a separate WebView2 instance, so when Edge
+Update installs a new Evergreen runtime the already-running shell is left talking
+to a runtime directory that no longer exists. Widgets that need a new webview
+then fail with `HRESULT(0x80010108)` and the user sees "The widget 'X' stopped
+responding too many times". The process never recovers by itself.
+
+The script compares the registered runtime version against the path of Seelen's
+own `msedgewebview2.exe` child and restarts Seelen only when they differ. No log
+parsing, no heuristics, and a 10-minute cooldown stamp so a mismatch that refuses
+to clear cannot become a restart loop.
+
+```powershell
+# deploy
+scp scripts/seelen-webview-guard.ps1 winpc:'C:/Users/<user>/seelen-webview-guard.ps1'
+
+# schedule (see docs/hosts/winpc.md for the full Register-ScheduledTask call)
+$me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name   # NOT $env:USERDOMAIN
+```
+
+Two things the task cannot get wrong: the principal must come from
+`WindowsIdentity` because `$env:USERDOMAIN` is `WORKGROUP` on a machine that is
+not domain-joined and `Register-ScheduledTask` rejects it, and the logon type
+must be `Interactive` because relaunching an MSIX app needs a desktop session -
+a SYSTEM task would kill Seelen and never bring it back.
+
 ## Related Documentation
 
 - [Backup Strategy](../docs/proxmox/15_Proxmox_Backup_System_Documentation.md)
 - [HTTPS for .lan on Windows](../docs/hosts/winpc.md#https-for-lan-services)
+- [Seelen UI on the Windows dual boot](../docs/hosts/winpc.md#seelen-ui)
