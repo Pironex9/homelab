@@ -72,7 +72,23 @@ New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell `
   -Value "C:\Program Files\PowerShell\7\pwsh.exe" -PropertyType String -Force
 ```
 
-**5. The SSH session is not elevated.** `Add-WindowsCapability`, `Set-NetConnectionProfile` and similar admin work must be run from an interactive elevated window, even when the SSH user is an administrator. This is a useful property rather than a limitation: remote automation cannot silently change machine-wide state.
+**5. The SSH session is fully elevated, and that is not an SSH property.** This entry previously claimed the opposite - that admin work had to be done from an interactive elevated window, and that remote automation therefore could not silently change machine-wide state. Measured on 2026-08-19, that is wrong here:
+
+```
+IsInRole Administrator        : True
+HKLM write / delete           : succeeds
+Get-WindowsCapability -Online : works
+EnableLUA                     : 0
+```
+
+The cause is the last line. **UAC is switched off on this machine**, so every process an administrator starts receives a full administrator token with no filtering and no consent prompt - an SSH session included. On a box with `EnableLUA=1` (the Windows default) the original claim would hold: sshd hands the user a filtered token and machine-wide operations fail. So the behaviour depends entirely on that one value, and it is worth checking rather than assuming in either direction:
+
+```powershell
+[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+  [Security.Principal.WindowsBuiltInRole]::Administrator)
+```
+
+`EnableLUA=0` is a real weakening and it was not a deliberate decision that got written down anywhere - it deserves to be turned back on, which needs a reboot. Until then, treat anything reached over `ssh winpc` as running with full administrator rights.
 
 ### Verifying the host key
 
@@ -292,6 +308,65 @@ winget install --id tailscale.tailscale
 ```
 
 ---
+
+## File Explorer crashed on every nav-pane right-click
+
+Right-clicking anything in File Explorer's left navigation pane - Desktop, Downloads, Pictures, This PC, Local Disk C, Local Disk D, Network - crashed and restarted Explorer. It began while [Seelen UI](#seelen-ui) was installed and survived its removal untouched, which is what ruled Seelen out.
+
+### The event log names the victim, not the culprit
+
+```
+Application, Event ID 1000
+  Explorer.EXE 10.0.26100.1591
+  SHELL32.dll  10.0.26100.1591   c0000005   offset 0x5200f
+  ntdll.dll    10.0.26100.1591   c015000f   offset 0x4f63c
+```
+
+Six of these in eleven minutes, and **always the same offset in SHELL32**. That repetition is the useful part. SHELL32 is what loads shell extensions, so a crash at a fixed address inside it means an extension corrupted the state SHELL32 then walked into. The faulting-module field will keep pointing at SHELL32 and never name the extension, so the event log cannot finish this investigation on its own.
+
+### Finding the extension
+
+Enumerate the context menu handlers for the object classes the nav pane actually contains, and resolve each entry's CLSID to the DLL behind it:
+
+```powershell
+foreach ($base in 'Folder','Drive','AllFilesystemObjects','*') {
+  $p = "HKLM:\SOFTWARE\Classes\$base\shellex\ContextMenuHandlers"
+  Get-ChildItem -LiteralPath $p | ForEach-Object {
+    $guid = (Get-ItemProperty -LiteralPath $_.PSPath -Name '(default)').'(default)'
+    $dll  = (Get-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Classes\CLSID\$guid\InprocServer32" -Name '(default)').'(default)'
+    "{0,-22} {1,-32} {2}" -f $base, $_.PSChildName, $dll
+  }
+}
+```
+
+**`-LiteralPath` is not optional.** The `*` class is a key whose name is literally an asterisk; without `-LiteralPath` PowerShell reads it as a wildcard and walks the whole of HKCR, which runs for minutes and returns nothing useful.
+
+Two non-Microsoft handlers were registered under `Folder` and `Drive`: Open-Shell's `StartMenuHelper64.dll` (unsigned, but current, dated 2026-05-12) and Spybot's `SDECon64.dll`. The file versions settled it:
+
+| File | Version | Dated |
+|---|---|---|
+| `SDECon64.dll` | 2.8.67.113 | 2021-12-21 |
+| `SDECon32.dll` | 2.9.82.115 | 2023-01-23 |
+| installed Spybot | 2.9.85.5 | 2024-12-29 |
+
+A partial update had left the 64-bit half four years behind the product it belonged to, and 64-bit Explorer loads precisely that half. Both the `SDECon32` and `SDECon64` keys pointed at the **same** CLSID, `{44176360-2BBF-4EC1-93CE-384B8681A0BC}`, so the stale DLL was being loaded twice per menu. Spybot's own forums carry [several threads](https://forums.spybot.info/threads/windows-explorer-crashes-when-right-clicked-in-any-folder.69407/) describing exactly this, down to the detail of right-clicking drives in the left pane.
+
+### What was done
+
+Spybot was uninstalled rather than having its extension unregistered. The free edition has no real-time protection at all, so its three resident processes (103 MB) and two automatic services were guarding nothing, while Defender was fully live (`RealTimeProtectionEnabled: True`, signatures 0 days old). Zero Explorer crashes since.
+
+The uninstaller was not thorough. It removed the DLLs and the CLSID registration but left six `ContextMenuHandlers\SDECon32|SDECon64` keys behind, pointing at a CLSID that no longer resolves. **That is harmless** - the shell fails the lookup and moves on - so an incomplete uninstall is not evidence that the fix failed. They were deleted afterwards for tidiness, not as part of the repair.
+
+### A backup that would not have worked
+
+The six keys were exported before deletion, each with `reg export`, appended into one `.reg` file. That file **cannot be imported**: every export writes its own `Windows Registry Editor Version 5.00` line and regedit stops at the second one. It was rewritten with a single header and then actually imported - all six keys came back - before being deleted again. A rollback file nobody has restored from is a guess, not a rollback.
+
+One more trap in that test: `& reg import $file 2>&1` under `$ErrorActionPreference='Stop'` throws, because `reg` writes to stderr even on success. The import completes; the rest of the script does not.
+
+### What was left alone
+
+The `hosts` file, by decision: 476 KB and 16 314 lines, of which lines 676 to the end are Spybot immunization last written on 2024-12-29 and now permanently frozen. **Lines 1-675 hold 651 unrelated entries** blocking Adobe telemetry, so the file must never be emptied wholesale. DNS on this machine points at AdGuard (192.168.0.111), which makes the entire blocklist redundant in any case.
+
 
 ## Seelen UI
 
