@@ -16,6 +16,7 @@ services:
       - SCRUTINY_WEB_MQTT_RETAIN=true
     volumes:
       - /srv/docker-data/scrutiny/config:/opt/scrutiny/config
+      - /srv/docker-data/scrutiny/influxdb:/opt/scrutiny/influxdb
       - /srv/docker-data/scrutiny:/run/udev:ro
       - /srv/docker-data/scrutiny/disk:/dev/disk
     ports:
