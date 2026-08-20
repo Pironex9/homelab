@@ -6,6 +6,43 @@
 
 > **Update (2026-08-02):** switched the server image from `ghcr.io/analogj/scrutiny` to the actively maintained fork `ghcr.io/starosdev/scrutiny` - upstream AnalogJ development had slowed, the fork is a drop-in replacement (same SQLite/InfluxDB schema, no config changes). The host-side collector binary (below) had to be upgraded too - see the note in the Collector Setup section. Also added Home Assistant MQTT discovery (`SCRUTINY_WEB_MQTT_*` env vars) - disk temperature/status/power-on-hours/power-cycle-count now show up as HA entities.
 
+> **Update (2026-08-20):** three fixes after a removed USB disk turned out to be the visible end of two silent problems.
+>
+> **Removing a disconnected disk.** `Delete device` in the WebUI is enough, and it is a complete cleanup. The fork's `DeleteDevice` handler removes the SQLite row, deletes the InfluxDB measurements from all four buckets (`metrics`, `metrics_weekly`, `metrics_monthly`, `metrics_yearly`, matched on the `device_wwn` tag, 10 years back), and calls `removeMqttDevice` to clear the Home Assistant discovery topics. It is irreversible - the SMART history is gone with it. If the disk might come back, press `Archive` instead: it hides the device and clears the same HA entities, but keeps the history and can be undone with `unarchive`.
+>
+> **The InfluxDB data was not persisted.** The live compose file mounted only `config`, so `/opt/scrutiny/influxdb` lived in the container's writable layer. With `image: ...:latest`, a single `docker compose pull && up -d` would have silently wiped the SMART history of all six disks - the dashboard would come back empty with no error anywhere. The compose example in this guide always had the volume; the deployed file had drifted from it. Fix, in this order, because a bind mount over a non-empty container path masks the data instead of merging it:
+>
+> ```bash
+> docker stop scrutiny
+> docker cp scrutiny:/opt/scrutiny/influxdb /srv/docker-data/scrutiny/influxdb
+> # only now add the volume line and recreate
+> #   - /srv/docker-data/scrutiny/influxdb:/opt/scrutiny/influxdb
+> docker compose up -d
+> ```
+>
+> **MQTT had never connected.** The `SCRUTINY_MQTT_PASSWORD` variable was empty in the Komodo Stack Environment, so `SCRUTINY_WEB_MQTT_PASSWORD` resolved to a blank string and the broker refused every connect. The log line is misleading:
+>
+> ```
+> level=error msg="Failed to connect MQTT: MQTT connect timed out after 10s (MQTT integration disabled)"
+> ```
+>
+> That reads like a network problem, but it is authentication. Port 1883 on the broker was open the whole time. A raw MQTT CONNECT probe separates the two cases in one step - `CONNACK rc=5` means "not authorized", a real network fault gives no CONNACK at all:
+>
+> ```bash
+> python3 -c '
+> import socket, struct
+> cid=b"probe"; flags=0x02
+> vh=struct.pack("!H",4)+b"MQTT"+bytes([4,flags])+struct.pack("!H",30)
+> body=vh+struct.pack("!H",len(cid))+cid
+> s=socket.create_connection(("192.168.0.202",1883),5); s.settimeout(5)
+> s.send(bytes([0x10,len(body)])+body)
+> print("CONNACK rc=%d" % s.recv(4)[3])'
+> ```
+>
+> The Mosquitto add-on authenticates against Home Assistant users, so the value is the HA password of the user named in `SCRUTINY_WEB_MQTT_USERNAME`. After filling it in and redeploying, the log reads `MQTT connected to broker` / `MQTT: synced 5 devices, cleaned 5 legacy topics`, and the disk entities appear in Home Assistant.
+>
+> Because the stack is deployed by Komodo from git, the order matters: push the compose change **first**, then Pull and Deploy. Deploying before the push makes Komodo pull the old file back over the edited checkout, dropping the volume line and recreating the container without the mount.
+
 ---
 
 ## 📋 Table of Contents
@@ -90,7 +127,7 @@ Scrutiny Collector (Proxmox Host):
 │                                                  │
 │ Scrutiny Server (Docker):                       │
 │   ├─ Container: scrutiny                        │
-│   ├─ Image: ghcr.io/analogj/scrutiny:latest    │
+│   ├─ Image: ghcr.io/starosdev/scrutiny:latest  │
 │   ├─ WebUI: http://192.168.0.110:8082          │
 │   ├─ InfluxDB (embedded metrics storage)        │
 │   └─ Dashboard (all disks, historical data)     │
