@@ -1,6 +1,12 @@
 services:
   calibre-web-automated:
-    image: crocodilestick/calibre-web-automated:latest
+    # Calibre-Web-NextGen: a CWA kozossegi forkja. Az upstream CWA utolso kiadasa
+    # v4.0.6 volt (2026-02-04) es azota nincs release. Digestre pinnelve, mert a
+    # fork gyorsan mozog - a :latest atnezes nelkul hozna be uj buildeket.
+    # v4.1.39, SLSA provenance ellenorizve: build .../docker-image-build-release.yml
+    #   @refs/tags/v4.1.39, forras commit d59d00fd16a65205aaeaf9af648a0bddd0e75e09
+    # Visszaallas: crocodilestick/calibre-web-automated@sha256:c31a738b6d5ec6982c050063dd3f063b6943eb1051fc81144789f840d9093a8d
+    image: ghcr.io/new-usemame/calibre-web-nextgen@sha256:4826c217a5167655ea5efa32c13a6e40c2f36d5563e7155ef5631ca55ee094b8
     container_name: calibre-web-automated
     environment:
       - PUID=0
