@@ -244,10 +244,10 @@
             description: E-book library
             siteMonitor: http://192.168.0.110:8085
             statusStyle: dot
-        - Calibre Downloader:
+        - Shelfmark:
             icon: https://avatars.githubusercontent.com/u/191882101?s=48&v=4
             href: http://192.168.0.110:8084
-            description: Automated book downloader
+            description: Book search and download manager
             siteMonitor: http://192.168.0.110:8084
             statusStyle: dot
 
