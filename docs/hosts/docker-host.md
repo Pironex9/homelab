@@ -62,7 +62,7 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
-| `calibre-web-automated` | `crocodilestick/calibre-web-automated` | 8085 | Calibre library with auto-import |
+| `calibre-web-automated` | `ghcr.io/new-usemame/calibre-web-nextgen` (digest-pinned) | 8085 | Calibre library with auto-import; migrated off `crocodilestick/calibre-web-automated` 2026-08-21 after upstream stopped releasing |
 | `bentopdf` | `bentopdfteam/bentopdf` | 3000 | PDF reader |
 
 ### Location Tracking
