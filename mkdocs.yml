@@ -123,6 +123,7 @@ nav:
           - 37 - Calibre-Web Bulk Ebook Import: proxmox/37_Calibre_Web_Automated_Bulk_Import.md
           - 38 - Calibre Metadata Cleanup: proxmox/38_Calibre_Metadata_Cleanup.md
           - 39 - Auditing a Community Fork: proxmox/39_Auditing_a_Community_Fork.md
+          - 40 - Shelfmark Book Pipeline: proxmox/40_Shelfmark_Book_Pipeline.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
