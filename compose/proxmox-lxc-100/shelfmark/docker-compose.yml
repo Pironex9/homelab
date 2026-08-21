@@ -1,0 +1,24 @@
+services:
+  shelfmark:
+    # Shelfmark: a calibre-web-automated-book-downloader utodja (a projektet 2026-ban
+    # atneveztek). Konyv- es hangoskonyv-kereso + letolteskezelo, ami a talalatokat
+    # egyenesen a CWA ingest mappajaba teszi.
+    # A standard image egy valodi Chromiumot indit a Cloudflare-challenge megoldasahoz,
+    # ezert kell a mem_limit: enelkul egy megakadt bongeszo elvinne a hoszt szabad RAM-jat
+    # a masik 32 konteertol.
+    image: ghcr.io/calibrain/shelfmark:latest
+    container_name: shelfmark
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Europe/Budapest
+      - INGEST_DIR=/books
+    volumes:
+      - /srv/docker-data/shelfmark:/config
+      # A CWA inotify-figyelt ingest mappaja: ami ide leesik, azt a Calibre-Web
+      # magatol beolvassa. PUID=0, mert a CWA is rootkent mozgatja/torli innen a fajlokat.
+      - /mnt/storage/media/konyv_ingest:/books
+    ports:
+      - 8084:8084
+    mem_limit: 2g
+    restart: unless-stopped
