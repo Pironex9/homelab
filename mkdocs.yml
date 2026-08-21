@@ -120,6 +120,7 @@ nav:
           - 34 - Transcode-Free Re-encode (AV1 to H.264): proxmox/34_Transcode_Free_Re-encode_AV1_to_H264.md
           - 35 - Cron Job Monitoring (Uptime Kuma): proxmox/35_Cron_Job_Monitoring_Uptime_Kuma.md
           - 36 - Immich Bulk Import and ML Pipeline: proxmox/36_Immich_Bulk_Import_ML_Pipeline.md
+          - 37 - Calibre-Web Bulk Ebook Import: proxmox/37_Calibre_Web_Automated_Bulk_Import.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
