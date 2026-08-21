@@ -18,6 +18,11 @@ services:
       # A CWA inotify-figyelt ingest mappaja: ami ide leesik, azt a Calibre-Web
       # magatol beolvassa. PUID=0, mert a CWA is rootkent mozgatja/torli innen a fajlokat.
       - /mnt/storage/media/konyv_ingest:/books
+      # A qBittorrent letoltesi mappaja, PONTOSAN ugyanazon az utvonalon, ahogy a
+      # qBittorrent latja (Session\DefaultSavePath=/downloads). A kesz torrentet a
+      # qBittorrent teljes eleresi uttal jelenti vissza; ha ez az ut itt mas lenne,
+      # a Shelfmark nem talalna meg a fajlt es az import csendben elmaradna.
+      - /mnt/storage/media/downloads:/downloads
     ports:
       - 8084:8084
     mem_limit: 2g
