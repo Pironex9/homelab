@@ -24,8 +24,8 @@
 | Property | Value |
 |----------|-------|
 | OS | Nobara Linux 44 (KDE Plasma Desktop Edition) |
-| Kernel | 7.1.4-200.nobara.fc44.x86_64 |
-| NVIDIA driver | 595.84 |
+| Kernel | 7.1.8-201.nobara.fc44.x86_64 |
+| NVIDIA driver | 595.91.07 |
 | Desktop | KDE Plasma / Wayland |
 
 Not always on. GPU inference node for the homelab.
@@ -268,6 +268,146 @@ If kwin crashes persist after applying the kernel parameter, delete the saved mo
 ```bash
 rm -rf ~/.local/share/kscreen/
 ```
+
+---
+
+## Firefox: RPM instead of Flatpak (2026-08-21)
+
+Firefox was a Flatpak until 2026-08-21. It is now the RPM from Mozilla's own repository, because the Flatpak build broke every single time the NVIDIA driver was updated.
+
+### Why the Flatpak kept breaking
+
+A Flatpak app does not use the host's NVIDIA userspace driver. It gets a containerised copy from a runtime extension named after the exact driver version - `org.freedesktop.Platform.GL.nvidia-595-91-07` for host driver 595.91.07. When the two do not match, Flatpak mounts **nothing** into `/usr/lib/x86_64-linux-gnu/GL/`, the app silently falls back to llvmpipe, and everything GPU-accelerated turns to jank. No error, no warning - just a dashboard that scrolls badly.
+
+This bit twice: 2026-05 (host 595.71.05 vs runtime 595.58.03) and 2026-08-20 (host 595.91.07 vs runtime 595-84).
+
+Two traps made it hard to see:
+
+**Ordering.** Running `flatpak update` *before* `nobara-sync cli` pulls the runtime matching the *old* driver. The correct order is `nobara-sync cli` → reboot → `flatpak update` → only then start Flatpak apps.
+
+**A running app keeps its old mount namespace.** Updating the runtime does nothing for an already-running Flatpak; it has to be fully quit and restarted. On 2026-08-20 Firefox started at 19:20:14 and the matching runtime installed at 19:21:09 - 55 seconds too late.
+
+That second one is invisible unless you look in the right place. Comparing the running process against a freshly spawned sandbox tells them apart:
+
+```bash
+# what the RUNNING app actually has mounted - empty output means software rendering
+grep -oE "nvidia-595[0-9-]*" /proc/$(pgrep -f "/app/lib/firefox/firefox" | head -1)/mountinfo | sort -u
+
+# what a NEW sandbox would get - this can look perfectly healthy while the above is broken
+flatpak run --command=sh org.mozilla.firefox -c 'ls /usr/lib/x86_64-linux-gnu/GL/'
+```
+
+Confirm in the browser with `about:support` → Graphics → **Compositing**. `WebRender` is hardware, `WebRender (Software)` or `Basic` is not.
+
+### The repository
+
+Nobara's own `firefox` RPM is not an option - it sat at 152.0.6 while upstream was at 154.0. Mozilla's official RPM repo carries the same version as Flathub.
+
+`/etc/yum.repos.d/mozilla.repo`:
+
+```ini
+[mozilla]
+name=Mozilla
+baseurl=https://packages.mozilla.org/rpm/firefox
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mozilla-repo
+```
+
+Two different keys are involved, which is unusual and worth knowing:
+
+| What | Key | Fingerprint |
+|---|---|---|
+| `repodata/repomd.xml` signature | Artifact Registry Repository Signer (Mozilla hosts on Google Artifact Registry) | `35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3` |
+| the RPM package itself | Mozilla Software Releases `<release@mozilla.com>` | `14F26682D0916CDD81E37B6D61B7B526D98F0353` |
+
+Both were imported into the rpm database with `rpm --import` after verifying their fingerprints, so `gpgcheck=1` verifies the package signature even though only one key is listed in `gpgkey=`.
+
+**`repo_gpgcheck` must be 0 against this repo.** Not laziness - dnf5 cannot verify that signature. Artifact Registry signs `repomd.xml` in OpenPGP **text mode**:
+
+```
+:signature packet: algo 1, keyid C0BA5CE6DC6315A3
+	version 4, created 1787288897, md5len 0, sigclass 0x01
+	digest algo 8
+```
+
+`sigclass 0x01` means the data must be hashed with CRLF canonicalisation before verification (`0x00` would be binary). GnuPG honours the flag and reports `Good signature`; dnf5 hashes the raw bytes, gets a different digest, and reports `Bad PGP signature`. Setting `repo_gpgcheck=0` with only the correct key listed does not help - the failure is in the hashing, not the key selection. The digest algorithm is SHA-256, so this is not an obsolete-crypto problem.
+
+What is given up is integrity checking of the metadata listing, which then rests on HTTPS alone. The package signature - the control that actually prevents a tampered browser from being installed - stays fully enforced. Mozilla's own published instructions use `gpgcheck=0`, which is weaker than this.
+
+### Migrating the profile
+
+The Flatpak profile lives under the app's XDG config dir, not `~/.mozilla`:
+
+```bash
+cp -a ~/.var/app/org.mozilla.firefox/config/mozilla/firefox ~/.config/mozilla/firefox
+```
+
+`~/.config/mozilla/firefox` is the right destination here, but do not assume it. Firefox has followed the XDG Base Directory spec since 147.0.1: a fresh install uses `$XDG_CONFIG_HOME/mozilla`, and only falls back to the legacy path if `~/.mozilla/firefox` already exists. On this machine `~/.mozilla` exists (empty `extensions/` and `plugins/` from 2025) but `~/.mozilla/firefox` does not, so XDG wins. Settle it by experiment rather than by reasoning:
+
+```bash
+MOZ_HEADLESS=1 firefox -CreateProfile probe
+# then see which of the two roots gained a profiles.ini
+```
+
+**The install-hash trap.** Copying the profile is not enough, and setting `Default=1` on it in `profiles.ini` is not enough either. Since Firefox 67 each *installation* gets its own dedicated profile, keyed by a hash of the installation path, recorded as `[Install<hash>]` in `profiles.ini` and in `installs.ini`. A profile claimed by another installation carries `Locked=1` and will not be adopted:
+
+| Installation | Path | Hash |
+|---|---|---|
+| Flatpak | `/app/lib/firefox` | `CF146F38BCAB2D21` |
+| RPM | `/usr/lib/firefox` | `4F96D1932A9F858E` |
+
+Started as-is, the RPM build ignores the migrated profile, creates a brand new empty one, and the user sees a Firefox with no bookmarks, no logins and no extensions - looking exactly like the migration destroyed everything. The fix is to point the new hash at the real profile in **both** files:
+
+```ini
+# ~/.config/mozilla/firefox/profiles.ini
+[Install4F96D1932A9F858E]
+Default=kp0wnij4.default-release
+Locked=1
+```
+
+```ini
+# ~/.config/mozilla/firefox/installs.ini
+[4F96D1932A9F858E]
+Default=kp0wnij4.default-release
+Locked=1
+```
+
+Also delete the stray profile directory Firefox created, its `[ProfileN]` section, and any `lock` / `.parentlock` left in the migrated profile by the previous unclean shutdown.
+
+Verify without opening the GUI - a correct migration creates no new profile directory and writes into the existing one:
+
+```bash
+MOZ_HEADLESS=1 timeout 25 firefox about:blank
+ls -d ~/.config/mozilla/firefox/*/
+find ~/.config/mozilla/firefox/kp0wnij4.default-release -maxdepth 1 -newermt "-2 minutes"
+```
+
+The mkcert CA for the `.lan` services travels with the profile inside `cert9.db`, so HTTPS on those keeps working with no extra step.
+
+### What was given up
+
+The Flatpak sandbox. Firefox keeps its own process-level sandbox, but the RPM build can read the whole home directory. In exchange, `nobara-sync cli` now updates the browser in the same transaction as the kernel and the driver, so it cannot drift out of sync - there is no separate runtime left to forget.
+
+The other ten Flatpak apps (Obsidian, Discord, Bottles, Heroic, Anki, Betterbird, …) still use the GL runtimes, so the ordering rule above still applies to them.
+
+---
+
+## dnf: nvidia-container-toolkit repo could not load (2026-08-21)
+
+```
+Curl error (77): Problem with the SSL CA cert (path? access rights?)
+[error adding trust anchors from file: /etc/pki/tls/certs/ca-bundle.crt]
+```
+
+Not a broken CA store - every other repo loaded over HTTPS fine. NVIDIA's repo file hardcodes `sslcacert=/etc/pki/tls/certs/ca-bundle.crt`, a compatibility path that no longer exists on Fedora 44; the real bundle is `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem`. Dropping the override makes it use the system default:
+
+```bash
+sudo sed -i '/^sslcacert=/d' /etc/yum.repos.d/nvidia-container-toolkit.repo
+```
+
+The error was cosmetic on every `nobara-sync` run but not harmless: it hid an available update (`nvidia-container-toolkit` 1.19.1 → 1.20.0).
 
 ---
 

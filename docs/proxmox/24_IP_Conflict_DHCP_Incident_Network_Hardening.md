@@ -139,3 +139,5 @@ flatpak install --user -y flathub \
 ```
 
 Lesson: after every NVIDIA driver update on Nobara, run `flatpak update` too, or all Flatpak apps lose GPU acceleration. (A dead BlueMap tile pointing at the stopped Minecraft LXC was also removed from homepage's services.yaml along the way - it was flooding the logs with EHOSTUNREACH.)
+
+> **Update (2026-08-21):** this recurred on the 595.84 → 595.91.07 driver update, and the lesson above turned out to be incomplete on two counts: the order matters (`flatpak update` run *before* the driver update pulls the runtime for the old driver), and an already-running Flatpak keeps its old mount namespace, so it has to be fully restarted afterwards. Firefox has since been moved off Flatpak to Mozilla's official RPM repository, which removes the failure mode entirely for the browser. The rule still applies to the remaining Flatpak apps. Full write-up, including how to tell a broken running sandbox from a healthy fresh one: [Nobara PC → Firefox: RPM instead of Flatpak](../hosts/nobara.md#firefox-rpm-instead-of-flatpak-2026-08-21).
