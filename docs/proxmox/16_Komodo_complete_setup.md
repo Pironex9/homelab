@@ -128,7 +128,7 @@ systemctl restart periphery
 ```bash
 # On Proxmox host
 pct exec 105 -- hostname -I
-# Example output: 192.168.0.115
+# Example output: 192.168.0.105
 ```
 
 ### In Komodo UI

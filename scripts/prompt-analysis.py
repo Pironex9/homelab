@@ -9,7 +9,7 @@ LLM pass over the emitted corpus.
 Usage:
   ./prompt-analysis.py                        # all projects
   ./prompt-analysis.py -p homelab             # one project
-  ./prompt-analysis.py -p homelab -p uzlet    # several
+  ./prompt-analysis.py -p homelab -p furbify  # several
   ./prompt-analysis.py --since 2026-06-01 --sample 80 -o /tmp/report.md
 """
 

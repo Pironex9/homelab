@@ -97,14 +97,6 @@ nodes:
     role: "Reverse proxy"
     detail: "Caddy - *.lan reverse proxy with local mkcert TLS for every internal service."
 
-  - badge: "LXC 111"
-    name: uzlet
-    site: lan
-    kind: lxc
-    ip: 192.168.0.115
-    role: "Scraper"
-    detail: "Business data scraper."
-
   - badge: "LXC 113"
     name: agentos
     site: lan

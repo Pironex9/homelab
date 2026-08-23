@@ -26,7 +26,7 @@ Infrastructure-as-code for a self-hosted homelab on Proxmox VE 9.1: Docker Compo
 | LXC 105 komodo | 192.168.0.105 | GitOps deploy, port 9120 (Alpine) |
 | LXC 106 karakeep / 107 n8n | .128 / .112 | apps |
 | LXC 109 claude-mgmt | 192.168.0.204 | this machine, tmux persistent `claude` session, code-server (Tailscale-only, :8443) |
-| LXC 110 caddy / 111 uzlet | .208 / .115 | proxy / scraper |
+| LXC 110 caddy | 192.168.0.208 | Caddy reverse proxy (Alpine) |
 | LXC 113 agentos | 192.168.0.71 | Hermes + Odysseus agentic OS |
 
 Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + Pangolin on Hetzner VPS (public). Backups: Restic (local + NFS). K3s: 3x Dell OptiPlex (192.168.2.x, separate location, kubectl from this LXC).
