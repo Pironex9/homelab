@@ -1,4 +1,4 @@
-**Date:** 2026-07-27
+**Date:** 2026-07-27 (caching rules revised 2026-08-23)
 **Purpose:** Public one-page landing site at the apex domain, self-hosted on the VPS
 **Hostname:** Hetzner VPS
 **Container:** `landing` at `172.18.0.10` on the `pangolin` network
@@ -134,6 +134,85 @@ Recreating rather than restarting is required because the build deletes and recr
 
 The stack count is baked in at build time and nothing rebuilds it on a schedule. **After adding or removing any compose stack anywhere in this repository, rebuild this one**, or the published number silently goes stale. The reminder lives in `AGENTS.md` under Codex Workflow, which is the file actually read when a stack is added. The uptime figure needs none of this; it is fetched live and cannot drift.
 
+## Caching: `no-cache` on everything that can go stale
+
+Two `Cache-Control` rules in the `Caddyfile` split the site in half.
+
+```
+@longlived path *.woff2 *.svg
+header @longlived Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
+
+@revalidate path / *.html *.css *.js *.png *.webp
+header @revalidate Cache-Control "no-cache"
+```
+
+`no-cache` is the misleading half of the name. It does not mean "do not store"; it
+means "store it, but ask before using it". The browser keeps its copy and sends a
+conditional request with the `ETag` on every visit, and an unchanged file comes back
+as an empty `304`.
+
+The header is load-bearing rather than belt-and-braces. With no `Cache-Control` at
+all, a browser invents a freshness window from `Last-Modified` - commonly a tenth of
+the file's age. An `index.html` untouched for nine days was therefore treated as
+fresh for most of a day, and a returning visitor kept seeing the pre-deploy page
+without a single request reaching the server.
+
+### Why the diagram moved out of the long-cache rule
+
+`topology.png` and `topology.webp` originally sat with the fonts on
+`max-age=86400, stale-while-revalidate=604800`, on the reasoning that the diagram is
+the heaviest asset here and only moves when a host is added or removed. Both halves
+of that header turned out to be worse than they look:
+
+- **`max-age=86400`** means the browser does not contact the server **at all** for
+  24 hours. Not a `304`, not a request. The `ETag` never gets a chance to work,
+  because an `ETag` only helps once the browser decides to ask.
+- **`stale-while-revalidate=604800`** then permits the cache, for a further seven
+  days after that window closes, to serve the old file immediately and fetch the new
+  one in the background. The visitor still sees the stale image on that page load;
+  the new one appears from the next visit onward. Chrome 75+, Firefox 68+ and
+  Edge 79+ honour this. Safari does not apply it at the browser HTTP cache level.
+
+So a topology change was invisible to a returning visitor for 24 hours guaranteed,
+plus one further page load any time inside eight days.
+
+This stopped being theoretical on 2026-08-23, when LXC 111 was removed from the
+homelab. `https://homelabor.net/topology/` showed the corrected fourteen-node map
+immediately, because it is HTML and falls under the revalidate rule; the diagram
+image on the landing page in front of it still showed fifteen nodes. The origin was
+serving the correct file the whole time, which is precisely what makes this class of
+bug hard to see: every check from the server side passes.
+
+### What the fix costs
+
+Measured against the live origin the same day, on a connection already open (which is
+what a browser has, having just fetched the HTML over it):
+
+| Request | Response | Bytes | Time |
+|---|---|---|---|
+| Full `GET`, cold cache | `200` | 84 488 | 142 ms |
+| Conditional `GET`, new connection | `304` | 0 | 90 ms |
+| Conditional `GET`, open connection | `304` | 0 | **28 ms** |
+
+The 90 ms includes a 60 ms TLS handshake the browser has already paid for. The real
+added cost is one round trip and zero bytes, once per visit, for a single image - the
+`<picture>` element fetches the 84 KB WebP and leaves the 256 KB PNG as a fallback.
+
+Fonts stay on the long cache deliberately: 116 KB across three `woff2` files that move
+only on a deliberate re-subset, where a hard cache is pure gain and the stale-content
+failure mode does not exist. `favicon.svg` joins them for the same reason.
+
+### The alternative that was rejected
+
+Content-hashed filenames (`topology.a1b2c3d4.webp` plus `max-age=31536000, immutable`)
+are the textbook answer and would cost nothing per visit. They were rejected because
+`build.sh` is dependency-free POSIX shell by design, and hashing would require it to
+rename files and rewrite `index.html` at build time. That breaks the property the CSP
+notes rely on - that what is in `src/` is what is served - and a shell-driven HTML
+rewrite is exactly the kind of step that fails quietly. A manual `?v=` query string
+was rejected for the same reason the rest of this page keeps repeating: it adds one
+more thing to a checklist that nothing enforces.
+
 ## Going Live: Two Pangolin Behaviours
 
 Both cost real debugging time and will recur on the next resource.
@@ -191,7 +270,7 @@ Two hardening options remain available and were not taken: `read_only: true` on 
 | `compose/vps/landing/Caddyfile` | Static serving, compression, three narrow proxy routes |
 | `compose/vps/landing/build.sh` | Derives the count, substitutes, guards, writes `dist/` |
 | `compose/vps/landing/test-build.sh` | Asserts the build fails when it should |
-| `compose/vps/landing/src/` | `index.html`, `style.css`, `status.js`, `topology.png`, `og.png`, `favicon.svg` |
+| `compose/vps/landing/src/` | `index.html`, `style.css`, `ui.js`, `status.js`, `topology.png`, `topology.webp`, `og.png`, `favicon.svg` |
 | `compose/vps/landing/src/topology/index.html` | The interactive map, copied from another stack's build output |
 | `compose/vps/landing/og.html` | Generator for the Open Graph card, deliberately outside `src/` |
 | `compose/vps/landing/README.md` | Build and redeploy commands, maintenance contract |
