@@ -183,5 +183,7 @@ amúgy is kizárja őket a publikált oldalból.
    szabálya `Cache-Control: public, max-age=86400` fejlécet küld a `*.png`/`*.webp`
    fájlokra, így a böngésző egy napig nem is kérdez rá az új ábrára. Az origin
    közben már a helyeset adja. A `/topology/` azért frissül azonnal, mert `.html`,
-   és az a `@revalidate` szabály alá esik `no-cache`-sel. Nyitott javaslat: a
-   `*.png *.webp` átvitele a `@revalidate` matcherbe, ára egy 304 látogatásonként.
+   és az a `@revalidate` szabály alá esik `no-cache`-sel. **Megoldva 2026-08-23-án:**
+   a `*.png *.webp` átkerült a `@revalidate` matcherbe, a hosszú cache-en már csak
+   a `*.woff2 *.svg` maradt (`@longlived`). Mért ár: 33 ms és nulla bájt
+   látogatásonként meleg kapcsolaton (304, üres törzs), szemben a 84 KB-os WebP-vel.

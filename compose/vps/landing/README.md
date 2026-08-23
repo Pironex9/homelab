@@ -127,7 +127,7 @@ self-hosted end to end. They are now base64 `data:` URIs embedded by that stack'
 If a future topology build goes back to linking a font, this policy blocks it, and
 `test-build.sh` fails before it gets that far.
 
-## Why HTML, CSS and JS carry `Cache-Control: no-cache`
+## Why HTML, CSS, JS and the diagram carry `Cache-Control: no-cache`
 
 `no-cache` does not mean "do not cache". It means "keep a copy, but revalidate before
 using it", which costs one 304 per visit and guarantees a deploy actually arrives.
@@ -139,9 +139,24 @@ treated as fresh for most of a day, and a visitor who had loaded the page before
 deploy kept seeing the old one without a single request reaching the server. An
 `ETag` does not save you there: it only helps once the browser decides to ask.
 
-Images and fonts are the exception and are cached hard. Images change only when a
-host is added or removed, fonts only on a deliberate re-subset, and the diagram is
-by far the heaviest thing here.
+Fonts and `favicon.svg` are the exception and are cached hard, for 24 hours with a
+7-day `stale-while-revalidate` window. They move only on a deliberate re-subset or a
+mark redraw.
+
+`topology.png` and `topology.webp` used to sit in that rule too, and it was the wrong
+call. `max-age` means the browser does not contact the server **at all** for the whole
+window, so the `ETag` never gets a chance to work, and `stale-while-revalidate` then
+allows one further stale render after the window closes. A topology change was
+invisible to a returning visitor for 24 hours guaranteed, plus one more page load any
+time inside 8 days. That is exactly what happened on 2026-08-23 after LXC 111 was
+removed: `/topology/` was correct immediately because it is HTML, while the diagram on
+the landing page still showed the old map.
+
+The measurement that settled it, taken the same day against the live origin on a warm
+connection, is the honest cost of the fix: a conditional GET returning 304 with no body
+takes **33 ms and zero bytes**, against 142 ms and 84 KB for the full WebP. One extra
+round trip per visit, for a map that is the most visible element on the page and only
+ever changes because the homelab changed.
 
 ## `dist/` is a build artifact
 

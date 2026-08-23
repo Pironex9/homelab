@@ -68,14 +68,23 @@
 		# else. src/ui.js exists precisely so that stays true.
 		header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
-		# The diagram is the only asset heavy enough for caching to matter,
-		# and it moves only when a host is added or removed.
-		# Fonts join the diagram rule rather than the revalidate one: they
-		# change only on a deliberate re-subset, and without a rule they would
-		# ship with no Cache-Control at all - the failure the comment below
-		# describes.
-		@diagram path *.png *.webp *.svg *.woff2
-		header @diagram Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
+		# Fonts and the favicon are the only assets that get the long cache.
+		# They change only on a deliberate re-subset or a mark redraw, and
+		# without a rule they would ship with no Cache-Control at all - the
+		# failure the comment below describes.
+		#
+		# The diagram used to sit here too, and that was wrong. max-age means
+		# the browser does not ask the server at all for the whole window, so
+		# an Etag cannot save it; stale-while-revalidate then permits one more
+		# stale render after the window expires. A topology change was
+		# therefore invisible to a returning visitor for 24 hours guaranteed,
+		# plus one more page load any time inside 8 days. Measured on
+		# 2026-08-23, moving *.png and *.webp to the revalidate rule below
+		# costs 33 ms and zero bytes per visit on a warm connection (304, no
+		# body) against 84 KB for the WebP. The map is the most visible thing
+		# on the page and it only ever moves because the homelab moved.
+		@longlived path *.woff2 *.svg
+		header @longlived Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
 
 		# no-cache means "keep a copy, but ask before using it" - not "do not
 		# cache". Without it these files carry no Cache-Control at all, and a
@@ -84,7 +93,7 @@
 		# unchanged for nine days was treated as fresh for most of a day and
 		# the deploy simply did not arrive. An Etag does not help there,
 		# because the browser never asks. It costs one 304 per visit.
-		@revalidate path / *.html *.css *.js
+		@revalidate path / *.html *.css *.js *.png *.webp
 		header @revalidate Cache-Control "no-cache"
 
 		root * /usr/share/caddy
