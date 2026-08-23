@@ -34,11 +34,6 @@ layout:
     style: row
     columns: 9
     iconsOnly: true
-  Uzlet:
-    icon: mdi-chart-line
-    style: row
-    columns: 3
-    iconsOnly: true
 
   # Links groups are nested under their parent (not sibling top-level groups)
   # so collapsing the parent's header collapses both rows together. A nested

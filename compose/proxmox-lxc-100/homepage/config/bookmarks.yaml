@@ -27,13 +27,3 @@
     - Lessons:
         - icon: mdi-school-outline
           href: http://192.168.0.204:8800/lessons/
-- Uzlet:
-    - Scraper API:
-        - icon: fastapi.png
-          href: http://192.168.0.115:8001/
-    - Metabase:
-        - icon: metabase.png
-          href: http://192.168.0.115:3000/question#eyJkYXRhc2V0X3F1ZXJ5Ijp7ImRhdGFiYXNlIjoyLCJ0eXBlIjoicXVlcnkiLCJxdWVyeSI6eyJzb3VyY2UtdGFibGUiOjExN319LCJkaXNwbGF5IjoidGFibGUiLCJ2aXN1YWxpemF0aW9uX3NldHRpbmdzIjp7fX0=
-    - Dashboard:
-        - icon: mdi-chart-box-outline
-          href: https://uzlet.homelabor.net/public/dashboard/d0830a24-16bf-4a0a-922e-d24f25692141
