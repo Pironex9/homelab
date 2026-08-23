@@ -97,5 +97,91 @@ Klón létrehozva, alábbiak törölve, majd klón megsemmisítve:
 
 - Design spec: `docs/superpowers/specs/2026-05-26-uzlet-project-handover-design.md`
 - Implementációs terv: `docs/superpowers/plans/2026-05-26-uzlet-handover.md`
-- Cleanup script: `scripts/uzlet-handover-cleanup.sh`
-- Megbízó útmutató: `/root/uzlet/HANDOVER.md` (uzlet repóban)
+- Cleanup script: `scripts/uzlet-handover-cleanup.sh` (törölve 2026-08-23, lásd a lezáró szakaszt)
+- Megbízó útmutató: `/root/uzlet/HANDOVER.md` (uzlet repóban; a helyi másolat 2026-08-23-án törölve, az archívumban megvan)
+
+---
+
+## Lezárás: teljes eltávolítás a homelabból
+
+**Dátum:** 2026-08-23
+
+Az átadás után az uzlet még hónapokig ott maradt a homelabban félig letörölve:
+az LXC 111 már nem futott, de a rá mutató hivatkozások igen. Ez a szakasz zárja le.
+
+### Ami a gépekről ténylegesen eltűnt
+
+| Hol | Mi | Mikor |
+|---|---|---|
+| pve | LXC 111 (`uzlet`, 192.168.0.115) | az átadáskor, 2026-05-26 |
+| LXC 109 | `/root/uzlet` (81 MB) | 2026-08-23 |
+| LXC 109 | `/root/.claude/projects/-root-uzlet` (14 MB) | 2026-08-23 |
+
+A `/root/uzlet` **nem** volt teljesen commitolva a GitHub repóba: módosítva volt a
+`.gitignore` és a `scripts/metro_multi_verify.py`, törölve a `prev_ar`, és hat
+untracked fájl állt ott (motivációs levél PDF, `DESIGN.md`, `docs/adr/0002-*.md`,
+`docs/osszegzes-2026-06*`, `.playwright/`). A GitHub repo tehát nem volt teljes
+másolat - a tar az.
+
+### Az archívum
+
+Két bit-azonos példány, md5 `06d2ca62d131f53c41ad8fa37a6403ab`, 32 MB:
+
+- `/root/uzlet-archive.tar.gz` (LXC 109)
+- `/mnt/storage/backup/uzlet-archive-2026-08-23.tar.gz` (MergerFS, LXC 100)
+
+```bash
+tar czf /root/uzlet-archive.tar.gz /root/uzlet /root/.claude/projects/-root-uzlet
+```
+
+10834 bejegyzés (10772 + 62), pontosan annyi, amennyit a `find` számolt törlés
+előtt. `gzip -t` OK, és két fájl próbakicsomagolása is ép volt. Tartalmazza a
+`.env`-et a B2B scraper loginokkal, a teljes `.git`-et és a projekt-memóriát -
+tehát ez a tar titkot tárol, root-only jogokkal kezelendő.
+
+Harmadik menekülő út: az LXC 109 benne van a pve nightly vzdump jobjában (02:00,
+`keep-daily=7,keep-weekly=4,keep-monthly=3`, `backup-hdd`), így a törlés előtti
+állapot még ~3 hónapig kihúzható onnan is.
+
+### Ami a repóból kikerült
+
+- `compose/proxmox-lxc-100/homepage/config/` - az `Uzlet` bookmark-csoport a három
+  linkjével (`bookmarks.yaml`) és a `layout:` bejegyzése (`settings.yaml`)
+- `compose/proxmox-lxc-100/topology/nodes.yml` - az LXC 111 node; a build ezután
+  14 node / 2 site
+- `compose/vps/landing/` - `topology.png`, `topology.webp`, `og.png` újrarenderelve,
+  `og.html` és `src/index.html` szöveges számai 15-ről 14-re
+- `docs/assets/topology.png` - byte-azonos másolat a landing PNG-vel
+- `AGENTS.md` + `CLAUDE.md` infra-tábla - az LXC 110 sor önállóan
+- `scripts/uzlet-handover-cleanup.sh` - törölve
+- `scripts/prompt-analysis.py` - a `-p uzlet` példa `-p furbify`-ra
+- `docs/hosts/agentos.md`, `docs/hosts/claude-mgmt.md` - elavult uzlet-utak
+
+Érintetlen maradt a `docs/superpowers/` alatti datált terv- és spec-anyag (ez a
+fájl is): történelmi feljegyzések, és az `mkdocs.yml` `exclude_docs:` blokkja
+amúgy is kizárja őket a publikált oldalból.
+
+### Szándékosan bennehagyott maradványok
+
+- `/root/.memsearch/milvus.db/collections/ms_uzlet_87c8443a` (27 MB) - a törölt
+  transzkriptekből épített szemantikus index. A `/memory-recall` így továbbra is
+  dobhat uzlet-találatokat egy nem létező projektből. Kézi `rm -rf` egy milvus
+  collectionön az a művelet, ami korábban csendben megölte a keresést - ha megy,
+  a memsearch saját eszközével.
+- `/root/.claude.json` `projects` kulcs alatt egy `/root/uzlet` bejegyzés -
+  elárvult beállítás-rekord, ártalmatlan.
+- `docs/hosts/claude-mgmt.md` memsearch-méréses sora (`homelab 1199 chunks,
+  uzlet 2951, rails 4`) - konkrét mérés eredménye, utólag nem írható át. Ez az
+  egyetlen uzlet-találat, ami fent maradt a docs.homelabor.net-en.
+
+### Két csapda, ami menet közben derült ki
+
+1. **A Homepage SSG cache.** A Komodo `PullStack` a bind-mountolt `./config`-ot
+   cseréli a futó konténeren belül, deploy nélkül is - de a renderelt HTML addig
+   a régi marad, amíg `curl http://192.168.0.110:3002/api/revalidate` le nem üti.
+2. **A landing diagram 24 órás böngésző-cache-e.** A `Caddyfile` `@diagram`
+   szabálya `Cache-Control: public, max-age=86400` fejlécet küld a `*.png`/`*.webp`
+   fájlokra, így a böngésző egy napig nem is kérdez rá az új ábrára. Az origin
+   közben már a helyeset adja. A `/topology/` azért frissül azonnal, mert `.html`,
+   és az a `@revalidate` szabály alá esik `no-cache`-sel. Nyitott javaslat: a
+   `*.png *.webp` átvitele a `@revalidate` matcherbe, ára egy 304 látogatásonként.

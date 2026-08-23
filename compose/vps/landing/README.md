@@ -89,7 +89,12 @@ a host therefore moves five things, and they must move in one go:
    The server must run from the repository root, because the font paths in
    `og.html` reach up into `brand/`.
 
-5. update the figcaption wording in `src/index.html`
+5. update the prose counts in `src/index.html`. There are **three** of them, not
+   one, and nothing links them: the `og:image:alt` meta near the top, the
+   `<img alt>` on the diagram itself, and the figcaption under it. The removal of
+   LXC 111 on 2026-08-23 caught the first two and missed the `alt`, which then
+   told screen readers "ten LXC containers" under a map showing nine. Grep the
+   file for the spelled-out number before calling it done.
 
 `src/favicon.svg` needs none of this, but it no longer stands alone: `og.html`
 inlines the same drawing, and `brand/mark-large.svg` is the header-size variant.
