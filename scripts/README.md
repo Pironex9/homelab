@@ -132,6 +132,24 @@ gpg --decrypt --passphrase-file /root/.secrets/k3s-backup-passphrase \
 # then on the workers: systemctl restart k3s-agent
 ```
 
+That form needs `/root/.secrets/k3s-backup-passphrase`, which is exactly the file that
+will be missing in a real disaster - LXC 109 is where it lives. The passphrase is also
+in Vaultwarden under **K3s control-plane backup - gpg passphrase**. To restore with the
+passphrase typed rather than read from a file:
+
+```bash
+gpg --pinentry-mode loopback --decrypt k3s-control-plane-<TS>.tar.gz.gpg \
+    | tar xzf - -C /somewhere
+```
+
+`--pinentry-mode loopback` makes gpg prompt on the terminal instead of trying to open a
+pinentry dialog, which is what fails over SSH. Verified on 2026-08-24 against the
+16:12 archive: it decrypts and `state.db` is in the listing.
+
+The decrypted archive contains the cluster CA **private keys** and the join token.
+Unpack it somewhere local, and delete it when you are done - do not leave it on
+`/mnt/storage`, which is NFS-exported to the whole LAN with `no_root_squash`.
+
 ### Scheduling
 
 ```
