@@ -32,15 +32,49 @@ tennenk.
 
 ## Hozzaferes
 
-Nincs meg Ingress es nincs cert-manager, ezert egyelore port-forward:
-
-```bash
-kubectl port-forward -n argocd svc/argocd-server 8080:443
-# majd https://localhost:8080, user: admin
+```
+https://argocd.tailc6abe2.ts.net
 ```
 
-A kezdeti admin jelszo az `argocd-initial-admin-secret` Secretben van. Elso belepes
-utan valtoztasd meg, tedd a jelszokezelobe, es a Secretet toröld.
+Barmely tailnetes gepröl, felhasznalo `admin`. Valodi Let's Encrypt tanusitvany, a
+Tailscale automatikusan ujitja - nincs cert-manager, nincs sajat DNS bejegyzes, es
+nincs port-forward, ami a session-nel egyutt meghalna.
+
+Ezt a **Tailscale Kubernetes operator** adja. Minden `ingressClassName: tailscale`
+Ingresshez felvesz egy kulon proxy podot, ami sajat eszkozkent csatlakozik a
+tailnethez; a nev a `spec.tls[0].hosts[0]` ertekebol es a tailnet domainbol all ossze.
+A telepitese nem gitbol jon, mert OAuth secretet igenyel, a repo pedig publikus:
+
+```bash
+helm repo add tailscale https://pkgs.tailscale.com/helmcharts
+helm upgrade --install tailscale-operator tailscale/tailscale-operator \
+    --version 1.102.3 --namespace tailscale --create-namespace \
+    -f <values fajl az oauth.clientId es oauth.clientSecret ertekekkel>
+```
+
+A hitelesito adatok a `/root/.secrets/tailscale-operator-oauth` fajlban vannak a
+109-en. A tailnet oldalan ket dolog kell hozza: `tagOwners` bejegyzes a
+`tag:k8s-operator` es a `tag:k8s` tagekre, es egy OAuth kliens **write** joggal a
+`devices:core` es az `auth_keys` scope-ra, `tag:k8s-operator` cimkevel.
+
+### Az argocd-server insecure modja - nem hanyagsag
+
+Az `argocd-cmd-params-cm` ConfigMapben `server.insecure: "true"` all. Enelkul az
+Argo CD sajat maga is HTTPS-t beszelne, es **barmely TLS-t terminalo Ingress mogott
+vegtelen atiranyitasi hurokba fut**. Ez a beallitas nem ebben a repoban el, mert az
+Argo CD sajat telepitese sem.
+
+### Nevfeloldas
+
+A `.ts.net` nev csak ott oldodik fel, ahol a MagicDNS aktiv. **A 109-en nem**, ott az
+`accept-dns` szandekosan ki van kapcsolva egy korabbi incidens miatt. Innen IP-vel es
+SNI-vel lehet tesztelni:
+
+```bash
+curl --resolve argocd.tailc6abe2.ts.net:443:<proxy IP> https://argocd.tailc6abe2.ts.net/
+```
+
+Az admin jelszo a jelszokezeloben van, az `argocd-initial-admin-secret` torolve.
 
 ## Amit az Argo CD NEM kezel
 

@@ -682,6 +682,26 @@ part of two audit findings:
 `kube-system` and `longhorn-system` are deliberately left unlabelled. `baseline` would
 break more in system components than it buys.
 
+**Access: the Tailscale Kubernetes operator, not cert-manager.** The UI lives at
+`https://argocd.tailc6abe2.ts.net`, reachable from any device on the tailnet, with a
+real Let's Encrypt certificate that Tailscale renews on its own. The operator gives
+every `ingressClassName: tailscale` Ingress its own proxy pod that joins the tailnet as
+a device, and builds the name from `spec.tls[0].hosts[0]` plus the tailnet domain.
+
+This is a better fit here than the usual Ingress plus cert-manager plus DNS work,
+because the cluster sits at a remote site and is only reachable over Tailscale anyway.
+It removes three moving parts and adds one. The cost is one tailnet device per Ingress.
+
+Two details that are easy to get wrong:
+
+- **`server.insecure: "true"` in `argocd-cmd-params-cm` is required, not sloppiness.**
+  Argo CD speaks HTTPS itself, so behind any TLS-terminating Ingress it lands in an
+  endless redirect loop without it.
+- **The `.ts.net` name only resolves where MagicDNS is active.** It is deliberately off
+  on LXC 109, so from there the endpoint has to be tested by IP with SNI
+  (`curl --resolve`), not by name. A name that does not resolve on the management host
+  is not evidence that the Ingress is broken.
+
 ### Verified state (2026-08-24)
 
 Checked live against the cluster after the subnet incident described above.
