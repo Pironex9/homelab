@@ -22,5 +22,17 @@ token: "{{ lookup('file', '/root/.secrets/k3s-token') }}"
 manage_firewall: false
 
 # A masteren mar van kubectl hozzaferes a nex usernek (/etc/sudoers.d/k3s-kubeconfig).
-# `true` eseten a role ~/.kube/config.new-t irna es `k3s-ansible` contextet venne fel.
+# `true` eseten a role a masteren symlinkelne es konfiguralna a kubectl-t a nex usernek.
 user_kubectl: false
+
+# NE az alapertelmezett `~/.kube/config.new` legyen. Az a nev kapcsolja be a role
+# ket kulon taskjat, amik a 109 sajat `~/.kube/config`-jaba fesulik be a master
+# kubeconfigjat `k3s-ansible` nevu contextkent, es aktivva is teszik. A szervercimet
+# kozben az `api_endpoint`-ra irjak at, ami 192.168.1.101 - az viszont a 109-rol NEM
+# routolhato (itt `accept-routes` szandekosan false). 2026-08-24-en az elso eles futas
+# pontosan ezzel akasztotta meg a kubectl-t a 109-en.
+#
+# Barmely mas ertek eseten a role csak ide masolja a kubeconfigot es a ~/.kube/config-hoz
+# nem nyul. A mukodo context tovabbra is a `default`, ami a Tailscale neven megy:
+# server: https://opt5060-i5:6443
+kubeconfig: /root/.kube/k3s-ansible.yaml

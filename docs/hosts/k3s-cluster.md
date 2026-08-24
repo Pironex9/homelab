@@ -20,13 +20,20 @@
     Reservations were re-entered on the new router on 2026-08-24 with the same last
     octets as before, so every IP in this document is current again.
 
-    The config lives in **five** places across three machines, not three:
+    At the time of the incident the config lived in **five** places across three
+    machines, not three:
 
     | Node | File | Key |
     |------|------|-----|
     | master | `/etc/systemd/system/k3s.service` | `--node-ip`, `--advertise-address` |
     | workers | `/etc/systemd/system/k3s-agent.service` | `--node-ip` |
     | workers | `/etc/systemd/system/k3s-agent.service.env` | `K3S_URL` (**not** in ExecStart) |
+
+    That layout changed later the same day when the cluster was brought under Ansible -
+    see "Ansible: the config layer as code" below. The server URL now lives in the
+    worker `ExecStart` as `--server`, and the env file holds only `K3S_TOKEN`. The
+    IP-change checklist is therefore two files per worker no longer, but the point
+    stands: it is never only the one you are looking at.
 
     Also delete `/var/lib/rancher/k3s/agent/etc/k3s-agent-load-balancer.json` on the
     workers - it caches the old server address and overrides the new `K3S_URL`.
@@ -601,6 +608,40 @@ expired, with no intervention. A PVC provisioning test afterwards bound and dele
 cleanly.
 
 ---
+
+### Ansible: the config layer as code (2026-08-24)
+
+The cluster is described in `ansible/` in this repo and converged with the official
+`k3s-io/k3s-ansible` collection (`k3s.orchestration` 1.2.2). This is the **second** of
+three layers - hardware/OS is still manual, and cluster contents (Longhorn, Traefik,
+future Ingresses) are still applied by hand until ArgoCD lands. `ansible/README.md`
+carries the full detail; the parts worth knowing here:
+
+- **Nothing was rebuilt.** The existing cluster was adopted. `extra_server_args`
+  reproduces the previous `ExecStart` verbatim, and after two consecutive real runs the
+  systemd unit files are byte-identical, so the description now matches reality rather
+  than describing an intent.
+- **A converge restarts k3s on all three nodes**, with no cordon or drain. Free today
+  with zero PVCs and zero Ingresses; it needs a maintenance window once anything runs.
+- **What Ansible does not manage:** the `local-storage.yaml.skip` file, the Longhorn
+  Helm release, and the `is-default-class` patch. These survived the converge - checked,
+  `longhorn` is still the only default StorageClass - but nothing would restore them if
+  they were lost. That gap is what layer three closes.
+
+Two collection behaviours cost real time and are worth knowing before anyone repeats
+this on another cluster:
+
+1. The role downloads `/usr/local/bin/k3s-install.sh` **only** when the requested
+   version is newer than the installed one, then runs it unconditionally. On a cluster
+   installed by hand from `get.k3s.io` - which leaves no copy at that path - the first
+   run dies with `[Errno 2] No such file or directory`. The local `site.yml` wrapper
+   adds a `get_url` pre-task to close this.
+2. With the default `kubeconfig: ~/.kube/config.new`, the role merges the master's
+   kubeconfig into the **control node's** `~/.kube/config` as a `k3s-ansible` context,
+   makes it current, and rewrites the server address to `api_endpoint`. On a control
+   node that reaches the cluster over Tailscale rather than the LAN, that silently
+   breaks `kubectl` - it hangs, it does not error. Pinning `kubeconfig` to any other
+   path avoids the merge entirely.
 
 ### Verified state (2026-08-24)
 

@@ -1,0 +1,30 @@
+---
+# Wrapper a k3s.orchestration.site kore.
+#
+# Miert kell: a collection csak akkor tolti le a /usr/local/bin/k3s-install.sh-t,
+# ha a telepitett k3s verzio regebbi a kertnel, vagy egyaltalan nincs k3s a gepen.
+# A "Run K3s install script" taskot viszont FELTETEL NELKUL lefuttatja. Egy olyan
+# clusteren, amit nem o telepitett - a mienket kezzel telepitettuk a get.k3s.io-rol,
+# ami nem hagy masolatot ezen az utvonalon - ez
+# "[Errno 2] No such file or directory: /usr/local/bin/k3s-install.sh"-val elhasal.
+# 2026-08-24-en pontosan ez tortent az elso eles futasnal.
+#
+# A telepito ettol nem tolt ujra binarist: a role INSTALL_K3S_SKIP_DOWNLOAD-ja
+# ilyenkor 'true', a szkript csak a systemd unitot es az env fajlt generalja ujra.
+- name: Ensure the k3s install script is present
+  hosts: k3s_cluster
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Download the K3s install script if it is missing
+      ansible.builtin.get_url:
+        url: https://get.k3s.io/
+        timeout: 120
+        dest: /usr/local/bin/k3s-install.sh
+        owner: root
+        group: root
+        mode: "0755"
+        force: false
+
+- name: Run the upstream k3s-ansible site playbook
+  ansible.builtin.import_playbook: k3s.orchestration.site

@@ -71,3 +71,27 @@ a 3. reteg (ArgoCD) nincs meg, ezek kezi allapotok:
 - Az inventory a node **neveit** hasznalja, nem IP-t. A 109 `/etc/hosts`-ja ezeket a
   Tailscale cimre oldja fel, igy az inventory tulel egy LAN subnet valtast is. A
   `--node-ip` ettol fuggetlenul LAN cim marad.
+- **A collection nem tolti le a telepito szkriptet, ha a verzio mar egyezik** - de utana
+  feltetel nelkul lefuttatja. Egy kezzel telepitett clusteren ez
+  `[Errno 2] No such file or directory: /usr/local/bin/k3s-install.sh`-val elhasal.
+  Ezert van a sajat `site.yml` wrapper egy `get_url` pre_taskkal. Ne futtasd kozvetlenul
+  a `k3s.orchestration.site`-ot, mindig a helyi `site.yml`-t.
+- **A `kubeconfig` valtozot szandekosan nem alapertelmezetten hagyjuk.** Ha az erteke
+  `~/.kube/config.new`, a role a 109 sajat `~/.kube/config`-jaba fesuli be a master
+  kubeconfigjat `k3s-ansible` contextkent, aktivva teszi, es a szervercimet az
+  `api_endpoint`-ra (192.168.1.101) irja - ami a 109-rol nem routolhato. Az elso eles
+  futas igy akasztotta meg a `kubectl`-t.
+
+## Idempotencia
+
+Ket egymas utani eles futas utan a unit fajlok sha256-ja **bajtra azonos**. Ot task
+mindig `changed`-et jelent, ez a role felepitesebol adodik, nem drift:
+
+| Task | Miert mindig changed |
+|---|---|
+| `Run K3s install script` | `changed_when: true`, feltetel nelkul |
+| `Enable and start K3s service/agent` | `state: restarted`, szandekosan minden futasnal |
+| `Add the token ... to the environment` | a telepito szkript ujragenralja az env fajlt es kitorli a tokent, a role utana visszairja |
+
+**Egy eles futas ujraindítja a k3s-t mind a harom node-on.** Nincs cordon vagy drain,
+tehat futo workloaddal ezt karbantartasi ablakban kell csinalni.

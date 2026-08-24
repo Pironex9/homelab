@@ -11,6 +11,7 @@ Infrastructure-as-code for a self-hosted homelab on Proxmox VE 9.1: Docker Compo
 - `docs/` - published MkDocs portfolio site; also read `docs/CLAUDE.md` before editing there
 - `brand/` - the written brand: tokens, the Mark, and the only committed copy of the self-hosted fonts (`brand/BRAND.md`)
 - `claude/output-styles/` - Claude Code output styles, symlinked into `~/.claude/output-styles/` (system-prompt-level behaviour rules; see `docs/other/claude-output-style.md`)
+- `ansible/` - a K3s cluster config-rétegének IaC leírása (k3s-io/k3s-ansible collection; részletek `ansible/README.md`)
 - `scripts/restore-test.sh` - weekly restic restore verification, and `scripts/k3s-backup.sh` - daily gpg-encrypted K3s control-plane backup (see `scripts/README.md` for the full backup layout)
 - `private/` - gitignored personal files (never commit); `private/todo.md` = planned tasks
 
