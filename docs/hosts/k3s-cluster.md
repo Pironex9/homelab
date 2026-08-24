@@ -2,14 +2,14 @@
 
 **Date:** 2026-04-08 (state verified 2026-08-24)
 **Location:** Separate physical location (remote, Tailscale access only)
-**Network:** 192.168.2.0/24 (separate router from Proxmox network, gateway 192.168.2.1)
+**Network:** 192.168.1.0/24 (separate router from Proxmox network, gateway 192.168.1.1)
 
-!!! danger "Subnet changed on 2026-08-23 - the IPs below are stale"
+!!! success "Subnet moved on 2026-08-23, fixed addresses restored on 2026-08-24"
 
     The router at the remote location was replaced or factory-reset at 15:10 on
     2026-08-23. The subnet became **192.168.1.0/24** (gateway 192.168.1.1) and every
-    DHCP reservation was lost, so the nodes are on arbitrary leases: opt5060-i5 on
-    192.168.1.90, opt3060-i3 on 192.168.1.152, opt3050-i5 on 192.168.1.231.
+    DHCP reservation was lost, so the nodes landed on arbitrary leases (192.168.1.90,
+    .152, .231).
 
     K3s had `--node-ip` hardcoded to the old addresses and crash-looped for 16 hours
     (1855 restarts) with `error getting node subnet: failed to find interface with
@@ -17,13 +17,10 @@
     `Deactivated successfully` - the unit-level messages look like a clean shutdown
     and hide the real cause, which is only visible in the k3s log lines themselves.
 
-    Fixed on 2026-08-24 by pointing the config at the current DHCP leases. The IP
-    tables in this document are deliberately **not** updated yet: the current
-    addresses are temporary, and fixed reservations still have to be set on the new
-    router. Everything else here - hardware, Longhorn, Traefik, DNS design - is
-    current.
+    Reservations were re-entered on the new router on 2026-08-24 with the same last
+    octets as before, so every IP in this document is current again.
 
-    The config lives in three places, not one:
+    The config lives in **five** places across three machines, not three:
 
     | Node | File | Key |
     |------|------|-----|
@@ -35,7 +32,37 @@
     workers - it caches the old server address and overrides the new `K3S_URL`.
 
     Tailscale access was never affected, because the kubeconfig and SSH both use
-    Tailscale names, not LAN addresses.
+    Tailscale names, not LAN addresses. The apiserver certificate carries
+    `DNS:opt5060-i5` in its SAN list but **not** the Tailscale IP, which is why
+    `server: https://opt5060-i5:6443` in the kubeconfig survives an IP change while a
+    kubeconfig pointing at `100.68.209.53` would not.
+
+!!! warning "A new DHCP reservation does not take effect while the old lease is alive"
+
+    Entering the reservation on the router is not enough. A DHCP server hands back the
+    address it has already leased to that MAC and ignores the reservation until that
+    lease is gone. Adding a reservation does not purge the existing lease.
+
+    This showed up as two nodes obeying the reservation instantly and the third
+    refusing three attempts in a row. The lease lifetime here is `LIFETIME=1d`,
+    `T1=12h`. The two workers had booted on 2026-08-23 at 13:12, so their leases had
+    expired 21 minutes before the reservation was entered. The master had rebooted at
+    09:38 that morning for a kernel update, so its lease was still valid for another 20
+    hours.
+
+    Order of operations that works:
+
+    ```bash
+    # 1. force a fresh DHCPDISCOVER - renew is NOT enough, the server just extends
+    #    the current address on a unicast RENEW
+    sudo networkctl reconfigure eno1
+
+    # 2. if the address does not change, the router still holds the lease.
+    #    Delete it in the router UI, or reboot the router, then repeat step 1.
+    ```
+
+    Deleting the cached lease under `/run/systemd/netif/leases/` does not help: the
+    address is being offered by the server, not remembered by the client.
 
 ---
 
@@ -59,9 +86,9 @@
 
 | Node | Model | Role | CPU | RAM | Disk | Local IP | Tailscale IP | Interface |
 |------|-------|------|-----|-----|------|----------|--------------|-----------|
-| opt5060-i5 | Dell OptiPlex 5060 | control-plane | Intel i5-8500 @ 3.00GHz | 16 GB | 57 GB (35% used) | 192.168.2.101 | 100.68.209.53 | eno1 |
-| opt3060-i3 | Dell OptiPlex 3060 | worker | Intel i3-8100 @ 3.60GHz | 8 GB | 98 GB (10% used) | 192.168.2.102 | 100.124.149.16 | enp1s0 |
-| opt3050-i5 | Dell OptiPlex 3050 | worker | Intel i5-7500 @ 3.40GHz | 8 GB | 98 GB (10% used) | 192.168.2.103 | 100.102.92.89 | enp1s0 |
+| opt5060-i5 | Dell OptiPlex 5060 | control-plane | Intel i5-8500 @ 3.00GHz | 16 GB | 57 GB (35% used) | 192.168.1.101 | 100.68.209.53 | eno1 |
+| opt3060-i3 | Dell OptiPlex 3060 | worker | Intel i3-8100 @ 3.60GHz | 8 GB | 98 GB (10% used) | 192.168.1.102 | 100.124.149.16 | enp1s0 |
+| opt3050-i5 | Dell OptiPlex 3050 | worker | Intel i5-7500 @ 3.40GHz | 8 GB | 98 GB (10% used) | 192.168.1.103 | 100.102.92.89 | enp1s0 |
 
 **OS:** Ubuntu 24.04.3 LTS, kernel 6.8.0-101-generic
 **User:** `nex` (sudo access)
@@ -72,7 +99,7 @@
 ## Network Topology
 
 ```
-[Internet] → [Router (192.168.0.1)]
+[Internet] → [Router (192.168.1.1)]
                       |
               [Unmanaged Switch]
                |        |        |
@@ -88,10 +115,38 @@
 
 | MAC Address | Hostname | Reserved IP |
 |-------------|----------|-------------|
-| `54:bf:64:68:a0:30` | opt5060-i5 | 192.168.2.101 |
-| `54:bf:64:a2:ff:77` | opt3060-i3 | 192.168.2.102 |
-| `d8:9e:f3:13:4d:97` | opt3050-i5 | 192.168.2.103 |
-| Orange Pi MAC | orangepione | 192.168.2.100 |
+| `54:bf:64:68:a0:30` | opt5060-i5 | 192.168.1.101 |
+| `54:bf:64:a2:ff:77` | opt3060-i3 | 192.168.1.102 |
+| `d8:9e:f3:13:4d:97` | opt3050-i5 | 192.168.1.103 |
+| Orange Pi MAC | orangepione | 192.168.1.51 (DHCP, no reservation) |
+
+### Reaching the remote router UI (2026-08-24)
+
+There is no out-of-band access at this location, and the router only listens on its
+own LAN. `opt3060-i3` therefore advertises the whole subnet as a Tailscale subnet
+route, which makes `https://192.168.1.1` reachable from any device on the tailnet,
+including a phone:
+
+```bash
+ssh nex@opt3060-i3 'sudo -n tailscale set --advertise-routes=192.168.1.0/24'
+```
+
+Then approve the route in the Tailscale admin console under the **opt3060-i3**
+machine. It has to be approved per prefix - approval of an earlier prefix is not
+inherited, and this tailnet has no `autoApprovers` rule. To undo, set
+`--advertise-routes=` with an empty value.
+
+Notes:
+
+- Use `tailscale set`, never `tailscale up`. `up` resets every flag that is not
+  passed on the command line.
+- iOS and Android accept approved subnet routes automatically; there is no toggle in
+  the mobile app, unlike Windows and macOS.
+- If the client device is itself on a 192.168.1.0/24 network, its local subnet wins
+  and 192.168.1.1 resolves to its own gateway instead.
+- `orangepione` used to advertise the old `192.168.2.0/24` here. That route is dead
+  and was left in place rather than removed.
+
 
 ---
 
@@ -102,7 +157,7 @@
 ```bash
 curl -sfL https://get.k3s.io | \
   K3S_NODE_NAME=opt5060-i5 \
-  INSTALL_K3S_EXEC='server --node-ip=192.168.2.101 --advertise-address=192.168.2.101 --flannel-iface=eno1' \
+  INSTALL_K3S_EXEC='server --node-ip=192.168.1.101 --advertise-address=192.168.1.101 --flannel-iface=eno1' \
   sh -
 ```
 
@@ -117,17 +172,17 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 # opt3060-i3
 curl -sfL https://get.k3s.io | \
   K3S_NODE_NAME=opt3060-i3 \
-  K3S_URL=https://192.168.2.101:6443 \
+  K3S_URL=https://192.168.1.101:6443 \
   K3S_TOKEN=<node-token> \
-  INSTALL_K3S_EXEC='agent --node-ip=192.168.2.102 --flannel-iface=enp1s0' \
+  INSTALL_K3S_EXEC='agent --node-ip=192.168.1.102 --flannel-iface=enp1s0' \
   sh -
 
 # opt3050-i5
 curl -sfL https://get.k3s.io | \
   K3S_NODE_NAME=opt3050-i5 \
-  K3S_URL=https://192.168.2.101:6443 \
+  K3S_URL=https://192.168.1.101:6443 \
   K3S_TOKEN=<node-token> \
-  INSTALL_K3S_EXEC='agent --node-ip=192.168.2.103 --flannel-iface=enp1s0' \
+  INSTALL_K3S_EXEC='agent --node-ip=192.168.1.103 --flannel-iface=enp1s0' \
   sh -
 ```
 
@@ -197,7 +252,7 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 | OS | Armbian 25.8.1 Noble |
 | Role | WoL server + Tailscale exit node |
 | Interface | end0 |
-| Local IP | 192.168.2.100 |
+| Local IP | 192.168.1.51 |
 | Tailscale IP | 100.120.73.44 |
 | Tailscale hostname | orangepione |
 | User | nex |
@@ -280,9 +335,9 @@ Status: all 3 nodes have `wol.service` enabled and active.
 
 ```
 NAME         STATUS   ROLES           VERSION        INTERNAL-IP     KERNEL
-opt5060-i5   Ready    control-plane   v1.34.5+k3s1   192.168.2.101   6.8.0-106-generic
-opt3060-i3   Ready    <none>          v1.34.5+k3s1   192.168.2.102   6.8.0-106-generic
-opt3050-i5   Ready    <none>          v1.34.5+k3s1   192.168.2.103   6.8.0-106-generic
+opt5060-i5   Ready    control-plane   v1.34.5+k3s1   192.168.1.101   6.8.0-138-generic
+opt3060-i3   Ready    <none>          v1.34.5+k3s1   192.168.1.102   6.8.0-138-generic
+opt3050-i5   Ready    <none>          v1.34.5+k3s1   192.168.1.103   6.8.0-138-generic
 ```
 
 ### Resource usage (idle)
@@ -309,15 +364,15 @@ opt3050-i5   Ready    <none>          v1.34.5+k3s1   192.168.2.103   6.8.0-106-g
 |---------|------|-------------|-------|
 | kubernetes | ClusterIP | - | 443 |
 | kube-dns | ClusterIP | - | 53 |
-| traefik | LoadBalancer | 192.168.2.101/102/103 | 80, 443 |
+| traefik | LoadBalancer | 192.168.1.101/102/103 | 80, 443 |
 
 ---
 
 ## DNS Configuration
 
-All K3s nodes use `--accept-dns=false` - Tailscale does not manage DNS on these nodes. The local router (192.168.2.1) handles all DNS resolution.
+All K3s nodes use `--accept-dns=false` - Tailscale does not manage DNS on these nodes. The local router (192.168.1.1) handles all DNS resolution.
 
-**Why:** Tailscale pushes a `~.` catch-all routing domain via systemd-resolved which redirects all DNS queries through 100.100.100.100. On the 192.168.2.x network this caused external DNS resolution to fail (e.g. `apt` could not reach `archive.ubuntu.com`).
+**Why:** Tailscale pushes a `~.` catch-all routing domain via systemd-resolved which redirects all DNS queries through 100.100.100.100. On the 192.168.1.x network this caused external DNS resolution to fail (e.g. `apt` could not reach `archive.ubuntu.com`).
 
 **Applied on all 3 nodes (2026-03-31):**
 ```bash
@@ -573,6 +628,17 @@ not 2.24 TB.
 
 Traefik is **installed and healthy but unused**: nothing routes through it because
 no Ingress object exists, so "it is running" is not yet evidence that it works.
+
+**Move to the reserved addresses, verified end to end (2026-08-24):** all three nodes
+report the reserved IP as their `InternalIP`, the `flannel.alpha.coreos.com/public-ip`
+annotation follows on each, and the VXLAN forwarding table on the master lists
+192.168.1.102 and 192.168.1.103 as tunnel endpoints. A throwaway pod pinned to
+`opt3060-i3` reached a `longhorn-manager` pod on `opt3050-i5` over the pod network, so
+the overlay was tested across nodes rather than assumed from "everything is Running".
+
+A control-plane backup was taken immediately afterwards so the restore point contains
+the new systemd units. It came to 2.5 MB, down from 62 MB before the datastore work
+described below.
 
 ### Longhorn end-to-end test (2026-08-24)
 
