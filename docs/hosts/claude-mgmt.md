@@ -22,6 +22,18 @@
 | tmux | 3.3a | Persistent `claude` session, survives disconnects |
 | Docker | latest (get.docker.com) | Runs code-server stack, Komodo-managed |
 | Komodo Periphery | v2.2.0 | Outbound mode, `connect_as = "LXC 109"`, systemd `periphery.service` |
+| kubectl | - | `/usr/local/bin/kubectl`, targets the K3s cluster over Tailscale |
+| pipx | 1.1.0 | apt package, only used to host the Ansible venv |
+| Ansible | core 2.19.12 | `pipx install --include-deps ansible` + `pipx inject ansible netaddr`. **Not** the apt package: Debian 12 ships `ansible-core` 2.14.18 and the `k3s-io/k3s-ansible` collection needs 2.15+ |
+
+`pipx` installs into `~/.local/bin`. That directory is on `PATH` in an interactive
+shell but **not in cron** - any scheduled job calling `ansible-playbook` needs the full
+path. The same trap has already bitten three cron jobs on this host with `pct`,
+`arping` and `claude`.
+
+This LXC is the Ansible control node for the K3s cluster. The inventory and the
+convergence procedure live in `ansible/` in the homelab repo; the cluster-side
+consequences are documented in [K3s Cluster](k3s-cluster.md).
 
 ## tmux persistent Claude session
 
