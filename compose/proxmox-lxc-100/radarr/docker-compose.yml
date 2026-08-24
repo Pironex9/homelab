@@ -13,6 +13,7 @@ services:
       - /mnt/storage/media/movies/eng:/movies/eng
       - /mnt/storage/media/anime/movies:/anime/movies
       - /mnt/storage/media/downloads:/downloads
+      - /mnt/storage/media/.recyclebin:/recyclebin
     ports:
       - 7878:7878
     restart: unless-stopped

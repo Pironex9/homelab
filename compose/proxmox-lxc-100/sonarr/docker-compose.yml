@@ -13,6 +13,7 @@ services:
       - /mnt/storage/media/tv/eng:/tv/eng
       - /mnt/storage/media/anime/tv:/anime/tv
       - /mnt/storage/media/downloads:/downloads
+      - /mnt/storage/media/.recyclebin:/recyclebin
     ports:
       - 8989:8989
     restart: unless-stopped
