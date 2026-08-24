@@ -1,0 +1,37 @@
+---
+# A sajat workloadok landolo namespace-e. A kube-system es a longhorn-system nem
+# kap PSA cimket: azok rendszerkomponensek, es a `baseline` tobbet torne el
+# bennuk, mint amennyit hasznal.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+  labels:
+    # Enforce a `baseline` szinten: tiltja a privileged konténert, a hostPath-ot,
+    # a host halozatot es a host namespace-eket. A `restricted` szandekosan csak
+    # figyelmeztet, mert az mar seccomp profilt es nem-root futast is megkovetel,
+    # amit sok kesz image nem teljesit.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+---
+# Alapertelmezett requests es limits minden podra, ami nem hoz sajatot. Az audit
+# szerint 35 podbol mind limits nelkul futott: emiatt a scheduler nem lat valos
+# igenyt, es egyetlen elszabadult pod kieheztetheti a node-ot.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi

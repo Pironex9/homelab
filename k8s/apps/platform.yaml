@@ -1,0 +1,21 @@
+---
+# Az elso gyerek app. A root ezt a fajlt latja a k8s/apps/ alatt, es felveszi.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Pironex9/homelab.git
+    targetRevision: main
+    path: k8s/manifests/platform
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
