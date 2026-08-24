@@ -5,7 +5,7 @@ sites:
     subnet: "192.168.0.0/24"
   - id: remote
     label: "SITE B / K3S CLUSTER"
-    subnet: "192.168.2.0/24"
+    subnet: "192.168.1.0/24"
     link: "Tailscale mesh"
 
 kinds:
@@ -110,7 +110,7 @@ nodes:
     site: remote
     head: true
     kind: k3s
-    ip: 192.168.2.101
+    ip: 192.168.1.101
     role: "K3s control plane"
     hw: "Dell OptiPlex 5060, i5"
     detail: "Master node of the 3-node K3s cluster at a separate location. Reached over Tailscale; kubectl from LXC 109."
@@ -119,16 +119,16 @@ nodes:
     name: opt3060-i3
     site: remote
     kind: k3s
-    ip: 192.168.2.102
+    ip: 192.168.1.102
     role: "K3s worker"
     hw: "Dell OptiPlex 3060, i3"
-    detail: "Worker node. Longhorn distributed storage planned."
+    detail: "Worker node. Longhorn distributed storage, 3-replica default."
 
   - badge: "K3S W2"
     name: opt3050-i5
     site: remote
     kind: k3s
-    ip: 192.168.2.103
+    ip: 192.168.1.103
     role: "K3s worker"
     hw: "Dell OptiPlex 3050, i5"
-    detail: "Worker node. Prometheus + Grafana monitoring planned."
+    detail: "Worker node. Longhorn replica target; Prometheus + Grafana monitoring planned."

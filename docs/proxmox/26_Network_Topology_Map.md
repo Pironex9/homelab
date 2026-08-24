@@ -30,7 +30,7 @@ The map is data-driven: adding a host is one YAML block + `npm run build`. Kinds
 
 Control-room blueprint aesthetic: deep navy grid-paper background, Big Shoulders Display + IBM Plex Mono typography, color-coded node cards with status-bar accents.
 
-- **Two network blocks**: SITE A (home LAN, 192.168.0.0/24) with the Proxmox host on top fanning out to all LXCs/VM, and SITE B (K3s cluster, 192.168.2.0/24) as a dashed "remote" panel, joined by a Tailscale mesh uplink marker.
+- **Two network blocks**: SITE A (home LAN, 192.168.0.0/24) with the Proxmox host on top fanning out to all LXCs/VM, and SITE B (K3s cluster, 192.168.1.0/24) as a dashed "remote" panel, joined by a Tailscale mesh uplink marker.
 - **SVG wires** are drawn client-side from actual card positions (no network calls) and redrawn on resize, so the tree survives any viewport.
 - **Click a node** - a detail panel shows ID, IP, role, hardware and a description; the selected card glows and its wire animates as a dashed "traffic" line. On mobile the panel becomes a bottom sheet.
 - Keyboard accessible (cards are buttons), `prefers-reduced-motion` respected, `<` escaped in the embedded JSON.

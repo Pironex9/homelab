@@ -29,7 +29,7 @@ Infrastructure-as-code for a self-hosted homelab on Proxmox VE 9.1: Docker Compo
 | LXC 110 caddy | 192.168.0.208 | Caddy reverse proxy (Alpine) |
 | LXC 113 agentos | 192.168.0.71 | Hermes + Odysseus agentic OS |
 
-Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + Pangolin on Hetzner VPS (public). Backups: Restic (local + NFS). K3s: 3x Dell OptiPlex (192.168.2.x, separate location, kubectl from this LXC).
+Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + Pangolin on Hetzner VPS (public). Backups: Restic (local + NFS). K3s: 3x Dell OptiPlex (192.168.1.101-103, separate location, kubectl from this LXC).
 
 ## LXC Access
 

@@ -240,7 +240,7 @@ Any host running Tailscale as a subnet router on the same network it advertises 
 tailscale set --stateful-filtering=false
 ```
 
-Applied on: Proxmox (`192.168.0.109`). Also needed on any other subnet router (e.g. Orange Pi at remote site advertising `192.168.2.0/24`).
+Applied on: Proxmox (`192.168.0.109`). Also needed on any other subnet router (`opt3060-i3` at the remote site advertises `192.168.1.0/24`).
 
 ## Lessons Learned
 
