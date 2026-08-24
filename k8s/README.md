@@ -57,6 +57,41 @@ A hitelesito adatok a `/root/.secrets/tailscale-operator-oauth` fajlban vannak a
 `tag:k8s-operator` es a `tag:k8s` tagekre, es egy OAuth kliens **write** joggal a
 `devices:core` es az `auth_keys` scope-ra, `tag:k8s-operator` cimkevel.
 
+### Hogyan mukodik, es mit kell fenntartani
+
+Semmit. A proxy pod a clusterben fut, StatefulSetkent, tehat magatol ujraindul es
+tulel egy node rebootot is. Ez a lenyegi kulonbseg a port-forwardhoz kepest, ami egy
+folyamat volt a 109-en, es a session-nel egyutt meghalt.
+
+Amit az operator egy Ingresshez letrehoz:
+
+```
+statefulset.apps/ts-argocd-<hash>    <- egy pod, benne tailscale/tailscale:v1.102.3
+service/ts-argocd-<hash>
+secret/ts-argocd-<hash>-0            <- ennek a node-nak az identitasa
+```
+
+A podban egy **teljes ertekű Tailscale node** fut: az OAuth hitelesitessel kér magának
+auth key-t, csatlakozik a tailnethez sajat nevvel es IP-vel. A Secret azert kell, mert
+az identitas allapot - ujrainduláskor ugyanazzal a kulccsal kell visszajonnie, kulonben
+uj eszkozkent regisztralna es megvaltozna a neve.
+
+Forgalom utja:
+
+```
+bongeszo -> WireGuard (direkt vagy DERP) -> proxy pod (itt terminalodik a TLS)
+         -> service/argocd-server:80 a clusteren belul -> argocd-server pod
+```
+
+A pod belul `tailscale serve`-et futtat (`TS_SERVE_CONFIG`), es **userspace halozati
+modban** dolgozik (`TS_USERSPACE`), tehat nem hoz letre TUN eszkozt es nem kell neki
+`NET_ADMIN`. A tanusitvanyt maga keri a Tailscale ACME-jen keresztul, ezert nincs
+`secretName` a `tls` blokkban - nem letezik Kubernetes Secret, amiben a tanusitvany
+ulne.
+
+Koltseg: **Ingressenkent egy tailnet-eszkoz.** Az Ingress torlesevel a proxy pod es az
+eszkoz is eltunik, a cim pedig megszunik letezni.
+
 ### Az argocd-server insecure modja - nem hanyagsag
 
 Az `argocd-cmd-params-cm` ConfigMapben `server.insecure: "true"` all. Enelkul az
