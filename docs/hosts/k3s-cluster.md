@@ -50,7 +50,7 @@
 | Container runtime | containerd 2.1.5-k3s1 |
 | CNI | Flannel |
 | Ingress | Traefik 3.6.9 (built-in), no Ingress objects yet |
-| Storage class | longhorn (effective default), local-path (see caveat below) |
+| Storage class | longhorn (sole default since 2026-08-24), local-path (available, not default) |
 | Access | Tailscale mesh VPN |
 
 ---
@@ -411,38 +411,49 @@ longhorn             driver.longhorn.io      yes
 longhorn-static      driver.longhorn.io      -
 ```
 
-!!! warning "The dual-default patch does not survive a k3s restart (found 2026-08-24)"
+!!! success "Fixed 2026-08-24 - the `.skip` file, not another patch"
 
-    The `kubectl patch` above is reverted every time the k3s server starts. K3s
-    reconciles its bundled manifests from
-    `/var/lib/rancher/k3s/server/manifests/local-storage.yaml` on each startup and
-    restores `storageclass.kubernetes.io/is-default-class: "true"` on `local-path`.
-    The live state on 2026-08-24 was:
+    **The problem:** the `kubectl patch` above was reverted every time the k3s
+    server started, leaving two default StorageClasses at once. K3s re-writes its
+    packaged manifests from `/var/lib/rancher/k3s/server/manifests/` on every
+    startup "in order to ensure their integrity", which restored
+    `storageclass.kubernetes.io/is-default-class: "true"` on `local-path`. After
+    1855 restarts in a single day, that was guaranteed.
+
+    Nothing was broken by it: the DefaultStorageClass admission plugin picks the
+    class with the most recent `creationTimestamp`, and `longhorn` (134 days old)
+    beat `local-path` (157 days old). But that is an accident, not configuration -
+    recreating the Longhorn StorageClass would have silently flipped the winner.
+
+    **The fix.** Re-patching would have reverted again, so the manifest had to stop
+    being re-applied:
+
+    ```bash
+    # 1. stop k3s from applying the packaged manifest
+    sudo touch /var/lib/rancher/k3s/server/manifests/local-storage.yaml.skip
+
+    # 2. now the patch sticks
+    kubectl patch storageclass local-path \
+      -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+    ```
+
+    `--disable local-storage` was rejected: it actively uninstalls the component and
+    deletes the source file, which would remove local-path entirely. A `.skip` file
+    created after an AddOn already exists does not remove or modify it, so
+    `local-path` keeps working - node-local, unreplicated, faster than Longhorn, and
+    genuinely useful for caches and build directories alongside it.
+
+    **Verified by restarting k3s**, which is the step the 2026-04-11 attempt never
+    took. After the restart `local-storage.yaml` had a fresh timestamp (k3s did
+    re-write it) but was not applied, `local-path` was no longer default, and the
+    `local-path-provisioner` deployment was still `1/1`:
 
     ```
-    NAME                   PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE
-    local-path (default)   rancher.io/local-path   Delete          WaitForFirstConsumer
-    longhorn (default)     driver.longhorn.io      Delete          Immediate
-    longhorn-static        driver.longhorn.io      Delete          Immediate
+    NAME                 PROVISIONER             DEFAULT
+    local-path           rancher.io/local-path   -
+    longhorn (default)   driver.longhorn.io      yes
+    longhorn-static      driver.longhorn.io      -
     ```
-
-    Two default storage classes at once. This is not currently breaking anything:
-    the DefaultStorageClass admission plugin picks the class with the most recent
-    `creationTimestamp`, and `longhorn` (134 days old) is newer than `local-path`
-    (157 days old), so a PVC without an explicit `storageClassName` still lands on
-    Longhorn. It is fragile, not correct - reinstalling or recreating the Longhorn
-    StorageClass would flip the winner to `local-path` without any visible error.
-
-    A durable fix has to stop k3s from reapplying the manifest, not re-patch the
-    object: either `--disable local-storage` on the server (removes local-path
-    entirely) or a `local-storage.yaml.skip` marker file next to the bundled
-    manifest. Both are decisions, not cleanups - see `private/todo.md`.
-
-**Longhorn UI** is available via port-forward (no ingress yet):
-```bash
-kubectl port-forward -n longhorn-system svc/longhorn-frontend 8080:80
-# then open http://localhost:8080
-```
 
 ### Verified state (2026-08-24)
 
@@ -482,7 +493,7 @@ by a real workload, so "it is running" is not yet evidence that it works.
 - [x] Longhorn install via Helm
 - [x] Longhorn healthy on all 3 nodes (2026-08-24)
 - [ ] Verify Longhorn UI + test PVC - still open, 0 volumes provisioned so far
-- [ ] Fix the dual-default StorageClass durably (see the warning above)
+- [x] Fix the dual-default StorageClass durably - `.skip` file + patch, verified across a k3s restart (2026-08-24)
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
 - [ ] RBAC policies
