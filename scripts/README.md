@@ -1,6 +1,10 @@
 # Scripts
 
-There is no backup script here. `backup.sh` used to sit in this directory,
+`k3s-backup.sh` is the one backup script here, and it exists because the K3s
+cluster had no backup at all. Everything else that runs lives on pve, not in this
+repo - see the table below.
+
+An earlier `backup.sh` used to sit in this directory,
 describing one restic repository per Docker service under `$BACKUP_DEST_NFS`,
 and it was never deployed anywhere - docker-host has no restic installed. It was
 deleted on 2026-08-12 because it read as a working backup layer and misled a
@@ -12,6 +16,7 @@ reader who went looking for where Immich was covered. What actually runs:
 | restic of the pve host root | `/mnt/disk1/backup/proxmox-host` | Sunday 04:00 |
 | rsync of both to the Nobara NFS share | `/mnt/pve/nobara-backup` | Sunday 11:00 and 19:00 |
 | `pg_dumpall` of Immich into the SnapRAID-protected pool | `/mnt/storage/immich/pgdump` | daily 02:30 CEST, on LXC 100 |
+| `k3s-backup.sh` - K3s control plane, gpg-encrypted | `/mnt/storage/backup/k3s` | daily 01:30, from LXC 109 |
 
 Configuration for the script below lives in `scripts/.env` (gitignored). See
 `.env.example` for every key and for the values that match the live pve setup.
@@ -51,6 +56,94 @@ Deployed on pve as `/root/restore-test/restore-test.sh` with its `.env` beside
 it (the script sources `.env` from its own directory).
 
 Logs to `/var/log/homelab/restore-test.log`.
+
+## k3s-backup.sh
+
+The K3s cluster at the second location had **no backup of any kind** until
+2026-08-24 - not the cluster state, not the three machines. Its entire state is a
+single sqlite file on the master, so a dead system disk meant reinstalling rather
+than restoring.
+
+Runs on LXC 109, because only that host has SSH keys to both the K3s nodes and
+pve. pve can reach the nodes over Tailscale but was deliberately not given an
+authorized_key of its own. The tar streams straight through to pve, so nothing
+lands on 109's small disk.
+
+### Why `VACUUM INTO` and not `cp`
+
+It takes a consistent copy of a live database (a read transaction; in WAL mode
+writers are not blocked), so k3s keeps running. It also compacts: on 2026-08-24 a
+3.4 GB `state.db` produced a 623 MB copy, because 82% of the file was free pages.
+Two seconds.
+
+### Why it is encrypted
+
+The archive carries the cluster CA private keys and the node join token, and
+`/mnt/storage` is **both** a Samba share and an NFS export to the whole
+`192.168.0.0/24` with `rw,no_root_squash`. Under `no_root_squash` file permissions
+are not a control - root on any LAN machine is root on the server. So the content
+goes out encrypted with gpg AES256.
+
+The passphrase is `/root/.secrets/k3s-backup-passphrase` on LXC 109. **Lose it and
+the backups are unreadable.** LXC 109 is covered by the daily vzdump so it can be
+recovered from there, but keep a copy in Vaultwarden - if the homelab is lost as a
+whole, both copies go with it.
+
+Note that MergerFS ignores the umask on create (it makes files 666) and only
+honours a later `chmod`, so the script chmods explicitly after writing. That
+protects integrity, not confidentiality - the content is already encrypted.
+
+### What it captures
+
+| Item | Why it is needed |
+|---|---|
+| `state.db` (VACUUM INTO copy) | the entire cluster state |
+| `tls/`, `cred/`, `token`, `node-token` | without these you cannot connect to a restored DB and nodes cannot rejoin |
+| `manifests/` | the k3s packaged addon manifests |
+| systemd unit + env files, master and both workers | where `--node-ip` and `K3S_URL` actually live |
+| `kubectl` YAML export (separate file) | human-readable fallback, and the view you need to *rebuild* rather than restore |
+
+### Verification
+
+Step 4 does not check that a file was created - it pipes the archive back through
+`gpg --decrypt` and reads the tar to confirm `state.db` is inside. An encrypted
+backup that cannot be decrypted is worse than none, because you believe you are
+covered. The decryption runs on 109, where the passphrase is; pve never sees it.
+
+A failed run deletes its own partial files from the destination. Without that, an
+interrupted transfer left a 70-byte "archive" that counted toward retention and
+would have pushed out the last good backup after a few bad days.
+
+```bash
+./k3s-backup.sh              # backup plus ntfy notification
+./k3s-backup.sh --no-ntfy    # no notification, for running by hand
+```
+
+### Restoring
+
+Deliberately not automated.
+
+```bash
+gpg --decrypt --passphrase-file /root/.secrets/k3s-backup-passphrase \
+    k3s-control-plane-<TS>.tar.gz.gpg | tar xzf - -C /somewhere
+# then on the master: systemctl stop k3s
+#   put state.db, tls/ and cred/ back in place
+#   systemctl start k3s
+# then on the workers: systemctl restart k3s-agent
+```
+
+### Scheduling
+
+```
+30 1 * * * /root/homelab/scripts/k3s-backup.sh >> /var/log/homelab/k3s-backup.log 2>&1
+```
+
+01:30 keeps it clear of the 02:00 vzdump window on the same backup disk. The script
+sets its own `PATH` because `kubectl` lives in `/usr/local/bin`, which cron does not
+see - a trap that has silently killed three jobs in this homelab. Test with
+`env -i PATH=/usr/bin:/bin HOME=/root ./k3s-backup.sh`.
+
+Measured on 2026-08-24: 29 seconds end to end, 68 MB archive plus a 1.2 MB export.
 
 ## install-lan-ca-windows.ps1
 
