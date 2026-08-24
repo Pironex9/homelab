@@ -455,6 +455,98 @@ longhorn-static      driver.longhorn.io      -
     longhorn-static      driver.longhorn.io      -
     ```
 
+### Datastore: 3.4 GB -> 10 MB (2026-08-24)
+
+The sqlite datastore (`/var/lib/rancher/k3s/server/db/state.db`) had grown to
+**3.4 GB** on a cluster with 34 pods and no workloads. Two separate problems were
+behind it, and they needed different fixes.
+
+**1. Free pages - fixed with VACUUM.** SQLite never returns deleted pages to the OS
+on its own, and k3s never runs `VACUUM`. `VACUUM INTO` produces a compacted copy of
+a live database in about two seconds, so the k3s downtime is only the file swap:
+
+```bash
+sudo systemctl stop k3s
+sudo python3 -c "
+import sqlite3
+c = sqlite3.connect('/var/lib/rancher/k3s/server/db/state.db')
+c.execute(\"VACUUM INTO '/var/lib/rancher/k3s/server/db/state.db.new'\")
+c.close()"
+# integrity_check, then mv the new file over state.db, then start k3s
+```
+
+Result: 3.4 GB -> **577 MB**. 82% of the file was free pages. The `Slow SQL`
+warnings (`wal_checkpoint(FULL)` taking over a second on an idle cluster)
+disappeared: the first compaction on the new file processed 5278 revisions in
+1.576s with **zero** `Slow SQL` entries, against ~4850-revision batches on the old
+file where every cycle logged several.
+
+**2. Half a million expired Events - the actual bloat.** After the VACUUM the file
+was still 577 MB, and a breakdown of the `kine` table showed why:
+
+```
+188 503  /registry/events/default
+172 531  /registry/events/longhorn-system
+167 082  /registry/events/kube-system
+    ...
+      27  /registry/pods/longhorn-system
+```
+
+**528 116 of 530 071 rows (99.6%) were Kubernetes Events.** All of them had
+`lease > 0` (a TTL was set) and `deleted = 0` (none had been marked for removal),
+spanning nearly a million revisions.
+
+The cause is visible in the k3s shutdown log line `TTL events watch channel closed`:
+kine schedules expiry deletions **in memory**, by watching keys as they are created.
+Every k3s restart loses that schedule, and it is not rebuilt for rows that already
+exist. After 1855 restarts in one day the backlog was permanent - k3s would never
+have cleaned it up.
+
+This was not only disk usage. `kubectl get events -n default` **did not return
+within 60 seconds**, because the apiserver was reading every one of those rows.
+
+!!! warning "There is no upstream procedure for this"
+
+    kine issue [#213](https://github.com/k3s-io/kine/issues/213) asks exactly this
+    question and was closed with no maintainer answer. Deleting rows directly from
+    the `kine` table is what compaction itself does, and Events are non-authoritative
+    diagnostics with a 1-hour TTL, so nothing depends on them - but this is judgement,
+    not a vendor-blessed step. Take a verified backup first.
+
+    Delete only rows **below** `max(id) - 1000`. Kine derives the current revision
+    from `max(id)`; removing the highest row would make the revision counter go
+    backwards. The newest rows are left alone for that reason.
+
+```bash
+sudo systemctl stop k3s
+sudo python3 -c "
+import sqlite3
+c = sqlite3.connect('/var/lib/rancher/k3s/server/db/state.db')
+cutoff = c.execute('SELECT max(id) FROM kine').fetchone()[0] - 1000
+c.execute(\"DELETE FROM kine WHERE name GLOB ? AND id < ?\", ('/registry/events/*', cutoff))
+c.commit(); c.close()"
+# then VACUUM INTO as above, swap, start k3s
+```
+
+| Milestone | `state.db` |
+|-----------|-----------|
+| Morning of 2026-08-24 | 3 456 999 424 B (3.4 GB) |
+| After `VACUUM` | 577 294 336 B (577 MB) |
+| After the event purge | **10 145 792 B (10.1 MB)** |
+
+528 486 rows deleted, **2 718 left** - 54 pods, 24 services, 15 configmaps, 12
+deployments, 11 secrets and 742 recent events. `max(id)` was unchanged at 7 360 323.
+`kubectl get events -A` now returns in **0.150 s**.
+
+One pod (`csi-provisioner`) went into CrashLoopBackOff during the restart with
+`dial tcp 10.43.0.1:443: connect: connection refused`, timestamped a minute before
+k3s finished starting - the same class of failure as every other apiserver-outage
+restart, not damage from the purge. It recovered on its own after the backoff
+expired, with no intervention. A PVC provisioning test afterwards bound and deleted
+cleanly.
+
+---
+
 ### Verified state (2026-08-24)
 
 Checked live against the cluster after the subnet incident described above.
