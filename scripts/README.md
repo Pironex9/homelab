@@ -85,9 +85,16 @@ are not a control - root on any LAN machine is root on the server. So the conten
 goes out encrypted with gpg AES256.
 
 The passphrase is `/root/.secrets/k3s-backup-passphrase` on LXC 109. **Lose it and
-the backups are unreadable.** LXC 109 is covered by the daily vzdump so it can be
-recovered from there, but keep a copy in Vaultwarden - if the homelab is lost as a
-whole, both copies go with it.
+the backups are unreadable.** LXC 109 is covered by the daily vzdump, but that copy
+lives inside the homelab too, so a whole-site loss would take the backups and their
+key together. Since 2026-08-24 the passphrase is therefore also in the password
+manager, which is what the file-less restore form below is for.
+
+Do not delete the file thinking the password manager copy replaces it. The two have
+different jobs: the file is the script's input and the nightly run needs it, while the
+password manager copy is the human one for the day LXC 109 is gone. Without the file
+the job stops at its own guard - `HIBA: a jelszófájl hiányzik vagy üres` - and no
+backup is written from that night on.
 
 Note that MergerFS ignores the umask on create (it makes files 666) and only
 honours a later `chmod`, so the script chmods explicitly after writing. That
