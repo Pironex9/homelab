@@ -643,6 +643,45 @@ this on another cluster:
    breaks `kubectl` - it hangs, it does not error. Pinning `kubeconfig` to any other
    path avoids the merge entirely.
 
+### Argo CD: the content layer as code (2026-08-24)
+
+Third and last layer. `k8s/` in the repo holds what runs *inside* the cluster, and Argo
+CD **v3.5.1** keeps the cluster matching it. Full detail in `k8s/README.md`; the parts
+worth knowing here:
+
+- **Pinned, not `stable`.** The install manifest is referenced by tag with its sha256
+  recorded, because `stable` moves and an install that cannot be reproduced is not
+  infrastructure as code.
+- **`kubectl apply --server-side` is mandatory.** A plain client-side apply fails on the
+  `applicationsets.argoproj.io` CRD with `metadata.annotations: Too long: may not be
+  more than 262144 bytes` - client-side apply stuffs the whole manifest into an
+  annotation and that CRD is over the limit.
+- **The Longhorn Helm release is deliberately left out of Argo CD.** Argo CD runs Helm
+  hooks as `PreSync`, so Longhorn's pre-upgrade job fires on the very first sync, at a
+  point where its service account does not exist yet, and fails
+  ([longhorn/longhorn#6415](https://github.com/longhorn/longhorn/issues/6415)). This
+  costs nothing: `BackupTarget` and `RecurringJob` are separate CRDs, so the pieces that
+  matter can live in git without Argo CD touching the release.
+- **Footprint:** 7 pods, 23m CPU and 253Mi memory in total. All seven land on the
+  control-plane node - the non-HA manifests carry no anti-affinity. That adds no new
+  single point of failure, because the single control plane already is one.
+
+The loop was verified end to end rather than assumed: a commit was pushed to GitHub with
+no `kubectl apply` of any kind, and Argo CD created the objects on its own within one
+poll interval.
+
+**First child app.** `apps` is the landing namespace for real workloads, and it closes
+part of two audit findings:
+
+| Setting | Value | Verified by |
+|---|---|---|
+| PSA enforce | `baseline` | a privileged pod is rejected: `violates PodSecurity "baseline:latest"` |
+| PSA warn / audit | `restricted` | a normal pod is created, with a warning listing what `restricted` would additionally require |
+| LimitRange defaults | 500m / 512Mi limits, 50m / 64Mi requests | a pod created with no resources of its own comes back carrying exactly those |
+
+`kube-system` and `longhorn-system` are deliberately left unlabelled. `baseline` would
+break more in system components than it buys.
+
 ### Verified state (2026-08-24)
 
 Checked live against the cluster after the subnet incident described above.
