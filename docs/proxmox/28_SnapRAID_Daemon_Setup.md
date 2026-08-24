@@ -115,6 +115,23 @@ scrub: "Scrub plan: auto. 5.0% of the array, older than 6 days"  ->  error_soft 
 1. **No authentication in this release.** The GitHub `master` branch docs (manpage, `snapraidd.conf.example`) describe a `net_auth_credential` config option and a `snapraidd -g user:pass` flag to generate an Argon2id hash for HTTP Basic Auth. **Neither exists in the actual v1.14 release binary** - `snapraidd -H` doesn't list `-g`/`--gen-auth`, and `net_auth_credential` isn't a recognized key in the shipped config. This is an unreleased feature documented ahead of the release. Access control for now is `net_acl` (IP allowlist) only, no password. Caddy reverse-proxy Basic Auth is an option if password protection becomes necessary before the daemon catches up.
 2. **Bare port number doesn't bind to all interfaces.** The docs say `net_port = 7627` (no IP) binds to all IPv4 interfaces (`0.0.0.0`). In practice it bound to `127.0.0.1`/`::1` only. Using the explicit form `net_port = 0.0.0.0:7627` worked as expected.
 
+## Still open: nothing notifies when the chain fails
+
+The 2026-08-12 tuning pass fixed the abort, but not the reason it went unnoticed for ten days. `notify_result` is still commented out, and syslog is the only sink configured:
+
+```
+notify_syslog_enabled = 1
+notify_syslog_level = info
+#notify_result = curl --narrow -f --max-time 30 --retry 3 -H "Title: %s" ... https://ntfy.sh/your_private_topic
+notify_result_level = error
+```
+
+`notify_result_level = error` is already correct, so wiring the command would send on failure only. `notify_heartbeat` is likewise unset, so a daemon that stops running the Sunday chain entirely would also pass unnoticed.
+
+This matters more here than for an ordinary service. Every other scheduled job on this homelab either pushes to an Uptime Kuma monitor as a dead man's switch or posts to ntfy - see [35 - Cron Job Monitoring with Uptime Kuma Push Monitors](./35_Cron_Job_Monitoring_Uptime_Kuma.md). SnapRAID guards the only parity copy of an 8.1 TB array and reports to nobody.
+
+The follow-up audit in [42 - Sonarr/Radarr Missing Media Audit](./42_Sonarr_Radarr_Missing_Media_Audit.md) reached the same conclusion from the other direction, and also documents two false alarms worth not repeating: the orphaned `# SnapRAID sync minden vasárnap hajnali 3-kor` comment left behind in root's crontab reads like a lost job, and `sync_threshold_deletes` is invisible to anyone grepping `/etc/snapraid.conf` for `deletethreshold`.
+
 ## Removed: old manual cron
 
 The old weekly sync cron (`0 3 * * 0 /usr/local/bin/snapraid sync` in root's crontab) was removed - the daemon's `maintenance_schedule = Sun 03:00` now covers sync + scrub + report at the same time slot. Backup of the old crontab: `/tmp/crontab.bak` on `pve`.
