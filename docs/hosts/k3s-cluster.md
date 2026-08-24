@@ -479,10 +479,32 @@ Total raw Longhorn capacity ~2.24 TiB. With the default 3-replica policy the usa
 figure is bounded by the smallest node, so roughly 457 GiB of replicated volumes -
 not 2.24 TB.
 
-Both components are **installed and healthy but unused**: no PVC has ever been
-provisioned through Longhorn (`storageScheduled` is 0 on every disk), and nothing
-routes through Traefik because no Ingress object exists. Neither has been exercised
-by a real workload, so "it is running" is not yet evidence that it works.
+Traefik is **installed and healthy but unused**: nothing routes through it because
+no Ingress object exists, so "it is running" is not yet evidence that it works.
+
+### Longhorn end-to-end test (2026-08-24)
+
+Longhorn had never provisioned a single PVC in the 134 days since it was installed,
+so its health was unproven. The test below writes on one node and reads back on a
+**different** one - that is the step that actually proves the volume is replicated
+and network-attachable rather than node-local.
+
+| Step | Result |
+|------|--------|
+| PVC provisioning | `Bound` within seconds, 1 GiB |
+| Replicas | **3, one per node**, all `running`, volume `robustness: healthy` |
+| Write | 64 MB from `/dev/urandom` on opt5060-i5 |
+| sha256 at write | `dd4e3a5360bff4548abe981b84fda3ad81c6fb19c836cec7d7a52bf982468ed1` |
+| Pod deleted, volume reattached | opt5060-i5 -> **opt3050-i5**, about 90 seconds |
+| Read back on the other node | `payload.bin: OK` |
+| Teardown | PVC, PV, volume and all 3 replicas removed; `storageScheduled` back to 0 |
+
+Two numbers worth keeping. The **~90 second reattach** is what a stateful workload's
+recovery costs when the node under it dies - worth knowing before anything
+time-sensitive lands on this cluster. And the teardown completed fully: the `Delete`
+reclaim policy removed the PV, the Longhorn volume and every replica with no orphans
+left behind, which is exactly where a misconfigured CSI driver quietly accumulates
+garbage.
 
 ---
 
@@ -492,7 +514,8 @@ by a real workload, so "it is running" is not yet evidence that it works.
 - [x] fstab entries for Longhorn HDDs on all 3 nodes
 - [x] Longhorn install via Helm
 - [x] Longhorn healthy on all 3 nodes (2026-08-24)
-- [ ] Verify Longhorn UI + test PVC - still open, 0 volumes provisioned so far
+- [x] Test PVC end-to-end - written, reattached to another node, checksum verified, cleanly torn down (2026-08-24)
+- [ ] Longhorn UI still only reachable via port-forward (no ingress)
 - [x] Fix the dual-default StorageClass durably - `.skip` file + patch, verified across a k3s restart (2026-08-24)
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
