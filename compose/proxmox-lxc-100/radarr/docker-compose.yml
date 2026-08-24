@@ -17,6 +17,8 @@ services:
     ports:
       - 7878:7878
     restart: unless-stopped
+    networks:
+      - arr_stack
 networks:
   arr_stack:
     external: true
