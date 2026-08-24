@@ -266,18 +266,61 @@ port 8989 (sonarr) -> recycleBin='/recyclebin'  cleanupDays=14  hardlinks=False
 port 7878 (radarr) -> recycleBin='/recyclebin'  cleanupDays=14  hardlinks=False
 ```
 
-Two items surfaced during the audit that are not yet closed:
+Two items looked open at the end of the audit. Both turned out to be wrong, and the way they were wrong is worth keeping.
 
-**The SnapRAID sync cron entry is missing from root's crontab on pve.** Only the comment survives:
+### The absent cron line was not a regression
+
+Root's crontab on pve carries the comment but not the job:
 
 ```
 # SnapRAID sync minden vasárnap hajnali 3-kor
 0 11,19 * * 0 /root/sync-to-nobara.sh
 ```
 
-`snapraid status` reports the newest block synced a day earlier, and `journalctl -u cron` shows no job at the documented time. Something runs it; the crontab is not that something. Related: [35 - Cron Job Monitoring with Uptime Kuma Push Monitors](./35_Cron_Job_Monitoring_Uptime_Kuma.md).
+`journalctl -u cron` confirms nothing ran at 03:00, yet `snapraid status` reported the newest block synced a day earlier. The obvious reading - a job that silently stopped being scheduled - was wrong. SnapRAID has not been driven by cron here since 2026-07-25. It runs under `snapraidd`, whose own scheduler owns the slot, and the cron line was removed on purpose as part of that migration:
 
-**There is no delete threshold on the sync.** This is the guard that would have mattered twice. `snapraid diff` reports removed-file counts before a sync touches parity; `snapraid-runner` exposes this as `deletethreshold`, and refusing to sync when more than ~100 files disappeared would have preserved the parity that could have restored an entire wiped disk.
+```console
+root@pve:~# grep maintenance_schedule /etc/snapraidd.conf
+maintenance_schedule = Sun 03:00
+```
+
+The log directory shows the chain actually running, week by week:
+
+```
+20260823-030003-up.log
+20260823-030014-sync.log
+20260823-034411-scrub.log
+20260823-040848-down.log
+```
+
+**An orphaned comment in a crontab is not evidence that a job stopped running.** It is evidence that something else took the job over and nobody deleted the comment. Check for a daemon, a systemd timer, and the tool's own scheduler before concluding anything. See [28 - SnapRAID Daemon Setup](./28_SnapRAID_Daemon_Setup.md).
+
+### The delete guard exists, under a different name in a different file
+
+`grep deletethreshold /etc/snapraid.conf` finds nothing, because that is `snapraid-runner`'s key in the CLI's config. The daemon spells it differently and keeps it in its own file:
+
+```console
+root@pve:~# grep threshold /etc/snapraidd.conf
+sync_threshold_deletes = 1000
+sync_threshold_updates = 100
+```
+
+**Grepping the wrong config file for the wrong key name reads exactly like an absent feature.** When a tool has both a CLI and a daemon wrapper, they do not share a config or a vocabulary.
+
+The threshold is set high on purpose: weekly `vzdump` rotation and download cleanup on `d1` routinely remove several hundred files, and at the original value of 50 the sync aborted on ordinary housekeeping - which then blocked the scrub too, because the daemon runs maintenance as a chain. At 1000 it still catches what matters here: both mass losses in this incident removed more than 1700 and 966 files respectively. The guard simply did not exist yet in 2025.
+
+### What is genuinely open: nothing tells anyone when the chain fails
+
+`notify_result` is commented out in `/etc/snapraidd.conf`. The only sink configured is syslog:
+
+```
+notify_syslog_enabled = 1
+notify_syslog_level = info
+#notify_result = curl --narrow -f --max-time 30 --retry 3 -H "Title: %s" ... https://ntfy.sh/your_private_topic
+notify_result_level = error
+```
+
+This is not theoretical. On 2026-08-09 the sync aborted on the old 50-delete threshold, the chain stopped, and parity sat ten days stale while `systemctl is-active` stayed green and the dashboard looked healthy. Nobody was told. Every other scheduled job in this homelab either pushes to an Uptime Kuma monitor as a dead man's switch or posts to ntfy; the SnapRAID daemon does neither, and it guards the only parity copy of the array.
 
 ## Lessons
 
@@ -286,4 +329,5 @@ Two items surfaced during the audit that are not yet closed:
 - **A hardlink test on a union filesystem only tests the branch it happened to land on.** `category.create=mfs` decides per file; a 4 KB probe and a 20 GB release do not necessarily agree.
 - **A recycle bin on the wrong branch turns a delete into a cross-disk copy.** Create the directory on every branch so the rename resolves locally, and measure it once to confirm.
 - **On an unprivileged LXC, a new host directory defaults to `nobody` inside the container.** Match the UID of the surrounding tree or the feature fails quietly.
-- **One parity disk protects a wiped data disk only until the next sync.** Without a delete threshold, the recovery window closes on a schedule, unattended, with no warning.
+- **One parity disk protects a wiped data disk only until the next sync.** The recovery window closes on a schedule, unattended - so the delete threshold that refuses to sync after a mass removal is the guard that matters, and it has to be loud enough to reach a human.
+- **A leftover comment is not evidence of a missing job, and a missing key is not evidence of a missing feature.** Both false alarms in this audit came from reading one config file and stopping there.
