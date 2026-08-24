@@ -1,8 +1,41 @@
 # K3s Cluster
 
-**Date:** 2026-04-08
+**Date:** 2026-04-08 (state verified 2026-08-24)
 **Location:** Separate physical location (remote, Tailscale access only)
 **Network:** 192.168.2.0/24 (separate router from Proxmox network, gateway 192.168.2.1)
+
+!!! danger "Subnet changed on 2026-08-23 - the IPs below are stale"
+
+    The router at the remote location was replaced or factory-reset at 15:10 on
+    2026-08-23. The subnet became **192.168.1.0/24** (gateway 192.168.1.1) and every
+    DHCP reservation was lost, so the nodes are on arbitrary leases: opt5060-i5 on
+    192.168.1.90, opt3060-i3 on 192.168.1.152, opt3050-i5 on 192.168.1.231.
+
+    K3s had `--node-ip` hardcoded to the old addresses and crash-looped for 16 hours
+    (1855 restarts) with `error getting node subnet: failed to find interface with
+    specified node ip`. Note that k3s exits **0** on this failure, so systemd logs
+    `Deactivated successfully` - the unit-level messages look like a clean shutdown
+    and hide the real cause, which is only visible in the k3s log lines themselves.
+
+    Fixed on 2026-08-24 by pointing the config at the current DHCP leases. The IP
+    tables in this document are deliberately **not** updated yet: the current
+    addresses are temporary, and fixed reservations still have to be set on the new
+    router. Everything else here - hardware, Longhorn, Traefik, DNS design - is
+    current.
+
+    The config lives in three places, not one:
+
+    | Node | File | Key |
+    |------|------|-----|
+    | master | `/etc/systemd/system/k3s.service` | `--node-ip`, `--advertise-address` |
+    | workers | `/etc/systemd/system/k3s-agent.service` | `--node-ip` |
+    | workers | `/etc/systemd/system/k3s-agent.service.env` | `K3S_URL` (**not** in ExecStart) |
+
+    Also delete `/var/lib/rancher/k3s/agent/etc/k3s-agent-load-balancer.json` on the
+    workers - it caches the old server address and overrides the new `K3S_URL`.
+
+    Tailscale access was never affected, because the kubeconfig and SSH both use
+    Tailscale names, not LAN addresses.
 
 ---
 
@@ -16,8 +49,8 @@
 | Kubernetes | v1.34 |
 | Container runtime | containerd 2.1.5-k3s1 |
 | CNI | Flannel |
-| Ingress | Traefik (built-in) |
-| Storage class | local-path (default) |
+| Ingress | Traefik 3.6.9 (built-in), no Ingress objects yet |
+| Storage class | longhorn (effective default), local-path (see caveat below) |
 | Access | Tailscale mesh VPN |
 
 ---
@@ -370,7 +403,7 @@ After install, `local-path` was removed from default to avoid dual-default confl
 kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
 ```
 
-**Storage classes:**
+**Storage classes (as configured in 2026-04):**
 ```
 NAME                 PROVISIONER             DEFAULT
 local-path           rancher.io/local-path   -
@@ -378,22 +411,80 @@ longhorn             driver.longhorn.io      yes
 longhorn-static      driver.longhorn.io      -
 ```
 
+!!! warning "The dual-default patch does not survive a k3s restart (found 2026-08-24)"
+
+    The `kubectl patch` above is reverted every time the k3s server starts. K3s
+    reconciles its bundled manifests from
+    `/var/lib/rancher/k3s/server/manifests/local-storage.yaml` on each startup and
+    restores `storageclass.kubernetes.io/is-default-class: "true"` on `local-path`.
+    The live state on 2026-08-24 was:
+
+    ```
+    NAME                   PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE
+    local-path (default)   rancher.io/local-path   Delete          WaitForFirstConsumer
+    longhorn (default)     driver.longhorn.io      Delete          Immediate
+    longhorn-static        driver.longhorn.io      Delete          Immediate
+    ```
+
+    Two default storage classes at once. This is not currently breaking anything:
+    the DefaultStorageClass admission plugin picks the class with the most recent
+    `creationTimestamp`, and `longhorn` (134 days old) is newer than `local-path`
+    (157 days old), so a PVC without an explicit `storageClassName` still lands on
+    Longhorn. It is fragile, not correct - reinstalling or recreating the Longhorn
+    StorageClass would flip the winner to `local-path` without any visible error.
+
+    A durable fix has to stop k3s from reapplying the manifest, not re-patch the
+    object: either `--disable local-storage` on the server (removes local-path
+    entirely) or a `local-storage.yaml.skip` marker file next to the bundled
+    manifest. Both are decisions, not cleanups - see `private/todo.md`.
+
 **Longhorn UI** is available via port-forward (no ingress yet):
 ```bash
 kubectl port-forward -n longhorn-system svc/longhorn-frontend 8080:80
 # then open http://localhost:8080
 ```
 
+### Verified state (2026-08-24)
+
+Checked live against the cluster after the subnet incident described above.
+
+| Component | Version | State |
+|-----------|---------|-------|
+| Longhorn | v1.11.1 | All 3 nodes `Ready` and schedulable, **0 volumes** |
+| Traefik | 3.6.9 | Running, LoadBalancer has an external IP per node, **0 Ingress objects** |
+| metrics-server | - | Running |
+| local-path-provisioner | - | Running |
+
+**Longhorn disk capacity per node**, read from `nodes.longhorn.io` status rather than
+`df`, so it reflects what the scheduler actually sees:
+
+| Node | Disk | Mount | Max | Available | Scheduled |
+|------|------|-------|-----|-----------|-----------|
+| opt5060-i5 | /dev/sda1 | /var/lib/longhorn | 915 GiB | 915 GiB | 0 |
+| opt3060-i3 | /dev/sda1 | /var/lib/longhorn | 915 GiB | 915 GiB | 0 |
+| opt3050-i5 | /dev/sdb1 | /var/lib/longhorn | 457 GiB | 457 GiB | 0 |
+
+Total raw Longhorn capacity ~2.24 TiB. With the default 3-replica policy the usable
+figure is bounded by the smallest node, so roughly 457 GiB of replicated volumes -
+not 2.24 TB.
+
+Both components are **installed and healthy but unused**: no PVC has ever been
+provisioned through Longhorn (`storageScheduled` is 0 on every disk), and nothing
+routes through Traefik because no Ingress object exists. Neither has been exercised
+by a real workload, so "it is running" is not yet evidence that it works.
+
 ---
 
 ## Planned
 
-- [x] DHCP reservations on router (prevent IP drift)
+- [x] DHCP reservations on router (prevent IP drift) - **lost 2026-08-23**, see the subnet note
 - [x] fstab entries for Longhorn HDDs on all 3 nodes
 - [x] Longhorn install via Helm
-- [ ] Verify Longhorn UI + test PVC
+- [x] Longhorn healthy on all 3 nodes (2026-08-24)
+- [ ] Verify Longhorn UI + test PVC - still open, 0 volumes provisioned so far
+- [ ] Fix the dual-default StorageClass durably (see the warning above)
 - [ ] Prometheus + Grafana monitoring stack
-- [ ] Traefik ingress with Let's Encrypt SSL
+- [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
 - [ ] RBAC policies
 - [ ] Network policies
 - [ ] Velero backup
