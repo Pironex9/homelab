@@ -1,0 +1,6 @@
+---
+# Az `agent --server https://<api_endpoint>:<api_port>` reszt a role teszi ele,
+# ide csak a tovabbi kapcsolok jonnek.
+extra_agent_args: >-
+  --node-ip=192.168.1.102
+  --flannel-iface=enp1s0

@@ -1,0 +1,26 @@
+---
+# A mar futo cluster leirasa. Ez NEM egy uj telepites terve - a cel az, hogy egy
+# `--check` futas ures diffet adjon a jelenlegi allapotra.
+
+ansible_user: nex
+ansible_port: 22
+
+# A jelenleg telepitett verzio. NE ird at frissiteshez: a k3s_version emelese a
+# site.yml-ben nem tamogatott in-place upgrade ut, arra a collection kulon
+# upgrade.yml playbookja es k3s_upgrade role-ja valo.
+k3s_version: v1.34.5+k3s1
+
+api_endpoint: 192.168.1.101
+api_port: 6443
+
+# A cluster mar letezo tokenje. A fajl a repon KIVUL van, soha ne kerüljön be.
+token: "{{ lookup('file', '/root/.secrets/k3s-token') }}"
+
+# A node-okon nincs aktiv ufw es firewalld sem (2026-08-24-en ellenorizve).
+# A collection alapertelmezese `true` lenne, ami tuzfal szabalyokat kezdene
+# felvenni egy olyan gepen, ahol nincs tuzfal - ezert kapcsoljuk ki.
+manage_firewall: false
+
+# A masteren mar van kubectl hozzaferes a nex usernek (/etc/sudoers.d/k3s-kubeconfig).
+# `true` eseten a role ~/.kube/config.new-t irna es `k3s-ansible` contextet venne fel.
+user_kubectl: false

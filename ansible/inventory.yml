@@ -1,0 +1,10 @@
+---
+k3s_cluster:
+  children:
+    server:
+      hosts:
+        opt5060-i5:
+    agent:
+      hosts:
+        opt3060-i3:
+        opt3050-i5:

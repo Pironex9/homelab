@@ -1,0 +1,73 @@
+# ansible
+
+Az `ansible/` mappa a K3s cluster **2. retegenek** (k3s telepites es config) IaC leirasa.
+A cel nem ujraepites: a meglevo, futo clustert irja le, es a `k3s-io/k3s-ansible`
+collection idempotens futasaval tartja szinkronban.
+
+A retegek szetvalasztasa es az indoklas: `private/k3s-iac-kutatas-2026-08-24.md`.
+Rovid osszefoglalva: a Terraformnak nincs API-ja amivel egy bare-metal node-ot
+kezelhetne, ezert a 2. reteg Ansible, a 3. reteg (cluster tartalom) pedig kesobb
+ArgoCD lesz.
+
+## Elofeltetel
+
+```bash
+apt install -y pipx
+pipx install --include-deps ansible      # ansible-core 2.19.x
+pipx inject ansible netaddr              # az ansible.utils.ipaddr szurokhoz
+ansible-galaxy collection install git+https://github.com/k3s-io/k3s-ansible.git,main
+```
+
+A Debian 12 apt-os `ansible-core`-ja **2.14.18**, a collection viszont **2.15+**-t
+ker, ezert nem az apt-os csomag megy.
+
+A `pipx` a `~/.local/bin`-be telepit. Ez interaktiv shellben a PATH-on van, **cronban
+nem** - ott a teljes utat kell kiirni.
+
+## Hasznalat
+
+Mindig eloszor `--check`, ez a Proxmox-oldali `tofu plan` megfeleloje:
+
+```bash
+cd ansible
+ansible-playbook k3s.orchestration.site --check --diff
+```
+
+Csak akkor futtasd `--check` nelkul, ha a diffet atnezted. Konvergalas elott
+erdemes egy friss mentest keszitteni: `scripts/k3s-backup.sh`.
+
+## Amit ez a leiras kezel
+
+| Ami | Hol |
+|---|---|
+| k3s verzio (v1.34.5+k3s1) | `group_vars/k3s_cluster.yml` |
+| `--node-ip`, `--advertise-address`, `--flannel-iface` | `host_vars/<node>.yml` |
+| api endpoint es port | `group_vars/k3s_cluster.yml` |
+| cluster token | `/root/.secrets/k3s-token`, a repon **kivul** |
+
+## Amit szandekosan NEM kezel
+
+Ezek a cluster belsejeben elnek, es egy Ansible futas nem allitja vissza oket. Amig
+a 3. reteg (ArgoCD) nincs meg, ezek kezi allapotok:
+
+- **`local-storage.yaml.skip`** a masteren, `/var/lib/rancher/k3s/server/manifests/`
+  alatt. Ez akadalyozza meg, hogy a k3s minden induláskor visszairja a
+  `local-path` StorageClass-t default-kent. Nelkule ket default StorageClass lesz.
+- A **Longhorn** Helm release es a `longhorn` StorageClass `is-default-class` patch-e.
+- Barmely Ingress, PVC vagy egyeb cluster objektum.
+
+## Csapdak
+
+- A `k3s_version` emelese a `site.yml`-ben **nem** tamogatott in-place upgrade ut.
+  Frissiteshez a collection kulon `upgrade.yml` playbookja es `k3s_upgrade` role-ja
+  valo.
+- Az `extra_server_args` a **teljes** `INSTALL_K3S_EXEC`, ezert kezdodik `server`-rel.
+  Az agenteknel viszont az `agent --server https://...` reszt a role teszi ele, oda
+  csak a tovabbi kapcsolok jonnek.
+- `manage_firewall: false`. A collection alapertelmezese `true` lenne, ami tuzfal
+  szabalyokat kezdene felvenni olyan gepeken, ahol se ufw, se firewalld nem aktiv.
+- `user_kubectl: false`. `true` eseten a role a masteren `~/.kube/config.new`-t irna
+  es egy `k3s-ansible` nevu contextet venne fel, a mar meglevo hozzaferes melle.
+- Az inventory a node **neveit** hasznalja, nem IP-t. A 109 `/etc/hosts`-ja ezeket a
+  Tailscale cimre oldja fel, igy az inventory tulel egy LAN subnet valtast is. A
+  `--node-ip` ettol fuggetlenul LAN cim marad.

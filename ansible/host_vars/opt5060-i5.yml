@@ -1,0 +1,8 @@
+---
+# A jelenlegi /etc/systemd/system/k3s.service ExecStart sorai, szo szerint.
+# Az extra_server_args a TELJES INSTALL_K3S_EXEC lesz, ezert kezdodik `server`-rel.
+extra_server_args: >-
+  server
+  --node-ip=192.168.1.101
+  --advertise-address=192.168.1.101
+  --flannel-iface=eno1
