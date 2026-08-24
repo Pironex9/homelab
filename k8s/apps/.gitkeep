@@ -1,0 +1,2 @@
+Ez a mappa a root Application forrasa. Minden ide tett Application automatikusan
+bekerul a clusterbe. Amig ures, a root app Synced/Healthy nulla eroforrassal.

@@ -1,0 +1,32 @@
+---
+# App-of-apps gyoker. Ez az EGYETLEN objektum, amit kezzel kell felvenni;
+# minden mas ezen keresztul, gitbol kerul a clusterbe.
+#
+#   kubectl apply -f k8s/bootstrap/root-app.yaml
+#
+# A k8s/apps/ ala tett minden Application-t automatikusan felveszi es szinkronban
+# tartja. A finalizer miatt a root torlese a gyerekeket is elviszi.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Pironex9/homelab.git
+    targetRevision: main
+    path: k8s/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
