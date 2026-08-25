@@ -122,3 +122,60 @@ Ez nem korlat: amit deklarativva akarunk tenni, az nagyreszt nem a Helm release,
 sima objektum - a Longhorn `BackupTarget` es `RecurringJob` kulon CRD-k, a
 NetworkPolicy, a Pod Security Admission es a resource limitek pedig eleve azok. A
 Longhorn telepiteset tovabbra is a Helm kezeli.
+
+## Longhorn kotetmentes Garage S3-ra (2026-08-25)
+
+A `longhorn-backup` Argo CD Application a `k8s/manifests/longhorn/` alatti ket CRD-t
+kezeli: a `BackupTarget/default`-ot es a `RecurringJob/backup-daily`-t. A cel egy
+**Garage** S3 szerver a 100-as LXC-n (`compose/proxmox-lxc-100/garage/`), amit a
+node-ok Tailscale-en ernek el: `http://100.97.95.101:3900`.
+
+| Miert igy | Indok |
+|---|---|
+| Garage, nem MinIO | a MinIO Community Edition GitHub repojat 2026 februarjaban archivaltak, olvashato csak; a webes admin felulet mar 2025 marciusaban kikerult belole |
+| sima HTTP, nem HTTPS | a forgalom vegig a Tailscale WireGuard alagutban megy, TLS-t nem kell fole huzni |
+| adat a `/mnt/storage`-en | a 100-as root diszkje 78%-on all (11 GB szabad), a poolban 3.8 TB van |
+| metaadat a rooton | LMDB, kis meret, SSD-t szeret - a mergerfs poolra nem valo |
+| `replication_factor = 1` | egyetlen node. A Garage doksi ezt "csak tesztre" minositi, es ez igaz is: a Garage szintjen nincs redundancia. Amit ad: a tartalom maga is masolat, es a `/mnt/storage`-t a SnapRAID vedi lemezvesztes ellen |
+
+### A `BackupTarget/default` adoptalas, nem letrehozas
+
+A Longhorn a telepiteskor maga hozza letre az ures `default` nevu BackupTargetet.
+Ezert az Application `ServerSideApply=true`-val fut - anelkul az Argo CD egy mar
+letezo, idegen objektumra probalna client-side apply-t.
+
+### A hozzaferesi kulcs nincs a repoban
+
+A repo publikus. Az S3 kulcs a `longhorn-system` namespace `garage-backup-secret`
+Secretjeben ul, kezzel letrehozva:
+
+```bash
+kubectl -n longhorn-system create secret generic garage-backup-secret \
+  --from-literal=AWS_ACCESS_KEY_ID=<GK...> \
+  --from-literal=AWS_SECRET_ACCESS_KEY=<...> \
+  --from-literal=AWS_ENDPOINTS=http://100.97.95.101:3900
+```
+
+Uj kulcs a 100-ason: `docker exec garage /garage key create <nev>`, majd
+`docker exec garage /garage bucket allow --read --write --owner longhorn --key <nev>`.
+A parancs kiirja a titkos kulcsot, ezert **ne olyan terminalba fusson, aminek a
+kimenete naplozodik** - a 109-en a Claude session jsonl-je es a memsearch DB is
+ilyen, es azok az NFS-exporton keresztul a LAN-rol olvashatok.
+
+### A `default` csoport nem ures halmaz
+
+A `RecurringJob` a `default` csoportban van. Az minden olyan kotetre vonatkozik,
+amelyik nem jelol meg sajat recurring jobot - vagyis alapertelmezesben mindenre. Ma
+nulla PVC van a clusterben, tehat a job most nem csinal semmit; az elso letrehozott
+kotet automatikusan bekerul.
+
+Idozites: `0 1 * * *` UTC, fel oraval a 109-en futo `k3s-backup.sh` (01:30) ele.
+`retain: 14`.
+
+### Ellenorizve, nem feltetelezve (2026-08-25)
+
+1 Gi Longhorn kotet, benne egy ismert tartalmu fajl -> `Snapshot` -> `Backup`
+`Completed` 25 masodperc alatt -> a bucketben 11 objektum, 86.1 kB -> visszaallitas
+egy `fromBackup` parameteru StorageClasson at egy uj PVC-be -> a fajl tartalma
+byte-ra ugyanaz. A teszt eroforrasok utana torolve; a bucketben 1 db 589 bajtos
+kotet-metaadat maradt.

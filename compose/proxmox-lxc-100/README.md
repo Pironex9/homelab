@@ -47,12 +47,18 @@
 |---------|-------------|------|
 | docuseal | Self-hosted e-signature platform | 3003 |
 
+### Storage
+| Service | Description | Port |
+|---------|-------------|------|
+| garage | S3-kompatibilis objektumtar, a K3s Longhorn kotetek mentesi celpontja | 3900 |
+
 ## Storage Mounts
 
 - `/srv/docker-data/` - service configs
 - `/srv/docker-compose/` - compose files
 - `/mnt/storage/media/` - media library (MergerFS)
 - `/mnt/storage/media/downloads/` - downloads
+- `/mnt/storage/backup/garage/` - a Garage adatkonyvtara (a root diszk 78%-on all, ezert nem oda megy)
 
 ## Access
 

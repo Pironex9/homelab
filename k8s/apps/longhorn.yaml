@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn-backup
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Pironex9/homelab.git
+    targetRevision: HEAD
+    path: k8s/manifests/longhorn
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

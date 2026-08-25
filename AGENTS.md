@@ -20,7 +20,7 @@ Infrastructure-as-code for a self-hosted homelab on Proxmox VE 9.1: Docker Compo
 | Host | IP | Role |
 |---|---|---|
 | pve (Proxmox 9.1, HP EliteDesk 800 G4) | 192.168.0.109 | hypervisor |
-| LXC 100 docker-host | 192.168.0.110 | 22 Docker stacks |
+| LXC 100 docker-host | 192.168.0.110 | 25 Docker stacks |
 | VM 101 haos | 192.168.0.202 | Home Assistant OS |
 | LXC 102 adguard | 192.168.0.111 | DNS |
 | LXC 103 vaultwarden | 192.168.0.219 | passwords (Alpine, `pct exec` only) |

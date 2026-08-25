@@ -1,0 +1,14 @@
+# A Longhorn maga hozza letre az ures "default" BackupTargetet a telepiteskor,
+# ezert ezt a manifestet az Argo CD adoptalja (ServerSideApply=true), nem
+# ujra letrehozza. A Longhorn Helm release-hez nem nyulunk (longhorn/longhorn#6415).
+apiVersion: longhorn.io/v1beta2
+kind: BackupTarget
+metadata:
+  name: default
+  namespace: longhorn-system
+spec:
+  # Garage S3 a 100-as LXC-n, Tailscale-en at. A "garage" a regio neve,
+  # nem hostnev. Az endpoint es a kulcsok a garage-backup-secret Secretben.
+  backupTargetURL: s3://longhorn@garage/
+  credentialSecret: garage-backup-secret
+  pollInterval: 5m0s

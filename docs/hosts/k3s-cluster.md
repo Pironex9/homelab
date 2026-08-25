@@ -764,6 +764,70 @@ reclaim policy removed the PV, the Longhorn volume and every replica with no orp
 left behind, which is exactly where a misconfigured CSI driver quietly accumulates
 garbage.
 
+### Volume backups: Garage S3 (2026-08-25)
+
+Until now Longhorn had a backup target of `""` - an empty string, which the
+`BackupTarget/default` object reports as `Unavailable: backup target URL is empty`.
+Snapshots existed, but a snapshot lives on the same disks as the volume, so a lost
+node took its snapshots with it. Backups go somewhere else, and that somewhere is now
+a **Garage** S3 server on LXC 100.
+
+| Piece | Value |
+|---|---|
+| S3 server | Garage v2.3.0, container on LXC 100, `compose/proxmox-lxc-100/garage/` |
+| Endpoint the nodes use | `http://100.97.95.101:3900` (Tailscale) |
+| Bucket / region | `longhorn` / `garage` |
+| Backup target URL | `s3://longhorn@garage/` |
+| Data directory | `/mnt/storage/backup/garage` on the MergerFS pool |
+| Metadata | LMDB under `/srv/docker-data/garage/meta` |
+| Schedule | `RecurringJob backup-daily`, `0 1 * * *` UTC, `retain: 14` |
+| Managed by | Argo CD, `k8s/manifests/longhorn/` |
+
+Three decisions that are not obvious:
+
+**Garage rather than MinIO.** The MinIO Community Edition GitHub repository was
+archived in February 2026 and is read-only; the web admin console had already been
+removed from it in March 2025. Garage is a single Rust binary, runs in about 1 GB of
+RAM, and is actively maintained. What it lacks - S3 lifecycle policies - does not
+matter here, because retention is the `RecurringJob`'s `retain` value, not the
+bucket's job.
+
+**Plain HTTP, no TLS.** The whole path is inside the Tailscale WireGuard tunnel
+between the remote site and the homelab. Terminating TLS on top of an already
+encrypted tunnel would add a certificate to renew and nothing else.
+
+**Data on the pool, metadata on the root disk.** LXC 100's root disk is at 78% with
+11 GB free, so a growing backup bucket cannot live there. But LMDB metadata does not
+belong on a MergerFS pool either, so the two are split.
+
+The other thing worth writing down: `replication_factor = 1` is what the Garage
+documentation calls a test-only setting, and at the Garage layer that is exactly
+right - one node, no redundancy. It is acceptable here because the content is itself
+a second copy, and because SnapRAID covers the pool against a disk failure. It is not
+acceptable as a general pattern.
+
+#### Verified end to end (2026-08-25)
+
+| Step | Result |
+|---|---|
+| `BackupTarget` after apply | `Unavailable: False` - Longhorn reached Garage |
+| 1 GiB PVC with a known file | created, pod ready |
+| `Snapshot` -> `Backup` | `Completed` in about 25 seconds |
+| Objects in the bucket | 11 objects, 86.1 kB |
+| Restore into a new PVC (`fromBackup` StorageClass) | file content byte-identical |
+| Teardown | pods, PVCs, backup, snapshot and StorageClass removed; 589 bytes of volume metadata left in the bucket |
+
+The restore is the half that matters. A backup that has never been read back is a
+guess, and this one was read back into a different volume.
+
+#### The access key
+
+The repository is public, so the S3 key is not in it. It lives in the
+`garage-backup-secret` Secret in `longhorn-system`, created by hand with
+`kubectl create secret generic`, and the `BackupTarget` only references it by name.
+Note that `garage key create` prints the secret key on stdout - do not run it in a
+terminal whose output is logged.
+
 ---
 
 ## Planned
@@ -779,7 +843,8 @@ garbage.
 - [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
 - [ ] RBAC policies
 - [ ] Network policies
-- [ ] Velero backup
+- [x] Volume backup target - Garage S3 on LXC 100, backup and restore verified (2026-08-25)
+- [ ] Velero backup (cluster-object backup; the volume half is covered by Longhorn + Garage)
 - [ ] First workload deployment
 
 ---

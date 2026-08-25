@@ -1,0 +1,14 @@
+# A "default" csoport minden olyan kotetre vonatkozik, amelyik nem jelol meg
+# sajat recurring jobot - vagyis mindenre, hacsak kifejezetten mast nem mondunk.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-daily
+  namespace: longhorn-system
+spec:
+  cron: "0 1 * * *"   # UTC, a 01:30-as k3s control-plane mentes ele
+  task: backup
+  groups:
+    - default
+  retain: 14
+  concurrency: 1
