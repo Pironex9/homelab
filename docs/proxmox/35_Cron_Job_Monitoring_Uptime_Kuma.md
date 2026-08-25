@@ -118,6 +118,19 @@ docker stop uptime-kuma && sleep 3
 
 This happened on 2026-08-25 and Kuma was down for about two minutes.
 
+### Keep one `.bak`, not a pile of them
+
+Each edit takes a fresh `kuma.db.bak-<date>` first, and the database is 743 MB, so
+they add up fast on a 38 GB disk - three of them were 2.2 GB by 2026-08-25. Keep
+**only the most recent**; it is the one that undoes the edit you just made.
+
+Older ones are worse than useless. `kuma.db.bak-20260814` predated all nine
+monitors, so restoring it would not have reverted anything - it would have deleted
+every monitor and eleven days of heartbeat history. And note what none of these
+copies do: they live on the same disk as the live database, so they cover a bad
+write and not a dead disk. There is no off-VPS backup of Kuma at all - see
+[VPS](../hosts/vps.md#the-database-and-what-backs-it-up).
+
 ## Wiring the ping into the jobs
 
 The ping goes at the end, gated on success:

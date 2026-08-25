@@ -51,6 +51,31 @@ Public URL: https://uptime.homelabor.net (Pangolin auth required)
 
 Runs with `network_mode: host` to access the VPS host's Tailscale routes, enabling monitoring of homelab LAN services (192.168.0.x) via the `pve` subnet router.
 
+#### The database, and what backs it up
+
+`/opt/uptime-kuma/kuma.db` is **743 MB** - almost all of it heartbeat history, one
+row per check per monitor. It runs in WAL mode, so anything that copies it must stop
+the container first or it silently drops the `-wal` file.
+
+Editing it by hand is a normal operation here, because Uptime Kuma has no write REST
+API (see [35 - Cron Job Monitoring](../proxmox/35_Cron_Job_Monitoring_Uptime_Kuma.md)).
+The convention is one `kuma.db.bak-<date>` taken immediately before each such edit,
+and **only the most recent one is kept**. On 2026-08-25 three had accumulated, 2.2 GB
+on a 38 GB disk, and two were deleted.
+
+The one that was deleted for a second reason is worth remembering: `kuma.db.bak-20260814`
+predated all nine push monitors. Restoring it would not have undone anything - it would
+have deleted every monitor and eleven days of history. A backup old enough to predate
+the thing you want to keep is not a rollback point.
+
+!!! warning "The Kuma database has no off-VPS backup"
+
+    The `.bak` copies sit on the same disk as the live database, so they cover a bad
+    write and nothing else. The VPS has no cron, no restic, and the homelab's vzdump
+    does not reach it. If this disk dies, every monitor definition and all heartbeat
+    history goes with it. The monitor *definitions* are cheap to rebuild from the
+    documented SQL; the history is not.
+
 ### Landing stack
 
 Managed by Komodo.

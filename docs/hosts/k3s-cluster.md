@@ -820,6 +820,24 @@ acceptable as a general pattern.
 The restore is the half that matters. A backup that has never been read back is a
 guess, and this one was read back into a different volume.
 
+#### It is monitored, and by the right question
+
+`scripts/longhorn-backup-check.sh` runs on LXC 109 at 02:00 UTC - an hour after the
+`RecurringJob`, half an hour after `k3s-backup.sh` - and pushes to the Uptime Kuma
+monitor `cron: longhorn-backup-check (109)`.
+
+It deliberately does not monitor whether Garage is up. Garage answers just as happily
+when Longhorn cannot write to it and when the job never ran, so the script checks the
+`BackupTarget` condition, reads the bucket, and compares every volume's newest
+`Completed` backup against a 26 hour window. A missed run turns the monitor red by
+heartbeat timeout; a run that failed turns it red with the reason attached.
+
+Two things it had to be taught, both of which would otherwise have made it cry wolf:
+zero volumes is a legitimate state and gets its own `no-volumes` message rather than a
+silent pass, and a volume younger than the window has not missed anything yet, because
+the job only runs once a day. Details in
+[scripts/README.md](https://github.com/Pironex9/homelab/blob/main/scripts/README.md).
+
 #### The access key
 
 The repository is public, so the S3 key is not in it. It lives in the
