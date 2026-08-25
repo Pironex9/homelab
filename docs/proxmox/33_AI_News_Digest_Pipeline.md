@@ -61,16 +61,36 @@ definition, what it decided mattered.
 
 ### Source selection
 
-Twelve text feeds and eight YouTube channels. Every candidate feed was checked for
-a live HTTP 200 and a non-empty item list before being subscribed, which caught
-three dead ones immediately:
+Nineteen text feeds and eight YouTube channels as of 2026-08-25 (started at
+twelve). Every candidate feed was checked for a live HTTP 200 and a non-empty
+item list before being subscribed, which caught three dead ones immediately:
 
-- **Anthropic has no RSS feed.** Both `/rss.xml` and `/news/rss.xml` return 404.
+- **anthropic.com has no RSS feed.** Both `/rss.xml` and `/news/rss.xml` return
+  404. `claude.com/blog` - a separate domain, the actual product blog - has no
+  RSS either, but unlike anthropic.com it is not behind Cloudflare and is
+  server-rendered, so it is covered through FreshRSS's own HTML+XPath scraper
+  instead (see the 2026-08-25 expansion below).
 - **MarkTechPost returns 403** to non-browser user agents.
 - **Import AI and The Batch** have no active feeds either.
 
 `arXiv cs.AI` was deliberately left out: several hundred items a day would drown
 everything else.
+
+**2026-08-25 expansion:** seven native feeds added (DeepMind, Interconnects,
+Cursor Changelog, ollama release notes, Zvi Mowshowitz's newsletter, Together
+AI), one dropped, one added through a workaround.
+
+The drop: `blog.google/innovation-and-ai/technology/ai/rss/` is not an
+AI-research feed, it is Google's own "AI" tag across its entire consumer blog -
+a home-decor post qualifies because it mentions Search's AI features. DeepMind's
+dedicated blog replaced it.
+
+The workaround: Mistral's feed (`mistral.ai/news/rss`) is genuine RSS 2.0 but
+the server sends `Content-Type: text/plain`, which SimplePie refuses outright
+regardless of content ("A feed could not be found"). FreshRSS's other scraper
+mode, XML+XPath, parses the raw response with DOMDocument and never checks
+Content-Type - a trivial XPath (`item` / `title` / `link` / `pubDate`) reads it
+fine since the payload underneath is already standard RSS.
 
 YouTube channels are subscribed through their per-channel feed
 (`youtube.com/feeds/videos.xml?channel_id=UC...`), which needs the channel ID, not
@@ -141,3 +161,12 @@ Telegram message arrives, and the reason is in the log file next to the digests.
 - **Deliver where the reading already happens.** A generated file nobody opens is
   the same as no digest. Telegram was chosen over a static page for exactly this
   reason, and over Discord for its 4096-character limit and simpler delivery.
+- **A feed-less blog is not necessarily unreachable.** FreshRSS ships two
+  scrapers beyond RSS/Atom: HTML+XPath for sites with no feed at all (the XPath
+  has to be built from the live DOM one site at a time - no general recipe
+  survives a redesign), and XML+XPath for a real feed served with the wrong
+  Content-Type. Neither needed a new container. RSS-Bridge and RSSHub were both
+  evaluated first and rejected: RSS-Bridge's own Anthropic bridge had already
+  been deleted by its maintainer (Cloudflare plus fragile parsing), and RSSHub
+  explicitly closed a `claude.com/blog` feature request as "not planned" - extra
+  moving parts for something the tool already in use could do natively.
