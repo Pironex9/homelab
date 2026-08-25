@@ -39,7 +39,7 @@ A Push monitor inverts the usual direction: Kuma stops polling and waits to be p
 
 ## The monitors
 
-Eight of the 35 jobs got a monitor - the ones whose silent absence costs something. The rest (logrotate, certificate renewal, `qm reboot`) fail loudly on their own.
+Nine of the 35 jobs have a monitor - the ones whose silent absence costs something. The rest (logrotate, certificate renewal, `qm reboot`) fail loudly on their own. Eight were set up on 2026-08-14; the ninth arrived with the Longhorn backup target on 2026-08-25.
 
 | Monitor | Host | Schedule | Interval |
 |---|---|---|---|
@@ -51,12 +51,13 @@ Eight of the 35 jobs got a monitor - the ones whose silent absence costs somethi
 | `cron: immich-pgdump (LXC 100)` | LXC 100 | daily 00:30 UTC | 90000 s |
 | `cron: homelab-digest (LXC 109)` | LXC 109 | daily 07:00 | 90000 s |
 | `cron: ai-digest (LXC 109)` | LXC 109 | daily 07:30 | 90000 s |
+| `cron: longhorn-backup-check (109)` | LXC 109 | daily 02:00 UTC | 90000 s |
 
 Intervals are the job period plus deliberate slack - 90000 s is 25 hours for a daily job, 612000 s is 7 days plus 2 hours - so ordinary jitter does not alert. A monitor that cries wolf is worse than no monitor, which this homelab already learned from the vzdump extension bug in [30 - Backup Verification](./30_Backup_Verification_Restore_Test.md).
 
 ## Creating monitors without the UI
 
-**Uptime Kuma has no write REST API.** The REST surface is read-only (badges, status pages, the push endpoint itself); every write goes through Socket.IO, which is [an open feature request](https://github.com/louislam/uptime-kuma/issues/7151). For eight monitors the practical path is a direct SQLite insert with the container stopped.
+**Uptime Kuma has no write REST API.** The REST surface is read-only (badges, status pages, the push endpoint itself); every write goes through Socket.IO, which is [an open feature request](https://github.com/louislam/uptime-kuma/issues/7151). For a handful of monitors the practical path is a direct SQLite insert with the container stopped.
 
 Stopping it first is not optional. Uptime Kuma runs SQLite in WAL mode, so a copy taken while it is running captures the main database without the write-ahead log:
 
@@ -90,6 +91,32 @@ VALUES (last_insert_rowid(),1);
 `maxretries=0` is deliberate: retries make sense when a poll might fail transiently, but a missing ping is already the failure. `notification_id=1` attaches the existing Discord notification.
 
 Tokens come from `openssl rand -hex 12`. Start the container afterwards and Kuma loads the new monitors at boot; there is no reload path for rows inserted underneath a running instance.
+
+### There is no `sqlite3` binary on the VPS
+
+The SQL above has to be run by something, and the VPS has no `sqlite3` command - only
+Python, whose `sqlite3` module is part of the standard library:
+
+```bash
+python3 - "$TOKEN" <<'EOF'
+import sqlite3, sys
+db = sqlite3.connect('/opt/uptime-kuma/kuma.db')
+...
+EOF
+```
+
+The trap underneath that one is worse than the missing binary. A `set -e` script that
+stops the container, then dies on `sqlite3: command not found`, **leaves Uptime Kuma
+stopped** - the monitoring host goes dark and nothing is watching the watchers. Wire
+the restart into a shell trap so it runs on every exit path, successful or not:
+
+```bash
+trap 'docker start uptime-kuma >/dev/null 2>&1' EXIT
+set -e
+docker stop uptime-kuma && sleep 3
+```
+
+This happened on 2026-08-25 and Kuma was down for about two minutes.
 
 ## Wiring the ping into the jobs
 
@@ -270,6 +297,7 @@ Keeping the tokens out of the repository is only half the job if they are then l
 - **Duration and content are not checked.** A push monitor proves the job ran and exited 0. A backup that completes in one second because its source directory vanished still pings green. That is the known ceiling of the dead man's switch pattern, and it is why the weekly restore test exists alongside it.
 - **The 27 unmonitored jobs** were a deliberate cut, not an oversight. Adding all of them would turn the Kuma dashboard into something nobody reads, which is how the original problem started.
 - **Two monitors have not yet seen a real production ping.** `ai-digest` gets its first at 07:30 the next morning, `restic backup` on Sunday at 04:00; both are currently green only because of the seed. If either fails to turn over, that is a genuine finding rather than a setup error, and it is the reason to check them once rather than assume.
+- **The Longhorn check is a script, not a bare ping.** `longhorn-backup-check.sh` asks whether the backups happened rather than whether Garage is up, and pushes `down` with the reason when they did not - so this one monitor covers both the missing-run case (heartbeat timeout) and the ran-but-failed case. Described in `scripts/README.md`.
 - **This does not fix the thin pool.** A working daily trim buys days, not headroom. The second NVMe in the free M.2 slot is still the actual fix, tracked in `private/todo.md`.
 
 ## Related Documentation

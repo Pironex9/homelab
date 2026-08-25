@@ -17,6 +17,7 @@ reader who went looking for where Immich was covered. What actually runs:
 | rsync of both to the Nobara NFS share | `/mnt/pve/nobara-backup` | Sunday 11:00 and 19:00 |
 | `pg_dumpall` of Immich into the SnapRAID-protected pool | `/mnt/storage/immich/pgdump` | daily 02:30 CEST, on LXC 100 |
 | `k3s-backup.sh` - K3s control plane, gpg-encrypted | `/mnt/storage/backup/k3s` | daily 01:30, from LXC 109 |
+| Longhorn volume backups to Garage S3 (`RecurringJob`, not a script here) | `longhorn` bucket on LXC 100 | daily 01:00 UTC |
 
 Configuration for the script below lives in `scripts/.env` (gitignored). See
 `.env.example` for every key and for the values that match the live pve setup.
@@ -169,6 +170,67 @@ see - a trap that has silently killed three jobs in this homelab. Test with
 `env -i PATH=/usr/bin:/bin HOME=/root ./k3s-backup.sh`.
 
 Measured on 2026-08-24: 29 seconds end to end, 68 MB archive plus a 1.2 MB export.
+
+## longhorn-backup-check.sh
+
+A dead man's switch for the Longhorn volume backups, not a backup script itself.
+The backups are taken by a Longhorn `RecurringJob` inside the cluster
+(`k8s/manifests/longhorn/`); this checks that they actually happened.
+
+Runs on LXC 109 - the only host with both `kubectl` for the cluster and an SSH key
+to LXC 100, where the Garage S3 server lives.
+
+### Why not a plain HTTP monitor on Garage
+
+That would prove Garage answers. Garage answers just as cheerfully when Longhorn
+cannot write to it (wrong key, revoked permission, full pool) and when the
+`RecurringJob` never ran at all. "Is it up" and "did it happen" are different
+questions, and only the second one is worth a page at 3am.
+
+### What it checks
+
+| # | Check | Fails when |
+|---|---|---|
+| 1 | `BackupTarget/default` | URL empty, or `Unavailable != False` |
+| 2 | Garage bucket readable | `garage bucket info` returns nothing |
+| 3 | Every volume's newest `Completed` backup | older than `LONGHORN_BACKUP_MAX_AGE_HOURS` (default 26) |
+| 4 | `Backup` objects in `Error` state | any exist |
+
+Check 1 is the one that earns its keep today: the cluster has **zero** volumes, so
+checks 3 and 4 have nothing to look at, but a broken key or a dead Garage still
+turns the monitor red.
+
+Two pieces of gating that took a fix each. **Zero volumes is not a failure** - the
+cluster genuinely has no PVCs - but it reports a distinct `no-volumes` message, so
+the heartbeat history cannot confuse "nothing to do" with "everything backed up".
+And a **volume younger than the threshold is not stale**: the job runs at 01:00 UTC,
+so a PVC created at noon has no backup yet and legitimately cannot have one. Without
+that grace window every new PVC would fire an alert on creation, and a monitor that
+cries wolf stops being read. Those volumes are counted separately in the message
+(`0/1 kotet mentve, 1 uj (meg nincs mentes)`) rather than being reported as fine.
+
+```bash
+./longhorn-backup-check.sh                                    # prints, no ping
+KUMA_PUSH_URL="http://.../api/push/<token>" ./longhorn-backup-check.sh
+LONGHORN_BACKUP_MAX_AGE_HOURS=48 ./longhorn-backup-check.sh   # looser window
+```
+
+Exit code is non-zero on failure, so cron surfaces it even without Kuma.
+
+### Scheduling
+
+```
+0 2 * * * KUMA_PUSH_URL=http://100.118.239.117:3001/api/push/<token> /root/homelab/scripts/longhorn-backup-check.sh >> /var/log/homelab/longhorn-backup-check.log 2>&1
+```
+
+**LXC 109 runs on UTC**, so 02:00 here really is one hour after the Longhorn job at
+01:00 UTC and half an hour after `k3s-backup.sh`. The push token lives in the crontab
+line, not in the script - this repository is public. Like `k3s-backup.sh`, the script
+sets its own `PATH` because `kubectl` is in `/usr/local/bin`, which cron does not see.
+
+Both paths verified on 2026-08-25: a healthy run pushed `up` with
+`no-volumes, bucket 589B`, and a deliberately unreachable Garage pushed `down` with
+the reason, which reached the Discord notification.
 
 ## install-lan-ca-windows.ps1
 
