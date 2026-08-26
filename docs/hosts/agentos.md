@@ -82,6 +82,32 @@ Bot: `@homelabor_hermes_bot`, token in `TELEGRAM_BOT_TOKEN` (`/root/.hermes/.env
 - Authorized via **DM pairing**, not a hardcoded user-ID allowlist: the owner DMs the bot, gets an 8-char pairing code, owner approves with `hermes pairing approve telegram <code>`. No `TELEGRAM_ALLOWED_USERS` set - matches the documented safe default (all senders denied until paired).
 - Home channel set from inside the DM with `/sethome`, so cron deliveries land there. `homelab-digest-review`'s `deliver` is `origin,telegram`.
 
+### Timezone (changed 2026-08-26)
+
+The container OS stays on `Etc/UTC` on purpose. **Hermes resolves its own timezone and ignores the host's** unless nothing else is set, in this order (`hermes_time.py`):
+
+1. `HERMES_TIMEZONE` environment variable
+2. the `timezone` key in `~/.hermes/config.yaml`
+3. fallback: the server's local time
+
+Key 2 was unset, so `homelab-digest-review`'s `5 7 * * *` was being read as 07:05 UTC and the Telegram post arrived at 09:05 local. Fixed with the app's own CLI, which handles the `_config_version` migration:
+
+```bash
+hermes config set timezone Europe/Budapest
+systemctl restart hermes-gateway    # the gateway hosts the cron scheduler and caches the zone
+```
+
+**The restart is not enough on its own.** Hermes stores an absolute `next_run_at` per job, and the offset-repair path (`_timezone_offset_mismatch` / `_stored_wall_clock_is_future` in `cron/jobs.py`) only runs when the job becomes due - so the *next* run still fires at the old wall-clock time, and only the one after that is correct. Verified on the live job: after the config change and a gateway restart, `next_run_at` was still `2026-08-27T07:05:00+00:00`. Forcing the recompute takes a no-op edit with the same expression:
+
+```bash
+hermes cron edit d2306bd1a730 --schedule "5 7 * * *"
+# next_run_at: 2026-08-27T07:05:00+00:00 -> 2026-08-27T07:05:00+02:00
+```
+
+The resulting `jobs.json` diff is exactly two fields, `next_run_at` and `updated_at`; prompt, script, `deliver` and `repeat.completed` are untouched.
+
+**`last_run_at` is written at completion, not at fire time** (`mark_job_run` sets it together with `last_status`), so the difference between it and the schedule is the run duration. Useful for spotting a slow provider: on 2026-08-26 the job took 8m13s against a 4-35 s baseline, and the agent log pinned it on a Gemini 503 through the SkillClaw proxy - the first streaming request hung 5m08s before the error surfaced, then the retry took 3m01s. Three such days in eleven, every one of them a 503 day, and the retry policy carried all three.
+
 ## SkillClaw (added 2026-07-25)
 
 Third-party skill-evolution layer for Hermes (`github.com/AMAP-ML/SkillClaw`, unofficial/community project, not affiliated with NousResearch). Installed after the user asked Hermes to install a skill from this repo directly, which triggered a source-code review before activation - the project isn't audited upstream, and by its own design it (a) proxies all Hermes LLM traffic and (b) can autonomously rewrite `SKILL.md` files the agent later treats as trusted instructions, so both were reviewed before turning anything on.

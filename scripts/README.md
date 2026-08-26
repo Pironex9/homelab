@@ -164,7 +164,12 @@ Unpack it somewhere local, and delete it when you are done - do not leave it on
 30 1 * * * /root/homelab/scripts/k3s-backup.sh >> /var/log/homelab/k3s-backup.log 2>&1
 ```
 
-01:30 keeps it clear of the 02:00 vzdump window on the same backup disk. The script
+01:30 keeps it clear of the 02:00 vzdump window on the same backup disk. That window is
+15 to 17 minutes wide, measured from the pve task UPIDs on three consecutive nights
+(2026-08-24 to 08-26): 02:00 to 02:17 CEST. Since LXC 109 moved to `Europe/Budapest` on
+2026-08-26 this line fires 30 minutes before the window opens; while the host was on
+UTC it fired at 03:30 CEST, over an hour after the window closed. Clear of it either
+way, but only now does the line mean on LXC 109 what it says on pve. The script
 sets its own `PATH` because `kubectl` lives in `/usr/local/bin`, which cron does not
 see - a trap that has silently killed three jobs in this homelab. Test with
 `env -i PATH=/usr/bin:/bin HOME=/root ./k3s-backup.sh`.
@@ -220,13 +225,28 @@ Exit code is non-zero on failure, so cron surfaces it even without Kuma.
 ### Scheduling
 
 ```
-0 2 * * * KUMA_PUSH_URL=http://100.118.239.117:3001/api/push/<token> /root/homelab/scripts/longhorn-backup-check.sh >> /var/log/homelab/longhorn-backup-check.log 2>&1
+0 4 * * * KUMA_PUSH_URL=http://100.118.239.117:3001/api/push/<token> /root/homelab/scripts/longhorn-backup-check.sh >> /var/log/homelab/longhorn-backup-check.log 2>&1
 ```
 
-**LXC 109 runs on UTC**, so 02:00 here really is one hour after the Longhorn job at
-01:00 UTC and half an hour after `k3s-backup.sh`. The push token lives in the crontab
-line, not in the script - this repository is public. Like `k3s-backup.sh`, the script
-sets its own `PATH` because `kubectl` is in `/usr/local/bin`, which cron does not see.
+**LXC 109 runs on Europe/Budapest since 2026-08-26** (it was on UTC before that, and
+this line read `0 2` then). 04:00 local is 02:00 UTC, so the check still lands one hour
+after the Longhorn `RecurringJob`. The `RecurringJob` fires at 01:00 **UTC** inside the
+cluster and does not follow the host timezone, so the two clocks have to be reconciled
+by hand every time one of them moves. The gap to `k3s-backup.sh` grew from 30 minutes
+to 2h30m in the same move, which matters to nothing: neither takes a lock, and they
+have no write target in common - `k3s-backup.sh` writes to `/mnt/storage/backup/k3s`
+while this one only reads (`kubectl`, and `garage bucket info` over SSH to LXC 100).
+
+That hour is not cosmetic. Left at `0 2` after the timezone move the check would have
+run at 00:00 UTC, an hour *before* the day's backup, and the `MAX_AGE_HOURS=26` grace
+would have been spent on a 23-hour-old backup instead of a 1-hour-old one. The monitor
+would still be green on a normal day, but a single missed `RecurringJob` run would put
+the age at 47 hours and alert, instead of being absorbed at 25 - the check would have
+quietly become one missed run stricter than designed.
+
+The push token lives in the crontab line, not in the script - this repository is
+public. Like `k3s-backup.sh`, the script sets its own `PATH` because `kubectl` is in
+`/usr/local/bin`, which cron does not see.
 
 Both paths verified on 2026-08-25: a healthy run pushed `up` with
 `no-volumes, bucket 589B`, and a deliberately unreachable Garage pushed `down` with

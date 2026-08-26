@@ -8,7 +8,18 @@
 | IP Address | 192.168.0.204 |
 | VMID | 109 |
 | OS | Debian GNU/Linux 12 (bookworm) |
+| Timezone | Europe/Budapest (was `Etc/UTC` until 2026-08-26) |
 | Purpose | Claude Code homelab management container |
+
+The timezone move was deliberate: every scheduled job on this host delivers to a
+human (the two morning Telegram digests), and on UTC a crontab line reading `0 7`
+arrived at 09:00 local. There is no `timezone:` key in `/etc/pve/lxc/109.conf`, so
+Proxmox does not overwrite `/etc/localtime` at container start and the change
+survives a reboot. Note that `timedatectl set-timezone` updates `/etc/localtime`
+but **not** `/etc/timezone` on Debian 12 - the second file has to be written by
+hand, or tools that read it keep reporting the old zone. The heartbeat-window side
+of the move is in
+[35 - Cron Job Monitoring](../proxmox/35_Cron_Job_Monitoring_Uptime_Kuma.md).
 
 ## Installed Software
 

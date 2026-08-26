@@ -49,9 +49,9 @@ Nine of the 35 jobs have a monitor - the ones whose silent absence costs somethi
 | `cron: sync-to-nobara (pve)` | pve | Sun 11:00, 19:00 | 612000 s |
 | `cron: arping-keepalive (pve)` | pve | every 5 min | 900 s |
 | `cron: immich-pgdump (LXC 100)` | LXC 100 | daily 00:30 UTC | 90000 s |
-| `cron: homelab-digest (LXC 109)` | LXC 109 | daily 07:00 | 90000 s |
-| `cron: ai-digest (LXC 109)` | LXC 109 | daily 07:30 | 90000 s |
-| `cron: longhorn-backup-check (109)` | LXC 109 | daily 02:00 UTC | 90000 s |
+| `cron: homelab-digest (LXC 109)` | LXC 109 | daily 07:00 CEST | 90000 s |
+| `cron: ai-digest (LXC 109)` | LXC 109 | daily 07:30 CEST | 90000 s |
+| `cron: longhorn-backup-check (109)` | LXC 109 | daily 04:00 CEST | 90000 s |
 
 Intervals are the job period plus deliberate slack - 90000 s is 25 hours for a daily job, 612000 s is 7 days plus 2 hours - so ordinary jitter does not alert. A monitor that cries wolf is worse than no monitor, which this homelab already learned from the vzdump extension bug in [30 - Backup Verification](./30_Backup_Verification_Restore_Test.md).
 
@@ -237,6 +237,39 @@ restic -r $REPO check || rc=1
 [ "$rc" -eq 0 ] && curl -fsS -m 10 -o /dev/null "$KUMA?status=up&msg=OK"
 exit $rc
 ```
+
+### Moving a host's timezone burns a heartbeat window
+
+Added 2026-08-26, when LXC 109 went from `Etc/UTC` to `Europe/Budapest`.
+
+A 90000 s interval is 25 hours, which is 24 plus one hour of slack. A 2-hour timezone move is larger than that slack, so it lands on a monitor as a missed beat unless the flip is timed. **Which way the clock moves decides which failure you get:**
+
+- **Clock back** (CEST to UTC): a job at 01:30 last fired at 01:30+02:00 and next fires at 01:30+00:00, a **26-hour** gap. One hour over the window, one false alert per daily monitor.
+- **Clock forward** (UTC to CEST, this case): local time jumps ahead 2 hours, so any job whose new local time has *already passed today* is skipped for a day. Flipping at 06:00 UTC with jobs at 07:00 and 07:30 would have skipped both and produced a **46-hour** gap, which is far worse than the first case.
+
+The safe window is after every daily job of the day has run **and** its new local time has also passed. On this host the last daily job is 07:30, so any moment from 08:00 UTC onward leaves every gap at 22 hours. Measured after the actual flip at 07:37 UTC:
+
+```
+homelab-digest   08-26 07:00 -> 08-27 05:00 UTC   gap 21h59m   window 25h   OK
+ai-digest        08-26 07:30 -> 08-27 05:30 UTC   gap 21h59m   window 25h   OK
+longhorn-check   08-26 02:09 -> 08-27 02:00 UTC   gap 23h50m   window 25h   OK
+```
+
+Weekly monitors are tighter than they look: 612000 s is 7 days plus exactly 2 hours, so a 2-hour move against them lands precisely on the boundary. Those four jobs live on pve, which was deliberately left on `Europe/Prague` for this reason among others.
+
+**Proving cron actually reschedules, instead of asserting it.** `timedatectl` changing `/etc/localtime` does not by itself prove the cron daemon re-read it, and cron keeps the old zone until restarted. A temporary crontab line is the cheap proof:
+
+```bash
+# at 09:37 CEST, with the host just moved off UTC
+( crontab -l; echo "40 09 * * * date >> /tmp/crontest.log" ) | crontab -
+```
+
+```
+Aug 26 09:38:01 cron[327369]: (root) RELOAD (crontabs/root)
+Aug 26 09:40:01 CRON[327813]: (root) CMD (date)
+```
+
+It fired at 09:40 local. Under UTC that line would have been two hours away. **Do not put `%` in the test command:** cron treats `%` as a newline and hands everything after the first one to the job on stdin, so a `date '+%F %T %Z'` silently truncates to `date '+` and writes nothing - which reads exactly like "the test did not fire". None of the nine monitored crontab lines contain `%`, but the test line did.
 
 ## Verification
 
