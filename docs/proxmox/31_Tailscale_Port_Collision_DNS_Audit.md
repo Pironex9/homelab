@@ -101,6 +101,16 @@ Nobara was missed in the first pass and only found on 2026-08-07, still on 41641
 
 The live file was left alone, so the port survived - but anyone who later moves the `.apk-new` into place restores the collision, and it will present as the same intermittent direct/DERP flapping rather than as an obvious DNS or config error. After any tailscale package upgrade, confirm the port on the running daemon, not in the config file: `ps -eo args | grep -o 'port=[0-9]*'` on Alpine, `ss -ulnp | grep tailscaled` elsewhere. Note also that `apk upgrade` replaces the binary without restarting the daemon - `tailscale version` reported 1.98.5 while the running server was still 1.90.9, with the client printing a version-mismatch warning. `rc-service tailscale restart` is required.
 
+**Auto-update on Debian keeps the edited port; the Alpine path is the risky one.** Measured on 2026-08-27: LXC 109 has `AutoUpdate.Apply: true` and was auto-updated 1.102.2 -> 1.102.3 unattended on 2026-08-26 18:39 (`c2n: running "systemd-run ... /usr/bin/tailscale update --yes"` in the journal), and its `/etc/default/tailscaled` still carries `PORT="41642"` - md5 `6a565ab5cf3f1b3ebd5a61dcd41c5b43` against the packaged conffile hash `540a659ece227eb3035d1ee3ba1ec902`, with the daemon running `--port=41642`. dpkg treats a locally modified conffile as one to keep, so the deb path is safe to leave on auto-update. `AutoUpdate.Apply` was then turned on for docker-host too (`tailscale set --auto-update`), since it and LXC 105 were the only two nodes without it and both had drifted behind.
+
+For a manual deb upgrade, pass the flags rather than trusting the prompt:
+
+```bash
+apt-get install -y --only-upgrade -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef tailscale
+```
+
+**LXC 105 stays on the older client on purpose.** As of 2026-08-27 the Alpine `latest-stable` community branch tops out at tailscale 1.98.5-r0 while stable is 1.102.3, so `apk upgrade tailscale` is a no-op. 1.102.3 exists only on Alpine `edge`, and a plain `apk upgrade` there is not a package bump but a distro jump - the container reports `alpine-release` 3.23.3 while `latest-stable` has moved to 3.24.1, so it would pull 40+ packages including `apk-tools`, `busybox` and `openrc` underneath the Komodo Periphery agent. Tailscale's backward-compatibility promise makes four minor versions of lag the cheaper option.
+
 Verification:
 
 ```bash
