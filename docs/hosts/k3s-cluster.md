@@ -259,7 +259,7 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 | OS | Armbian 25.8.1 Noble |
 | Role | WoL server + Tailscale exit node |
 | Interface | end0 |
-| Local IP | 192.168.1.51 |
+| Local IP | 192.168.1.52 |
 | Tailscale IP | 100.120.73.44 |
 | Tailscale hostname | orangepione |
 | User | nex |
@@ -271,19 +271,31 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 ```bash
 #!/bin/bash
 # K3s Cluster wake up script
+#
+# Two packet formats per MAC - see "Why the master never woke" below.
 
-MAC1="54:bf:64:68:a0:30"  # opt5060-i5
-MAC2="54:bf:64:a2:ff:77"  # opt3060-i3
-MAC3="d8:9e:f3:13:4d:97"  # opt3050-i5
+MAC1="54:bf:64:68:a0:30"  # opt5060-i5  (Intel I219 - ONLY the UDP form wakes it)
+MAC2="54:bf:64:a2:ff:77"  # opt3060-i3  (Realtek RTL8168h)
+MAC3="d8:9e:f3:13:4d:97"  # opt3050-i5  (Realtek RTL8168h)
 INTERFACE="end0"
+BCAST="192.168.1.255"
 
-echo "Waking up nodes (3x retry each)..."
+echo "Waking up nodes (etherwake + UDP magic packet)..."
 for MAC in $MAC1 $MAC2 $MAC3; do
     for i in 1 2 3; do
         sudo etherwake -i $INTERFACE $MAC
         sleep 1
     done
-    echo "Sent 3x to $MAC"
+    python3 -c '
+import socket, sys
+mac, bcast = sys.argv[1], sys.argv[2]
+pkt = b"\xff" * 6 + bytes.fromhex(mac.replace(":", "")) * 16
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+for port in (7, 9):
+    s.sendto(pkt, (bcast, port))
+' "$MAC" "$BCAST"
+    echo "Sent 3x etherwake + 2x UDP to $MAC"
 done
 echo "Wake packets sent to all nodes"
 ```
@@ -308,15 +320,35 @@ ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"
 
 WoL is unreliable after extended offline periods (hours/days). Known causes:
 
-- **GS305 Green Ethernet (IEEE 802.3az)** - the switch puts ports into low-power idle when a device disconnects. Unmanaged - cannot be disabled.
+- **Packet format** - the biggest one, and the one that cost years of "WoL is flaky here": `etherwake`'s raw `0x0842` frame never woke the master. See the section below; the script now sends a UDP magic packet as well.
+- **GS305 Green Ethernet (IEEE 802.3az)** - the switch puts ports into low-power idle when a device disconnects. Unmanaged - cannot be disabled. Suspected for a long time, never actually confirmed as a cause.
 - **NIC WoL state** - `ethtool wol g` is re-applied on each boot via `wol.service`. If the machine was power-cut before booting, the state may be lost.
 
 **Workaround:** If WoL fails, power-cycle the node physically or via a smart PDU. BIOS should be set to `AC Power Recovery = Power On` so the node boots automatically on power restore.
 
 ### Why the master never woke, and the two workers always did (2026-08-27)
 
-The two workers answer WoL reliably; `opt5060-i5` never has. Everything obvious was
-measured and ruled out rather than assumed:
+**The packet format, not the BIOS and not the switch.** `etherwake` sends a raw
+Ethernet frame with EtherType `0x0842`. The master's Intel I219 does not wake on that
+frame in any form; it wakes on the identical payload wrapped in a UDP broadcast. Both
+Realtek workers accept either. Proven with three controlled shutdown-and-wake cycles
+on the live master:
+
+| Sent from the Orange Pi | Result |
+|---|---|
+| `etherwake` unicast, 3x (the original script) | nothing in 180 s |
+| `etherwake -b` broadcast frame, 5x | nothing in 75 s |
+| **UDP magic packet to `192.168.1.255:9`** | **awake in 24 s** |
+
+Timing on the first successful wake, from the machine's own side: `uptime -s` said
+16:45:23 CEST and `systemd-analyze` reported 14.274 s firmware + 2.924 s loader, which
+puts the power-on at ~14:45:06 UTC - two seconds after the UDP packet, and five minutes
+after the `etherwake` batch that did nothing.
+
+The fix is in `wakeonlan.sh` above: **both** formats go to every MAC. `etherwake` stays
+because it demonstrably works on the workers and costs nothing.
+
+Everything else was measured and ruled out first, rather than assumed:
 
 | Checked | opt5060-i5 (master) | opt3060-i3 (worker) | Verdict |
 |---|---|---|---|
@@ -325,33 +357,34 @@ measured and ruled out rather than assumed:
 | BIOS `DeepSleepCtrl` | `Disabled` | `Disabled` | not it |
 | OS `ethtool ... Wake-on` | `g` | `g` | not it |
 | `wol.service` | enabled, active | enabled, active | not it |
-| **EEE (802.3az) on the link** | **`enabled - active`** | **`disabled`** | **the only difference** |
-| NIC | Intel I219 (`e1000e`) | Realtek RTL8168h (`r8169`) | explains the above |
+| EEE (802.3az) on the link | was `enabled - active` | `disabled` | see below |
+| NIC | Intel I219 (`e1000e`) | Realtek RTL8168h (`r8169`) | explains the format difference |
 
 `DeepSleepCtrl` is the setting Dell's own troubleshooting guide names first, and it was
-already `Disabled` here - so the usual answer does not apply to this machine.
+already `Disabled` here, so the usual answer never applied to this machine.
 
-The remaining difference is Energy Efficient Ethernet. Both ends of a link must
-negotiate EEE for it to engage, and on the master it did (`enabled - active`) while
-both Realtek workers never advertise it. EEE Low Power Idle switches off part of the
-controller when the link is quiet, which is exactly the state a powered-down machine's
-NIC sits in while waiting for a magic packet.
+!!! note "EEE was disabled too, and it is **not** proven to have mattered"
 
-**This is a strong correlation, not a proven cause** - the only proof is a shutdown
-followed by a wake attempt. The change applied on 2026-08-27:
+    Energy Efficient Ethernet was `enabled - active` on the master and `disabled` on
+    both workers, which looked like the answer before the packet formats were separated.
+    It was turned off (`ethtool --set-eee eno1 eee off`, link stayed up at 1000Mb/s) and
+    made persistent as a second `ExecStart` in `wol.service` **before** the wake tests
+    ran, so every test above happened with EEE already off. That means the tests say
+    nothing about EEE either way: plain `etherwake` failed with EEE off just as it had
+    with EEE on.
 
-```
-ethtool --set-eee eno1 eee off     # link stayed up at 1000Mb/s, Wake-on still g
-```
-
-made persistent as a second `ExecStart` in `wol.service` on the master. The unit backup
-is `/etc/systemd/system/wol.service.bak-2026-08-27`; to revert, drop that line and run
-`ethtool --set-eee eno1 eee on`.
+    It is being kept because it costs nothing and matches the two working nodes, not
+    because it was shown to fix anything. Unit backup:
+    `/etc/systemd/system/wol.service.bak-2026-08-27`; to revert, drop the line and run
+    `ethtool --set-eee eno1 eee on`.
 
 **Independent of all this, the master now has a backstop:** BIOS `AC Power Recovery =
-Power On` plus `Auto On = Everyday 17:30` (readable as `AutoOn`, `AutoOnHr`, `AutoOnMn`).
-The two workers are on `Last State`, which is why they returned after the 2026-08-25
-outage and the master did not.
+Power On` plus `Auto On = Everyday 17:30`. The two workers are on `Last State`, which is
+why they returned after the 2026-08-25 outage and the master did not.
+
+After three power cycles in twenty minutes the cluster came back clean every time: all
+3 nodes `Ready`, all Argo CD apps `Synced/Healthy`, all Longhorn disks `Ready`, one
+default StorageClass, and `journalctl -u k3s -b | grep -c corrupt` returning 0.
 
 #### Reading Dell BIOS settings from Linux, without a reboot
 
