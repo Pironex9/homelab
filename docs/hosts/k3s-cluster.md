@@ -266,15 +266,22 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 
 ### WoL script
 
-**File:** `/home/nex/wakeonlan.sh` on the Orange Pi, owned by `nex`, not root.
+**File:** `/usr/local/bin/wakeonlan.sh` on the Orange Pi, root-owned.
 
-It used to live in `/usr/local/bin/` as a root-owned file, which meant every edit
-needed the `nex` sudo password - and `nex`'s passwordless sudo there covers only
-`/usr/sbin/etherwake` and the script itself, with no root SSH key on the box. Nothing
-in the script actually needs root: the UDP magic packet needs no privileges at all and
-`etherwake` is already NOPASSWD. So it moved into the home directory, where it can be
-maintained over SSH. The stale root-owned copy at `/usr/local/bin/wakeonlan.sh` is no
-longer referenced by anything and can be deleted next time a password prompt is handy.
+**It has three callers, all pointing at this one file** - that matters, because on
+2026-08-27 a fix landed in a second copy under `/home/nex/` and the web UI kept running
+the old broken one for an hour:
+
+| Caller | How |
+|---|---|
+| `nex` crontab | `@reboot sleep 60 && /usr/local/bin/wakeonlan.sh` |
+| Web UI on port 5000 | `/usr/local/bin/wol-web.py` -> `GET /wake` -> `subprocess.run` |
+| By hand | `ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"` |
+
+Editing it needs the `nex` sudo password: the passwordless sudo on that box covers only
+`/usr/sbin/etherwake` and the script itself, and there is no root SSH key. That is
+annoying but it is the right trade - the alternative, a user-owned copy elsewhere, is
+exactly what produced the two-copies bug above.
 
 ```bash
 #!/bin/bash
@@ -282,6 +289,11 @@ longer referenced by anything and can be deleted next time a password prompt is 
 #
 # Two packet formats per MAC, over several rounds. Both decisions come from
 # measurement - see "Why the master never woke" below.
+#
+# The first round runs in the foreground, the rest in the background. Otherwise the
+# web UI blocks for 104 s (measured), because wol-web.py calls it with
+# capture_output=True. The background block redirects to /dev/null on purpose: if it
+# inherited the pipe, subprocess.run would still wait for it to finish.
 
 MAC1="54:bf:64:68:a0:30"  # opt5060-i5  (Intel I219 - ONLY the UDP form wakes it)
 MAC2="54:bf:64:a2:ff:77"  # opt3060-i3  (Realtek RTL8168h)
@@ -303,21 +315,44 @@ for port in (7, 9):
 ' "$1" "$BCAST"
 }
 
-echo "Waking up nodes ($ROUNDS rounds, etherwake + UDP magic packet)..."
-for r in $(seq 1 $ROUNDS); do
+send_round() {
     for MAC in $MAC1 $MAC2 $MAC3; do
         sudo etherwake -i $INTERFACE $MAC
         send_udp "$MAC"
     done
-    echo "  round $r/$ROUNDS sent"
-    [ "$r" -lt "$ROUNDS" ] && sleep $GAP
-done
+}
+
+echo "Waking up nodes ($ROUNDS rounds over $((ROUNDS * GAP))s, etherwake + UDP magic packet)..."
+send_round
+echo "  round 1/$ROUNDS sent, rounds 2-$ROUNDS continue in the background"
+
+(
+    for r in $(seq 2 $ROUNDS); do
+        sleep $GAP
+        send_round
+    done
+) >/dev/null 2>&1 &
+
 echo "Wake packets sent to all nodes"
 ```
 
+Previous version kept as `/usr/local/bin/wakeonlan.sh.bak-2026-08-27` (the original
+412-byte `etherwake`-only script).
+
+### Web UI (port 5000)
+
+`/usr/local/bin/wol-web.py`, a Flask app run as root by `wol-web.service`, listening on
+`0.0.0.0:5000` - reachable over Tailscale at `http://100.120.73.44:5000/`. `GET /wake`
+shells out to `wakeonlan.sh` and returns its stdout.
+
+Because it uses `subprocess.run(..., capture_output=True)`, **anything the script leaves
+holding stdout keeps the HTTP request open**. That is why the retry rounds background
+themselves with `>/dev/null 2>&1` rather than just `&`. Measured before and after:
+104.65 s -> 0.82 s, with the background rounds confirmed still running afterwards.
+
 **Auto-start on boot** (`nex` user crontab):
 ```
-@reboot sleep 60 && /home/nex/wakeonlan.sh
+@reboot sleep 60 && /usr/local/bin/wakeonlan.sh
 ```
 
 Passwordless sudo configured for both `etherwake` and the script:
@@ -328,7 +363,7 @@ Passwordless sudo configured for both `etherwake` and the script:
 
 **Remote trigger from any Tailscale node:**
 ```bash
-ssh nex@orangepione "/home/nex/wakeonlan.sh"
+ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"
 ```
 
 ### WoL reliability notes
@@ -1101,7 +1136,7 @@ kubectl top nodes
 kubectl cluster-info
 
 # Wake up cluster (from any Tailscale node)
-ssh nex@orangepione "/home/nex/wakeonlan.sh"
+ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"
 
 # SSH to nodes
 ssh nex@opt5060-i5
