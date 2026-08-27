@@ -108,6 +108,26 @@ The resulting `jobs.json` diff is exactly two fields, `next_run_at` and `updated
 
 **`last_run_at` is written at completion, not at fire time** (`mark_job_run` sets it together with `last_status`), so the difference between it and the schedule is the run duration. Useful for spotting a slow provider: on 2026-08-26 the job took 8m13s against a 4-35 s baseline, and the agent log pinned it on a Gemini 503 through the SkillClaw proxy - the first streaming request hung 5m08s before the error surfaced, then the retry took 3m01s. Three such days in eleven, every one of them a 503 day, and the retry policy carried all three.
 
+**The no-op-edit fix regressed by the next morning (found 2026-08-27).** The edit above genuinely set `next_run_at` to `2026-08-27T07:05:00+02:00` on 2026-08-26, but `hermes cron list` the next morning showed `2026-08-27T07:05:00+00:00` again - back to UTC, job silently 2 hours late a second time. Root cause not confirmed (a gateway restart re-running some startup-time recompute against a stale/UTC-assuming path is the leading guess, not verified against source this time), so rather than chase it, the fix was to remove and recreate the job outright:
+
+```bash
+hermes cron remove d2306bd1a730
+hermes cron create "5 7 * * *" "<same prompt text>" --name homelab-digest-review --script homelab-digest-fetch.sh --deliver origin,telegram
+```
+
+New job (`b6393e201613`), `next_run_at` correctly `2026-08-28T07:05:00+02:00` - tomorrow, because today's correct local window (07:05) had already passed by the time this was caught (~08:20). Triggered once manually (`hermes cron run b6393e201613`) so today's digest still reached Telegram; `last_status: ok`, no delivery error. Whether this holds past the next gateway restart is unverified - if `homelab-digest-review` goes quiet again, check `next_run_at`'s offset before assuming anything else is wrong.
+
+`hermes cron create` (v0.18.0) drops the positional `prompt` as "unrecognized arguments" if it comes after *any* flag (`--name`, `--deliver`, `--script`, individually or combined) - true even with correct quoting, confirmed with a throwaway test job. Put `prompt` immediately after `schedule`, flags after:
+
+```bash
+# fails
+hermes cron create "5 7 * * *" --name x --deliver origin "prompt text"
+# works
+hermes cron create "5 7 * * *" "prompt text" --name x --deliver origin
+```
+
+`cron remove` invalidates the old id immediately, and `cron create` reruns the provider/model snapshot and resets `repeat.completed` to 0 - capture the full job from `~/.hermes/cron/jobs.json` before removing if it needs to be reproduced exactly.
+
 ## SkillClaw (added 2026-07-25)
 
 Third-party skill-evolution layer for Hermes (`github.com/AMAP-ML/SkillClaw`, unofficial/community project, not affiliated with NousResearch). Installed after the user asked Hermes to install a skill from this repo directly, which triggered a source-code review before activation - the project isn't audited upstream, and by its own design it (a) proxies all Hermes LLM traffic and (b) can autonomously rewrite `SKILL.md` files the agent later treats as trusted instructions, so both were reviewed before turning anything on.
