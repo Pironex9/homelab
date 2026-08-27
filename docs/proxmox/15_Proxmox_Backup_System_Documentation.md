@@ -239,6 +239,44 @@ Changing this exclusion costs one manual run: the 1697 already-indexed `pgdata` 
 
 The photo library at `/mnt/storage/immich/library` is on the MergerFS pool, protected by SnapRAID parity. Thumbnails and encoded videos are excluded from any offsite backup - they are regenerable via Administration > Jobs in the Immich UI.
 
+### Every Docker service, audited once
+
+Immich was found by accident. On 2026-08-27 the same question was answered for all of
+LXC 100 by walking every running container's bind mounts instead of reading compose files,
+which is the only way to see what is actually mounted:
+
+```bash
+for c in $(docker ps --format '{{.Names}}'); do
+  docker inspect "$c" --format '{{range .Mounts}}{{if eq .Type "bind"}}'"$c"'|{{.Source}}|{{.Destination}}
+{{end}}{{end}}'
+done | grep '|/mnt/storage'
+```
+
+Everything else - `sonarr`, `radarr`, `qbittorrent`, `jellyfin`, `calibre-web-automated`,
+`shelfmark`, `homepage` - only mounts media from there and keeps its own config on the
+rootfs, so the daily vzdump has it. Application *state* outside the vzdump is exactly three
+things:
+
+| Path | Container | Covered by |
+|---|---|---|
+| `/mnt/storage/immich/pgdata` | `immich_postgres` | the nightly `pg_dumpall` above |
+| `/mnt/storage/immich/library` | `immich_server` | SnapRAID parity only |
+| `/mnt/storage/syncthing` | `syncthing` | SnapRAID parity only, plus whatever peers hold a copy |
+
+(`garage` also writes to `/mnt/storage/backup/garage`, but that is the Longhorn S3 target
+for the K3s cluster, not homelab state - see `scripts/README.md`.)
+
+The databases that *are* on the rootfs - `kan-db` (postgres:15), `rails-lab-db`
+(postgres:17-alpine), `dawarich_db` (postgis:17-3.5) - need no separate dump. vzdump runs
+in snapshot mode, the LVM snapshot is atomic across the whole filesystem, and Postgres
+treats that as a power cut and replays WAL on start. Immich was different only because its
+data directory was on the bind mount and therefore in **no** archive at all.
+
+This is also the answer to "should we add a restic layer for the Docker volumes": no, it
+would duplicate the vzdump. `scripts/backup.sh` used to describe exactly that layer without
+ever being deployed, and was deleted on 2026-08-12 for misleading a reader into thinking
+Immich was covered.
+
 ---
 
 ## 6. Disk Layout
