@@ -64,7 +64,48 @@ restic -r $REPO forget \
 restic -r $REPO check
 ```
 
-Password stored in `/root/.secrets/restic-password` (chmod 600).
+### The repository password
+
+Stored in `/root/.secrets/restic-password` (chmod 600) and, since 2026-08-27, also in
+Vaultwarden as the secure note **Proxmox host restic backup - repo jelszo**.
+
+Until that date it existed in exactly one place: inside the repository it unlocks. The
+host root filesystem was being backed up with a key that only lived on that same host
+root filesystem, so a dead system disk would have left ~27 GiB of verified, unopenable
+snapshots. This is the same failure the K3s gpg passphrase had until 2026-08-24 and it
+was fixed the same way - see `scripts/README.md`.
+
+Do not delete the file thinking the Vaultwarden copy replaces it. The weekly cron reads
+the file; the Vaultwarden copy is the human one for the day pve is gone. The note carries
+the repo path, the Nobara copy path, and the file-less restore form, because in a real
+disaster you will be running restic from some other machine with the USB disk attached:
+
+```bash
+# no RESTIC_PASSWORD_FILE - restic prompts for it
+restic -r /mnt/disk1/backup/proxmox-host snapshots
+restic -r /mnt/disk1/backup/proxmox-host restore latest --target /mnt/restore
+```
+
+**The password is 6 characters.** The file is 7 bytes and restic strips the trailing
+newline - confirmed on 2026-08-27 by opening the repo with `RESTIC_PASSWORD="$(cat ...)"`,
+which succeeds. That is thin for a repository living on the MergerFS pool, which is both a
+Samba share and an NFS export to the whole `192.168.0.0/24` with `rw,no_root_squash`, and
+which is rsynced to Nobara weekly. Rotation is cheap, since `restic key` re-wraps the
+master key rather than re-encrypting the 27 GiB:
+
+```bash
+restic -r $REPO key add --new-password-file /root/.secrets/restic-password.new
+RESTIC_PASSWORD_FILE=/root/.secrets/restic-password.new restic -r $REPO snapshots --latest 1
+# store the new password, verify you can read it back, only then:
+restic -r $REPO key list && restic -r $REPO key remove <old-id>
+```
+
+It was deliberately **not** done on 2026-08-27 - getting the existing password out of its
+single point of failure was the whole point of that pass, and a rotation in the same pass
+would have meant storing one password and then immediately invalidating it. `restic key
+remove` of the last known key is unrecoverable; restic has no master-key escrow, so the
+Vaultwarden entry has to exist and be readable before the old key goes.
+
 
 ### Cron (on Proxmox host)
 ```
@@ -412,3 +453,55 @@ Everything else in root's crontab (`restic`, `sync-to-nobara.sh`, `restore-test.
 ```bash
 env -i PATH=/usr/bin:/bin bash -c 'command -v restic arping pct qm vzdump'
 ```
+
+---
+
+## 8. Bare-Metal Restore of pve
+
+Not written down until 2026-08-27, and it is the procedure you need on the worst day.
+
+Restic restores files, not a bootable disk. There is no one-click bare-metal restore in
+Proxmox VE 9 - the [Proxmox wiki](https://pve.proxmox.com/wiki/Backup_and_Restore) covers
+guests, not the host. The path is reinstall, then restore over it:
+
+1. Install PVE 9.1 on the new system disk with **the same hostname (`pve`) and the same IP
+   (192.168.0.109)**. The node name is baked into the `/etc/pve/nodes/<name>/` tree and
+   into the SSH host keys, so a different one turns a restore into a migration.
+2. Attach the USB disks, mount `/mnt/disk1`, restore the snapshot to a staging directory
+   rather than straight over `/`.
+3. Copy back `/etc/network/interfaces`, `/etc/fstab`, `/etc/hosts`, `/etc/default/grub`,
+   `/etc/snapraid.conf`, `/root/.secrets`, `/root/*.sh` and `/var/spool/cron/crontabs/root`.
+4. Restore the cluster config. Stop `pve-cluster` first - `config.db` is a live SQLite
+   database and overwriting it under a running pmxcfs corrupts it:
+   ```bash
+   systemctl stop pve-cluster
+   cp /mnt/restore/var/lib/pve-cluster/config.db /var/lib/pve-cluster/config.db
+   rm -f /var/lib/pve-cluster/config.db-wal /var/lib/pve-cluster/config.db-shm
+   systemctl start pve-cluster
+   ```
+   The snapshot also carries `/etc/pve` as plain files, because restic was never given
+   `--one-file-system` and follows the pmxcfs FUSE mount. If `config.db` turns out to be
+   torn - it is copied live - that file tree is the better source: recreate the guest
+   configs from `/etc/pve/lxc/*.conf` and `/etc/pve/qemu-server/*.conf` by hand.
+5. Restore the guests from `/mnt/storage/backup/proxmox/dump/` with `pct restore` /
+   `qmrestore`. This is the only step that has been exercised for real, several times.
+
+Verified on 2026-08-27 that the weekly snapshot actually contains every file this
+procedure needs (`restic ls latest`): `/etc/pve` including `priv/`, `lxc/`, `qemu-server/`
+and `jobs.cfg`; `/var/lib/pve-cluster/config.db`; `/etc/network/interfaces`; `/etc/fstab`;
+`/etc/default/grub`; `/etc/snapraid.conf`; `/root/.secrets`; `/var/spool/cron/crontabs/root`.
+The published host-backup checklists ([saturnme](https://www.saturnme.com/how-to-back-up-and-restore-proxmox-ve-9-host-configuration-step-by-step-guide/),
+[aremesch/pve-host-backup](https://github.com/aremesch/pve-host-backup)) name nothing that
+is not already inside it, so no extra config-dump script is needed here.
+
+### What this still does not solve
+
+Every copy is in the same flat on the same power feed: the vzdump target on the MergerFS
+pool, the restic repo on `/mnt/disk1`, and the Sunday rsync to Nobara at 192.168.0.100.
+Section 3 calls Nobara "offsite" and that is wrong - it is a second machine, not a second
+site. Fire, theft or one surge takes all three. Vaultwarden is on LXC 103, in the same
+flat, so the password custody above has the same shape of hole: the Bitwarden mobile
+client keeps a read-only offline cache of the vault, but only while logged in and only for
+90 days of offline use.
+
+Fixing this needs a real offsite target and is tracked separately, not in this document.
