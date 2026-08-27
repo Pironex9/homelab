@@ -313,6 +313,62 @@ WoL is unreliable after extended offline periods (hours/days). Known causes:
 
 **Workaround:** If WoL fails, power-cycle the node physically or via a smart PDU. BIOS should be set to `AC Power Recovery = Power On` so the node boots automatically on power restore.
 
+### Why the master never woke, and the two workers always did (2026-08-27)
+
+The two workers answer WoL reliably; `opt5060-i5` never has. Everything obvious was
+measured and ruled out rather than assumed:
+
+| Checked | opt5060-i5 (master) | opt3060-i3 (worker) | Verdict |
+|---|---|---|---|
+| MAC in `wakeonlan.sh` vs `/sys/class/net/*/address` | `54:bf:64:68:a0:30` = matches | matches | not it |
+| BIOS `WakeOnLan` | `LanWlan` | `LanWlan` | not it |
+| BIOS `DeepSleepCtrl` | `Disabled` | `Disabled` | not it |
+| OS `ethtool ... Wake-on` | `g` | `g` | not it |
+| `wol.service` | enabled, active | enabled, active | not it |
+| **EEE (802.3az) on the link** | **`enabled - active`** | **`disabled`** | **the only difference** |
+| NIC | Intel I219 (`e1000e`) | Realtek RTL8168h (`r8169`) | explains the above |
+
+`DeepSleepCtrl` is the setting Dell's own troubleshooting guide names first, and it was
+already `Disabled` here - so the usual answer does not apply to this machine.
+
+The remaining difference is Energy Efficient Ethernet. Both ends of a link must
+negotiate EEE for it to engage, and on the master it did (`enabled - active`) while
+both Realtek workers never advertise it. EEE Low Power Idle switches off part of the
+controller when the link is quiet, which is exactly the state a powered-down machine's
+NIC sits in while waiting for a magic packet.
+
+**This is a strong correlation, not a proven cause** - the only proof is a shutdown
+followed by a wake attempt. The change applied on 2026-08-27:
+
+```
+ethtool --set-eee eno1 eee off     # link stayed up at 1000Mb/s, Wake-on still g
+```
+
+made persistent as a second `ExecStart` in `wol.service` on the master. The unit backup
+is `/etc/systemd/system/wol.service.bak-2026-08-27`; to revert, drop that line and run
+`ethtool --set-eee eno1 eee on`.
+
+**Independent of all this, the master now has a backstop:** BIOS `AC Power Recovery =
+Power On` plus `Auto On = Everyday 17:30` (readable as `AutoOn`, `AutoOnHr`, `AutoOnMn`).
+The two workers are on `Last State`, which is why they returned after the 2026-08-25
+outage and the master did not.
+
+#### Reading Dell BIOS settings from Linux, without a reboot
+
+The 5060 and 3060 expose their BIOS through the `dell-wmi-sysman` kernel driver, so the
+settings above were read over SSH rather than from a BIOS screen at the remote site:
+
+```bash
+cd /sys/class/firmware-attributes/dell-wmi-sysman/attributes
+sudo cat WakeOnLan/current_value      # LanWlan
+sudo cat WakeOnLan/possible_values    # Disabled;LanOnly;WlanOnly;LanWlan;LanWithPxeBoot;
+sudo cat DeepSleepCtrl/current_value  # Disabled
+sudo cat AutoOn/current_value         # Everyday
+```
+
+`current_value` reads as empty without root - it is not missing, it is unreadable.
+The older `opt3050-i5` has no `dell-wmi-sysman`, so its BIOS still needs a screen.
+
 ### WoL persistence on K3s nodes
 
 WoL resets to disabled after reboot on Linux. Each node has a systemd service to re-enable it:
