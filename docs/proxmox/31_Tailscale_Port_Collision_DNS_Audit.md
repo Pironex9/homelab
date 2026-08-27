@@ -101,6 +101,20 @@ Nobara was missed in the first pass and only found on 2026-08-07, still on 41641
 
 The live file was left alone, so the port survived - but anyone who later moves the `.apk-new` into place restores the collision, and it will present as the same intermittent direct/DERP flapping rather than as an obvious DNS or config error. After any tailscale package upgrade, confirm the port on the running daemon, not in the config file: `ps -eo args | grep -o 'port=[0-9]*'` on Alpine, `ss -ulnp | grep tailscaled` elsewhere. Note also that `apk upgrade` replaces the binary without restarting the daemon - `tailscale version` reported 1.98.5 while the running server was still 1.90.9, with the client printing a version-mismatch warning. `rc-service tailscale restart` is required.
 
+### Fleet client versions (measured 2026-08-27)
+
+| Node | Version | `AutoUpdate.Apply` |
+|---|---|---|
+| pve | 1.102.3 | true |
+| claude-mgmt (LXC 109) | 1.102.3 | true |
+| docker-host (LXC 100) | 1.102.3 | true (enabled this day, was 1.102.2) |
+| alpine-komodo (LXC 105) | 1.98.5 | off - see below |
+| homelab-vps | 1.102.3 | true |
+| opt3050-i5 / opt3060-i3 / opt5060-i5 | 1.102.3 | true |
+| orangepione | 1.102.3 | - |
+
+Stable at the time was 1.102.3. The K3s nodes answer SSH as `nex`, not `root`, and only on their Tailscale IPs from this side of the network - their `192.168.1.x` LAN addresses time out from the homelab.
+
 **Auto-update on Debian keeps the edited port; the Alpine path is the risky one.** Measured on 2026-08-27: LXC 109 has `AutoUpdate.Apply: true` and was auto-updated 1.102.2 -> 1.102.3 unattended on 2026-08-26 18:39 (`c2n: running "systemd-run ... /usr/bin/tailscale update --yes"` in the journal), and its `/etc/default/tailscaled` still carries `PORT="41642"` - md5 `6a565ab5cf3f1b3ebd5a61dcd41c5b43` against the packaged conffile hash `540a659ece227eb3035d1ee3ba1ec902`, with the daemon running `--port=41642`. dpkg treats a locally modified conffile as one to keep, so the deb path is safe to leave on auto-update. `AutoUpdate.Apply` was then turned on for docker-host too (`tailscale set --auto-update`), since it and LXC 105 were the only two nodes without it and both had drifted behind.
 
 For a manual deb upgrade, pass the flags rather than trusting the prompt:
