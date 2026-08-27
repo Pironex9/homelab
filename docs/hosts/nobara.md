@@ -445,6 +445,15 @@ Read [32 - Nobara SSH Freeze](../proxmox/32_Nobara_SSH_Freeze_Investigation.md) 
 
 `IPQoS none` is now set on both ends (`/etc/ssh/sshd_config.d/99-ipqos.conf` and `~/.ssh/config`) because SSH was the only traffic on this LAN marking its packets with DSCP, which matters on a wireless backhaul. It did not fix the freeze.
 
+**Update 2026-08-27: the client-side `IPQoS none` is now global, and it fixed a different fault.** The `~/.ssh/config` override had only ever been scoped to LXC 109. Every other LAN host - pve, docker-host, adguard, caddy - timed out on every SSH attempt, while `ping` and raw TCP to the same port succeeded. Widening the override to a `Host *` block fixed all of them:
+
+```
+Host *
+    IPQoS none
+```
+
+See [43 - Nobara DSCP SSH Timeout](../proxmox/43_Nobara_DSCP_SSH_Timeout.md). The session freezes documented above are still unexplained; this was a separate, total failure of connection setup, not an intermittent stall.
+
 ### Black screen on first boot (Plymouth → SDDM race condition)
 
 **Symptom:** After a cold boot, the system shows a black screen with only a mouse cursor - KDE/SDDM doesn't load. On second boot (reboot), the GUI loads normally.

@@ -126,6 +126,7 @@ nav:
           - 40 - Shelfmark Book Pipeline: proxmox/40_Shelfmark_Book_Pipeline.md
           - 41 - Hermes Agent Capability Hardening: proxmox/41_Hermes_Agent_Capability_Hardening.md
           - 42 - Sonarr/Radarr Missing Media Audit: proxmox/42_Sonarr_Radarr_Missing_Media_Audit.md
+          - 43 - Nobara DSCP SSH Timeout: proxmox/43_Nobara_DSCP_SSH_Timeout.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md

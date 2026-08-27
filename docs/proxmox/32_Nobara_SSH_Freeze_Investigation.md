@@ -25,6 +25,8 @@ An interactive SSH session from the Nobara desktop to LXC 109, running Claude Co
 | sshd broken on Nobara | SSH from Nobara to its **own** LAN IP completes the full handshake instantly while every remote client times out |
 | DSCP marking (`IPQoS`) | All five markings (`none`, `af21`, `cs1`, `lowdelay`, `throughput`) connect successfully, and `tcpdump` confirms the option really changes the wire (`af21` produces `tos 0x48`, `none` produces `tos 0x0`) |
 
+> **Superseded in part, 2026-08-27.** The DSCP row above records what was measured on this date and stays as written. Three weeks later the same marking blackholed every SSH connection from Nobara to every LAN host, and `IPQoS none` fixed it - see [43 - Nobara DSCP SSH Timeout](./43_Nobara_DSCP_SSH_Timeout.md). A hypothesis excluded by measurement is excluded for the conditions of that measurement. It says nothing about the session freezes documented here, which remain unexplained.
+
 The DSCP hypothesis was the most promising one and is worth spelling out, because it looked airtight for a while: OpenSSH is the only traffic on this LAN that marks its packets, Nobara's "Ethernet" actually runs through a TP-Link RE605X extender over a wireless backhaul, and WMM sorts frames into hardware queues by DSCP. It still failed the direct test.
 
 ## Two failures that were measured, and are real
