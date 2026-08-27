@@ -108,7 +108,7 @@ The live file was left alone, so the port survived - but anyone who later moves 
 | pve | 1.102.3 | true |
 | claude-mgmt (LXC 109) | 1.102.3 | true |
 | docker-host (LXC 100) | 1.102.3 | true (enabled this day, was 1.102.2) |
-| alpine-komodo (LXC 105) | 1.98.5 | off - see below |
+| alpine-komodo (LXC 105) | 1.98.5 -> 1.102.3 | off - upgraded by hand, see below |
 | homelab-vps | 1.102.3 | true |
 | opt3050-i5 / opt3060-i3 / opt5060-i5 | 1.102.3 | true |
 | orangepione | 1.102.3 | - |
@@ -123,7 +123,24 @@ For a manual deb upgrade, pass the flags rather than trusting the prompt:
 apt-get install -y --only-upgrade -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef tailscale
 ```
 
-**LXC 105 stays on the older client on purpose.** As of 2026-08-27 the Alpine `latest-stable` community branch tops out at tailscale 1.98.5-r0 while stable is 1.102.3, so `apk upgrade tailscale` is a no-op. 1.102.3 exists only on Alpine `edge`, and a plain `apk upgrade` there is not a package bump but a distro jump - the container reports `alpine-release` 3.23.3 while `latest-stable` has moved to 3.24.1, so it would pull 40+ packages including `apk-tools`, `busybox` and `openrc` underneath the Komodo Periphery agent. Tailscale's backward-compatibility promise makes four minor versions of lag the cheaper option.
+**LXC 105 needs a one-shot edge install, not `apk upgrade`.** The Alpine `latest-stable` community branch tops out at tailscale 1.98.5-r0, so `apk upgrade tailscale` is a no-op - 1.102.3 exists only on `edge`. But a plain `apk upgrade` is not a package bump either: the container reports `alpine-release` 3.23.3 while `latest-stable` has moved to 3.24.1, so it becomes a 3.23 -> 3.24 distro jump across 40+ packages including `apk-tools`, `busybox` and `openrc`, underneath the running Komodo Core. **Do not run it.**
+
+The way through is to name the edge repository on the command line and never write it into `/etc/apk/repositories`. Measure the blast radius first - `--simulate` listed exactly two packages, no `musl`, no `busybox`, no `openrc`, because tailscaled is a static Go binary whose only declared dependencies are `so:libc.musl-x86_64.so.1`, `cmd:resolvconf` and `/bin/sh`:
+
+```bash
+apk add --simulate --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
+  tailscale=1.102.3-r0 tailscale-openrc=1.102.3-r0
+# (1/2) Upgrading tailscale (1.98.5-r0 -> 1.102.3-r0)
+# (2/2) Upgrading tailscale-openrc (1.98.5-r0 -> 1.102.3-r0)
+
+apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
+  tailscale=1.102.3-r0 tailscale-openrc=1.102.3-r0
+rc-service tailscale restart
+```
+
+Done this way on 2026-08-27 the edge repo leaves no trace: `/etc/apk/repositories` still lists only `latest-stable/{main,community}`, and afterwards `apk policy tailscale` reports 1.102.3-r0 as coming from `lib/apk/db/installed` with no repository offering it. A later `apk upgrade` therefore does not touch it - apk does not downgrade without `--available`, confirmed with `apk upgrade --simulate`.
+
+Two things this does disturb, both checked afterwards rather than assumed. The `port=41644` edit in `/etc/conf.d/tailscale` belongs to the `tailscale-openrc` package, and the upgrade again wrote `/etc/conf.d/tailscale.apk-new` instead of overwriting - the live file's md5 was identical before and after, and the `.apk-new` diff is still exactly the `-port=41644` / `+#port=41641` regression. And the VPS periphery reaches Komodo Core outbound over the tailnet at `100.86.108.33:9120`, so the `rc-service` restart cuts that connection; per the periphery backoff entry in `docs/hosts/komodo.md` it can fail to reconnect on its own. This time it recovered by itself - all seven managed servers reported `Ok` afterwards - but check before assuming, and restart the VPS periphery if not.
 
 Verification:
 
