@@ -16,6 +16,14 @@
 #   2. a Garage bucket olvasható-e       - és mekkora
 #   3. minden kötetnek van-e MAX_AGE_HOURS-nál frissebb, Completed mentése
 #   4. van-e Error állapotú Backup objektum
+#   5. minden Longhorn node és lemez Ready-e
+#
+# Az 5. pont 2026-08-27-én került bele: aznap az opt3050-i5 USB-lemeze
+# újraenumerálódott, a systemd lecsatolta és nem csatolta vissza, a Longhorn a
+# root FS-re írt egy friss longhorn-disk.cfg-t, és a lemez DiskFilesystemChanged
+# miatt kiesett. Ez a script akkor "up - no-volumes"-t pusholt, mert nulla
+# kötetnél a 3. lépés nem néz semmit. A lemezek állapota független attól, hogy
+# van-e ma kötet - egy halott lemezről akkor is tudni kell.
 #
 # A nulla kötet NEM hiba: a clusteren ma tényleg nincs PVC. De külön üzenetet
 # kap ("no-volumes"), különben a heartbeat-előzményben nem lehet megkülönböztetni
@@ -47,7 +55,7 @@ NOTES=()
 fail() { ERRORS+=("$1"); echo "HIBA: $1" >&2; }
 note() { NOTES+=("$1"); echo "  $1"; }
 
-echo "== 1/4 BackupTarget =="
+echo "== 1/5 BackupTarget =="
 BT_JSON="$(kubectl get backuptarget default -n "$NS" -o json 2>/dev/null)"
 if [ -z "$BT_JSON" ]; then
     fail "a BackupTarget/default nem olvasható (kubectl)"
@@ -65,7 +73,7 @@ else
     fi
 fi
 
-echo "== 2/4 Garage bucket =="
+echo "== 2/5 Garage bucket =="
 BUCKET_INFO="$(ssh -o ConnectTimeout=10 -o BatchMode=yes "$DOCKER_HOST_SSH" \
     "docker exec garage /garage bucket info $BUCKET 2>/dev/null" 2>/dev/null)"
 if [ -z "$BUCKET_INFO" ]; then
@@ -77,7 +85,7 @@ else
     note "bucket $BUCKET: ${BUCKET_SIZE:-?}, ${BUCKET_OBJ:-?} objektum"
 fi
 
-echo "== 3/4 kötetek mentési kora =="
+echo "== 3/5 kötetek mentési kora =="
 VOL_JSON="$(kubectl get volumes.longhorn.io -n "$NS" -o json 2>/dev/null)"
 VOLUMES="$(printf '%s' "$VOL_JSON" | jq -r '.items[]?.metadata.name')"
 VOL_COUNT=0
@@ -121,13 +129,41 @@ else
     note "nincs Longhorn kötet a clusteren - nincs mit menteni"
 fi
 
-echo "== 4/4 hibás Backup objektumok =="
+echo "== 4/5 hibás Backup objektumok =="
 ERR_BACKUPS="$(kubectl get backups.longhorn.io -n "$NS" -o json 2>/dev/null \
     | jq -r '[.items[]? | select(.status.state == "Error") | .metadata.name] | join(",")')"
 if [ -n "$ERR_BACKUPS" ] && [ "$ERR_BACKUPS" != "null" ]; then
     fail "Error állapotú Backup: $ERR_BACKUPS"
 else
     note "nincs hibás Backup objektum"
+fi
+
+echo "== 5/5 Longhorn node-ok es lemezek =="
+LHNODE_JSON="$(kubectl get nodes.longhorn.io -n "$NS" -o json 2>/dev/null)"
+if [ -z "$LHNODE_JSON" ]; then
+    fail "a Longhorn node objektumok nem olvashatók (kubectl)"
+else
+    # Node Ready + lemezenkénti Ready kondíció. A lemez üzenete tartalmazza az
+    # okot (pl. "record diskUUID doesn't match the one on the disk"), ezért azt
+    # visszük tovább a Kuma üzenetbe, nem csak a lemez nevét.
+    BAD_NODES="$(printf '%s' "$LHNODE_JSON" | jq -r '
+        [.items[]? | select([.status.conditions[]? | select(.type=="Ready") | .status] | index("True") | not)
+         | .metadata.name] | join(",")')"
+    [ -n "$BAD_NODES" ] && fail "nem Ready Longhorn node: $BAD_NODES"
+
+    BAD_DISKS="$(printf '%s' "$LHNODE_JSON" | jq -r '
+        [.items[]? as $n | ($n.status.diskStatus // {}) | to_entries[]
+         | select([.value.conditions[]? | select(.type=="Ready") | .status] | index("True") | not)
+         | "\($n.metadata.name)/\(.value.diskPath // .key)"] | join(",")')"
+    if [ -n "$BAD_DISKS" ]; then
+        fail "nem Ready Longhorn lemez: $BAD_DISKS"
+    elif [ -z "$BAD_NODES" ]; then
+        NODE_N="$(printf '%s' "$LHNODE_JSON" | jq -r '.items | length')"
+        SCHED_GIB="$(printf '%s' "$LHNODE_JSON" | jq -r '
+            [.items[]?.status.diskStatus // {} | to_entries[] | .value.storageAvailable // 0]
+            | add / 1073741824 | floor')"
+        note "$NODE_N node, minden lemez Ready, ${SCHED_GIB} GiB szabad"
+    fi
 fi
 
 # --- összegzés és Kuma push ---------------------------------------------------

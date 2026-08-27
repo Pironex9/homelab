@@ -161,8 +161,16 @@ Unpack it somewhere local, and delete it when you are done - do not leave it on
 ### Scheduling
 
 ```
-30 1 * * * /root/homelab/scripts/k3s-backup.sh >> /var/log/homelab/k3s-backup.log 2>&1
+30 1 * * * /root/homelab/scripts/k3s-backup.sh >> /var/log/homelab/k3s-backup.log 2>&1 && curl -fsS -m 10 -o /dev/null http://100.118.239.117:3001/api/push/<token>?status=up
 ```
+
+The Kuma push was added on 2026-08-27, after this job failed silently for two nights.
+While the master was down the script died on
+`ssh: connect to host opt5060-i5 port 22: Connection timed out` and only the log knew.
+It exits non-zero on failure, so the `&&` is the whole dead man's switch: a failed run
+does not push, the heartbeat times out, and the monitor `cron: k3s-backup (LXC 109)`
+goes red 25 hours later. The token lives in the crontab line and in
+`/root/.secrets/kuma-k3s-backup-token`, never in this repository.
 
 01:30 keeps it clear of the 02:00 vzdump window on the same backup disk. That window is
 15 to 17 minutes wide, measured from the pve task UPIDs on three consecutive nights
@@ -200,10 +208,21 @@ questions, and only the second one is worth a page at 3am.
 | 2 | Garage bucket readable | `garage bucket info` returns nothing |
 | 3 | Every volume's newest `Completed` backup | older than `LONGHORN_BACKUP_MAX_AGE_HOURS` (default 26) |
 | 4 | `Backup` objects in `Error` state | any exist |
+| 5 | Every `nodes.longhorn.io` node and disk | any `Ready` condition is not `True` |
 
-Check 1 is the one that earns its keep today: the cluster has **zero** volumes, so
-checks 3 and 4 have nothing to look at, but a broken key or a dead Garage still
-turns the monitor red.
+Checks 1 and 5 are the ones that earn their keep today: the cluster has **zero**
+volumes, so checks 3 and 4 have nothing to look at, but a broken key, a dead Garage or
+an unmounted disk still turns the monitor red.
+
+**Check 5 was added on 2026-08-27 and is there because of a specific miss.** That
+morning the USB disk on `opt3050-i5` re-enumerated, systemd unmounted it and did not
+mount it back, and Longhorn took the disk out of service with
+`DiskFilesystemChanged`. The Kubernetes node stayed `Ready`, so nothing in
+`kubectl get nodes` looked wrong - and this script pushed `up - no-volumes`, because
+with no PVCs on the cluster checks 3 and 4 pass by definition. Disk health does not
+depend on whether there is anything to back up today, so it needs its own gate. The
+failure message carries the offending `node/path`; a healthy run reports the fleet:
+`3 node, minden lemez Ready, 2288 GiB szabad`.
 
 Two pieces of gating that took a fix each. **Zero volumes is not a failure** - the
 cluster genuinely has no PVCs - but it reports a distinct `no-volumes` message, so

@@ -412,7 +412,7 @@ Dedicated HDDs formatted and labeled for Longhorn. Mount point: `/var/lib/longho
 |------|--------|-------|------|------|------|
 | opt5060-i5 | /dev/sda1 | longhorn-sdb | `1d358359-cb60-4974-93b3-df15e49741ec` | 931 GB | SATA internal |
 | opt3060-i3 | /dev/sda1 | longhorn-sdd | `297b57c3-2ff7-4c7b-b821-2e2cb3e2c5e0` | 931 GB | SATA internal |
-| opt3050-i5 | /dev/sdb1 | longhorn-sdc | `e1623077-2dcc-44d2-acf8-8df8242ea481` | 465 GB | USB external |
+| opt3050-i5 | /dev/sdc1 (was sdb1) | longhorn-sdc | `e1623077-2dcc-44d2-acf8-8df8242ea481` | 465 GB | USB external |
 
 Filesystem: ext4. Formatted 2026-04-06.
 
@@ -426,11 +426,75 @@ UUID=1d358359-cb60-4974-93b3-df15e49741ec /var/lib/longhorn ext4 defaults,nofail
 # opt3060-i3 /etc/fstab
 UUID=297b57c3-2ff7-4c7b-b821-2e2cb3e2c5e0 /var/lib/longhorn ext4 defaults,nofail 0 2
 
-# opt3050-i5 /etc/fstab (USB - extra timeout)
-UUID=e1623077-2dcc-44d2-acf8-8df8242ea481 /var/lib/longhorn ext4 defaults,nofail,x-systemd.device-timeout=30s 0 2
+# opt3050-i5 /etc/fstab (USB - extra timeout + automount, see below)
+UUID=e1623077-2dcc-44d2-acf8-8df8242ea481 /var/lib/longhorn ext4 defaults,nofail,x-systemd.automount,x-systemd.device-timeout=30s 0 2
 ```
 
 All 3 nodes: `/var/lib/longhorn` mounted and verified (870GB/870GB/435GB free).
+
+!!! danger "The USB disk re-enumerates, and `nofail` alone silently loses it (2026-08-27)"
+
+    On 2026-08-27 at 12:22:21 UTC the external disk on `opt3050-i5` dropped off the
+    USB bus and came back as a **different device node** - `sdb` before, `sdc` after:
+
+    ```
+    kernel: Buffer I/O error on dev sdb1, logical block 60850176, lost sync page write
+    kernel: JBD2: I/O error when updating journal superblock for sdb1-8.
+    kernel: scsi host7: uas
+    kernel: sd 7:0:0:0: [sdc] Attached SCSI disk
+    systemd[1]: var-lib-longhorn.mount: Deactivated successfully.
+    ```
+
+    systemd unmounted it and **never mounted it back**. With plain `nofail` there is
+    no trigger to retry: `nofail` only says "do not fail the boot", it does nothing
+    at runtime. The UUID in fstab was correct the whole time, and the disk was
+    present and healthy - nothing was wrong except that no one asked for the mount.
+
+    `/var/lib/longhorn` then resolved to the **root filesystem**, where Longhorn
+    immediately wrote a fresh `longhorn-disk.cfg` with a new `diskUUID`. That is what
+    surfaced in the Longhorn API:
+
+    ```
+    Disk default-disk-8fbd9a4d53e0e209(/var/lib/longhorn) on node opt3050-i5 is not ready:
+    record diskUUID doesn't match the one on the disk   (reason: DiskFilesystemChanged)
+    ```
+
+    This condition is Longhorn's own guard and it worked: rather than replicate onto
+    the root disk, it took the disk out of service. The node stayed `Ready` in
+    `kubectl get nodes` - **only `kubectl get nodes.longhorn.io` showed the failure**,
+    so the cluster looked entirely healthy from the Kubernetes side while a third of
+    the storage was gone.
+
+    **The fix is one fstab option:**
+
+    ```
+    ...,nofail,x-systemd.automount,x-systemd.device-timeout=30s 0 2
+    ```
+
+    `x-systemd.automount` turns the mount point into an autofs trigger, so the first
+    access after the device returns mounts it again. It also means an access while the
+    device is genuinely missing **blocks** instead of falling through to the root
+    filesystem, which is the safer of the two failure modes.
+
+    Verified live on 2026-08-27 without a reboot (there is no out-of-band access to
+    the remote site, so a node that fails to come back means a car trip):
+
+    ```
+    systemctl stop var-lib-longhorn.mount   # mount: inactive
+    ls /var/lib/longhorn                    # mount: active, /dev/sdc1, correct diskUUID
+    ```
+
+    The other two nodes are internal SATA and keep plain `nofail`; they cannot
+    re-enumerate the same way.
+
+    **Recovery, if it happens again before the automount is in place:** mount the disk
+    read-only somewhere else first and check that `longhorn-disk.cfg` carries the
+    `diskUUID` Longhorn has on record - if it does, `systemctl start
+    var-lib-longhorn.mount` is enough and no data is at risk. `longhorn-manager`
+    mounts `/var/lib/longhorn/` with `mountPropagation: Bidirectional`, so a host
+    mount reaches the containers and **no pod restart is needed**. The files Longhorn
+    wrote onto the root filesystem in the meantime are then hidden under the mount;
+    to delete them, `mount --bind / /mnt/rootfs` and remove them under that path.
 
 ### Prerequisites (installed 2026-04-11)
 
@@ -838,6 +902,39 @@ silent pass, and a volume younger than the window has not missed anything yet, b
 the job only runs once a day. Details in
 [scripts/README.md](https://github.com/Pironex9/homelab/blob/main/scripts/README.md).
 
+A third check was added on 2026-08-27, after the USB re-enumeration above: **step 5
+walks `nodes.longhorn.io` and fails on any node or disk whose `Ready` condition is not
+`True`.** The incident exposed a hole in the original design - with zero volumes on the
+cluster, steps 1 to 4 all pass and the script pushed a cheerful `up - no-volumes` while
+a third of the storage was out of service. Disk health is independent of whether there
+is anything to back up today, so it gets its own gate. The message carries the offending
+`node/path`, and a healthy run now reports the fleet size and free space:
+
+```
+== 5/5 Longhorn node-ok es lemezek ==
+  3 node, minden lemez Ready, 2288 GiB szabad
+```
+
+#### Two more monitors (2026-08-27)
+
+| Monitor | Type | Interval | What it answers |
+|---|---|---|---|
+| `cron: k3s-backup (LXC 109)` | push | 25 h | did the control-plane backup finish? |
+| `K3s helyszin (orangepione)` | ping | 1 h, 2 retries at 15 min | is there power and network at the remote site? |
+
+`k3s-backup.sh` had been the only cron line on LXC 109 without a Kuma push. It exits
+non-zero on failure, so the crontab uses the same `&& curl .../api/push/...?status=up`
+pattern as the other jobs: no push means no heartbeat means red. It went two days
+unnoticed on 2026-08-26 and 2026-08-27, failing with
+`ssh: connect to host opt5060-i5 port 22: Connection timed out` while the master was
+down, and only the log recorded it.
+
+The ping monitor targets the **Orange Pi's Tailscale address**, not a K3s node, for two
+reasons: it is an SBC with no BIOS AC-power gate, so it comes back first and by itself,
+and it makes the monitor a question about the *site* rather than about Kubernetes. The
+interval is deliberately slow - planned outages at that location run for hours, and a
+monitor that fires on every five-minute blip stops being read.
+
 #### The access key
 
 The repository is public, so the S3 key is not in it. It lives in the
@@ -857,6 +954,9 @@ terminal whose output is logged.
 - [x] Test PVC end-to-end - written, reattached to another node, checksum verified, cleanly torn down (2026-08-24)
 - [ ] Longhorn UI still only reachable via port-forward (no ingress)
 - [x] Fix the dual-default StorageClass durably - `.skip` file + patch, verified across a k3s restart (2026-08-24)
+- [x] Longhorn disk health in the daily check - added after the 2026-08-27 USB unmount (`longhorn-backup-check.sh` step 5)
+- [x] Out-of-band signal for the remote site - Kuma ping monitor on the Orange Pi (2026-08-27)
+- [ ] Verify `AC Power Recovery = Power On` in the BIOS of all three OptiPlexes - the master stayed down for 2 d 4 h after the 2026-08-25 outage while the workers returned a day earlier, so at least the master is not set
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
 - [ ] RBAC policies
