@@ -8,4 +8,8 @@ services:
       - /opt/uptime-kuma:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
     network_mode: host
+    extra_hosts:
+      # MagicDNS is off on this VPS, but the code-server monitor needs the
+      # tailnet hostname: Tailscale Serve rejects a plain-IP HTTPS request (SNI)
+      - "claude-mgmt.tailc6abe2.ts.net:100.98.146.14"
     restart: unless-stopped

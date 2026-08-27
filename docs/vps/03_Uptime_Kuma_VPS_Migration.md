@@ -249,7 +249,7 @@ All homelab services are monitored via their LAN IPs. The VPS can reach `192.168
 | Portfolio | HTTP | http://192.168.0.110:3008 | |
 | Odysseus | HTTP | http://192.168.0.71:7000 | agentos (LXC 113); accepts `["200-299", "302"]` |
 | Hermes | HTTP | http://192.168.0.71:8787 | agentos (LXC 113), Hermes WebUI; accepts `["200-299", "302"]` |
-| code-server | HTTP | http://100.98.146.14:8443 | claude-mgmt (LXC 109) - Tailscale-only, binds to its own Tailscale IP not the LAN IP; accepts `["200-299", "302"]` |
+| code-server | HTTP | https://claude-mgmt.tailc6abe2.ts.net/ | claude-mgmt (LXC 109) - goes through Tailscale Serve, so it also catches the Serve proxy disappearing (it did, silently, some time before 2026-08-27); accepts `["200-299", "302"]`. MagicDNS is off on the VPS and Serve rejects a plain-IP HTTPS request with a TLS alert, so the Kuma compose carries an `extra_hosts` entry mapping the name to `100.98.146.14` |
 | FreshRSS | HTTP | http://192.168.0.110:8083 | accepts `["200-299", "302"]` (login redirect) |
 | SuggestArr | HTTP | http://192.168.0.110:5000 | |
 | ntfy | HTTP | http://192.168.0.71:8091 | agentos (LXC 113), Odysseus sidecar |
