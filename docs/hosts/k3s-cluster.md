@@ -266,26 +266,32 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 
 ### WoL script
 
-**File:** `/usr/local/bin/wakeonlan.sh`
+**File:** `/home/nex/wakeonlan.sh` on the Orange Pi, owned by `nex`, not root.
+
+It used to live in `/usr/local/bin/` as a root-owned file, which meant every edit
+needed the `nex` sudo password - and `nex`'s passwordless sudo there covers only
+`/usr/sbin/etherwake` and the script itself, with no root SSH key on the box. Nothing
+in the script actually needs root: the UDP magic packet needs no privileges at all and
+`etherwake` is already NOPASSWD. So it moved into the home directory, where it can be
+maintained over SSH. The stale root-owned copy at `/usr/local/bin/wakeonlan.sh` is no
+longer referenced by anything and can be deleted next time a password prompt is handy.
 
 ```bash
 #!/bin/bash
 # K3s Cluster wake up script
 #
-# Two packet formats per MAC - see "Why the master never woke" below.
+# Two packet formats per MAC, over several rounds. Both decisions come from
+# measurement - see "Why the master never woke" below.
 
 MAC1="54:bf:64:68:a0:30"  # opt5060-i5  (Intel I219 - ONLY the UDP form wakes it)
 MAC2="54:bf:64:a2:ff:77"  # opt3060-i3  (Realtek RTL8168h)
 MAC3="d8:9e:f3:13:4d:97"  # opt3050-i5  (Realtek RTL8168h)
 INTERFACE="end0"
 BCAST="192.168.1.255"
+ROUNDS=6      # 6 rounds x 20 s = ~100 s of coverage
+GAP=20
 
-echo "Waking up nodes (etherwake + UDP magic packet)..."
-for MAC in $MAC1 $MAC2 $MAC3; do
-    for i in 1 2 3; do
-        sudo etherwake -i $INTERFACE $MAC
-        sleep 1
-    done
+send_udp() {
     python3 -c '
 import socket, sys
 mac, bcast = sys.argv[1], sys.argv[2]
@@ -294,15 +300,24 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 for port in (7, 9):
     s.sendto(pkt, (bcast, port))
-' "$MAC" "$BCAST"
-    echo "Sent 3x etherwake + 2x UDP to $MAC"
+' "$1" "$BCAST"
+}
+
+echo "Waking up nodes ($ROUNDS rounds, etherwake + UDP magic packet)..."
+for r in $(seq 1 $ROUNDS); do
+    for MAC in $MAC1 $MAC2 $MAC3; do
+        sudo etherwake -i $INTERFACE $MAC
+        send_udp "$MAC"
+    done
+    echo "  round $r/$ROUNDS sent"
+    [ "$r" -lt "$ROUNDS" ] && sleep $GAP
 done
 echo "Wake packets sent to all nodes"
 ```
 
 **Auto-start on boot** (`nex` user crontab):
 ```
-@reboot sleep 60 && /usr/local/bin/wakeonlan.sh
+@reboot sleep 60 && /home/nex/wakeonlan.sh
 ```
 
 Passwordless sudo configured for both `etherwake` and the script:
@@ -313,7 +328,7 @@ Passwordless sudo configured for both `etherwake` and the script:
 
 **Remote trigger from any Tailscale node:**
 ```bash
-ssh nex@orangepione "sudo /usr/local/bin/wakeonlan.sh"
+ssh nex@orangepione "/home/nex/wakeonlan.sh"
 ```
 
 ### WoL reliability notes
@@ -345,8 +360,28 @@ Timing on the first successful wake, from the machine's own side: `uptime -s` sa
 puts the power-on at ~14:45:06 UTC - two seconds after the UDP packet, and five minutes
 after the `etherwake` batch that did nothing.
 
-The fix is in `wakeonlan.sh` above: **both** formats go to every MAC. `etherwake` stays
-because it demonstrably works on the workers and costs nothing.
+**And a second, independent cause: timing.** A magic packet sent ~40 seconds after
+`systemctl poweroff` was simply lost - the deployed script fired that early on the
+fourth test cycle and the master stayed dark for 75 seconds. The identical packet sent
+2 to 5 minutes after shutdown woke it every time. The NIC does not arm its WoL filter
+the instant the OS stops; there is a window at the start of S5 where magic packets go
+nowhere. The exact threshold is somewhere between 40 s and 2.5 minutes and was not
+narrowed further - four power cycles on a remote machine was enough.
+
+This is very likely a large part of the historical "WoL is unreliable here", and it is
+why the script now sends **6 rounds 20 seconds apart** rather than one burst: with
+~100 seconds of coverage the timing does not have to be guessed.
+
+The fix is in `wakeonlan.sh` above: **both** formats, to every MAC, over several rounds.
+`etherwake` stays because it demonstrably works on the workers and costs nothing.
+
+!!! warning "The retrying version has not been proven against a powered-off machine"
+
+    The format and the timing were each proven on a live master. The 6-round script
+    that combines both was verified only to run cleanly end to end (no sudo prompt, all
+    rounds sent) - it has not itself been tested on a machine that was actually off,
+    because that would have needed a fifth power cycle after the `Auto On 17:30`
+    backstop had already passed for the day.
 
 Everything else was measured and ruled out first, rather than assumed:
 
@@ -1066,7 +1101,7 @@ kubectl top nodes
 kubectl cluster-info
 
 # Wake up cluster (from any Tailscale node)
-ssh nex@opi-one "sudo /usr/local/bin/wakeonlan.sh"
+ssh nex@orangepione "/home/nex/wakeonlan.sh"
 
 # SSH to nodes
 ssh nex@opt5060-i5
