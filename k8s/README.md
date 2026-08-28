@@ -720,3 +720,70 @@ local-path patch pontosan azert veszett el negy honapra, mert ez a lepes elmarad
 ```bash
 kubectl -n kube-system get deploy coredns -o jsonpath='{.spec.replicas}'
 ```
+
+## NetworkPolicy az `apps` namespace-ben (2026-08-28)
+
+Ket szabaly, ket fajlban. A tiltas a namespace-nel ul
+(`manifests/platform/namespace-apps.yaml`), az engedely az alkalmazasnal
+(`manifests/forgejo/networkpolicy.yaml`) - hogy egy uj app ne a Forgejo
+fajljabol kerjen maganak engedelyt, es hogy a Forgejo eltavolitasa a kivetelt
+vigye, a tiltast ne.
+
+| Szabaly | Mit tesz |
+|---|---|
+| `default-deny-ingress` | `podSelector: {}`, csak `Ingress`. Az `apps` minden podja zart befele |
+| `forgejo-allow-tailscale-ingress` | a Forgejo 3000-es portja nyitva EGY podnak: a Tailscale operator altal ehhez az Ingresshez generalt proxynak |
+
+Nem a teljes `tailscale` namespace-t engedjuk at, hanem a
+`tailscale.com/parent-resource: forgejo` cimkeju podot. A pod NEVE valtozik egy
+Ingress-ujraletrehozasnal (`ts-forgejo-99j4d-0`), a cimke nem.
+
+### Amit meg kellett merni, mielott ez felkerult
+
+**A kubelet probe-jai atmennek a default-deny alatt.** A k3s-io/k3s#10030 szerint
+egy default-deny megolte a liveness es readiness probe-okat, es az issue lezart
+allapotban van anelkul, hogy a javitas verzioja kiderulne. Eldobhato
+namespace-ben lemerve ezen a verzion (v1.36.4+k3s1, beepitett kube-router
+v2.6.3-k3s1): a pod **60 masodpercen at Ready maradt**, 5 masodperces
+probe-periodus es 2-es kuszob mellett - ha blokkolva lenne, 10 masodperc alatt
+kiesik. Tehat nincs szukseg node-kivetelre. Ha egy jovobeli k3s frissites utan
+egy pod a policy felrakasa utan ~10 masodperccel NotReady-re valt, ez az elso
+hely, ahova nezni kell.
+
+**Az `apps`-ba egyetlen ServiceMonitor sem nez bele**, tehat a Prometheusnak nem
+kell kivetel. Ha valaha kerul ide ServiceMonitor, ez a szabaly az elso, amit
+bovitni kell, kulonben a target csendben `down` lesz.
+
+**A netpol controller tenyleg fut**, ezt sem feltetelezzuk: a masteren 215
+`KUBE-ROUTER` iptables szabaly es `KUBE-NWPLCY-*` lancok vannak, a k3s log pedig
+kiirja: `Starting network policy controller version v2.6.3-k3s1`.
+
+### Ahogy bizonyitva lett
+
+Egy nem-ervenyesitett NetworkPolicy rosszabb a semminel, mert vedelemnek latszik.
+Ezert a proba MINDKET iranyt merte, es a sorrend szamit:
+
+1. policy **elott** egy masik namespace podja eleri a `forgejo.apps.svc:3000`-et
+   (enelkul a "mar nem eri el" semmit nem bizonyitana)
+2. policy **utan** ugyanaz a pod nem eri el
+3. a Forgejo a tailneten valtozatlanul HTTP 200
+4. a pod `Ready`, ujrainditasok szama **0**
+
+A kube-router nehany masodperc alatt forditja a policyt iptables szabalyokra, a
+merest tehat nem szabad azonnal elvegezni - a proba ezert var a tiltas
+megjelenesere.
+
+### Amit szandekosan NEM tilt
+
+**Az egress szabad marad.** A Forgejonak DNS kell, es kesobb git remote, webhook
+vagy avatar-lekeres is jöhet; egy egress-tiltas most tobbet torne el, mint
+amennyit vedene.
+
+**A tobbi namespace nyitva.** A `monitoring` a kovetkezo jelolt, de ott tobb a
+mozgo alkatresz: a Prometheusnak minden namespace-t el kell ernie, a Grafana a
+tailneten van, es az operator mindharommal beszel. A `kube-system` es a
+`tailscale` szandekosan marad ki - a coredns-t minden pod hivja, a Tailscale
+proxykhoz pedig host szintu forgalom erkezik.
+
+Az `argocd` (7 szabaly) es a `longhorn-system` (6) sajat NetworkPolicykat hoz a
+Helm chartjabol; azokat nem mi irtuk es nem is nyulunk hozzajuk.

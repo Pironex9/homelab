@@ -973,7 +973,7 @@ was wrong in the direction that matters: it claimed a control that does not exis
 | WoL only on local network | Yes |
 | K3s RBAC | Default (not hardened) |
 | Secrets encryption at rest | **Enabled 2026-08-28**, AES-CBC, all 39 secrets re-encrypted. See the section below for what it does and does not protect |
-| Network policies | Partial: 7 in `argocd`, 6 in `longhorn-system`, both shipped by their Helm charts. `apps`, `monitoring`, `kube-system`, `system-upgrade` and `tailscale` have none |
+| Network policies | Partial: `apps` is default-deny ingress since 2026-08-28 with one explicit allow, and 13 more come from the `argocd` and `longhorn-system` Helm charts. `monitoring`, `kube-system`, `system-upgrade` and `tailscale` still have none. Enforcement verified, not assumed - see below |
 | Pod Security Standards | Partial: `apps` is `baseline`, `system-upgrade` is `privileged`. The other eight namespaces are unlabelled, `monitoring` deliberately so - node-exporter needs `hostNetwork` and `hostPath` |
 
 ---
@@ -1642,6 +1642,66 @@ worse than no check.
 
 ---
 
+## NetworkPolicy on the workload namespace (2026-08-28)
+
+`apps` is default-deny ingress, with exactly one hole: the Tailscale proxy pod that
+serves the Forgejo Ingress. Two files, on purpose - the deny sits with the namespace
+(`k8s/manifests/platform/namespace-apps.yaml`), the allow sits with the application
+(`k8s/manifests/forgejo/networkpolicy.yaml`). A future app in `apps` should not be
+taking its permission out of Forgejo's file, and removing Forgejo should take its
+exception with it and leave the deny standing.
+
+The allow does not open the whole `tailscale` namespace. It names the pod by the labels
+the operator puts on it - `tailscale.com/parent-resource: forgejo` - which survive an
+Ingress being recreated, while the pod name (`ts-forgejo-99j4d-0`) does not.
+
+### Three things measured before writing any of it
+
+**The controller is actually running.** k3s enforces NetworkPolicy through a built-in
+kube-router; if it were disabled, every policy here would be decoration. The master has
+215 `KUBE-ROUTER` iptables rules and `KUBE-NWPLCY-*` chains, and the log says
+`Starting network policy controller version v2.6.3-k3s1`.
+
+**Kubelet probes survive a default-deny.** [k3s-io/k3s#10030](https://github.com/k3s-io/k3s/issues/10030)
+reports a default-deny killing liveness and readiness probes, and the issue is closed
+without the fix version being obvious. Trying that on the live Forgejo would have been
+expensive: three failed liveness probes restart the pod, and that pod runs an SQLite
+database. So it was measured in a throwaway namespace instead - the pod stayed `Ready`
+for a full 60 seconds under default-deny, with a 5-second probe period and a threshold
+of 2, where a block would have shown within 10 seconds. No node exemption needed on this
+version.
+
+**Nothing scrapes into `apps`.** All nine ServiceMonitors live in `monitoring` and none
+targets `apps`, so Prometheus needs no exception. The day a ServiceMonitor does point
+here, this policy is the first thing to widen, or the target goes `down` quietly.
+
+### Proving it, in both directions
+
+A NetworkPolicy nobody tested is the same shape of mistake as the firewall row in the
+table above: a control that reads as protection and is not one. So the check ran both
+ways, in this order:
+
+1. **before** the policy, a pod in another namespace reaches `forgejo.apps.svc:3000` -
+   without this step, "it cannot reach it" proves nothing
+2. **after** the policy, the same pod cannot
+3. Forgejo still answers HTTP 200 on the tailnet
+4. the pod is `Ready` with **0 restarts**
+
+kube-router takes a few seconds to turn a new policy into iptables rules, so measuring
+immediately after `kubectl apply` gives a false "still reachable".
+
+### What is deliberately left open
+
+Egress. Forgejo needs DNS, and git remotes, webhooks or avatar fetches may follow; an
+egress policy today would break more than it protects.
+
+And the other namespaces. `monitoring` is the next candidate but has more moving parts -
+Prometheus has to reach every namespace, Grafana is on the tailnet, and the operator
+talks to all three. `kube-system` and `tailscale` stay out on purpose: every pod calls
+coredns, and the Tailscale proxies receive host-level traffic.
+
+---
+
 ## Secrets encryption at rest (2026-08-28)
 
 Until this day every Secret sat in `state.db` as plaintext protobuf: the Telegram bot
@@ -1840,7 +1900,8 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [x] Volume backup target - Garage S3 on LXC 100, backup and restore verified (2026-08-25), re-verified on a live application volume with an open SQLite database (2026-08-28)
 - [x] Actually restore a control-plane backup, not just decrypt one - **done 2026-08-28**, `scripts/k3s-restore-test.sh`: API up in 6 s, nothing missing, three traps found on the way
 - [x] Secrets encryption at rest - **done 2026-08-28** after the restore proof, deliberately in that order. AES-CBC, all 39 secrets re-encrypted, verified by reading the raw kine values. Protects a leaked database, not a stolen disk - the key sits on the same disk
-- [ ] NetworkPolicy for the five uncovered namespaces (`apps`, `monitoring`, `kube-system`, `system-upgrade`, `tailscale`) - `argocd` and `longhorn-system` already have 13 between them from their Helm charts
+- [x] NetworkPolicy on `apps` - **done 2026-08-28**, default-deny ingress plus one allow for the Tailscale proxy pod. Enforcement proven in both directions; probes measured to survive default-deny on this k3s version
+- [ ] NetworkPolicy for `monitoring` - the next candidate, and the harder one: Prometheus must reach every namespace, Grafana is on the tailnet, the operator talks to all three. `kube-system` and `tailscale` stay out on purpose
 - [ ] Velero backup (cluster-object backup; the volume half is covered by Longhorn + Garage)
 - [x] First workload deployment - Forgejo 16.0.3 on a 10 GiB Longhorn volume behind a Tailscale Ingress (2026-08-28), see `k8s/README.md`
 

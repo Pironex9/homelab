@@ -35,3 +35,31 @@ spec:
       defaultRequest:
         cpu: 50m
         memory: 64Mi
+---
+# Alapertelmezett tiltas BEFELE. Enelkul a cluster barmelyik podja eleri az itt
+# futo alkalmazasokat kozvetlenul, a Service es az Ingress megkerulesevel.
+#
+# Csak Ingress: a kimeno forgalom szandekosan szabad marad. A Forgejonak
+# DNS kell, es kesobb git remote, webhook vagy avatar-lekeres is jöhet - egy
+# egress-tiltas tobbet torne el most, mint amennyit vedene.
+#
+# A KUBELET PROBE-OK ATMENNEK EZEN, es ez merve van, nem feltetelezve. A
+# k3s-io/k3s#10030 szerint egy default-deny megolte a liveness es readiness
+# probe-okat; ezen a verzion (v1.36.4+k3s1, beepitett kube-router v2.6.3-k3s1)
+# 2026-08-28-an eldobhato namespace-ben lemerve a pod 60 masodpercen at Ready
+# maradt, 5 masodperces probe-periodus es 2-es kuszob mellett. Ha egy jovobeli
+# k3s frissites utan egy pod a policy felrakasa utan ~10 masodperccel NotReady-re
+# valt, ez az elso hely, ahova nezni kell.
+#
+# Ami ATENGEDVE van, az a Forgejo sajat NetworkPolicy-jaban ul, a
+# k8s/manifests/forgejo/networkpolicy.yaml-ben - hogy egy uj alkalmazas ne
+# ebbol a fajlbol kerjen engedelyt maganak.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: apps
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

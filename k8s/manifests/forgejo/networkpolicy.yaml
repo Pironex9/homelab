@@ -1,0 +1,43 @@
+---
+# A Forgejo kivetele az `apps` namespace default-deny-ingress szabalya alol.
+# A tiltas maga a k8s/manifests/platform/namespace-apps.yaml-ben ul; ott a
+# namespace szabalya, itt az alkalmazas sajat engedelye. Ha a Forgejo egyszer
+# lekerul, ez a kivetel is vele megy, a tiltas pedig marad.
+#
+# AKI ELERI, AZ EGYETLEN DOLOG: a Tailscale operator altal generalt proxy pod.
+# Nem a teljes `tailscale` namespace-t engedjuk at, hanem pontosan azt a podot,
+# amit az operator EHHEZ az Ingresshez keszitett. A cimkeket az operator teszi
+# ra, es egy Ingress-ujraletrehozast is tulelnek - a pod NEVE valtozik
+# (ts-forgejo-99j4d-0), a parent-resource cimke nem.
+#
+# Merve 2026-08-28-an, a policy elott: az `apps` namespace-be EGYETLEN
+# ServiceMonitor sem nez bele, tehat a Prometheusnak nem kell kivetel. Ha
+# valaha kerul ide ServiceMonitor, ez a szabaly az elso, amit bovitni kell,
+# kulonben a target csendben `down` lesz.
+#
+# Az Argo CD nem szerepel itt es nem is kell: az az API szerverrel beszel, nem
+# a podokkal. A Longhorn sem: a kotet csatolasa node szinten tortenik.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: forgejo-allow-tailscale-ingress
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels:
+      app: forgejo
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tailscale
+          podSelector:
+            matchLabels:
+              tailscale.com/parent-resource: forgejo
+              tailscale.com/parent-resource-ns: apps
+              tailscale.com/parent-resource-type: ingress
+      ports:
+        - protocol: TCP
+          port: 3000
