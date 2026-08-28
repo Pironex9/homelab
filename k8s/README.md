@@ -408,6 +408,18 @@ tehat ha kesobb keszul a Secret, magatol helyreall.
 A `monitoring` namespace **szandekosan nem kap PSA cimket**, ellentetben az `apps`-szal:
 a node-exporter `hostNetwork`-ot es `hostPath`-ot hasznal, amit a `baseline` elutasitana.
 
+### Mit talalt az elso napjan
+
+`NodeClockNotSynchronising` a masteren, es valodi volt: az ora **0.687 masodpercet
+sietett, korrekcio nelkul**. A DHCP a router IPv6 link-local cimet adta NTP szervernek,
+ami interfesz-hatokor nelkul elerhetetlen, a `FallbackNTP` pedig sosem kerult sorra,
+mert a systemd csak akkor nyul hozza, ha EGYETLEN szerver sincs konfiguralva.
+
+A teljes meres es a javitas a `docs/hosts/k3s-cluster.md` "Clock synchronisation"
+szakaszaban. Itt csak a lenyeg: **ez a stack elso napjan talalt egy hibat, ami havak ota
+allt fenn es `date -u`-val nem latszott** - 0.687 masodperc a `date` egy masodperces
+felbontasa alatt van.
+
 ### Az Alertmanager fut, de meg nem szol sehova
 
 Be van kapcsolva, mert a chart alapertelmezett riasztasi szabalyai a stack fo erteke -

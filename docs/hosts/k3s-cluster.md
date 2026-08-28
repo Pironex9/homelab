@@ -1551,6 +1551,87 @@ terminal whose output is logged.
 
 ---
 
+## Clock synchronisation: found by the monitoring stack on day one (2026-08-28)
+
+`kube-prometheus-stack` went in and immediately raised `NodeClockNotSynchronising`
+against the master. It was real.
+
+### The measurement
+
+Four independent probes agreed on the drift to within 20 ms:
+
+| Probe from `opt5060-i5` | Result |
+|---|---|
+| router IPv6 link-local, no scope | `TimeoutError` - **this is what timesyncd was doing** |
+| router IPv6 link-local, `scope=eno1` | answers, offset **-0.687 s**, 1 ms RTT |
+| router IPv4 `192.168.1.1` | answers, stratum 2, offset **-0.687 s**, 1 ms RTT |
+| `ntp.ubuntu.com` / `pool.ntp.org` | answer, offset **-0.668 s** / **-0.683 s** |
+
+The master's clock was **0.687 s fast and free-running** - `node_timex_sync_status=0`,
+`Frequency=0`, no correction being applied at all.
+
+### Why, exactly
+
+DHCP hands out the router's **IPv6 link-local** address as the NTP server
+(`fe80::62d8:a4ff:fe2c:a93f`, derived from the router MAC `60:d8:a4:2c:a9:3f`). A
+link-local address needs an interface scope; without one the packet goes nowhere. That
+is what the master's journal had been logging every 34 minutes:
+
+```
+systemd-timesyncd: Timed out waiting for reply from [fe80::62d8:a4ff:fe2c:a93f]:123
+```
+
+**The router is not at fault** - the workers reach it fine (`Contacted time server`,
+stratum 2, jitter ~200 µs). And `FallbackNTPServers=ntp.ubuntu.com` was configured but
+never used, because:
+
+!!! warning "A configured-but-dead NTP server blocks the working fallback"
+    systemd only falls back to `FallbackNTP=` when **no** server is configured at all.
+    One unreachable DHCP-provided server is enough to keep a perfectly good fallback
+    from ever being tried. A non-empty server list looks like success from the outside.
+
+### The fix
+
+A drop-in, so the original `timesyncd.conf` stays untouched and the rollback is one
+`rm`. Applied to all three nodes, because the workers depend on the same fragile
+construction - `opt3050-i5` also has timeouts in its journal, it just gets through
+sometimes:
+
+```bash
+sudo mkdir -p /etc/systemd/timesyncd.conf.d
+printf '[Time]\nNTP=192.168.1.1\n' | sudo tee /etc/systemd/timesyncd.conf.d/10-router-ipv4.conf
+sudo systemctl restart systemd-timesyncd
+```
+
+The router's IPv4 address needs no scope, keeps the traffic local (1 ms) and adds no
+internet dependency. Result, re-measured against `pool.ntp.org` - a server the node does
+*not* sync to, so it is an independent check:
+
+```
+opt5060-i5   NTPSynchronized=yes   ServerAddress=192.168.1.1
+opt3060-i3   NTPSynchronized=yes   ServerAddress=192.168.1.1
+opt3050-i5   NTPSynchronized=yes   ServerAddress=192.168.1.1
+
+master offset   -0.687 s  ->  +0.0024 s
+```
+
+Rollback if anything looks wrong: delete that one file and restart the service. This is
+safe to do at a site with no out-of-band access - `systemd-timesyncd` is not part of the
+network stack, so a bad config cannot make a node unreachable.
+
+!!! danger "`date -u` agreeing does not prove the clocks are synchronised"
+    This page previously recorded that the workers run UTC and the master runs CEST, and
+    that `date -u` showed all three in agreement - so the two-hour difference was only a
+    timezone display artefact, not drift. That was true and also **hid this problem**.
+
+    A 0.687 s offset is invisible at `date`'s one-second granularity. The timezone
+    difference is still cosmetic; the sync status was not, and only
+    `timedatectl` / `node_timex_sync_status` showed it.
+
+Not yet in Ansible: this was applied by hand. The `ansible/` layer uses the
+`k3s-io/k3s-ansible` collection, which does not manage NTP, so it would need a custom
+task. Until then, a rebuilt node will come back with the broken DHCP-provided server.
+
 ## Planned
 
 - [x] DHCP reservations on router (prevent IP drift) - **lost 2026-08-23**, see the subnet note
@@ -1573,6 +1654,8 @@ terminal whose output is logged.
 - [x] Scale `coredns` to 2 replicas - **done 2026-08-28**. Not via a `.skip` file: k3s's bundled `coredns.yaml` has no `replicas` field at all, so re-applying it does not reset the count. Re-check after the next k3s restart anyway - that check is exactly what was skipped in April, which is why the local-path patch silently reverted for four months
 - [ ] k3s is one patch ahead of the release channel on all three hops (v1.36.4 vs `stable` v1.36.3) - cannot be undone, wait for the channel to catch up
 - [x] Prometheus + Grafana monitoring stack - **kube-prometheus-stack 88.6.0 under Argo CD (2026-08-28)**, `https://grafana.tailc6abe2.ts.net`, details in `k8s/README.md`
+- [x] Fix NTP on the k3s nodes - **done 2026-08-28**, found by the new monitoring stack on its first day; master was 0.687 s fast with no correction
+- [ ] Move the NTP drop-in into Ansible - applied by hand, so a rebuilt node returns to the broken DHCP-provided IPv6 link-local server
 - [ ] Route Alertmanager somewhere - it runs, but no receiver is configured, so alerts are only visible in its own UI. Needs a webhook URL, so an out-of-band Secret
 - [x] Longhorn UI reachable without port-forward - `https://longhorn.tailc6abe2.ts.net` (2026-08-28). **It has no authentication**; the tailnet is the only thing protecting it
 - [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly
