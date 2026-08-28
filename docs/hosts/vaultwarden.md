@@ -77,8 +77,25 @@ container is not Docker.
 | `WEB_VAULT_FOLDER` | `/usr/share/webapps/vaultwarden-web` | separate `apk` package |
 | `ROCKET_ADDRESS` | `0.0.0.0` | so Caddy on another host can reach it |
 | `SIGNUPS_ALLOWED` | `false` | single-user instance, closed after setup |
-| `ADMIN_TOKEN` | (in the password manager) | admin panel |
+| `ADMIN_TOKEN` | empty | admin panel **disabled** - see below |
 | `DOMAIN` | the public HTTPS URL | see below - not optional |
+
+### The admin panel is off, and that is the setting
+
+`ADMIN_TOKEN` is an empty string, which is not an unfinished setup: Vaultwarden
+treats an empty token as "disabled" and `/admin` answers
+
+```
+The admin panel is disabled, please configure the 'ADMIN_TOKEN' variable to enable it
+```
+
+Verified by request, because a `curl` on `/admin` returns **200** either way -
+the status code alone does not tell you whether the panel is live.
+
+Everything the panel would do (user management, diagnostics, config) has to be
+done from `/etc/conf.d/vaultwarden` plus a service restart instead. If it is ever
+enabled, the token must be an Argon2 PHC hash (`vaultwarden hash`), not a plain
+string: a plain token is compared on every request and is brute-forceable.
 
 ### `DOMAIN` is load-bearing for clients, invisible in a browser
 
@@ -125,8 +142,33 @@ Full layout: [15 - Backup System](../proxmox/15_Proxmox_Backup_System_Documentat
   server does not have yet. The symptom is a login that fails at the prelogin
   step while the web vault still works. Check the installed version against the
   client's expectations before assuming the container is broken.
+
+  This is not hypothetical here. As of 2026-08-28 the installed server is
+  **1.37.0** and upstream **1.37.2** (released 2026-08-22) states plainly:
+  *"This update is required for support with clients with version 2026.8.0+"*.
+  The installed web vault is further behind, `1.35.4-r0` against `1.37.2-r0` in
+  the repository. Nothing is broken today; it breaks on whichever day a client
+  auto-updates past 2026.8.0.
+- **`apk upgrade` here is a distro jump, not a patch.** `/etc/apk/repositories`
+  points at `latest-stable`, which now serves **Alpine 3.24.1** while the
+  container runs **3.23.3**. A bare `apk upgrade` would move the whole userland
+  a release forward on the machine holding every credential in the homelab. Pin
+  the package instead:
+
+  ```bash
+  # from pve, after a fresh vzdump of 103
+  pct exec 103 -- apk add --upgrade vaultwarden vaultwarden-openrc vaultwarden-web-vault
+  pct exec 103 -- rc-service vaultwarden restart
+  ```
+
+  Rollback if the restart fails or clients stop authenticating: stop the
+  container, restore the `vzdump` tarball from `/mnt/storage/backup/proxmox/dump`
+  over VMID 103, and start it. The container is 54 MB compressed and holds no
+  state anything else depends on, so the restore is complete and takes under a
+  minute. Take that dump *before* the upgrade rather than relying on the 02:00
+  job, which may be up to 24 hours old.
 - **The container is 1 GB.** It has room for a password database and little else;
-  logs go to `/var/log/vaultwarden`.
+  logs go to `/var/log/vaultwarden`. Currently 21% used, 7.4 MB of data.
 - `nesting=1,keyctl=1` are set on the container, which the community script
   requires on Alpine.
 
