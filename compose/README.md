@@ -2,19 +2,44 @@
 
 ## Structure
 
-### proxmox-lxc-100/
-Services running on LXC 100 (docker-host):
+One directory per host, one directory per stack under it. 32 Compose Stacks in
+total, counted the way `CONTEXT.md` defines the unit: a directory holding a
+compose file, in any of its three spellings. `compose/vps/landing/build.sh`
+derives the number the same way and prints it on the public landing page, so a
+stack added here moves that figure on the next build.
+
+### proxmox-lxc-100/ (24)
+Services on LXC 100 (docker-host), the main Docker host:
 - Media: Jellyfin, Radarr, Sonarr, Prowlarr, qBittorrent, Seerr, SuggestArr
-- Photos & library: Immich, Calibre-Web-Automated
-- Productivity: FreshRSS, Syncthing, BentoPDF
-- Monitoring & management: Dockge, Dozzle, Homepage, Uptime Kuma, Scrutiny
+- Books & photos: Immich, Calibre-Web-Automated, Shelfmark
+- Productivity: FreshRSS, Syncthing, BentoPDF, DocuSeal, Form, Kan, Dawarich
+- Sites: Homepage, Portfolio, Homelable, Topology
+- Storage & monitoring: Garage (S3, the Longhorn backup target), Scrutiny
 - Notifications: Notifiarr
 
-### nobara/
-Desktop services on Nobara workstation:
-- Open WebUI + AnythingLLM
-- Ollama with GPU acceleration (not 24/7 - for heavy inference)
-- Note: A second Ollama instance runs on LXC 108 (always on, CPU, integrated with n8n)
+`uptime-kuma/` under this host is a leftover holding only a gitignored `.env`;
+Kuma itself moved to the VPS. It has no compose file, so it is not a Compose
+Stack and `build.sh` deliberately does not count it.
+
+One more stack runs on this host without living here: `rails-lab`, at
+`/opt/rails-lab` on LXC 100. That is deliberate and documented in
+[29 - Rails Learning Lab](../docs/proxmox/29_Rails_Learning_Lab.md) - a
+throwaway sandbox with no proxy, no backups and no Komodo management.
+
+### proxmox-lxc-106/ (1)
+Karakeep on LXC 106, migrated off a community-script source install on
+2026-08-13. AI tagging runs on Gemini, not a local Ollama.
+
+### proxmox-lxc-109/ (1)
+code-server on claude-mgmt (LXC 109), reachable over Tailscale only.
+
+### vps/ (3)
+Hetzner VPS: Pangolin (the public reverse proxy), Uptime Kuma, and the
+`landing` static site behind it.
+
+### nobara/ (3)
+GPU services on the Nobara workstation, not 24/7: `codeformer`, `deoldify` and
+`immich-ml`, which serves Immich's machine learning back to LXC 100.
 
 ## Conventions
 
