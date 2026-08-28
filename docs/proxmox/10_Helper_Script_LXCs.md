@@ -17,7 +17,7 @@ A self-hosted Docker management platform used to manage, deploy, and monitor all
 > **Note:** As of March 2026, Komodo has been migrated to an addon script in community-scripts. The LXC 105 was created with the original LXC script before this migration.
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/komodo-core.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/komodo.sh)"
 ```
 
 ### Updating

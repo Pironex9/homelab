@@ -88,6 +88,7 @@ nav:
           - Docker Host (LXC 100): hosts/docker-host.md
           - Home Assistant (VM 101): hosts/haos.md
           - AdGuard Home (LXC 102): hosts/adguard.md
+          - Vaultwarden (LXC 103): hosts/vaultwarden.md
           - Komodo (LXC 105): hosts/komodo.md
           - Karakeep (LXC 106): hosts/karakeep.md
           - n8n (LXC 107): hosts/n8n.md

@@ -16,8 +16,14 @@ Vaultwarden is a self-hosted Bitwarden-compatible password manager running on Al
 Installed via Proxmox Community Scripts (Alpine variant):
 
 ```bash
-bash -c "$(wget -qO - https://github.com/community-scripts/ProxmoxVE/raw/main/ct/alpine-vaultwarden.sh)"
+bash -c "$(wget -qO - https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/vaultwarden.sh)"
 ```
+
+The separate `alpine-vaultwarden.sh` this container was originally built from no
+longer exists; the script above replaced it and now prompts for the OS
+("Choose the container OS: debian / alpine"). Pick **alpine** to get what is
+running here. The old URL 404s, so a copy-paste of the original command fails
+outright rather than quietly installing the Debian variant.
 
 ## LXC Specifications
 

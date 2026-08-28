@@ -7,6 +7,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [docker-host](./hosts/docker-host.md) - Primary Docker host (LXC 100) - 18 stacks, GPU passthrough, Komodo integration
 - [haos](./hosts/haos.md) - Home Assistant OS VM (VM 101) - Zigbee2MQTT, MQTT, REST API
 - [adguard](./hosts/adguard.md) - AdGuard Home (LXC 102) - DNS, blocklists, Quad9 DoH/DoT
+- [vaultwarden](./hosts/vaultwarden.md) - Vaultwarden (LXC 103) - password manager, Alpine, no SSH by design
 - [komodo](./hosts/komodo.md) - Komodo (LXC 105) - GitOps deployment management, Periphery agents
 - [karakeep](./hosts/karakeep.md) - Karakeep (LXC 106) - bookmarking, AI tagging with local Ollama
 - [n8n](./hosts/n8n.md) - n8n (LXC 107) - workflow automation, Claude Code MCP integration
@@ -111,5 +112,5 @@ The K3s cluster's own code layers. The live cluster state lives on the
 - [homelabor.net](https://homelabor.net/) - infrastructure overview
 - [Proxmox Documentation](https://pve.proxmox.com/pve-docs/)
 - [Docker Documentation](https://docs.docker.com/)
-- [Komodo Documentation](https://komo.do/docs)
+- [Komodo Documentation](https://komo.do/docs/intro)
 - [LinuxServer.io Images](https://docs.linuxserver.io/)

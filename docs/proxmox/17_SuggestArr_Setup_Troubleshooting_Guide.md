@@ -336,4 +336,4 @@ ports:
 3. **Base URL subpath** - Known to cause routing issues, leave empty
 4. **Session token expiry** - the Jellyseerr session cookie SuggestArr uses for `/service/sonarr|radarr` detail lookups can go stale for months without SuggestArr noticing or refreshing it; the resulting 403 is worded like a permissions error but isn't - see Bug #3
 
-**Bug Reports:** Submit to https://github.com/ciuse99/suggestarr/issues
+**Bug Reports:** Submit to https://github.com/giuseppe99barchetta/SuggestArr/issues

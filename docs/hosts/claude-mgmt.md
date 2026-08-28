@@ -223,7 +223,7 @@ curl -s "https://raw.githubusercontent.com/homeassistant-ai/skills/main/skills/h
 
 ## Memsearch plugin: recap token budget and vector store
 
-The [memsearch](https://github.com/memsearch-plugins) plugin gives Claude Code semantic recall over past sessions. Its `SessionStart` hook also injects a "Recent Memory" recap of the most recent daily journals into **every** session start, including `--resume`. That injection is invisible in normal use and is paid for on every single start.
+The [memsearch](https://github.com/zilliztech/memsearch) plugin gives Claude Code semantic recall over past sessions. Its `SessionStart` hook also injects a "Recent Memory" recap of the most recent daily journals into **every** session start, including `--resume`. That injection is invisible in normal use and is paid for on every single start.
 
 Measured on this machine, stock settings cost **10.5 KB, roughly 2650 tokens**, per session start - more than the entire hand-written memory index it sits next to.
 

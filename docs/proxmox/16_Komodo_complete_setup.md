@@ -612,7 +612,7 @@ pct config 100
 
 ## Resources
 
-- [Komodo Documentation](https://komo.do/docs)
+- [Komodo Documentation](https://komo.do/docs/intro)
 - [Komodo GitHub](https://github.com/moghtech/komodo)
 - [Proxmox Community Scripts](https://community-scripts.github.io/ProxmoxVE/)
 - [Komodo Community Script](https://community-scripts.github.io/ProxmoxVE/scripts?id=komodo)
