@@ -286,6 +286,22 @@ trivial - not in the middle of a minor.
 Most of hop 1's 440 s was pulling the `rancher/k3s-upgrade` image for the first time.
 The later hops are the honest steady-state number: **3 to 4 minutes per hop**.
 
+### The `version` field is not the image tag
+
+The Plan takes `version: v1.36.4+k3s1`, with a **plus**. The SUC turns that into the
+image tag `v1.36.4-k3s1`, with a **hyphen**, because a `+` is not legal in a Docker tag.
+
+A typo here does not fail loudly - the plan just sits there while the job's pod cannot
+pull. Check that the tag exists before committing:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  https://hub.docker.com/v2/repositories/rancher/k3s-upgrade/tags/v1.36.4-k3s1
+```
+
+`200` means the tag is published. All three tags used on 2026-08-28 were checked this
+way first.
+
 ### What to check between hops
 
 ```bash

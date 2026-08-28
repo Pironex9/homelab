@@ -16,7 +16,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
 - [kan](./hosts/kan.md) - Kan kanban board (Docker stack on LXC 100) - self-hosted Trello alternative, PostgreSQL
 - [agentos](./hosts/agentos.md) - Hermes + Odysseus agentic OS layer (LXC 113) - local Ollama primary, DeepSeek fallback, restricted Claude Code delegation
-- [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, Longhorn, Ansible-managed config layer, WoL, Tailscale access
+- [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, Longhorn, Ansible-managed config layer, GitOps version upgrades via system-upgrade-controller, WoL, Tailscale access
 - [vps](./hosts/vps.md) - Hetzner VPS (CX23) - Pangolin reverse proxy, Komodo managed via Tailscale
 
 ### Retired
