@@ -19,6 +19,19 @@ services:
       - ./images/background.webp:/app/public/images/background.webp:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/storage:/mnt/storage:ro
+    # A K3s cluster negy webfelulete Tailscale Ingressen keresztul erheto el, es
+    # ezt a negy nevet a LXC 100 NEM tudja feloldani: a tailscaled itt
+    # `accept-dns=false`-szal fut, szandekosan (lasd a tailnet DNS szabalyt a
+    # docs/proxmox/31-ben), tehat nincs MagicDNS. Nev nelkul viszont a
+    # siteMonitor nem mukodik: a Tailscale Ingress SNI alapjan valaszt, ezert a
+    # nyers tailnet IP-re kuldott keres TLS szinten elhasal - a TCP kapcsolat
+    # felall, a curl megis 000-t ad, ami "halott szolgaltatas"-nak latszik.
+    # Ez a negy sor csak ebben a konteneben old fel nevet, a host DNS-ehez nem nyul.
+    extra_hosts:
+      - "argocd.tailc6abe2.ts.net:100.87.160.51"
+      - "longhorn.tailc6abe2.ts.net:100.127.135.123"
+      - "grafana.tailc6abe2.ts.net:100.73.118.70"
+      - "forgejo.tailc6abe2.ts.net:100.99.251.110"
     ports:
       - 3002:3000
     restart: unless-stopped

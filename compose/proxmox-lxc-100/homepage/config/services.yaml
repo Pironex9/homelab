@@ -150,6 +150,36 @@
             siteMonitor: http://192.168.0.71:6969/api/health
             statusStyle: dot
 
+- K3s:
+    # A negy webfelulet a 3 node-os K3s clusteren, mind Tailscale Ingressen.
+    # A `href` tailnet nev: csak tailnetes eszkozrol nyilik meg, LAN-rol nem -
+    # ez szandekos, nem hiba. A `siteMonitor` ugyanaz a nev, es a homepage
+    # konteneben az `extra_hosts` oldja fel (lasd a compose fajlt).
+    - Argo CD:
+        icon: argo-cd.png
+        href: https://argocd.tailc6abe2.ts.net
+        description: GitOps for the cluster contents (app-of-apps)
+        siteMonitor: https://argocd.tailc6abe2.ts.net
+        statusStyle: dot
+    - Longhorn:
+        icon: longhorn.png
+        href: https://longhorn.tailc6abe2.ts.net
+        description: Distributed block storage - volumes, replicas, backups
+        siteMonitor: https://longhorn.tailc6abe2.ts.net
+        statusStyle: dot
+    - Grafana:
+        icon: grafana.png
+        href: https://grafana.tailc6abe2.ts.net
+        description: kube-prometheus-stack dashboards
+        siteMonitor: https://grafana.tailc6abe2.ts.net
+        statusStyle: dot
+    - Forgejo:
+        icon: forgejo.png
+        href: https://forgejo.tailc6abe2.ts.net
+        description: Git hosting - first workload on a Longhorn volume
+        siteMonitor: https://forgejo.tailc6abe2.ts.net
+        statusStyle: dot
+
 - Media:
     - Jellyfin:
         icon: jellyfin.png

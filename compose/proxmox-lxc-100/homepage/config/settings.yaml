@@ -59,6 +59,13 @@ layout:
       style: row
       columns: 6
 
+  # Negy szolgaltatas, nincs alatta Links-sav: a cluster egesz webfelulete
+  # ennyi. `columns: 4` = az elemszam, ahogy minden mas csoportnal.
+  K3s:
+    icon: mdi-kubernetes
+    style: row
+    columns: 4
+
   Media:
     icon: mdi-play-circle
     style: row
