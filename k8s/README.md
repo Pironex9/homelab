@@ -182,6 +182,40 @@ Ket **Secret** sem gitbol jon, mert a repo publikus: a Tailscale operator OAuth
 hitelesito adatai (lasd fentebb) es a `forgejo-secrets` (lasd lentebb). Mindketto
 kezzel keszul, egyszer, es a `/root/.secrets/` alatt marad a 109-en.
 
+## Kiprobalni push elott, aztan hagyni, hogy az Argo CD atvegye
+
+Egy `git push` GitOps mellett **deploy**, es a visszavonasa egy ujabb commit plusz
+egy reconcile-ciklus - eles workload mellett ez rossz hely a "nezzuk meg, mi
+tortenik" kiserletnek. A mai NetworkPolicynel es elotte a monitoring
+ertekeinel is ez a sorrend valt be:
+
+1. `kubectl apply -f <a repobol, meg commit nelkul>`
+2. megmerni, hogy azt csinalja-e, amit varunk
+3. ha nem: `kubectl delete`, es a clusterben nyoma sem marad
+4. ha igen: commit es push, es az Argo CD **atveszi** a mar futo objektumot
+
+A 4. lepes azert mukodik, mert az Argo CD nem a letrehozas tenyet nezi, hanem a
+tartalmat: ha a gitbol jovo manifest megegyezik a mar ott levovel, nem hoz letre
+masodikat, hanem raírja a sajat nyomkovetesét. Kezzel felrakott, de gitben nem
+szereplo objektumot viszont NEM prunol - nincs rajta nyomkovetes, tehat az
+alkalmazas hatokoren kivul esik. Ez a kettő egyutt teszi biztonsagossa a fenti
+sorrendet.
+
+**Az atvetel ellenorzese**, mert a `Synced/Healthy` onmagaban nem mondja meg:
+
+```bash
+kubectl -n apps get networkpolicy -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.metadata.annotations.argocd\.argoproj\.io/tracking-id}{"\n"}{end}'
+# default-deny-ingress  platform:networking.k8s.io/NetworkPolicy:apps/default-deny-ingress
+```
+
+Ures `tracking-id` = az objektum meg kezi, az Argo CD nem birtokolja.
+
+**Az appok egymastol fuggetlenul reconcile-nak.** 2026-08-28-an a `70a1721` push
+utan hat appbol ot egy percen belul atallt ra, a `platform` viszont ot percig a
+`96d45c0`-n maradt - az o ciklusa 52 masodperccel a commit utan futott, es meg a
+regi repo-cache-t latta. Ha egy app "le van maradva", eloszor a
+`.status.reconciledAt` idobelyeget nezd, ne hibat keress.
+
 ## Longhorn kotetmentes Garage S3-ra (2026-08-25)
 
 A `longhorn-backup` Argo CD Application a `k8s/manifests/longhorn/` alatti ket CRD-t
