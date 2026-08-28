@@ -906,7 +906,12 @@ Status: all 3 nodes have `wol.service` enabled and active.
 
 ---
 
-## Current Cluster State (2026-03-19)
+## Current Cluster State (2026-08-28)
+
+Measured live, not carried over: `kubectl get nodes -o wide`, `kubectl top nodes`,
+`kubectl get pods -A`, `kubectl get pvc -A`. The section header carried a March
+date for months while the tables under it drifted, which is exactly the failure
+this line is meant to make visible - re-measure before editing it.
 
 ### Nodes
 
@@ -917,23 +922,55 @@ opt3060-i3   Ready    <none>          v1.36.4+k3s1   192.168.1.102   6.8.0-138-g
 opt3050-i5   Ready    <none>          v1.36.4+k3s1   192.168.1.103   6.8.0-138-generic
 ```
 
-### Resource usage (idle)
+### Resource usage
+
+Not idle any more, and the difference is the point: in March the two workers sat
+at 30m CPU and ~380 MB. Longhorn, kube-prometheus-stack and the Tailscale
+operator are what changed.
 
 | Node | CPU | RAM |
 |------|-----|-----|
-| opt5060-i5 | 130m (2%) | 4.9 GB (31%) - master overhead |
-| opt3060-i3 | 30m (0%) | 385 MB (4%) |
-| opt3050-i5 | 30m (0%) | 380 MB (4%) |
+| opt5060-i5 | 623m (10%) | 4602 Mi (29%) - control plane |
+| opt3060-i3 | 243m (6%) | 2771 Mi (35%) |
+| opt3050-i5 | 208m (5%) | 1389 Mi (17%) |
 
-### Running system pods
+### Pods by namespace
 
-| Pod | Namespace | Node |
-|-----|-----------|------|
-| coredns | kube-system | opt5060-i5 |
-| local-path-provisioner | kube-system | opt5060-i5 |
-| metrics-server | kube-system | opt5060-i5 |
-| traefik | kube-system | opt5060-i5 |
-| svclb-traefik | kube-system | all 3 nodes |
+60 pods across 7 namespaces. The March table listed five.
+
+| Namespace | Pods | What |
+|-----------|------|------|
+| longhorn-system | 28 | Longhorn v1.12.1: manager, CSI, engine and instance managers |
+| kube-system | 10 | 2x coredns, local-path-provisioner, metrics-server, traefik, 3x svclb-traefik, 2 completed traefik helm-install jobs |
+| monitoring | 8 | kube-prometheus-stack: Prometheus, Grafana, Alertmanager, operator, node exporters |
+| argocd | 7 | Argo CD v3.5.1 |
+| tailscale | 5 | Tailscale Kubernetes operator, one device per Ingress |
+| apps | 1 | Forgejo, the first workload |
+| system-upgrade | 1 | system-upgrade-controller, which performs the k3s version bumps |
+
+### Persistent volumes
+
+All three on Longhorn, which is the default StorageClass. `local-path` is still
+installed and usable, just no longer the default.
+
+| Namespace | Claim | Size |
+|-----------|-------|------|
+| apps | forgejo-data | 10 Gi |
+| monitoring | prometheus-...-db-...-0 | 20 Gi |
+| monitoring | monitoring-grafana | 5 Gi |
+
+### Ingress
+
+Four, all `ingressClassName: tailscale`. Traefik is still the cluster default
+IngressClass, so the class name has to be written out on every one of these or
+the Ingress silently lands on Traefik instead.
+
+| Namespace | Host |
+|-----------|------|
+| apps | forgejo.tailc6abe2.ts.net |
+| argocd | argocd.tailc6abe2.ts.net |
+| longhorn-system | longhorn.tailc6abe2.ts.net |
+| monitoring | grafana.tailc6abe2.ts.net |
 
 ### Services
 

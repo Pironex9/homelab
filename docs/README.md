@@ -86,6 +86,13 @@ Side projects outside the homelab.
 - [prompt-analysis](./other/prompt-analysis.md) - Python script that audits my own Claude Code prompting habits from session transcripts
 - [claude-output-style](./other/claude-output-style.md) - Custom Claude Code output style: why tone rules belong in the system prompt, not CLAUDE.md
 
+## k3s/
+
+The K3s cluster's own code layers. The live cluster state lives on the
+[k3s-cluster host page](./hosts/k3s-cluster.md).
+
+- [01 - Infrastructure as Code](./k3s/01_K3s_Infrastructure_as_Code.md) - the three layers that describe the cluster: Ansible for k3s itself, Argo CD for its contents, and the restore proofs behind the backups
+
 ## vps/
 
 - [01 - Hetzner VPS + Pangolin + Jellyfin](./vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md) - Hetzner VPS, Pangolin reverse proxy, public Jellyfin access

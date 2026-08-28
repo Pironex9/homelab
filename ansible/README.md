@@ -40,7 +40,7 @@ erdemes egy friss mentest keszitteni: `scripts/k3s-backup.sh`.
 
 | Ami | Hol |
 |---|---|
-| k3s verzio (v1.34.5+k3s1) | `group_vars/k3s_cluster.yml` |
+| k3s verzio (v1.36.4+k3s1) | `group_vars/k3s_cluster.yml` |
 | `--node-ip`, `--advertise-address`, `--flannel-iface`, `--secrets-encryption` | `host_vars/<node>.yml` |
 | api endpoint es port | `group_vars/k3s_cluster.yml` |
 | cluster token | `/root/.secrets/k3s-token`, a repon **kivul** |

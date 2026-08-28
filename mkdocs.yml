@@ -12,12 +12,18 @@ exclude_docs: |
   superpowers/
   adr/
   README.md
+  CLAUDE.md
 
 # `README.md` is not an internal document: it is the index of docs/ for anyone
 # reading the repo on GitHub, and it is kept in step with `nav` by hand. MkDocs
 # drops it from the build anyway because `index.md` already claims that URL, but
 # it does so with a warning, which `--strict` turns into a failed deploy. Naming
 # it here makes the exclusion deliberate instead of incidental.
+#
+# `CLAUDE.md` never reaches CI at all - `.gitignore` covers it repo-wide - so it
+# is listed for the sake of the local build only. Without the line, a local
+# `mkdocs build --strict` aborts on a file the deploy workflow will never see,
+# which would make the strict build impossible to reproduce before pushing.
 
 # `--strict` in the deploy workflow turns each of these into a build failure, so
 # a broken link cannot reach the published site. `warn` rather than `ignore` is
@@ -148,6 +154,8 @@ nav:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
           - Minecraft Server: proxmox/deprecated/Minecraft_Server_Setup.md
+  - K3s Cluster:
+      - 01 - Infrastructure as Code: k3s/01_K3s_Infrastructure_as_Code.md
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md
