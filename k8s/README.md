@@ -438,6 +438,33 @@ Pontosan ugyanaz a csapda, ami a Forgejo Deploymentjenel ki van irva a manifestb
 csak oda beirtam, ide nem. **Barmi, aminek RWO kotete van, `Recreate`-tel megy.** A regi
 pod addig kiszolgalt, tehat kiesés nem volt, de az uj ertekek nem ertek foldet.
 
+**A `RollingUpdate` -> `Recreate` valtas merge patch-csel NEM megy.** A javitas
+kipusholasa utan az Argo CD otszor probalta es feladta, ezzel a hibaval:
+
+```
+Deployment.apps "monitoring-grafana" is invalid: spec.strategy.rollingUpdate:
+  Forbidden: may not be specified when strategy `type` is 'Recreate'
+```
+
+Az elo objektumban ott ul a `rollingUpdate: {maxSurge: 25%, maxUnavailable: 25%}`, amit
+az API szerver defaultolt oda. A patch a `type`-ot atirja, de a regi blokkot **nem
+tavolitja el**, es az igy keletkezo objektum ervenytelen. A manifest kozben vegig jo
+volt - a `helm template` `{type: Recreate}`-et ad, `rollingUpdate` nelkul -, tehat ez
+tisztan az elo objektum es a patch-szemantika problemaja. A `ServerSideApply=true` sem
+oldja meg: nem tavolit el olyan mezot, amit mas manager birtokol.
+
+Egyszeri JSON patch oldja fel, ami kifejezetten **torli** a mezot:
+
+```bash
+kubectl -n monitoring patch deploy monitoring-grafana --type=json \
+  -p='[{"op":"remove","path":"/spec/strategy/rollingUpdate"},
+       {"op":"replace","path":"/spec/strategy/type","value":"Recreate"}]'
+```
+
+Utana az Argo CD szinkronja atmegy, es a gitbol tovabbra is `Recreate` jon. **Ez barmely
+mar letezo Deploymentre igaz**, nem csak a Grafanara - ha egy RWO kotetet kap egy addig
+RollingUpdate-es Deployment, ez a ket lepes kell hozza.
+
 **Helm forras eseten a `status.sync.revision` NEM a git commit.** A SUC szakaszban az
 all, hogy ha egy valtozas nem latszik, hasonlitsd a `status.sync.revision`-t a
 `git rev-parse HEAD`-hez. **Ez a `monitoring` Applicationre nem mukodik**, mert annak a
@@ -539,12 +566,62 @@ receivers:
           {{ end }}
 ```
 
-Letrehozas (a bot token es a chat id a `/root/.secrets/telegram-bot` fajlban, ket sor):
+**A cel egy kulon Telegram csoport, NEM az AI digest chatje.** A
+`/root/.secrets/telegram-bot` masodik sora a `scripts/ai-digest.py` celja - a sajat
+privat chated a bottal (pozitiv azonosito). A riasztasok kulon "Homelab alerts"
+csoportba mennek (negativ azonosito), hogy a napi hirosszefoglalo es az infra-riasztas
+ne keveredjen.
+
+A csoport azonositojat a bot csak akkor tudja megmondani, ha **latott** ott uzenetet -
+a bot alapbol csak kuld, sosem fogad, ezert a `getUpdates` uresen jon vissza:
+
+```bash
+TOK=$(sed -n '1p' /root/.secrets/telegram-bot)
+curl -s "https://api.telegram.org/bot${TOK}/getUpdates" | jq '.result[].message.chat'
+```
+
+A sorrend tehat: csoport letrehozasa -> a bot hozzaadasa -> **egy tetszoleges uzenet a
+csoportba** -> csak ezutan adja vissza a `getUpdates` az azonositot.
+
+> **Ha a csoportot Telegram kesobb szupercsoportta alakitja, az azonosito MEGVALTOZIK**,
+> es a riasztasok csendben elhalnak - a `..._failed_total{reason="clientError"}` szamlalo
+> viszont jelezni fogja. Ilyenkor ugyanez a lepessor kell ujra.
+
+Letrehozas:
 
 ```bash
 kubectl -n monitoring create secret generic alertmanager-telegram \
     --from-file=alertmanager.yaml=/root/.secrets/alertmanager.yaml
 ```
+
+**Az elleorzes ne a telefonod legyen.** Az Alertmanager sajat szamlaloi mondjak meg, hogy
+a kezbesites tenylegesen sikerult-e, nem csak hogy megprobalta:
+
+```bash
+curl -s http://alertmanager-operated.monitoring.svc:9093/metrics \
+  | grep -E '^alertmanager_notifications(_failed)?_total\{integration="telegram"'
+```
+
+Egy teszt-riasztas beszurasa (2 perc mulva magatol lejar, tehat FIRING es RESOLVED
+uzenetet is general):
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '[{"labels":{"alertname":"TestAlert","severity":"info"},
+        "annotations":{"summary":"teszt"},
+        "startsAt":"<most>","endsAt":"<most+2perc>"}]' \
+  http://alertmanager-operated.monitoring.svc:9093/api/v2/alerts
+```
+
+2026-08-28-i eredmeny: `notifications_total{telegram} 2`, es mind a het `failed_total`
+ok (`authError`, `clientError`, `serverError`, `rateLimited`, a ket timeout es az
+`other`) nulla.
+
+> **Csereles kozben van egy csendes ablak.** Amikor a `useExistingSecret: true` elvette a
+> chart sajat Secretjet, de a `configSecret` meg nem lepett eletbe, az operator naploja
+> ezt irta: `config secret not found, using default Alertmanager configuration`. Ket
+> masodperc volt, es itt artalmatlan, mert a beepitett default mindent a `null`
+> receiverbe kuld - de abban az ablakban riasztas nem ment volna sehova.
 
 **A Secret kulcsa `alertmanager.yaml` kell legyen** - a prometheus-operator ezt varja,
 mas nevvel az Alertmanager ures konfiggal indul.
