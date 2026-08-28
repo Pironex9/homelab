@@ -13,7 +13,7 @@
 | Property | Value |
 |----------|-------|
 | VMID | 103 |
-| OS | Alpine Linux 3.23.3 |
+| OS | Alpine Linux 3.24.1 |
 | CPU | 1 core |
 | RAM | 512 MB |
 | Disk | 1 GB (`local-lvm`) |
@@ -22,8 +22,10 @@
 | `onboot` | yes |
 | Installed from | Proxmox Community Scripts, Alpine variant |
 
-Versions: `vaultwarden 1.37.0-r0`, `vaultwarden-web-vault 1.35.4-r0`, both from
-the Alpine package repository, managed with `apk`.
+Versions: `vaultwarden 1.37.2-r0`, `vaultwarden-web-vault 1.37.2-r0` (web vault
+build 2026.7.0), both from the Alpine package repository, managed with `apk`.
+Upgraded from 1.37.0 on 2026-08-28, together with the container's move from
+Alpine 3.23.3 to 3.24.1 - see below for why those two had to happen together.
 
 Full build guide: [09 - Vaultwarden](../proxmox/09_Vaultwarden.md).
 
@@ -143,32 +145,73 @@ Full layout: [15 - Backup System](../proxmox/15_Proxmox_Backup_System_Documentat
   step while the web vault still works. Check the installed version against the
   client's expectations before assuming the container is broken.
 
-  This is not hypothetical here. As of 2026-08-28 the installed server is
-  **1.37.0** and upstream **1.37.2** (released 2026-08-22) states plainly:
-  *"This update is required for support with clients with version 2026.8.0+"*.
-  The installed web vault is further behind, `1.35.4-r0` against `1.37.2-r0` in
-  the repository. Nothing is broken today; it breaks on whichever day a client
-  auto-updates past 2026.8.0.
-- **`apk upgrade` here is a distro jump, not a patch.** `/etc/apk/repositories`
-  points at `latest-stable`, which now serves **Alpine 3.24.1** while the
-  container runs **3.23.3**. A bare `apk upgrade` would move the whole userland
-  a release forward on the machine holding every credential in the homelab. Pin
-  the package instead:
+  This is not hypothetical. On 2026-08-28 the server was found on **1.37.0**
+  while upstream **1.37.2** (2026-08-22) states plainly: *"This update is
+  required for support with clients with version 2026.8.0+"*. Nothing was broken
+  that day; it would have broken on whichever day a client auto-updated past
+  2026.8.0, on a machine nobody looks at until they need it.
+
+- **Pinning to the container's own Alpine release would have made this worse.**
+  The obvious fix - point `/etc/apk/repositories` at the installed release so
+  `apk upgrade` stays patch-level - fails here, because Alpine's stable branches
+  do not carry vaultwarden version bumps:
+
+  ```
+  v3.23 (the release the container ran)   1.36.0-r0
+  v3.24                                   1.37.2-r0
+  edge                                    1.37.2-r0
+  ```
+
+  `v3.23` tops out **older than what was already installed**. So the recipe used
+  for the Alpine komodo LXC - name a branch on the command line, leave
+  `repositories` alone - does not transfer. The service only exists in a current
+  version in the next release branch.
+
+- **Why the release upgrade was the fix, not a workaround.** `repositories`
+  pointed at `latest-stable`, which had moved on to 3.24 while the userland was
+  still 3.23.3 - the container was already half-way across. `apk add --upgrade`
+  scoped to the three vaultwarden packages did not avoid that: `--simulate`
+  showed it dragging `musl 1.2.5-r21 -> 1.2.6-r2` along with it, which is the
+  3.24 libc. There was no path that both updated the server and stayed on 3.23.
+
+  Done on 2026-08-28, 113 packages, 3.23.3 -> 3.24.1, no errors:
 
   ```bash
-  # from pve, after a fresh vzdump of 103
-  pct exec 103 -- apk add --upgrade vaultwarden vaultwarden-openrc vaultwarden-web-vault
+  # from pve, AFTER a fresh vzdump of 103
+  pct exec 103 -- apk upgrade --available
   pct exec 103 -- rc-service vaultwarden restart
   ```
 
+  **The restart is not optional.** `apk` swaps the binary on disk and leaves the
+  running daemon on the old one; `supervise-daemon` will not notice. Confirm with
+  `pct exec 103 -- /usr/bin/vaultwarden --version`, which must report `1.37.2-r0`.
+
+  `/etc/conf.d/vaultwarden` survived, because apk keeps a locally modified file
+  and writes the packaged one beside it as `vaultwarden.apk-new`. Worth diffing
+  once for new upstream options; nothing has to be merged for the service to run.
+
   Rollback if the restart fails or clients stop authenticating: stop the
   container, restore the `vzdump` tarball from `/mnt/storage/backup/proxmox/dump`
-  over VMID 103, and start it. The container is 54 MB compressed and holds no
-  state anything else depends on, so the restore is complete and takes under a
-  minute. Take that dump *before* the upgrade rather than relying on the 02:00
-  job, which may be up to 24 hours old.
+  over VMID 103, start it. 54 MB compressed, under a minute, and complete - the
+  container holds 7.4 MB of data and nothing else depends on its state. Take that
+  dump *before* the upgrade rather than relying on the 02:00 job, which may be up
+  to 24 hours old.
+
+- **`/api/config` does not report the server version.** Its `version` field is
+  the Bitwarden server API version Vaultwarden advertises to clients - it read
+  `2026.6.0` both before and after the 1.37.0 -> 1.37.2 upgrade, and it is not
+  the web vault version either (that is `2026.7.0`, in
+  `/usr/share/webapps/vaultwarden-web/vw-version.json`). Use `apk list -I` or
+  `vaultwarden --version` to answer "what is running".
+
+- **The version drift is now reported, not watched for.** `scripts/homelab-digest.sh`
+  compares the installed packages against the repository every morning and warns
+  only on a difference. Deliberately a notification, not an unattended upgrade:
+  this is the one machine whose failure locks you out of every other credential,
+  so an upgrade that goes wrong must go wrong while somebody is looking.
+
 - **The container is 1 GB.** It has room for a password database and little else;
-  logs go to `/var/log/vaultwarden`. Currently 21% used, 7.4 MB of data.
+  logs go to `/var/log/vaultwarden`. 25% used after the upgrade, 7.4 MB of data.
 - `nesting=1,keyctl=1` are set on the container, which the community script
   requires on Alpine.
 
