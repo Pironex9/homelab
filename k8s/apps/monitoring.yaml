@@ -53,6 +53,12 @@ spec:
 
         prometheus:
           prometheusSpec:
+            # Enelkul minden riasztas ugy vegzodik, hogy "on cluster ." - a
+            # szoveg a `cluster` cimkere hivatkozik, ami ures. Merve a 2026-08-28-i
+            # elso valodi riasztasokon. Akkor is hasznos, ha egyszer tobb forras
+            # kerul ugyanabba a Prometheusba vagy Grafanaba.
+            externalLabels:
+              cluster: homelab-k3s
             # 15 nap es 15 GiB - amelyik elobb jon. A retentionSize-nak a PVC
             # merete alatt kell lennie, kulonben a TSDB tolti tele a kotetet
             # ahelyett, hogy o maga vagna vissza.
