@@ -1,0 +1,65 @@
+---
+# K3s verziofrissites a system-upgrade-controllerrel.
+#
+# A frissites UTJA a git: ide irod a cel verziot, az ArgoCD kiszinkronizalja, a
+# SUC pedig node-onkent lefuttatja. Nem kell sem ssh, sem kezi kubectl.
+#
+# EGYSZERRE EGY MINORT. A 1.34 -> 1.36 ugras NEM tamogatott, es a SUC nem is
+# ved ellene - simán lefuttat egy ervenytelen utat. A sorrend, amit vegigviszunk:
+#   v1.34.5+k3s1  ->  v1.34.11+k3s1   (patch, a SUC mechanika probaja)
+#   v1.34.11+k3s1 ->  v1.35.8+k3s1
+#   v1.35.8+k3s1  ->  v1.36.4+k3s1
+# Minden hop utan: minden node Ready az uj verzioval, es a Longhorn lemezek
+# Ready-k. Csak utana jon a kovetkezo.
+#
+# A `version` mezoben `+k3s1` all, a SUC ebbol keszit `-k3s1` image tagot.
+#
+# `cordon: true` es NEM `drain`. Ma nulla PVC van, tehat nincs mit kikoltoztetni.
+# Amint valodi stateful workload fut, ide `drain` kell, es a Longhorn
+# instance-manager podokra kulon PDB-kezeles - kulonben a drain elakad.
+#
+# Az agent-plan `prepare` lepese megvarja, amig a server-plan vegez. Ez a
+# sorrend kotelezo: a worker sosem elozheti meg a control plane-t.
+#
+# FIGYELEM: egyetlen control plane van. A master frissitese alatt a Kubernetes
+# API nehany percig elerhetetlen. Ez nem hiba, hanem a nem-HA setup ara.
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: server-plan
+  namespace: system-upgrade
+spec:
+  concurrency: 1
+  cordon: true
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: In
+        values:
+          - "true"
+  serviceAccountName: system-upgrade
+  upgrade:
+    image: rancher/k3s-upgrade
+  version: v1.34.11+k3s1
+---
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: agent-plan
+  namespace: system-upgrade
+spec:
+  concurrency: 1
+  cordon: true
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist
+  prepare:
+    args:
+      - prepare
+      - server-plan
+    image: rancher/k3s-upgrade
+  serviceAccountName: system-upgrade
+  upgrade:
+    image: rancher/k3s-upgrade
+  version: v1.34.11+k3s1
