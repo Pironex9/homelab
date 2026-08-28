@@ -1,0 +1,117 @@
+---
+# Forgejo 16.0.3, rootless image, sqlite3, egyetlen Longhorn koteten.
+#
+# MIERT A ROOTLESS VALTOZAT: az `apps` namespace PSA `baseline` szinten
+# enforce-ol es `restricted` szinten figyelmeztet. A rootless image
+# `USER 1000:1000`-rel indul (a v16.0.3 Dockerfile.rootless-bol), igy a lenti
+# securityContext-tel a `restricted` figyelmeztetes is elnemul.
+#
+# EGY KOTET ELEG. A doksi ket volume-ot ir (`/var/lib/gitea` + `/etc/gitea`), de
+# a v16.0.3 imageben `GITEA_APP_INI=/var/lib/gitea/custom/conf/app.ini`, tehat a
+# config a data koteten belul van. A masodik mount felesleges lenne.
+#
+# A `FORGEJO__szekcio__KULCS` valtozokat az `environment-to-ini` MINDEN
+# indulaskor ujra beleirja az app.ini-be, tehat ezek deklarativak. A
+# `docker-setup.sh` sima valtozoi (DB_TYPE, ROOT_URL, INSTALL_LOCK) csak az
+# elso induláskor, a template kitolteseig szamitanak - ezert nem azokat
+# hasznaljuk.
+#
+# strategy: Recreate KOTELEZO. A kotet ReadWriteOnce, egy RollingUpdate az uj
+# podot a regi mellett inditana, az pedig `Multi-Attach error`-ral orokre
+# Pendingben allna.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo
+  namespace: apps
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: forgejo
+  template:
+    metadata:
+      labels:
+        app: forgejo
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        # A Longhorn kotet gyoker tulajdonu jon letre. fsGroup nelkul az uid 1000
+        # nem tudna beleirni, es a docker-setup.sh mar az elso sorral elszallna
+        # ("/var/lib/gitea/git is not writable").
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: forgejo
+          image: codeberg.org/forgejo/forgejo:16.0.3-rootless
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: FORGEJO__database__DB_TYPE
+              value: sqlite3
+            - name: FORGEJO__server__DOMAIN
+              value: forgejo.tailc6abe2.ts.net
+            - name: FORGEJO__server__ROOT_URL
+              value: https://forgejo.tailc6abe2.ts.net/
+            - name: FORGEJO__server__HTTP_PORT
+              value: "3000"
+            # Git-over-SSH kikapcsolva: egy Ingress csak HTTP-t visz, a
+            # tailnetes HTTPS clone pedig mukodik. Ha kesobb megis kell, a
+            # Tailscale operator `tailscale.com/expose` annotacioja tud egy
+            # kulon TCP Service-t adni a 2222-es portra.
+            - name: FORGEJO__server__DISABLE_SSH
+              value: "true"
+            - name: FORGEJO__security__INSTALL_LOCK
+              value: "true"
+            - name: FORGEJO__service__DISABLE_REGISTRATION
+              value: "true"
+            # NEM elhagyhato. Ha ures, a Forgejo a forraskodba drotozott
+            # "!#@FDEWREWR&*(" ertekkel titkositja a 2FA titkokat, a mirror
+            # jelszavakat es az OAuth tokeneket (modules/setting/security.go,
+            # loadSecurityFrom). Nem generalodik magatol. A Secret nincs a
+            # gitben - a repo publikus -, kezzel jon letre, lasd k8s/README.md.
+            - name: FORGEJO__security__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: SECRET_KEY
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          # A liveness szandekosan csak TCP. Az /api/healthz 503-at ad egy
+          # akado adatbazis-komponensre is, es egy liveness probe-ra kotve az
+          # ujrainditasi hurokba vinne a podot ahelyett, hogy csak kiforgatna a
+          # Service mogul.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/gitea
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: forgejo-data

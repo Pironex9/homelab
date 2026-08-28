@@ -166,6 +166,10 @@ sima objektum - a Longhorn `BackupTarget` es `RecurringJob` kulon CRD-k, a
 NetworkPolicy, a Pod Security Admission es a resource limitek pedig eleve azok. A
 Longhorn telepiteset tovabbra is a Helm kezeli.
 
+Ket **Secret** sem gitbol jon, mert a repo publikus: a Tailscale operator OAuth
+hitelesito adatai (lasd fentebb) es a `forgejo-secrets` (lasd lentebb). Mindketto
+kezzel keszul, egyszer, es a `/root/.secrets/` alatt marad a 109-en.
+
 ## Longhorn kotetmentes Garage S3-ra (2026-08-25)
 
 A `longhorn-backup` Argo CD Application a `k8s/manifests/longhorn/` alatti ket CRD-t
@@ -222,3 +226,82 @@ Idozites: `0 1 * * *` UTC, fel oraval a 109-en futo `k3s-backup.sh` (01:30) ele.
 egy `fromBackup` parameteru StorageClasson at egy uj PVC-be -> a fajl tartalma
 byte-ra ugyanaz. A teszt eroforrasok utana torolve; a bucketben 1 db 589 bajtos
 kotet-metaadat maradt.
+
+## Forgejo - az elso workload (2026-08-28)
+
+A cluster 161 napig nulla alkalmazassal es nulla PVC-vel futott. A `forgejo` Argo CD
+Application (`k8s/manifests/forgejo/`) ezt zarja le: **Forgejo 16.0.3**, rootless image,
+sqlite3, egy 10 GiB-os Longhorn koteten, `https://forgejo.tailc6abe2.ts.net`.
+
+**Miert ez lett az elso:** egy konteneres, nincs melle Postgres, es egyetlen PVC-t
+hasznal. Nem a legimpozansabb valasztas, hanem az, amelyiken a ket eddig nem merheto
+dolog vegre merheto:
+
+1. **A Longhorn visszaallitas a Garage S3-rol.** A `RecurringJob/backup-daily` 2026-08-25
+   ota minden hajnali 1-kor lefut, es eddig **semmit** nem mentett, mert nem volt kotet.
+   Az elso valodi backup ettol a kotettol keletkezik.
+2. **A drain last-replica aga.** A 2026-08-28-i meres ures clusteren futott (lasd
+   `docs/hosts/k3s-cluster.md`), tehat a `block-if-contains-last-replica` viselkedese
+   nem volt kiprobalhato.
+
+Haszna is van: a homelab repo GitOps-a ma egyetlen kulso olvasasi uton, a github.com-on
+lóg. Egy helyi tukor ezt oldja. **Az Argo CD `repoURL`-je marad a GitHubon** - ha a
+cluster sajat forgejaból olvasna a sajat telepiteset, korkoros bootstrap lenne belole.
+
+### A SECRET_KEY nincs a gitben, es nem elhagyhato
+
+A repo publikus, ezert a Secret kezzel keszul, egyszer:
+
+```bash
+openssl rand -base64 32 | tr -d '\n' > /root/.secrets/forgejo-secret-key
+chmod 600 /root/.secrets/forgejo-secret-key
+kubectl -n apps create secret generic forgejo-secrets \
+    --from-file=SECRET_KEY=/root/.secrets/forgejo-secret-key
+```
+
+A `tr -d '\n'` **nem** kozmetika: a `--from-file` a fajl minden bajtjat beleteszi, a zaro
+ujsorral egyutt, es az `environment-to-ini` azt irna bele az `app.ini`-be.
+
+**Miert kotelezo:** a Forgejo nem general maganak SECRET_KEY-t. Ha ures, a
+`modules/setting/security.go` `loadSecurityFrom` fuggvenye a forraskodba drotozott
+`"!#@FDEWREWR&*("` erteket hasznalja - vagyis egy nyilvanosan ismert kulcsot, amivel a
+2FA titkok, a mirror jelszavak es az OAuth tokenek titkositva lennenek. (Az
+`INTERNAL_TOKEN` ezzel szemben magatol generalodik es kimentodik az `app.ini`-be, azzal
+nincs teendo.)
+
+A kulcs `/root/.secrets/forgejo-secret-key` alatt marad a 109-en. **Ha elvesz, a vele
+titkositott mezok olvashatatlanok** - a repok es a felhasznalok megmaradnak, a 2FA es a
+tarolt hitelesito adatok nem.
+
+### Admin felhasznalo
+
+`INSTALL_LOCK=true`-val nincs webes telepito, tehat az elso admin CLI-bol keszul:
+
+```bash
+kubectl -n apps exec deploy/forgejo -- \
+    forgejo admin user create --admin --username <nev> \
+    --email <cim> --random-password
+```
+
+A kiirt jelszo egyszer latszik. Ez tudatos csere: a webes telepitot barki elerhetne a
+tailnetrol, aki elobb nyitja meg, mint te.
+
+### Ket dontes, ami keson fajna
+
+- **`strategy: Recreate`.** A kotet ReadWriteOnce. RollingUpdate eseten az uj pod a regi
+  mellett indulna, es `Multi-Attach error`-ral orokre Pendingben allna.
+- **`Prune=false` a PVC-n.** Az Application `prune: true`-val fut. Enelkul a `pvc.yaml`
+  gitbol valo kikerulese torolne a PVC-t, a `longhorn` StorageClass
+  `reclaimPolicy: Delete`-je pedig vinne magat a kotetet is.
+
+### Amit szandekosan nem telepitettunk hozza
+
+**cert-managert.** A `tailscale` IngressClass valodi Let's Encrypt tanusitvanyt ad,
+automatikus ujitassal - ugyanaz a minta, mint az argocd Ingressnel. Belso appokhoz nem
+kell sem ClusterIssuer, sem sajat DNS bejegyzes. A publikus appok pedig a Hetzner VPS-en
+futo Pangolinon mennek at.
+
+**Git-over-SSH-t.** Egy Ingress csak HTTP-t visz, es a HTTPS clone mukodik. Ha megis
+kell, a Tailscale operator `tailscale.com/expose` annotacioja tud egy kulon TCP
+Service-t adni a konteneren belüli 2222-es portra, es akkor a
+`FORGEJO__server__DISABLE_SSH` is `false`-ra vált.

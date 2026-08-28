@@ -1,0 +1,26 @@
+---
+# https://forgejo.tailc6abe2.ts.net
+#
+# Ugyanaz a minta, mint az argocd Ingressnel: a Tailscale operator felvesz egy
+# proxy podot, ami sajat eszkozkent lep be a tailnetbe, es valodi Let's Encrypt
+# tanusitvanyt kap. Nincs cert-manager, nincs ClusterIssuer, nincs sajat DNS
+# bejegyzes.
+#
+# Az `ingressClassName` KOTELEZO ES NEM ELHAGYHATO: a clusteren a `traefik` az
+# alapertelmezett IngressClass, tehat kihagyva ez az Ingress a Traefikhez
+# kerulne, ami se tanusitvanyt, se tailnetes nevet nem ad hozza.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forgejo
+  namespace: apps
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: forgejo
+      port:
+        number: 3000
+  tls:
+    - hosts:
+        - forgejo
