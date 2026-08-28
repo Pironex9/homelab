@@ -14,15 +14,40 @@
 #
 # A `version` mezoben `+k3s1` all, a SUC ebbol keszit `-k3s1` image tagot.
 #
-# `cordon: true` es NEM `drain`. Ma nulla PVC van, tehat nincs mit kikoltoztetni.
-# Amint valodi stateful workload fut, ide `drain` kell, es a Longhorn
-# instance-manager podokra kulon PDB-kezeles - kulonben a drain elakad.
+# A `drain` maga cordonol elsokent, ezert nincs kulon `cordon: true` - a ketto
+# egyutt felesleges. Az indoklas lentebb, a drain blokk felett.
 #
 # Az agent-plan `prepare` lepese megvarja, amig a server-plan vegez. Ez a
 # sorrend kotelezo: a worker sosem elozheti meg a control plane-t.
 #
 # FIGYELEM: egyetlen control plane van. A master frissitese alatt a Kubernetes
 # API nehany percig elerhetetlen. Ez nem hiba, hanem a nem-HA setup ara.
+#
+# ---------------------------------------------------------------------------
+# DRAIN (2026-08-28 ota, elotte csak `cordon: true` volt)
+#
+# A flagek nem talalgatasbol jonnek: pontosan ezekkel futott le egy eles
+# `kubectl drain opt3050-i5` a clusteren, es a kritikus sor benne volt:
+#   pod/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3 evicted
+#
+# Ez azert nem volt maganyos: a Longhorn node-onkent tart egy PDB-t az
+# instance-manager podra, `disruptionsAllowed: 0`-val, MEG NULLA KOTET MELLETT
+# IS. A pod ráadásul InstanceManager CR tulajdona, nem DaemonSete, tehat az
+# ignoreDaemonSets NEM fedi. A drain megis atment: a Longhorn a cordonolasra
+# eldobja a PDB-t, ha nincs a node-on utolso ep replika. Uncordon utan
+# mindharom PDB magatol visszajott.
+#
+# AMIT EZ NEM BIZONYIT: a merés nulla koteten tortent. Kotetekkel a
+# last-replica vizsgalat is beindul. Ott a `node-drain-policy` beallitas dont,
+# es annak az erteke NEM lehet `block-for-eviction` - az addig blokkol, amig
+# minden replika ujraepult mashol, es 3 node + 3 replika mellett nincs hova,
+# tehat orokre logna egy cordonolt node-dal. Az alapertelmezett
+# `block-if-contains-last-replica` a helyes: 3-bol egy node drainje 2 ep
+# replikat hagy, semmi nem blokkol.
+#
+# A `timeout` szandekosan bo: egy elakadt drain igy hibaval feljon, nem
+# csendben log. 300s soha nem kellett a meresnel (masodpercek alatt lefutott).
+# ---------------------------------------------------------------------------
 apiVersion: upgrade.cattle.io/v1
 kind: Plan
 metadata:
@@ -30,7 +55,11 @@ metadata:
   namespace: system-upgrade
 spec:
   concurrency: 1
-  cordon: true
+  drain:
+    force: true
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+    timeout: 300s
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
@@ -49,7 +78,11 @@ metadata:
   namespace: system-upgrade
 spec:
   concurrency: 1
-  cordon: true
+  drain:
+    force: true
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+    timeout: 300s
   nodeSelector:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane

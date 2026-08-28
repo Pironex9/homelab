@@ -315,27 +315,42 @@ kubectl get applications -n argocd        # all Synced/Healthy
     master's job is already done by the time the API returns. Judge the outcome by
     `kubectl get nodes`, not by the pod list.
 
-### `cordon`, not `drain`
+### `drain`, and the PDB that looked like it would block it
 
-The Plans use `cordon: true`. This has to change before the first stateful workload
-lands - and the reason it is not switched already is worth writing down, because the
-obvious assumption turned out to be wrong.
+The Plans use `drain` (2026-08-28). Before that they used `cordon: true`, on the
+assumption that with zero volumes there is nothing to evict. **That assumption was
+wrong,** and the way it was wrong is the useful part.
 
-**"With zero volumes there is nothing to block" is false.** Longhorn keeps one
-PodDisruptionBudget per node for its `instance-manager` pod. Read on 2026-08-28 with
-**zero** volumes on the cluster, all three of them say:
+Longhorn keeps one PodDisruptionBudget per node for its `instance-manager` pod. Read with
+**zero** volumes on the cluster, all three said:
 
 ```
 minAvailable=1  currentHealthy=1  desiredHealthy=1  disruptionsAllowed=0
 ```
 
-`disruptionsAllowed: 0` means the eviction API rejects that pod right now. And the pod is
-owned by an `InstanceManager` CR, **not** a DaemonSet, so `--ignore-daemonsets` does not
-cover it. A drain today would stall there until Longhorn removes the PDB.
+`disruptionsAllowed: 0` means the eviction API rejects that pod. And the pod is owned by
+an `InstanceManager` CR, **not** a DaemonSet, so `--ignore-daemonsets` does not cover it.
+On paper, a drain stalls there.
 
-Longhorn is expected to delete the PDB once the node is cordoned and no volume's last
-healthy replica lives on it - which, at zero volumes, is every node. Expected, not
-measured: proving it takes an actual drain, and that has not been run.
+It does not, and one drain settled it:
+
+```
+$ kubectl drain opt3050-i5 --ignore-daemonsets --delete-emptydir-data --force --timeout=120s
+node/opt3050-i5 cordoned
+Warning: ignoring DaemonSet-managed Pods: ... longhorn-manager-sdwg6
+evicting pod longhorn-system/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3
+pod/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3 evicted
+node/opt3050-i5 drained
+```
+
+Longhorn drops the PDB in response to the cordon, once no volume's last healthy replica
+lives on that node - which, at zero volumes, is every node. After `uncordon` all three
+PDBs came back on their own, and every pod returned to `Running`.
+
+!!! warning "What that measurement does *not* cover"
+    It ran on an empty cluster. With volumes present, the last-replica check actually has
+    something to check, and the `node-drain-policy` setting decides the outcome. The
+    drain path is proven; the drain path **under load** is not.
 
 !!! danger "`block-for-eviction` would deadlock this cluster"
     The common advice for Longhorn plus system-upgrade-controller is to set the
@@ -352,21 +367,27 @@ measured: proving it takes an actual drain, and that has not been run.
     degraded for the length of the upgrade and rebuilds afterwards. Current value,
     checked: `block-if-contains-last-replica`.
 
-The drain block to add to both Plans when switching:
+What is in both Plans now - the same flags the drain above ran with, field names taken
+from the vendored CRD rather than guessed:
 
 ```yaml
   drain:
     force: true
     ignoreDaemonSets: true
     deleteEmptydirData: true
-    skipWaitForDeleteTimeout: 60
+    timeout: 300s
 ```
 
-The measurement still missing before flipping the switch is a single drain of one worker,
-followed by an uncordon. If it completes, Longhorn does drop the PDB on cordon and
-`drain` is safe to enable. If it stalls on `Cannot evict pod as it would violate the
-pod's disruption budget`, the Plans need a `podSelector` that skips the instance-manager
-pods, and `cordon` stays until then.
+No `cordon: true` alongside it: `drain` cordons first by itself, so the two together are
+redundant.
+
+The `timeout` is deliberately generous. The measured drain finished in seconds; 300 s
+exists so that a drain which genuinely gets stuck **fails visibly** instead of hanging
+forever with a node cordoned. If it ever trips, that is a signal, not a tuning problem.
+
+If a future drain does stall on `Cannot evict pod as it would violate the pod's
+disruption budget`, the fix is a `podSelector` on the Plan that skips the
+instance-manager pods - not a shorter timeout and not `disableEviction`.
 
 ### Side effect: local-path-provisioner is frozen
 
@@ -1323,7 +1344,8 @@ terminal whose output is logged.
 - [ ] Verify `AC Power Recovery = Power On` in the BIOS of all three OptiPlexes - the master stayed down for 2 d 4 h after the 2026-08-25 outage while the workers returned a day earlier, so at least the master is not set
 - [x] Automated, GitOps-driven version upgrades - system-upgrade-controller v0.20.1 under Argo CD (2026-08-28)
 - [x] k3s v1.34.5 -> v1.36.4 and Longhorn v1.11.1 -> v1.12.1, done on an empty cluster (2026-08-28)
-- [ ] Switch the Plans from `cordon` to `drain` before the first stateful workload - blocked on one measurement, a single worker drain, see the `cordon`/`drain` section
+- [x] Switch the Plans from `cordon` to `drain` - **done 2026-08-28**, after one live worker drain proved Longhorn drops the instance-manager PDB on cordon
+- [ ] Re-verify the drain path once real volumes exist - the 2026-08-28 measurement ran on an empty cluster, so the last-replica branch is untested
 - [x] local-path-provisioner frozen at v0.0.34 by the `.skip` file - **decided 2026-08-28: leave it**, four options weighed, revisit when something needs `local-path`
 - [x] Re-check whether Longhorn can go under Argo CD - longhorn/longhorn#6415 was fixed in v1.6.0, so the old reason is stale; **still not adopting**, new reason in `k8s/README.md`
 - [ ] Prometheus + Grafana monitoring stack
