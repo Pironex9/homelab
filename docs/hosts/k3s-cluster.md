@@ -389,6 +389,22 @@ If a future drain does stall on `Cannot evict pod as it would violate the pod's
 disruption budget`, the fix is a `podSelector` on the Plan that skips the
 instance-manager pods - not a shorter timeout and not `disableEviction`.
 
+!!! note "Changing `drain` does not re-run anything"
+    After the switch landed, `status.latestHash` on both Plans was unchanged
+    (`85914216d295…`, the same value as before), no jobs were created and no node was
+    cordoned. The SUC plan hash covers the target version and the upgrade image, not the
+    drain configuration.
+
+    That is convenient - editing drain settings is free and never disturbs a running
+    cluster. It also means **the SUC drain path cannot be exercised without a real
+    version bump.** The `kubectl drain` above proves the Longhorn PDB behaviour; the
+    first hop that actually runs under this config will be the first proof of the Plan
+    wiring itself.
+
+    A second thing worth knowing about timing: Argo CD picked the commit up about
+    5 minutes after the push. If a Plan edit looks like it did not land, check
+    `status.sync.revision` against `git rev-parse HEAD` before assuming something broke.
+
 ### Side effect: local-path-provisioner is frozen
 
 Measured on 2026-08-28, immediately after the upgrade:
