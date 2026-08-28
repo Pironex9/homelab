@@ -111,22 +111,116 @@ handle @vaultwarden {
 
 ## Updating
 
-Vaultwarden is installed via Alpine package manager. Update when a new version appears in the Alpine repos:
+Vaultwarden comes from the Alpine package manager, and the naive command below
+does **not** work here. It is kept because it is the one everybody reaches for
+first:
 
 ```bash
-pct enter 103
+# looks right, is not enough - see why
 apk update && apk upgrade vaultwarden
-rc-service vaultwarden restart
 ```
 
-Note: Alpine package versions may lag a few days behind upstream releases.
+### Alpine's stable branches do not carry Vaultwarden version bumps
+
+This is the fact that decides the whole update strategy. Measured on 2026-08-28
+against the branch indexes:
+
+```
+v3.23 (the release the container was running)   1.36.0-r0
+v3.24                                           1.37.2-r0
+edge                                            1.37.2-r0
+installed at the time                           1.37.0-r0
+```
+
+The container's own release branch tops out **older than what was already
+installed**. So the usual hardening advice - pin `/etc/apk/repositories` to the
+installed release so `apk upgrade` stays patch-level - would freeze this service
+permanently behind. The recipe used for the Alpine Komodo container (name a
+branch on the command line, leave `repositories` untouched) does not transfer
+either, for the same reason.
+
+Scoping the upgrade to the three packages does not avoid it. `--simulate` first,
+always, and read what comes along:
+
+```
+(1/7) Upgrading musl (1.2.5-r21 -> 1.2.6-r2)     <- this is already the 3.24 libc
+...
+(5/7) Upgrading vaultwarden (1.37.0-r0 -> 1.37.2-r0)
+```
+
+There is no path that updates the server and stays on the old release.
+
+### The procedure that works
+
+`/etc/apk/repositories` points at `latest-stable`, so the release upgrade is the
+plain `apk upgrade --available`. Do it deliberately, in a window, with a fresh
+backup - not as a reflex:
+
+```bash
+# 1. rollback point FIRST - the 02:00 job may be up to 24 hours old
+vzdump 103 --storage backup-hdd --mode snapshot --compress zstd \
+       --notes-template "pre-upgrade"
+
+# 2. the upgrade itself
+pct exec 103 -- apk upgrade --available
+
+# 3. mandatory - see below
+pct exec 103 -- rc-service vaultwarden restart
+
+# 4. verify what is actually running
+pct exec 103 -- /usr/bin/vaultwarden --version
+```
+
+Done on 2026-08-28: 113 packages, Alpine 3.23.3 -> 3.24.1, vaultwarden
+1.37.0 -> 1.37.2, no errors, empty `error.log`.
+
+**Step 3 is not optional and is easy to skip.** `apk` replaces the binary on
+disk while `supervise-daemon` keeps running the old one, and `rc-service
+vaultwarden status` reports `started` either way. Only `vaultwarden --version`
+answers the question.
+
+**`/etc/conf.d/vaultwarden` survives.** apk keeps a locally modified file and
+writes the packaged one beside it as `vaultwarden.apk-new`. Worth diffing once
+for new upstream options; nothing has to be merged for the service to start.
+
+**Rollback**, if the restart fails or clients stop authenticating: stop the
+container, restore the `vzdump` tarball from `/mnt/storage/backup/proxmox/dump`
+over VMID 103, start it. Under a minute, and complete - the container holds about
+7 MB of data and nothing else depends on its state.
+
+```bash
+pct stop 103
+pct restore 103 /mnt/storage/backup/proxmox/dump/vzdump-lxc-103-<timestamp>.tar.zst \
+    --force 1 --storage local-lvm
+pct start 103
+```
+
+### Do not automate the upgrade; automate the noticing
+
+The failure on 2026-08-28 was not that the server was out of date. It was that
+nobody knew. `scripts/homelab-digest.sh` now compares the installed packages
+against the repository every morning and warns only on a difference.
+
+An unattended `apk upgrade` on this container is the wrong trade: it is the one
+machine whose breakage locks you out of every other credential in the homelab, so
+an upgrade that goes wrong has to go wrong while somebody is watching.
+
+### `/api/config` does not tell you the server version
+
+Its `version` field read `2026.6.0` both before and after the 1.37.0 -> 1.37.2
+upgrade - it is the Bitwarden server API version Vaultwarden advertises to
+clients. It is not the web vault version either; that lives in
+`/usr/share/webapps/vaultwarden-web/vw-version.json` (build `2026.7.0` as of
+2026-08-28). Use `apk list -I vaultwarden` or `vaultwarden --version`.
 
 ### Known issue: browser extension login breaks after Bitwarden frontend updates
 
 Bitwarden's browser extension frontend occasionally adds new API routes before the Vaultwarden server implements them. Seen 2026-07-16: extension called `POST /identity/accounts/prelogin/password` (a newer "unified login" route), server returned `404` (running 1.35.4-r0, which predates the route), causing "An error has occurred" on extension login while the web vault kept working normally.
 
 **Diagnose:** check `/var/log/vaultwarden/access.log` for `404` responses to `/identity/accounts/...` around the time of the failed login.
-**Fix:** `apk update && apk upgrade vaultwarden` - the server-side fix aliases the new route to the existing `/identity/accounts/prelogin` handler (upstream PR [#7156](https://github.com/dani-garcia/vaultwarden/pull/7156)). Back up `/var/lib/vaultwarden` first (see Operations below).
+**Fix:** update the server by the procedure above, not by a bare `apk upgrade vaultwarden` - the server-side fix aliases the new route to the existing `/identity/accounts/prelogin` handler (upstream PR [#7156](https://github.com/dani-garcia/vaultwarden/pull/7156)). Back up first.
+
+The same class of breakage was live again on 2026-08-28 and caught before it bit: 1.37.2's release notes state that the update is *required* for clients from version 2026.8.0 onward, while the server was still on 1.37.0. Nothing was failing yet - it would have started failing on whichever day a client auto-updated past that line.
 
 ---
 
