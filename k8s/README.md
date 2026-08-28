@@ -420,6 +420,42 @@ szakaszaban. Itt csak a lenyeg: **ez a stack elso napjan talalt egy hibat, ami h
 allt fenn es `date -u`-val nem latszott** - 0.687 masodperc a `date` egy masodperces
 felbontasa alatt van.
 
+### Uzemeltetesi apro dolgok, amik elsore meglepnek
+
+**A `Watchdog` riasztas mindig tuzel, es ez szandekos.** Nem hiba es nem kell
+elnemitani: azt bizonyitja, hogy maga a riasztasi lanc el. Ha egyszer eltunik, az a
+jelzes.
+
+**Egy javitas utan a riasztas nem azonnal all el.** Olvasd el a szabaly kifejezeset,
+mielott azt hiszed, hogy a javitas nem hatott:
+
+```
+NodeClockNotSynchronising
+  expr: min_over_time(node_timex_sync_status[5m]) == 0 and node_timex_maxerror_seconds >= 16
+  for : 600s
+```
+
+Az ora javitasa utan a metrika azonnal `1`-re valt, de a riasztas meg ~5 percig tuzel,
+amig az `[5m]`-es ablakbol ki nem esik az utolso `0`. A `for: 600s` **csak a
+bekapcsolasra** vonatkozik, a megszunesre nem.
+
+**A chartot rendereld le helyben, mielott pusholsz.** Az Argo CD Helm forrast hasznal,
+tehat egy rossz ertek csak a clusteren derulne ki:
+
+```bash
+helm template monitoring prometheus-community/kube-prometheus-stack --version 88.6.0 \
+    -n monitoring -f <a values blokk kimasolva> > /tmp/rendered.yaml
+```
+
+Igy derult ki a push ELOTT, hogy a kilenc ServiceMonitor helyes, a tiltott
+komponensekre egy sem keszul, a PVC-k es a retention jok, es a Grafana Ingress alakja
+pontosan az, amit a Tailscale operator var. Telepites utan 22/22 target `up`.
+
+**A Grafana memoria-limitje 512Mi-rol 768Mi-re ment.** Merve 405Mi-n allt be, ami a regi
+limit 79%-a. Stabil volt, nem kuszott, de egy OOMKill itt csendes hiba: a pod
+ujraindul, a dashboardok ConfigMapbol visszajonnek, es semmi nem mondja meg, miert volt
+egy lyuk a grafikonokon.
+
 ### Az Alertmanager fut, de meg nem szol sehova
 
 Be van kapcsolva, mert a chart alapertelmezett riasztasi szabalyai a stack fo erteke -

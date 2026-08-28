@@ -1656,6 +1656,7 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [x] Prometheus + Grafana monitoring stack - **kube-prometheus-stack 88.6.0 under Argo CD (2026-08-28)**, `https://grafana.tailc6abe2.ts.net`, details in `k8s/README.md`
 - [x] Fix NTP on the k3s nodes - **done 2026-08-28**, found by the new monitoring stack on its first day; master was 0.687 s fast with no correction
 - [ ] Move the NTP drop-in into Ansible - applied by hand, so a rebuilt node returns to the broken DHCP-provided IPv6 link-local server
+- [ ] Wire the NTP drop-in check into the daily digest - nothing would notice if a node lost sync again between Prometheus alerts
 - [ ] Route Alertmanager somewhere - it runs, but no receiver is configured, so alerts are only visible in its own UI. Needs a webhook URL, so an out-of-band Secret
 - [x] Longhorn UI reachable without port-forward - `https://longhorn.tailc6abe2.ts.net` (2026-08-28). **It has no authentication**; the tailnet is the only thing protecting it
 - [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly

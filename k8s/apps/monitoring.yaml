@@ -116,10 +116,15 @@ spec:
           resources:
             requests:
               cpu: 50m
-              memory: 128Mi
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 512Mi
+              # 512Mi volt, es merve a Grafana 405Mi-n allt be - a limit 79%-a.
+              # Stabil volt, nem kuszott, de egy OOMKill itt csendes hiba: a pod
+              # ujraindul, a dashboardok visszajonnek, es semmi nem mondja meg,
+              # hogy miert volt egy lyuk a grafikonokon. Az `apps` namespace
+              # LimitRange-e ide nem er el, a `monitoring` sajat namespace.
+              memory: 768Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
