@@ -174,7 +174,7 @@ footer a:hover { text-decoration: underline; }
 <div class="frame">
   <header class="top">
     <h1 class="brand">Homelab<em>.topology</em></h1>
-    <p class="tagline">Self-hosted infrastructure map / <b>Proxmox VE 9.1</b> + <b>K3s</b> / generated 2026-08-23 from nodes.yml</p>
+    <p class="tagline">Self-hosted infrastructure map / <b>Proxmox VE 9.1</b> + <b>K3s</b> / generated 2026-08-28 from nodes.yml</p>
     <div class="meta-row">
       <ul class="legend"><li><span class="dot" style="--c:#e8a04c"></span>Hypervisor</li><li><span class="dot" style="--c:#5cc8ff"></span>LXC container</li><li><span class="dot" style="--c:#b18aff"></span>Virtual machine</li><li><span class="dot" style="--c:#6ee7a0"></span>K3s node</li></ul>
       <span class="stats">14 nodes / 2 sites</span>
@@ -259,25 +259,25 @@ footer a:hover { text-decoration: underline; }
 <section class="site" data-site="remote">
     <header class="site-h">
       <h2>SITE B / K3S CLUSTER</h2>
-      <span class="subnet">192.168.2.0/24</span>
+      <span class="subnet">192.168.1.0/24</span>
     </header>
     <svg class="wires" aria-hidden="true"></svg>
     <div class="head-row"><button class="card head-card" type="button" data-node="opt5060-i5" style="--c:#6ee7a0">
     <span class="badge">K3S M</span>
     <span class="nname">opt5060-i5</span>
-    <span class="nip">192.168.2.101</span>
+    <span class="nip">192.168.1.101</span>
     <span class="nrole">K3s control plane</span>
   </button></div>
     <div class="node-grid"><button class="card" type="button" data-node="opt3060-i3" style="--c:#6ee7a0">
     <span class="badge">K3S W1</span>
     <span class="nname">opt3060-i3</span>
-    <span class="nip">192.168.2.102</span>
+    <span class="nip">192.168.1.102</span>
     <span class="nrole">K3s worker</span>
   </button>
 <button class="card" type="button" data-node="opt3050-i5" style="--c:#6ee7a0">
     <span class="badge">K3S W2</span>
     <span class="nname">opt3050-i5</span>
-    <span class="nip">192.168.2.103</span>
+    <span class="nip">192.168.1.103</span>
     <span class="nrole">K3s worker</span>
   </button></div>
   </section>
@@ -299,7 +299,7 @@ footer a:hover { text-decoration: underline; }
   </div>
 </div>
 <script>
-var DATA = {"sites":[{"id":"lan","label":"SITE A / HOME LAN","subnet":"192.168.0.0/24"},{"id":"remote","label":"SITE B / K3S CLUSTER","subnet":"192.168.2.0/24","link":"Tailscale mesh"}],"kinds":{"hypervisor":{"label":"Hypervisor","color":"#e8a04c"},"lxc":{"label":"LXC container","color":"#5cc8ff"},"vm":{"label":"Virtual machine","color":"#b18aff"},"k3s":{"label":"K3s node","color":"#6ee7a0"}},"nodes":[{"badge":"PVE","name":"pve","site":"lan","head":true,"kind":"hypervisor","ip":"192.168.0.109","role":"Proxmox VE 9.1","hw":"HP EliteDesk 800 G4","detail":"Hypervisor running every LXC and VM below. Storage: MergerFS 8.1 TB + SnapRAID over 4 USB HDDs. Backups via Restic (local + NFS)."},{"badge":"LXC 100","name":"docker-host","site":"lan","kind":"lxc","ip":"192.168.0.110","role":"Docker host","detail":"22 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."},{"badge":"VM 101","name":"haos","site":"lan","kind":"vm","ip":"192.168.0.202","role":"Home Assistant OS","detail":"Smart home hub with Zigbee2MQTT and automations."},{"badge":"LXC 102","name":"adguard","site":"lan","kind":"lxc","ip":"192.168.0.111","role":"DNS","detail":"AdGuard Home - LAN-wide DNS with ad blocking and *.lan rewrites pointing at the Caddy proxy."},{"badge":"LXC 103","name":"vaultwarden","site":"lan","kind":"lxc","ip":"192.168.0.219","role":"Password manager","detail":"Vaultwarden. Alpine community-script container, managed via pct exec only - no SSH."},{"badge":"LXC 105","name":"komodo","site":"lan","kind":"lxc","ip":"192.168.0.105","role":"GitOps deploy","detail":"Komodo (port 9120) - pulls this repo and deploys the Docker stacks on LXC 100."},{"badge":"LXC 106","name":"karakeep","site":"lan","kind":"lxc","ip":"192.168.0.128","role":"Bookmarks","detail":"Karakeep bookmark manager with AI tagging backed by Ollama."},{"badge":"LXC 107","name":"n8n","site":"lan","kind":"lxc","ip":"192.168.0.112","role":"Automation","detail":"n8n workflow automation."},{"badge":"LXC 109","name":"claude-mgmt","site":"lan","kind":"lxc","ip":"192.168.0.204","role":"AI ops","detail":"Claude Code management node - infrastructure-as-code lives here. This page was built from this machine."},{"badge":"LXC 110","name":"caddy","site":"lan","kind":"lxc","ip":"192.168.0.208","role":"Reverse proxy","detail":"Caddy - *.lan reverse proxy with local mkcert TLS for every internal service."},{"badge":"LXC 113","name":"agentos","site":"lan","kind":"lxc","ip":"192.168.0.71","role":"Agentic OS","detail":"Hermes + Odysseus autonomous agent stack - delegation target for mechanical subtasks."},{"badge":"K3S M","name":"opt5060-i5","site":"remote","head":true,"kind":"k3s","ip":"192.168.2.101","role":"K3s control plane","hw":"Dell OptiPlex 5060, i5","detail":"Master node of the 3-node K3s cluster at a separate location. Reached over Tailscale; kubectl from LXC 109."},{"badge":"K3S W1","name":"opt3060-i3","site":"remote","kind":"k3s","ip":"192.168.2.102","role":"K3s worker","hw":"Dell OptiPlex 3060, i3","detail":"Worker node. Longhorn distributed storage planned."},{"badge":"K3S W2","name":"opt3050-i5","site":"remote","kind":"k3s","ip":"192.168.2.103","role":"K3s worker","hw":"Dell OptiPlex 3050, i5","detail":"Worker node. Prometheus + Grafana monitoring planned."}]};
+var DATA = {"sites":[{"id":"lan","label":"SITE A / HOME LAN","subnet":"192.168.0.0/24"},{"id":"remote","label":"SITE B / K3S CLUSTER","subnet":"192.168.1.0/24","link":"Tailscale mesh"}],"kinds":{"hypervisor":{"label":"Hypervisor","color":"#e8a04c"},"lxc":{"label":"LXC container","color":"#5cc8ff"},"vm":{"label":"Virtual machine","color":"#b18aff"},"k3s":{"label":"K3s node","color":"#6ee7a0"}},"nodes":[{"badge":"PVE","name":"pve","site":"lan","head":true,"kind":"hypervisor","ip":"192.168.0.109","role":"Proxmox VE 9.1","hw":"HP EliteDesk 800 G4","detail":"Hypervisor running every LXC and VM below. Storage: MergerFS 8.1 TB + SnapRAID over 4 USB HDDs. Backups via Restic (local + NFS)."},{"badge":"LXC 100","name":"docker-host","site":"lan","kind":"lxc","ip":"192.168.0.110","role":"Docker host","detail":"24 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."},{"badge":"VM 101","name":"haos","site":"lan","kind":"vm","ip":"192.168.0.202","role":"Home Assistant OS","detail":"Smart home hub with Zigbee2MQTT and automations."},{"badge":"LXC 102","name":"adguard","site":"lan","kind":"lxc","ip":"192.168.0.111","role":"DNS","detail":"AdGuard Home - LAN-wide DNS with ad blocking and *.lan rewrites pointing at the Caddy proxy."},{"badge":"LXC 103","name":"vaultwarden","site":"lan","kind":"lxc","ip":"192.168.0.219","role":"Password manager","detail":"Vaultwarden. Alpine community-script container, managed via pct exec only - no SSH."},{"badge":"LXC 105","name":"komodo","site":"lan","kind":"lxc","ip":"192.168.0.105","role":"GitOps deploy","detail":"Komodo (port 9120) - pulls this repo and deploys the Docker stacks on LXC 100."},{"badge":"LXC 106","name":"karakeep","site":"lan","kind":"lxc","ip":"192.168.0.128","role":"Bookmarks","detail":"Karakeep bookmark manager with AI tagging backed by Gemini."},{"badge":"LXC 107","name":"n8n","site":"lan","kind":"lxc","ip":"192.168.0.112","role":"Automation","detail":"n8n workflow automation."},{"badge":"LXC 109","name":"claude-mgmt","site":"lan","kind":"lxc","ip":"192.168.0.204","role":"AI ops","detail":"Claude Code management node - infrastructure-as-code lives here. This page was built from this machine."},{"badge":"LXC 110","name":"caddy","site":"lan","kind":"lxc","ip":"192.168.0.208","role":"Reverse proxy","detail":"Caddy - *.lan reverse proxy with local mkcert TLS for every internal service."},{"badge":"LXC 113","name":"agentos","site":"lan","kind":"lxc","ip":"192.168.0.71","role":"Agentic OS","detail":"Hermes + Odysseus autonomous agent stack - delegation target for mechanical subtasks."},{"badge":"K3S M","name":"opt5060-i5","site":"remote","head":true,"kind":"k3s","ip":"192.168.1.101","role":"K3s control plane","hw":"Dell OptiPlex 5060, i5","detail":"Master node of the 3-node K3s cluster at a separate location. Reached over Tailscale; kubectl from LXC 109. Cluster contents are declared in git and reconciled by Argo CD (app-of-apps)."},{"badge":"K3S W1","name":"opt3060-i3","site":"remote","kind":"k3s","ip":"192.168.1.102","role":"K3s worker","hw":"Dell OptiPlex 3060, i3","detail":"Worker node. Longhorn distributed storage, 3-replica default, backed up to Garage S3 on LXC 100."},{"badge":"K3S W2","name":"opt3050-i5","site":"remote","kind":"k3s","ip":"192.168.1.103","role":"K3s worker","hw":"Dell OptiPlex 3050, i5","detail":"Worker node. Longhorn replica target; kube-prometheus-stack runs on the cluster with Grafana behind a Tailscale Ingress."}]};
 var byName = {};
 DATA.nodes.forEach(function (n) { byName[n.name] = n; });
 

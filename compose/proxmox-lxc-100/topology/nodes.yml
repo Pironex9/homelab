@@ -31,7 +31,7 @@ nodes:
     kind: lxc
     ip: 192.168.0.110
     role: "Docker host"
-    detail: "22 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."
+    detail: "24 Docker Compose stacks: Jellyfin + *arr media stack, Immich, Syncthing, static sites and more. Deployed from git via Komodo GitOps."
 
   - badge: "VM 101"
     name: haos
@@ -71,7 +71,7 @@ nodes:
     kind: lxc
     ip: 192.168.0.128
     role: "Bookmarks"
-    detail: "Karakeep bookmark manager with AI tagging backed by Ollama."
+    detail: "Karakeep bookmark manager with AI tagging backed by Gemini."
 
   - badge: "LXC 107"
     name: n8n
@@ -113,7 +113,7 @@ nodes:
     ip: 192.168.1.101
     role: "K3s control plane"
     hw: "Dell OptiPlex 5060, i5"
-    detail: "Master node of the 3-node K3s cluster at a separate location. Reached over Tailscale; kubectl from LXC 109."
+    detail: "Master node of the 3-node K3s cluster at a separate location. Reached over Tailscale; kubectl from LXC 109. Cluster contents are declared in git and reconciled by Argo CD (app-of-apps)."
 
   - badge: "K3S W1"
     name: opt3060-i3
@@ -122,7 +122,7 @@ nodes:
     ip: 192.168.1.102
     role: "K3s worker"
     hw: "Dell OptiPlex 3060, i3"
-    detail: "Worker node. Longhorn distributed storage, 3-replica default."
+    detail: "Worker node. Longhorn distributed storage, 3-replica default, backed up to Garage S3 on LXC 100."
 
   - badge: "K3S W2"
     name: opt3050-i5
@@ -131,4 +131,4 @@ nodes:
     ip: 192.168.1.103
     role: "K3s worker"
     hw: "Dell OptiPlex 3050, i5"
-    detail: "Worker node. Longhorn replica target; Prometheus + Grafana monitoring planned."
+    detail: "Worker node. Longhorn replica target; kube-prometheus-stack runs on the cluster with Grafana behind a Tailscale Ingress."
