@@ -317,12 +317,56 @@ kubectl get applications -n argocd        # all Synced/Healthy
 
 ### `cordon`, not `drain`
 
-The Plans use `cordon: true`. With zero PVCs there is nothing to evict, and drain would
-only add failure modes.
+The Plans use `cordon: true`. This has to change before the first stateful workload
+lands - and the reason it is not switched already is worth writing down, because the
+obvious assumption turned out to be wrong.
 
-**This has to change before the first stateful workload lands.** A `drain` on a Longhorn
-node needs the `instance-manager` pods handled explicitly, otherwise the drain blocks on
-their PodDisruptionBudget and the plan hangs with the node cordoned.
+**"With zero volumes there is nothing to block" is false.** Longhorn keeps one
+PodDisruptionBudget per node for its `instance-manager` pod. Read on 2026-08-28 with
+**zero** volumes on the cluster, all three of them say:
+
+```
+minAvailable=1  currentHealthy=1  desiredHealthy=1  disruptionsAllowed=0
+```
+
+`disruptionsAllowed: 0` means the eviction API rejects that pod right now. And the pod is
+owned by an `InstanceManager` CR, **not** a DaemonSet, so `--ignore-daemonsets` does not
+cover it. A drain today would stall there until Longhorn removes the PDB.
+
+Longhorn is expected to delete the PDB once the node is cordoned and no volume's last
+healthy replica lives on it - which, at zero volumes, is every node. Expected, not
+measured: proving it takes an actual drain, and that has not been run.
+
+!!! danger "`block-for-eviction` would deadlock this cluster"
+    The common advice for Longhorn plus system-upgrade-controller is to set the
+    `node-drain-policy` setting to `block-for-eviction` before an upgrade. **Do not do
+    that here.** That policy blocks the drain until *every* replica has been rebuilt
+    somewhere else. With 3 nodes and the default 3-replica volumes there is no spare
+    node to rebuild onto, so the condition can never be satisfied and the upgrade hangs
+    forever with a node cordoned.
+
+    That advice assumes more nodes than replicas. This cluster has exactly as many.
+
+    The right setting here is the default, `block-if-contains-last-replica`: draining one
+    of three nodes leaves two healthy replicas, so nothing blocks, and the volume runs
+    degraded for the length of the upgrade and rebuilds afterwards. Current value,
+    checked: `block-if-contains-last-replica`.
+
+The drain block to add to both Plans when switching:
+
+```yaml
+  drain:
+    force: true
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+    skipWaitForDeleteTimeout: 60
+```
+
+The measurement still missing before flipping the switch is a single drain of one worker,
+followed by an uncordon. If it completes, Longhorn does drop the PDB on cordon and
+`drain` is safe to enable. If it stalls on `Cannot evict pod as it would violate the
+pod's disruption budget`, the Plans need a `podSelector` that skips the instance-manager
+pods, and `cordon` stays until then.
 
 ### Side effect: local-path-provisioner is frozen
 
@@ -339,11 +383,31 @@ StorageClass problem on 2026-08-24. k3s rewrites `local-storage.yaml` on every s
 `local-path-provisioner` never gets its new image either. It has been drifting since
 2026-08-24 and will keep drifting.
 
-Today that costs nothing: `local-path` is not the default class and nothing uses it. If
-it ever matters, the fix is not to delete the `.skip` - that brings back two default
-StorageClasses. It is to let k3s manage `local-storage.yaml` again and move the
-`is-default-class: "false"` patch into Argo CD, accepting a sync-interval-long window
-after each k3s restart where both classes claim to be default.
+Today that costs nothing: `local-path` is not the default class and nothing uses it -
+zero PVCs on the cluster, and Longhorn is the default for everything planned.
+
+Deleting the `.skip` is **not** the fix. That brings back two default StorageClasses, and
+a PVC created without an explicit `storageClassName` while both claim the title does not
+bind. The three real options:
+
+| Option | What it costs |
+|--------|---------------|
+| **Leave it frozen** | `local-path` drifts further from the bundled version every k3s upgrade. Free until something uses it. |
+| Argo CD owns the `is-default-class: "false"` annotation, `.skip` removed | k3s keeps local-path current again, but every k3s restart opens a window - up to one Argo CD sync interval - where both classes claim to be default |
+| Vendor `local-storage.yaml` into `k8s/manifests/` under Argo CD | No race, no drift, but the file has to be re-copied from the master on **every** k3s upgrade. Same manual work as today, plus a file to maintain |
+| `--disable local-storage` via the Ansible `extra_server_args` | Removes the component, the `.skip` and the dual-default problem in one move. Costs the `local-path` StorageClass entirely |
+
+**Decision (2026-08-28): leave it frozen.** Both Argo CD variants cost more than the
+problem, and removing the component is a "do we want this capability" question rather
+than a fix. Revisit when something actually needs `local-path` - at that point option 2
+or 4 gets chosen deliberately, with a reason.
+
+What matters is that the drift is now visible instead of silent. Check with:
+
+```bash
+kubectl get deploy local-path-provisioner -n kube-system \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
 
 ### Longhorn is upgraded separately
 
@@ -1259,8 +1323,9 @@ terminal whose output is logged.
 - [ ] Verify `AC Power Recovery = Power On` in the BIOS of all three OptiPlexes - the master stayed down for 2 d 4 h after the 2026-08-25 outage while the workers returned a day earlier, so at least the master is not set
 - [x] Automated, GitOps-driven version upgrades - system-upgrade-controller v0.20.1 under Argo CD (2026-08-28)
 - [x] k3s v1.34.5 -> v1.36.4 and Longhorn v1.11.1 -> v1.12.1, done on an empty cluster (2026-08-28)
-- [ ] Switch the Plans from `cordon` to `drain` before the first stateful workload - needs the Longhorn `instance-manager` PDBs handled, or the drain blocks
-- [ ] local-path-provisioner is frozen at v0.0.34 by the `.skip` file - harmless today, decide before anything uses `local-path`
+- [ ] Switch the Plans from `cordon` to `drain` before the first stateful workload - blocked on one measurement, a single worker drain, see the `cordon`/`drain` section
+- [x] local-path-provisioner frozen at v0.0.34 by the `.skip` file - **decided 2026-08-28: leave it**, four options weighed, revisit when something needs `local-path`
+- [x] Re-check whether Longhorn can go under Argo CD - longhorn/longhorn#6415 was fixed in v1.6.0, so the old reason is stale; **still not adopting**, new reason in `k8s/README.md`
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
 - [ ] RBAC policies

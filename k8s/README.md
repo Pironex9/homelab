@@ -133,10 +133,33 @@ a k3s hopok **elott**.
 
 ## Amit az Argo CD NEM kezel
 
-A **Longhorn Helm release-t** szandekosan nem adoptaljuk. Ismert utkozes: az Argo CD a
-Helm hookokat `PreSync`-kent futtatja, ezert a Longhorn pre-upgrade jobja mar a legelso
-szinkronnal lefut, olyankor amikor a service account meg nem letezik, es elhasal.
-Lasd longhorn/longhorn#6415.
+A **Longhorn Helm release-t** szandekosan nem adoptaljuk.
+
+**Az indok 2026-08-28-an felulvizsgalva, mert a korabbi mar nem igaz.** Eddig az allt
+itt, hogy a longhorn/longhorn#6415 miatt nem lehet: az Argo CD a Helm hookokat
+`PreSync`-kent futtatja, ezert a pre-upgrade job mar az elso szinkronnal lefutna, amikor
+a service account meg nem letezik. **Ez 2023-10-23-an lezarult, a v1.6.0-ban javitva** -
+mi az 1.12.1-en vagyunk, tehat hat minorral a javitas utan. Technikai akadaly nincs.
+
+A chart 1.12.1 sajat leirasa mondja ki a modjat:
+
+```
+preUpgradeChecker:
+  # -- ... Disable this setting when installing Longhorn using Argo CD or other GitOps solutions.
+  jobEnabled: true
+```
+
+**Megis nem adoptaljuk, mas okbol:** a `jobEnabled: false` pont azt a
+verziout-ellenorzest kapcsolja ki, ami megakadalyozna egy ervenytelen Longhorn-frissitest
+(pl. egy minor kihagyasat). Azt a biztonsagi halot a **tarolo** retegen adnank fel - azon
+az egyetlen retegen, ahol egy elrontott frissites nem visszavonhato (minorra nincs
+downgrade, csak a Garage backup + `fromBackup` StorageClass ut). Cserebe egy evente
+parszor eloforduló, tudatos, mentessel kezdodo muvelet lenne deklarativ.
+
+Rossz csere. A k3s-nel forditva all a merleg, ezert megy az SUC-on keresztul.
+
+Ha valaha megis, akkor `preUpgradeChecker.jobEnabled: false` **es** a `plans.yaml`-hez
+hasonlo, kiirt hop-szabaly a Longhorn verziokra.
 
 Ez nem korlat: amit deklarativva akarunk tenni, az nagyreszt nem a Helm release, hanem
 sima objektum - a Longhorn `BackupTarget` es `RecurringJob` kulon CRD-k, a
