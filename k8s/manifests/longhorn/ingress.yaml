@@ -1,0 +1,39 @@
+---
+# https://longhorn.tailc6abe2.ts.net
+#
+# Eddig a Longhorn felulete csak `kubectl port-forward`-dal volt elerheto, ami
+# egy folyamat a 109-en, es a session-nel egyutt meghal. Ugyanaz a minta, mint
+# az argocd es a forgejo Ingressnel: a Tailscale operator felvesz egy proxy
+# podot sajat tailnet identitassal es valodi Let's Encrypt tanusitvannyal.
+#
+# Az `ingressClassName` nem hagyhato el: a clusteren a `traefik` az
+# alapertelmezett IngressClass.
+#
+# ---------------------------------------------------------------------------
+# FIGYELEM: A LONGHORN FELULETEN NINCS HITELESITES.
+#
+# Az argocd-nek es a forgejonak van sajat bejelentkezese, ennek nincs. Aki eleri,
+# az kotetet torolhet es mentest allithat vissza. A vedelmet ITT KIZAROLAG a
+# tailnet adja: az Ingress csak a tailneten belulrol erheto el, es a tailnet a
+# sajat eszkozeidbol all.
+#
+# Ebbol ket dolog kovetkezik:
+#   - ez az Ingress SOHA nem kerulhet a Pangolin ala vagy barmi mas publikus utra
+#   - ha valaha megosztott eszkoz kerul a tailnetre, ez a dontes ujragondolando
+#     (a Tailscale oldalan ACL-lel lehet szukiteni, hogy melyik eszkoz eri el)
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: longhorn-frontend
+      port:
+        number: 80
+  tls:
+    - hosts:
+        - longhorn

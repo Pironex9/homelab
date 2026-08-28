@@ -1558,7 +1558,7 @@ terminal whose output is logged.
 - [x] Longhorn install via Helm
 - [x] Longhorn healthy on all 3 nodes (2026-08-24)
 - [x] Test PVC end-to-end - written, reattached to another node, checksum verified, cleanly torn down (2026-08-24)
-- [ ] Longhorn UI still only reachable via port-forward (no ingress)
+- [x] Longhorn UI reachable over the tailnet, no port-forward (2026-08-28)
 - [x] Fix the dual-default StorageClass durably - `.skip` file + patch, verified across a k3s restart (2026-08-24)
 - [x] Longhorn disk health in the daily check - added after the 2026-08-27 USB unmount (`longhorn-backup-check.sh` step 5)
 - [x] Out-of-band signal for the remote site - Kuma ping monitor on the Orange Pi (2026-08-27)
@@ -1570,9 +1570,11 @@ terminal whose output is logged.
 - [x] local-path-provisioner frozen at v0.0.34 by the `.skip` file - **decided 2026-08-28: leave it**, four options weighed, revisit when something needs `local-path`
 - [x] Re-check whether Longhorn can go under Argo CD - longhorn/longhorn#6415 was fixed in v1.6.0, so the old reason is stale; **still not adopting**, new reason in `k8s/README.md`
 - [x] Exercise the SUC drain wiring - **done 2026-08-28** by removing the plan-hash label from a worker; job in 43 s, `prepare` gate and `drain` both correct, PDB rejected twice then released
-- [ ] Scale `coredns` to 2 replicas - it runs 1, so any node drain briefly takes cluster DNS with it
+- [x] Scale `coredns` to 2 replicas - **done 2026-08-28**. Not via a `.skip` file: k3s's bundled `coredns.yaml` has no `replicas` field at all, so re-applying it does not reset the count. Re-check after the next k3s restart anyway - that check is exactly what was skipped in April, which is why the local-path patch silently reverted for four months
 - [ ] k3s is one patch ahead of the release channel on all three hops (v1.36.4 vs `stable` v1.36.3) - cannot be undone, wait for the channel to catch up
-- [ ] Prometheus + Grafana monitoring stack
+- [x] Prometheus + Grafana monitoring stack - **kube-prometheus-stack 88.6.0 under Argo CD (2026-08-28)**, `https://grafana.tailc6abe2.ts.net`, details in `k8s/README.md`
+- [ ] Route Alertmanager somewhere - it runs, but no receiver is configured, so alerts are only visible in its own UI. Needs a webhook URL, so an out-of-band Secret
+- [x] Longhorn UI reachable without port-forward - `https://longhorn.tailc6abe2.ts.net` (2026-08-28). **It has no authentication**; the tailnet is the only thing protecting it
 - [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly
 - [ ] RBAC policies
 - [ ] Network policies

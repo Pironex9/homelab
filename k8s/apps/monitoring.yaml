@@ -1,0 +1,138 @@
+---
+# kube-prometheus-stack: Prometheus + Grafana + Alertmanager + node-exporter +
+# kube-state-metrics, Argo CD alol, Helm forrasbol. Az ertekek itt vannak a
+# gitben, tehat nincs `helm upgrade --set` szajhagyomany.
+#
+# A chart verzioja pontos, nem `*`. A 88.6.0 (2026-08-27) es a 88.5.4 kozott
+# egyetlen PR van (HTTPRoute timeout), tehat nem friss nagy valtozas.
+#
+# ---------------------------------------------------------------------------
+# AMIT K3S-EN KI KELL KAPCSOLNI, ES MIERT
+#
+# A chart alapbol negy control-plane komponensre is szeretne metrikat gyujteni.
+# k3s-en ezek nem kulon podok, hanem ugyanabban a k3s processzben futnak, es a
+# metrika-portjaik a masteren LOOPBACKRA vannak kotve - merve 2026-08-28-an:
+#
+#   LISTEN 127.0.0.1:10257   kube-controller-manager
+#   LISTEN 127.0.0.1:10259   kube-scheduler
+#   LISTEN 127.0.0.1:10249   kube-proxy
+#   (2381 nincs is: a datastore kine + sqlite, etcd egyaltalan nincs)
+#
+# Egy podbol ezek nem elerhetok, tehat a ServiceMonitorok orokre `down`-t
+# mutatnanak, es a hozzajuk tartozo riasztasok folyamatosan tuzelnenek. A chart
+# `jobNameOverride: k3s-server` javaslata ezen NEM segit - az csak a dashboard
+# cimkeket javitja, az elerhetoseget nem.
+#
+# A kubelet marad bekapcsolva: a 10250 `*`-on figyel, tehat elerheto.
+#
+# Ha valaha kellenek: a k3s `--kube-controller-manager-arg=bind-address=0.0.0.0`
+# es tarsai nyitjak meg oket - az viszont a control-plane metrikakat kiteszi a
+# halozatra, tehat kulon dontes, nem mellekesen elintezendo.
+# ---------------------------------------------------------------------------
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 88.6.0
+    helm:
+      values: |
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+
+        prometheus:
+          prometheusSpec:
+            # 15 nap es 15 GiB - amelyik elobb jon. A retentionSize-nak a PVC
+            # merete alatt kell lennie, kulonben a TSDB tolti tele a kotetet
+            # ahelyett, hogy o maga vagna vissza.
+            retention: 15d
+            retentionSize: "15GiB"
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 20Gi
+            resources:
+              requests:
+                cpu: 200m
+                memory: 1Gi
+              limits:
+                cpu: "1"
+                memory: 2Gi
+
+        alertmanager:
+          # Bekapcsolva, de meg NINCS receiver konfiguralva - a riasztasok a sajat
+          # feluleten latszanak, de nem mennek sehova. A Discord/ntfy utvonal
+          # kulon Secretet igenyel, a repo pedig publikus. Nincs PVC sem: az
+          # allapota nemitasokbol all, ami ujrainduláskor elveszik.
+          alertmanagerSpec:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+
+        grafana:
+          admin:
+            # Kezzel letrehozott Secret, mert a repo publikus. Ld. k8s/README.md.
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          persistence:
+            # A chart dashboardjai ConfigMapbol jonnek, azok enelkul is
+            # megvannak. Ez a kezzel keszitett dashboardokat es beallitasokat
+            # menti at egy pod-ujrainduláson.
+            enabled: true
+            type: pvc
+            storageClassName: longhorn
+            size: 5Gi
+          ingress:
+            # https://grafana.tailc6abe2.ts.net
+            # Ures `hosts` mellett a chart host nelkuli szabalyt general, a `tls`
+            # blokkot pedig valtozatlanul atadja - pont az az alak, amit a
+            # Tailscale operator var (ld. az argocd es a forgejo Ingresst).
+            enabled: true
+            ingressClassName: tailscale
+            hosts: []
+            tls:
+              - hosts:
+                  - grafana
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # A `monitoring` namespace szandekosan NEM kap PSA cimket, ellentetben az
+      # `apps`-szal: a node-exporter hostNetworkot es hostPathot hasznal, amit a
+      # `baseline` elutasitana.
+      - CreateNamespace=true
+      # A chart CRD-i nagyok. Kliensoldali apply eseten a teljes manifest egy
+      # annotacioba kerulne, es a 256 KB-os limitbe futna - ugyanaz a hiba, ami
+      # az Argo CD sajat telepitesenel is eloszor eljott.
+      - ServerSideApply=true

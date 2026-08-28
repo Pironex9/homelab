@@ -333,3 +333,124 @@ futo Pangolinon mennek at.
 kell, a Tailscale operator `tailscale.com/expose` annotacioja tud egy kulon TCP
 Service-t adni a konteneren belüli 2222-es portra, es akkor a
 `FORGEJO__server__DISABLE_SSH` is `false`-ra vált.
+
+## Monitoring: kube-prometheus-stack (2026-08-28)
+
+A `monitoring` Argo CD Application a **kube-prometheus-stack 88.6.0**-t telepiti Helm
+forrasbol, az ertekekkel egyutt a gitben (`k8s/apps/monitoring.yaml`). Prometheus,
+Grafana, Alertmanager, node-exporter es kube-state-metrics. Grafana:
+`https://grafana.tailc6abe2.ts.net`.
+
+**Miert most:** a cluster ma szunt meg eldobhato lenni. Allapotot hordoz, es eddig
+egyetlen dolog figyelte - a `longhorn-backup-check.sh` hajnali 4-kor, ami egyetlen
+kerdesre valaszol. History nem volt: a mai szamok (drain 12s, restore 72s) csak azert
+leteznek, mert kezzel mertem oket menet kozben.
+
+### Negy komponens ki van kapcsolva, es ez nem izles kerdese
+
+```yaml
+kubeControllerManager: {enabled: false}
+kubeScheduler:         {enabled: false}
+kubeProxy:             {enabled: false}
+kubeEtcd:              {enabled: false}
+```
+
+k3s-en ezek nem kulon podok, hanem ugyanabban a k3s processzben futnak, es a
+metrika-portjaik a masteren loopbackra vannak kotve. Merve a masteren, `ss -tlnp`:
+
+```
+LISTEN 127.0.0.1:10257   kube-controller-manager
+LISTEN 127.0.0.1:10259   kube-scheduler
+LISTEN 127.0.0.1:10249   kube-proxy
+```
+
+`2381` (etcd) nincs is: a datastore **kine + sqlite**, etcd egyaltalan nem fut. Egy
+podbol tehat egyik sem erheto el; bekapcsolva a ServiceMonitorok orokre `down`-t
+mutatnanak es a hozzajuk tartozo riasztasok folyamatosan tuzelnenek.
+
+**A chart `jobNameOverride: k3s-server` javaslata ezen nem segit** - az csak a Grafana
+dashboardok es a Prometheus szabalyok cimkevalasztojat irja at, az elerhetoseget nem.
+
+A `kubelet` bekapcsolva marad, mert a 10250 `*`-on figyel. A `coredns` ServiceMonitor is
+megmarad: az valodi Deployment k3s-en is.
+
+Ha valaha kellenek, a `--kube-controller-manager-arg=bind-address=0.0.0.0` es tarsai
+nyitjak meg oket - az viszont a control-plane metrikakat kiteszi a halozatra, tehat
+kulon dontes.
+
+### Meretezes
+
+| Ertek | Miert |
+|---|---|
+| `retention: 15d` + `retentionSize: 15GiB` | amelyik elobb jon |
+| Prometheus PVC 20 Gi | a `retentionSize`-nak a PVC merete ALATT kell lennie, kulonben a TSDB tolti tele a kotetet ahelyett, hogy o maga vagna vissza |
+| Grafana PVC 5 Gi | a chart dashboardjai ConfigMapbol jonnek; ez a kezzel keszitetteket menti at |
+
+Harom replikaval ez 75 GiB a 457 GiB-bol. A node-ok terhelese a telepites elott 5% CPU
+es 18% memoria volt, tehat van hely.
+
+### A Grafana jelszo nincs a gitben
+
+```bash
+openssl rand -base64 24 | tr -d '\n' > /root/.secrets/grafana-admin-password
+kubectl create namespace monitoring
+kubectl -n monitoring create secret generic grafana-admin \
+    --from-literal=admin-user=admin \
+    --from-file=admin-password=/root/.secrets/grafana-admin-password
+```
+
+A `tr -d '\n'` itt is szamit, ugyanabbol az okbol, mint a Forgejonal.
+
+**A namespace ELOTT kell letrehozni,** vagy legalabbis a Grafana podja addig
+`CreateContainerConfigError`-ban all. Az Application `CreateNamespace=true`-val fut,
+tehat ha kesobb keszul a Secret, magatol helyreall.
+
+A `monitoring` namespace **szandekosan nem kap PSA cimket**, ellentetben az `apps`-szal:
+a node-exporter `hostNetwork`-ot es `hostPath`-ot hasznal, amit a `baseline` elutasitana.
+
+### Az Alertmanager fut, de meg nem szol sehova
+
+Be van kapcsolva, mert a chart alapertelmezett riasztasi szabalyai a stack fo erteke -
+de **nincs receiver konfiguralva**. A riasztasok a sajat feluleten latszanak, es nem
+mennek Discordra vagy ntfy-ra. Az utvonal egy webhook URL-t igenyel, a repo pedig
+publikus, tehat az egy kulon, kezi Secret lesz. PVC-je sincs: az allapota nemitasokbol
+all, ami ujrainduláskor elveszik.
+
+## Longhorn felulet: `https://longhorn.tailc6abe2.ts.net`
+
+Eddig csak `kubectl port-forward`-dal volt elerheto, ami egy folyamat a 109-en es a
+session-nel egyutt meghal. Az Ingress a `longhorn-backup` Application alatt van
+(`k8s/manifests/longhorn/ingress.yaml`), ugyanaz a Tailscale minta.
+
+> **FIGYELEM: a Longhorn feluleten nincs hitelesites.** Az argocd-nek es a forgejonak
+> van sajat bejelentkezese, ennek nincs. Aki eleri, az kotetet torolhet es mentest
+> allithat vissza. A vedelmet itt kizarolag a tailnet adja.
+>
+> Ebbol ket dolog kovetkezik: ez az Ingress **soha** nem kerulhet a Pangolin ala vagy
+> mas publikus utra, es ha valaha megosztott eszkoz kerul a tailnetre, a dontes
+> ujragondolando (a Tailscale ACL-jeivel szukitheto, melyik eszkoz eri el).
+
+## coredns: egy replika volt
+
+A 2026-08-28-i SUC drain logja mutatta meg, hogy egyetlen node kiuritese ezt viszi
+magaval: `argocd-server`, **`coredns`**, `metrics-server`, `longhorn-ui`, mind a negy
+`csi-*` controller, az `instance-manager` es a workload podja. A `coredns`
+`readyReplicas: 1` volt, tehat egy drain rovid idore elvitte a cluster DNS-et is.
+
+```bash
+kubectl -n kube-system scale deployment coredns --replicas=2
+```
+
+**Miert nem a `.skip` utja, mint a local-path-nal:** a k3s becsomagolt
+`/var/lib/rancher/k3s/server/manifests/coredns.yaml`-je **nem tartalmaz `replicas`
+mezot** (ellenorizve grep-pel a masteren). Amit a manifest nem ir elo, azt az
+ujraalkalmazas nem is allitja vissza - ellentetben az `is-default-class` annotacioval,
+amit a k3s minden induláskor felulirt. A `.skip` itt karos is lenne: befagyasztana a
+coredns verziojat, ugyanugy, ahogy a local-path-provisionert v0.0.34-en tartja.
+
+**Ezt viszont a kovetkezo k3s ujrainduláskor ellenorizni kell**, mert a 2026-04-11-i
+local-path patch pontosan azert veszett el negy honapra, mert ez a lepes elmaradt:
+
+```bash
+kubectl -n kube-system get deploy coredns -o jsonpath='{.spec.replicas}'
+```
