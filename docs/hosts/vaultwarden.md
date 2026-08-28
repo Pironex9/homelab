@@ -22,10 +22,20 @@
 | `onboot` | yes |
 | Installed from | Proxmox Community Scripts, Alpine variant |
 
-Versions: `vaultwarden 1.37.2-r0`, `vaultwarden-web-vault 1.37.2-r0` (web vault
-build 2026.7.0), both from the Alpine package repository, managed with `apk`.
-Upgraded from 1.37.0 on 2026-08-28, together with the container's move from
-Alpine 3.23.3 to 3.24.1 - see below for why those two had to happen together.
+Installed from the Alpine package repository and managed with `apk`; the
+container was moved from Alpine 3.23.3 to 3.24.1 on 2026-08-28, and the section
+on updating explains why the server version and the Alpine release had to move
+together.
+
+**The running version is deliberately not pinned on this page.** This is a public
+site describing a password manager that is reachable from the internet, and a
+maintained "here is exactly what runs right now" line is the one detail that
+helps somebody targeting it and helps a reader not at all. To read it on the
+machine:
+
+```bash
+pct exec 103 -- apk list -I vaultwarden
+```
 
 Full build guide: [09 - Vaultwarden](../proxmox/09_Vaultwarden.md).
 
@@ -174,7 +184,9 @@ Full layout: [15 - Backup System](../proxmox/15_Proxmox_Backup_System_Documentat
   showed it dragging `musl 1.2.5-r21 -> 1.2.6-r2` along with it, which is the
   3.24 libc. There was no path that both updated the server and stayed on 3.23.
 
-  Done on 2026-08-28, 113 packages, 3.23.3 -> 3.24.1, no errors:
+  Done on 2026-08-28, 113 packages, 3.23.3 -> 3.24.1, no errors. The version
+  numbers below are the historical record of that day, not a claim about what is
+  running now:
 
   ```bash
   # from pve, AFTER a fresh vzdump of 103
@@ -184,7 +196,8 @@ Full layout: [15 - Backup System](../proxmox/15_Proxmox_Backup_System_Documentat
 
   **The restart is not optional.** `apk` swaps the binary on disk and leaves the
   running daemon on the old one; `supervise-daemon` will not notice. Confirm with
-  `pct exec 103 -- /usr/bin/vaultwarden --version`, which must report `1.37.2-r0`.
+  `pct exec 103 -- /usr/bin/vaultwarden --version`, which must report the version
+  you just installed rather than the one you replaced.
 
   `/etc/conf.d/vaultwarden` survived, because apk keeps a locally modified file
   and writes the packaged one beside it as `vaultwarden.apk-new`. Worth diffing
