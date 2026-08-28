@@ -223,6 +223,26 @@ Full layout: [15 - Backup System](../proxmox/15_Proxmox_Backup_System_Documentat
   this is the one machine whose failure locks you out of every other credential,
   so an upgrade that goes wrong must go wrong while somebody is looking.
 
+  It reports **two different things**, because the action differs:
+
+  | Line | Meaning | What to do |
+  |------|---------|------------|
+  | `Vaultwarden frissítés vár` | ordinary package drift, the container and its repository are on the same Alpine release | plain `apk upgrade`, then restart |
+  | `az Alpine latest-stable átbillent` | `alpine-release` is behind too: `latest-stable` has moved to the next Alpine release | the same command is now a **release jump** - fresh `vzdump` and a maintenance window first |
+
+  The second line is the one that has to exist. `/etc/apk/repositories` points at
+  `latest-stable`, which is a moving target: today it resolves to v3.24 and the
+  container runs 3.24.1, so the two are aligned and an upgrade is patch-level.
+  When Alpine 3.25 ships, `latest-stable` follows it and the identical command
+  silently becomes a release jump again - which is exactly the state this
+  container was found in on 2026-08-28, with nothing anywhere reporting it.
+
+  Note also what the alignment buys: only the **current** stable branch receives
+  version bumps. v3.24 moved 1.37.0 -> 1.37.2 while v3.23 stayed frozen at
+  1.36.0. So while the container sits on the current release it tracks upstream
+  normally; the moment a new Alpine ships, its branch stops moving and the next
+  server update requires the jump.
+
 - **The container is 1 GB.** It has room for a password database and little else;
   logs go to `/var/log/vaultwarden`. 25% used after the upgrade, 7.4 MB of data.
 - `nesting=1,keyctl=1` are set on the container, which the community script

@@ -129,29 +129,51 @@ fi
 # jelentkezik, hanem egy kliensen, "An error has occurred" formájában, ami
 # semmit nem árul el a szerver verziójáról - ezért kell ide.
 #
+# Két KÜLÖN dolgot jelent, mert a teendő is más:
+#
+#   VW=  csomag-elmaradás. A container kiadása és a repo ugyanaz, tehát az
+#        `apk upgrade` sima patch-szintű művelet.
+#   REL= az `alpine-release` is elmaradásban van, vagyis a `latest-stable`
+#        átbillent a következő Alpine kiadásra. Ilyenkor ugyanaz az
+#        `apk upgrade` MÁR KIADÁSUGRÁS, és mentés meg karbantartási ablak kell
+#        hozzá. Ez a 2026-08-28-i helyzet volt, csak akkor senki nem látta.
+#
 # Az `apk update` csak az index-cache-t frissíti a containerben, csomagot nem
 # telepít. A kimenete azért van külön OK/FAIL sorban, mert nélküle egy megszakadt
 # DNS (ismert hibamód ezeken az LXC-ken) üres listát adna, és a blokk
 # "naprakész"-t jelentene, miközben valójában vak.
 vw_out=$(pve "pct exec 103 -- sh -c '
-    if apk update >/dev/null 2>&1; then echo OK; else echo FAIL; fi
-    apk list -I vaultwarden 2>/dev/null | cut -d\" \" -f1
-    apk version -l \"<\" 2>/dev/null | grep \"^vaultwarden\" | tr -s \" \" | sed \"s/ *\$//\"
+    if apk update >/dev/null 2>&1; then echo RC=OK; else echo RC=FAIL; fi
+    apk list -I vaultwarden 2>/dev/null | cut -d\" \" -f1 | sed \"s/^/INST=/\"
+    apk version -l \"<\" 2>/dev/null | grep \"^alpine-release\" | tr -s \" \" | sed \"s/ *\$//; s|^|REL=|\"
+    apk version -l \"<\" 2>/dev/null | grep \"^vaultwarden\" | tr -s \" \" | sed \"s/ *\$//; s|^|VW=|\"
 '" 2>/dev/null)
 
-vw_rc=$(echo "$vw_out" | sed -n 1p)
-vw_inst=$(echo "$vw_out" | sed -n 2p)
-vw_old=$(echo "$vw_out" | tail -n +3 | sed '/^$/d')
+vw_rc=$(sed -n 's/^RC=//p' <<<"$vw_out")
+vw_inst=$(sed -n 's/^INST=//p' <<<"$vw_out")
+vw_rel=$(sed -n 's/^REL=//p' <<<"$vw_out")
+vw_old=$(sed -n 's/^VW=//p' <<<"$vw_out")
 
 if [[ "$vw_rc" != "OK" || -z "$vw_inst" ]]; then
     lines+=("⚠️ Vaultwarden: nem kérdezhető le a verzió (LXC 103)")
     warn=1
-elif [[ -n "$vw_old" ]]; then
-    lines+=("⚠️ Vaultwarden frissítés vár (LXC 103):")
-    while IFS= read -r l; do lines+=("    $l"); done <<<"$vw_old"
-    warn=1
 else
-    lines+=("Vaultwarden: naprakész (${vw_inst#vaultwarden-})")
+    if [[ -n "$vw_old" ]]; then
+        lines+=("⚠️ Vaultwarden frissítés vár (LXC 103):")
+        while IFS= read -r l; do lines+=("    $l"); done <<<"$vw_old"
+        warn=1
+    else
+        lines+=("Vaultwarden: naprakész (${vw_inst#vaultwarden-})")
+    fi
+    # Külön sor, és akkor is, ha a vaultwarden éppen naprakész: a kiadásugrás
+    # a következő apk upgrade-et teszi veszélyessé, függetlenül attól, hogy
+    # most van-e mit frissíteni.
+    if [[ -n "$vw_rel" ]]; then
+        lines+=("⚠️ LXC 103: az Alpine latest-stable átbillent ($vw_rel)")
+        lines+=("    a következő apk upgrade KIADÁSUGRÁS - mentés + ablak kell")
+        lines+=("    eljárás: docs/proxmox/09_Vaultwarden.md, Updating")
+        warn=1
+    fi
 fi
 
 # --- Uptime ---
