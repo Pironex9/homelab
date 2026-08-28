@@ -81,10 +81,17 @@ In v2, Core generates a PKI keypair on startup (`/config/keys/core.key` + `core.
 | Server | Address | Periphery type | Notes |
 |--------|---------|----------------|-------|
 | Local | `https://periphery:8120` | Docker container (komodo-periphery-1) | Built-in local agent on the komodo LXC |
-| LXC 100 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | Main Docker host - 18 stacks |
+| LXC 100 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | Main Docker host - most of the stacks |
+| LXC 106 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | karakeep |
+| LXC 109 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | claude-mgmt, code-server stack |
+| LXC 113 | outbound → `http://192.168.0.105:9120` | systemd `periphery.service` | agentos |
 | Nobara | `https://192.168.0.100:8120` | systemd `periphery.service` | Desktop PC, not 24/7 |
-| VPS | outbound via Tailscale → `http://100.86.108.33:9120` | systemd `periphery.service` | Hetzner VPS - Pangolin stack |
+| VPS | outbound via Tailscale → `http://100.86.108.33:9120` | systemd `periphery.service` | Hetzner VPS - pangolin, landing, uptime-kuma |
 | HAOS | - | Not supported | Home Assistant OS is a locked-down Alpine VM - no periphery install possible |
+
+Every server that runs a repo-linked stack keeps its **own** clone under
+`/etc/komodo/repos/<repo name>/`. That is worth knowing before hunting for a
+credential leak - see the next section.
 
 ### Periphery PKI configuration (v2)
 
@@ -147,6 +154,73 @@ Note: On Nobara, `sudo python3 -` is required (writes to `/usr/local/bin`). Use 
    sudo systemctl restart periphery && sudo systemctl enable periphery
    ```
 4. Add the server in Komodo UI: **Servers → New Server → `https://<ip>:8120`**
+
+## Git provider credentials: none, by design (2026-08-28)
+
+Komodo holds **no** GitHub credential any more. `Pironex9/homelab` is a public
+repo and Komodo only reads it, so the fine-grained PAT that used to live in the
+git provider account was **removed** rather than rotated into a new secret. An
+anonymous HTTPS clone does everything Komodo needs here.
+
+What that PAT actually exposed, worst first:
+
+1. **Any Komodo API key could read it in plaintext.** `POST /read` with
+   `{"type":"ListGitProviderAccounts","params":{}}` returns the account object
+   with the `token` field in it. That is a wider surface than the file copies
+   below, and it is why the account itself had to go, not just the checkouts.
+2. **Five world-readable file copies.** Every server running a repo-linked stack
+   keeps its own clone under `/etc/komodo/repos/<repo name>/`, and Komodo writes
+   the credential straight into the remote URL -
+   `https://token:<PAT>@github.com/Pironex9/homelab` - in a `-rw-r--r--`
+   `.git/config`. The clones were on LXC 100, LXC 106, LXC 109, Nobara and the
+   VPS. On Nobara the file was readable over SSH as the ordinary desktop user,
+   no sudo needed.
+
+The removal, in the order it has to happen:
+
+```bash
+# 1. clear the account off the Repo resource (reversible)
+curl -X POST $API/write -H "$AUTH" \
+  -d '{"type":"UpdateRepo","params":{"id":"github","config":{"git_account":""}}}'
+
+# 2. pull, so Komodo rewrites the URL it manages
+curl -X POST $API/execute -H "$AUTH" -d '{"type":"PullRepo","params":{"repo":"github"}}'
+
+# 3. every clone Komodo did NOT just pull, by hand, on each host
+git -C /etc/komodo/repos/github remote set-url origin https://github.com/Pironex9/homelab
+
+# 4. delete the account itself (this is where the token stops existing locally)
+curl -X POST $API/write -H "$AUTH" \
+  -d '{"type":"DeleteGitProviderAccount","params":{"id":"<oid>"}}'
+
+# 5. revoke the PAT on github.com/settings/personal-access-tokens
+```
+
+Two things that are easy to get wrong:
+
+- **Clearing `git_account` only cleans the clones Komodo actually pulls.** The
+  pull log has a `Set Git Remote` stage that rewrites the remote URL on every
+  run, so the pulled clone comes out clean by itself. A clone that is not pulled
+  keeps the credentialed URL indefinitely - four of the five needed
+  `git remote set-url` by hand.
+- **Stacks do not carry the account.** All 32 stacks have `git_account: ""` and
+  inherit the setting from the Repo resource through `linked_repo`, so this is
+  one field to change, not 32.
+
+What it costs: the Komodo UI can no longer create or delete the GitHub webhook,
+because that API call needs a token. **Existing webhooks are unaffected** - they
+fire GitHub → Komodo and carry no Komodo credential.
+
+Verification, from any host with the API key:
+
+```bash
+curl -s -X POST http://192.168.0.105:9120/read -H "X-Api-Key: $K" -H "X-Api-Secret: $S" \
+  -H 'Content-Type: application/json' -d '{"type":"ListGitProviderAccounts","params":{}}'
+# []
+```
+
+and on each managed server, `git -C /etc/komodo/repos/github remote -v` must show
+a bare `https://github.com/Pironex9/homelab`.
 
 ## Lessons Learned
 
