@@ -286,6 +286,33 @@ trivial - not in the middle of a minor.
 Most of hop 1's 440 s was pulling the `rancher/k3s-upgrade` image for the first time.
 The later hops are the honest steady-state number: **3 to 4 minutes per hop**.
 
+### Where the version number comes from - not the newest tag
+
+**This is a correction to what the 2026-08-28 upgrade actually did.** All three hops
+took the newest existing tag rather than what k3s itself calls stable, and every one of
+them landed one patch *ahead* of the release channel:
+
+| Hop target used | Channel said, checked 2026-08-28 |
+|---|---|
+| v1.34.11+k3s1 | v1.34.10+k3s1 |
+| v1.35.8+k3s1 | v1.35.7+k3s1 |
+| v1.36.4+k3s1 | v1.36.3+k3s1 (`stable` and `latest` both) |
+
+`v1.36.4+k3s1` is additionally marked `prerelease: true` on GitHub, published
+2026-08-27 - one day before it was installed here. It is not a release candidate and
+nothing is broken by it, but upstream had not promoted it yet.
+
+The check that was missing:
+
+```bash
+curl -s https://update.k3s.io/v1-release/channels | jq -r '.data[] | "\(.id) \(.latest)"'
+```
+
+**This cannot be undone.** k3s does not support downgrading, so the only way back onto
+the channel is forward, when the channel catches up. The rule from here: the target
+version should appear in its channel, and going ahead of it has to be a deliberate
+decision rather than a side effect of reading the releases page.
+
 ### The `version` field is not the image tag
 
 The Plan takes `version: v1.36.4+k3s1`, with a **plus**. The SUC turns that into the
@@ -465,14 +492,77 @@ a shorter timeout and not `disableEviction`.
     drain configuration.
 
     That is convenient - editing drain settings is free and never disturbs a running
-    cluster. It also means **the SUC drain path cannot be exercised without a real
-    version bump.** The `kubectl drain` above proves the Longhorn PDB behaviour; the
-    first hop that actually runs under this config will be the first proof of the Plan
-    wiring itself.
+    cluster. It also means the SUC drain path cannot be exercised by editing the Plan.
+    There is a way around that, below.
 
     A second thing worth knowing about timing: Argo CD picked the commit up about
     5 minutes after the push. If a Plan edit looks like it did not land, check
     `status.sync.revision` against `git rev-parse HEAD` before assuming something broke.
+
+#### Exercising the SUC drain path without a version bump (2026-08-28)
+
+The Plan wiring can be tested at the current version, because of how the SUC decides
+which nodes still need work. Each node carries the plan's hash as a label:
+
+```
+opt3060-i3   plan.upgrade.cattle.io/agent-plan  = 85914216d295…
+opt5060-i5   plan.upgrade.cattle.io/server-plan = 85914216d295…
+```
+
+Remove that label and the SUC treats the node as not yet upgraded, and runs the whole
+job on it - `prepare`, `drain`, `upgrade` - against the version already installed:
+
+```bash
+kubectl label node opt3060-i3 plan.upgrade.cattle.io/agent-plan-
+```
+
+No git change, no fake version, and the label is written back by the SUC when the job
+succeeds. The job started 5 seconds after the label went away and finished in **43 s**.
+
+**What this proved.** The `drain` init container ran with the flags from the Plan and
+hit the same PDB behaviour as the manual drain, inside the real SUC path:
+
+```
+evicting pod apps/forgejo-6dcd59d94d-gwb6m
+evicting pod longhorn-system/instance-manager-e6288312e2b1783e76b72ebd0e03d0fe
+error when evicting pods/"instance-manager-e628…" (will retry after 5s):
+  Cannot evict pod as it would violate the pod's disruption budget.
+... rejected a second time, then:
+pod/instance-manager-e6288312e2b1783e76b72ebd0e03d0fe evicted
+node/opt3060-i3 drained
+```
+
+`prepare` also did its job: it read `server-plan`, found `applying` empty, and verified
+`CONTROLPLANE_NODE_VERSION=v1.36.4-k3s1` against the target before letting the drain
+start. The worker cannot overtake the control plane.
+
+**What it did not prove.** The binary swap and the k3s restart. The `upgrade` container
+compared checksums, found them equal and stopped:
+
+```
+[INFO]  Comparing old and new binaries
+835873f37245fc61…  /opt/k3s
+835873f37245fc61…  /host/usr/local/bin/k3s
+[INFO]  Binary already been replaced
++ exit 0
+```
+
+!!! note "This also confirms why `FAILED 1` appears on a real hop"
+    This job reported `succeeded: 1` and **no** failures, unlike every agent job during
+    the 2026-08-28 hops. The difference is the restart: with no binary change there is no
+    k3s-agent restart, so no pod loses its kubelet mid-run. That was previously an
+    inference from the timing; it is now the controlled case that isolates it.
+
+!!! warning "A node drain takes more with it than the workload"
+    The drain log from this run lists what actually left `opt3060-i3`:
+    `argocd-server`, `coredns`, `metrics-server`, `longhorn-ui`, every `csi-*` controller
+    (`attacher`, `provisioner`, `resizer`, `snapshotter`), the Longhorn `instance-manager`
+    and the Forgejo pod.
+
+    **`coredns` runs a single replica here** (`readyReplicas: 1`), so a drain that lands
+    on its node briefly takes cluster DNS with it. Nothing broke in this run, but with a
+    workload that resolves names under load it would show. Worth scaling to 2 before the
+    cluster carries anything that matters; not done yet.
 
 ### Side effect: local-path-provisioner is frozen
 
@@ -1479,6 +1569,9 @@ terminal whose output is logged.
 - [x] Re-verify the drain path once real volumes exist - **done 2026-08-28** on the Forgejo volume with 3 healthy replicas: drain 12 s, workload serving again in 42 s, replica rebuilt 37 s after uncordon, nothing blocked
 - [x] local-path-provisioner frozen at v0.0.34 by the `.skip` file - **decided 2026-08-28: leave it**, four options weighed, revisit when something needs `local-path`
 - [x] Re-check whether Longhorn can go under Argo CD - longhorn/longhorn#6415 was fixed in v1.6.0, so the old reason is stale; **still not adopting**, new reason in `k8s/README.md`
+- [x] Exercise the SUC drain wiring - **done 2026-08-28** by removing the plan-hash label from a worker; job in 43 s, `prepare` gate and `drain` both correct, PDB rejected twice then released
+- [ ] Scale `coredns` to 2 replicas - it runs 1, so any node drain briefly takes cluster DNS with it
+- [ ] k3s is one patch ahead of the release channel on all three hops (v1.36.4 vs `stable` v1.36.3) - cannot be undone, wait for the channel to catch up
 - [ ] Prometheus + Grafana monitoring stack
 - [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly
 - [ ] RBAC policies

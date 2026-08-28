@@ -14,6 +14,21 @@
 #
 # A `version` mezoben `+k3s1` all, a SUC ebbol keszit `-k3s1` image tagot.
 #
+# HONNAN VEDD A VERZIOSZAMOT. Nem a GitHub legfrissebb tagjebol - a k3s sajat
+# csatornajabol:
+#
+#   curl -s https://update.k3s.io/v1-release/channels | jq -r '.data[] | "\(.id) \(.latest)"'
+#
+# 2026-08-28-i tanulsag: mind a harom hop egy patch-csel a stable ELE ment,
+# mert a legfrissebb letezo taget vettem celnak. A csatorna akkor v1.34.10 /
+# v1.35.7 / v1.36.3 volt, mi v1.34.11 / v1.35.8 / v1.36.4-re mentunk. A
+# v1.36.4+k3s1 a GitHubon `prerelease: true` (2026-08-27), tehat az upstream
+# meg nem leptette elo. Nem rc es nem hibas - de a k3s NEM tamogat downgrade-et,
+# tehat ezt visszavonni nem lehet, csak elore kivarni.
+#
+# A szabaly: a cel verzio legyen benne a megfelelo csatornaban. Ha ujabbat
+# akarsz, az tudatos dontes legyen, ne mellektermek.
+#
 # A `drain` maga cordonol elsokent, ezert nincs kulon `cordon: true` - a ketto
 # egyutt felesleges. Az indoklas lentebb, a drain blokk felett.
 #
