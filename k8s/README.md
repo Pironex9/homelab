@@ -515,6 +515,49 @@ limit 79%-a. Stabil volt, nem kuszott, de egy OOMKill itt csendes hiba: a pod
 ujraindul, a dashboardok ConfigMapbol visszajonnek, es semmi nem mondja meg, miert volt
 egy lyuk a grafikonokon.
 
+### A `cluster` cimke, es hogy hol NEM latszik
+
+```yaml
+prometheus:
+  prometheusSpec:
+    externalLabels:
+      cluster: homelab-k3s
+```
+
+Enelkul a chart szabalyainak szovege ugy vegzodik, hogy **`on cluster .`** - a
+`cluster` cimkere hivatkoznak, az pedig ures. A 2026-08-28-i elso valodi riasztasokon
+pontosan igy jott ki.
+
+**Az `external_labels` NEM kerul ra a tarolt idosorokra.** Ez a leggyakoribb
+felreertes: a Prometheus akkor adja hozza, amikor riasztast kuld az Alertmanagernek,
+illetve federacionál es remote-write-nal. A **sajat lekerdezeseiden egyaltalan nem
+fogod latni**, sem a regi, sem az uj adatokon. A riasztasokon es a Grafana-ertesiteseken
+viszont igen.
+
+**Egy cimke megvaltoztatasa uj riasztas-identitast hoz letre.** A valtas utan atmenetileg
+ket `Watchdog` volt bent az Alertmanagerben - egy `cluster=homelab-k3s`-szel es egy
+`cluster=null`-lal. A regi a `resolve_timeout: 5m` letelte utan magatol eltunt. Nem hiba,
+de aki eloszor latja, azt hiszi, duplikalodott valami.
+
+### A config-reloader miatt sem a Prometheus, sem az Alertmanager nem indul ujra
+
+Merve mindket valtoztatasnal (`configSecret` csere, `externalLabels` felvetele): a pod
+**ugyanaz maradt** - a Prometheusnal 83 perces uptime-mal -, es az uj konfig megis
+eletbe lepett. A sidecar figyeli a mountolt Secretet es helyben ujratolt.
+
+Ebbol ket dolog kovetkezik. Egy: **a pod uptime-jabol nem lehet arra kovetkeztetni, hogy
+a konfig regi.** Ketto: az ellenorzes a futo konfigon tortenjen, ne a CR-en -
+`/api/v1/status/config` a Prometheusnal, `/api/v2/status` az Alertmanagernel.
+
+### Amit az elso napjan ellenorizhetoen elkapott
+
+Nem elmeleti haszon. A Grafana beragadt rolloutjara (amit en okoztam a hianyzo
+`Recreate`-tel) magatol kiadta a `KubeDeploymentRolloutStuck` es a `KubePodNotReady`
+riasztast 15 perc utan, es a javitas utan a RESOLVED is megjott Telegramra. Plusz az
+elso napon a `NodeClockNotSynchronising`-ot, ami honapok ota fennallo valodi hiba volt.
+
+Ket hiba, amirol enelkul csak akkor szereztunk volna tudomast, ha valaki eppen odanez.
+
 ### Az Alertmanager Telegramra kuld
 
 **Nem az ntfy-ra, es ennek meresi oka van.** Az ntfy a homelab bevett csatornaja
@@ -613,9 +656,14 @@ curl -X POST -H 'Content-Type: application/json' \
   http://alertmanager-operated.monitoring.svc:9093/api/v2/alerts
 ```
 
-2026-08-28-i eredmeny: `notifications_total{telegram} 2`, es mind a het `failed_total`
+2026-08-28-i eredmeny: `notifications_total{telegram} 6`, es mind a het `failed_total`
 ok (`authError`, `clientError`, `serverError`, `rateLimited`, a ket timeout es az
 `other`) nulla.
+
+A szamlalot **ne kozvetlenul a teszt utan olvasd**: elsore 2-t mutatott, mert a
+csoportositas es a resolve-uzenetek meg uton voltak. A vegleges szam 6 lett (a teszt
+FIRING+RESOLVED, plusz a beragadt Grafana rolloutra magatol kiadott
+`KubeDeploymentRolloutStuck` es `KubePodNotReady` resolve-jai).
 
 > **Csereles kozben van egy csendes ablak.** Amikor a `useExistingSecret: true` elvette a
 > chart sajat Secretjet, de a `configSecret` meg nem lepett eletbe, az operator naploja
