@@ -287,6 +287,77 @@ Both paths verified on 2026-08-25: a healthy run pushed `up` with
 `no-volumes, bucket 589B`, and a deliberately unreachable Garage pushed `down` with
 the reason, which reached the Discord notification.
 
+## longhorn-restore-test.sh
+
+Restores a Longhorn backup and asks whether the result is *usable*, not whether it
+exists. Manual, on demand - there is no cron for it yet.
+
+`longhorn-backup-check.sh` answers "did a backup happen". This one answers "can it be
+read back, and does the application accept what comes out". A backup that uploaded
+successfully but is corrupt or half-written passes the first check and fails this one.
+
+### Why it does not compare checksums
+
+The snapshot is taken from the **running** application, so it is crash-consistent -
+exactly the state a node failure would leave. Measured on the Forgejo volume on
+2026-08-28, that meant the SQLite WAL was larger than the database itself:
+
+```
+gitea.db        1 257 472 bytes
+gitea.db-wal    4 128 272 bytes
+```
+
+`gitea.db` on its own is stale without the WAL. Hashing it against the live copy would
+fail, and hashing it against a pre-snapshot copy would "pass" while hiding 4 MB of
+unmerged WAL. So the verdict is instead: mount the restored volume in a pod running the
+**application's own image**, run the application's own command against it, and look for
+an expected string in the output. For Forgejo that is
+`forgejo -c <app.ini> admin user list` matching the admin username.
+
+### What it touches
+
+The live PVC is only **read** - a snapshot is taken, the application is not stopped or
+restarted. Everything it creates is named `restore-test-…` and labelled
+`restore-test=true`, and it is all removed at the end. The `RecurringJob`'s own backups
+are never touched.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `NS` | `apps` | namespace of the PVC and deployment |
+| `PVC` | `forgejo-data` | the volume to test |
+| `DEPLOY` | `forgejo` | deployment whose image is reused for verification |
+| `MOUNT` | `/var/lib/gitea` | where to mount the restored volume |
+| `VERIFY_CMD` | `forgejo -c …/app.ini admin user list` | command run inside the verify pod |
+| `VERIFY_MATCH` | `Pironex9` | string that must appear in its output |
+| `KEEP_BACKUP` | `0` | `1` keeps the test snapshot and backup instead of deleting them |
+
+Exit code is 0 only if `VERIFY_MATCH` appears in the verify pod's log.
+
+### `status.size` is not what a backup costs
+
+The script prints both numbers because the difference is large enough to mislead
+capacity planning. On 2026-08-28, for a volume holding 5.4 MB of data:
+
+```
+size                283 115 520   <- the snapshot's logical extent
+newlyUploadDataSize     554 286   <- what actually went to Garage, lz4-compressed
+```
+
+The Garage bucket independently reported 570.4 kB across 35 objects for its entire
+contents. Plan `RecurringJob` retention against `newlyUploadDataSize`.
+
+### If it fails
+
+Everything it creates is disposable, so a partial run leaves no damage - but it may
+leave objects behind. Clean up with:
+
+```bash
+kubectl -n apps delete pod restore-test-verify --ignore-not-found
+kubectl -n apps delete pvc restore-test-data --ignore-not-found
+kubectl delete sc longhorn-restore-test --ignore-not-found
+kubectl -n longhorn-system delete backup,snapshot -l restore-test=true
+```
+
 ## install-lan-ca-windows.ps1
 
 Makes `https://<service>.lan` trusted on a Windows machine. The `.lan` certs are

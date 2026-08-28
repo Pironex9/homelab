@@ -63,6 +63,12 @@ Semmit. A proxy pod a clusterben fut, StatefulSetkent, tehat magatol ujraindul e
 tulel egy node rebootot is. Ez a lenyegi kulonbseg a port-forwardhoz kepest, ami egy
 folyamat volt a 109-en, es a session-nel egyutt meghalt.
 
+**Ez 2026-08-28 ota nem csak allitas.** A drain-meres soran a `ts-forgejo-99j4d-0` pod
+a tobbivel egyutt evictelodott a kiuritett node-rol, es **ugyanazzal a tailnet
+identitassal** jott vissza masik node-on - a HTTPS vegpont kezi lepes nelkul allt
+helyre, ugyanazon a nevem. Ezt a `secret/ts-<nev>-<hash>-0` teszi lehetove: az
+identitas allapot, es a StatefulSet ugyanazt a Secretet adja vissza az uj podnak.
+
 Amit az operator egy Ingresshez letrehoz:
 
 ```
@@ -106,8 +112,14 @@ A `.ts.net` nev csak ott oldodik fel, ahol a MagicDNS aktiv. **A 109-en nem**, o
 SNI-vel lehet tesztelni:
 
 ```bash
+tailscale debug prefs | grep CorpDNS       # "CorpDNS": false  <- ezert nem oldodik fel
+tailscale status | grep <ingress nev>      # innen jon a proxy IP
 curl --resolve argocd.tailc6abe2.ts.net:443:<proxy IP> https://argocd.tailc6abe2.ts.net/
 ```
+
+Ez minden tailnetes Ingressre igaz, nem csak az argocd-re. Ha a 109-rol egy `.ts.net`
+nev `Could not resolve host`-tal jon vissza, az **nem** azt jelenti, hogy az Ingress
+rossz - eloszor a fenti `--resolve`-os hivassal ellenorizd.
 
 Az admin jelszo a jelszokezeloben van, az `argocd-initial-admin-secret` torolve.
 
@@ -265,9 +277,20 @@ ujsorral egyutt, es az `environment-to-ini` azt irna bele az `app.ini`-be.
 **Miert kotelezo:** a Forgejo nem general maganak SECRET_KEY-t. Ha ures, a
 `modules/setting/security.go` `loadSecurityFrom` fuggvenye a forraskodba drotozott
 `"!#@FDEWREWR&*("` erteket hasznalja - vagyis egy nyilvanosan ismert kulcsot, amivel a
-2FA titkok, a mirror jelszavak es az OAuth tokenek titkositva lennenek. (Az
-`INTERNAL_TOKEN` ezzel szemben magatol generalodik es kimentodik az `app.ini`-be, azzal
-nincs teendo.)
+2FA titkok, a mirror jelszavak es az OAuth tokenek titkositva lennenek.
+
+**A masik ket titokkal viszont nincs teendo,** es ez nem feltetelezes: az elso indulas
+utan mind a harom bent van az `app.ini`-ben a koteten, tehat a mentesben is.
+
+| Kulcs | Honnan jon | Mikor |
+|---|---|---|
+| `SECRET_KEY` | a kezi Secretbol, `FORGEJO__security__SECRET_KEY` | minden indulaskor ujrairva |
+| `INTERNAL_TOKEN` | magatol generalodik, `generateSaveInternalToken` | egyszer, elmentve |
+| `JWT_SECRET` | magatol generalodik, `createSymmeticSigningKeyCfg` | egyszer, elmentve |
+
+Az elso indulas logjaban ezert lathato egy `[oauth2] JWT_SECRET or JWT_SECRET_URI failed
+loading: invalid base64 decoded length: 0 - creating new key` sor. **Ez `[I]` szintu es
+nem ismetlodik** - a fuggveny `saveCfg.Save()`-vel ki is irja, amit generalt.
 
 A kulcs `/root/.secrets/forgejo-secret-key` alatt marad a 109-en. **Ha elvesz, a vele
 titkositott mezok olvashatatlanok** - a repok es a felhasznalok megmaradnak, a 2FA es a
@@ -286,13 +309,18 @@ kubectl -n apps exec deploy/forgejo -- \
 A kiirt jelszo egyszer latszik. Ez tudatos csere: a webes telepitot barki elerhetne a
 tailnetrol, aki elobb nyitja meg, mint te.
 
-### Ket dontes, ami keson fajna
+### Harom dontes, ami keson fajna
 
 - **`strategy: Recreate`.** A kotet ReadWriteOnce. RollingUpdate eseten az uj pod a regi
   mellett indulna, es `Multi-Attach error`-ral orokre Pendingben allna.
 - **`Prune=false` a PVC-n.** Az Application `prune: true`-val fut. Enelkul a `pvc.yaml`
   gitbol valo kikerulese torolne a PVC-t, a `longhorn` StorageClass
   `reclaimPolicy: Delete`-je pedig vinne magat a kotetet is.
+- **`fsGroup: 1000` a pod securityContextjeben.** A Longhorn kotet gyoker tulajdonuként
+  jon letre, a rootless image viszont uid 1000-rel indul. `fsGroup` nelkul a kubelet nem
+  chownolja a kotetet, es a `docker-setup.sh` mar az elso soranal elszall:
+  `/var/lib/gitea/git is not writable`. Ez minden rootless imagere igaz Longhorn koteten,
+  nem Forgejo-specifikus.
 
 ### Amit szandekosan nem telepitettunk hozza
 
