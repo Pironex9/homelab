@@ -1,5 +1,5 @@
 site_name: Norbert Csicsay - Homelab
-site_description: Self-hosted infrastructure running 27 services on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
+site_description: Self-hosted infrastructure running 32 Docker Compose stacks and a 3-node K3s cluster on Proxmox VE. Built from scratch to learn Linux, networking, and DevOps practices.
 site_author: Norbert Csicsay
 site_url: https://docs.homelabor.net/
 
@@ -11,6 +11,23 @@ site_url: https://docs.homelabor.net/
 exclude_docs: |
   superpowers/
   adr/
+  README.md
+
+# `README.md` is not an internal document: it is the index of docs/ for anyone
+# reading the repo on GitHub, and it is kept in step with `nav` by hand. MkDocs
+# drops it from the build anyway because `index.md` already claims that URL, but
+# it does so with a warning, which `--strict` turns into a failed deploy. Naming
+# it here makes the exclusion deliberate instead of incidental.
+
+# `--strict` in the deploy workflow turns each of these into a build failure, so
+# a broken link cannot reach the published site. `warn` rather than `ignore` is
+# what gives them something to escalate; `anchors` is the one that catches a
+# heading rename breaking a `#fragment` somewhere else in the tree.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
 
 repo_url: https://github.com/Pironex9/homelab
 repo_name: Pironex9/homelab
