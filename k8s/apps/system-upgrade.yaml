@@ -1,0 +1,30 @@
+---
+# A system-upgrade-controller es a k3s frissitesi Planek.
+#
+# A controller es a CRD az upstream v0.20.1 kiadasbol van bemasolva
+# (k8s/manifests/system-upgrade/{crd,controller}.yaml), valtoztatas nelkul.
+# Frissiteshez a ket fajlt kell ujra lehuzni a kovetkezo release-bol.
+#
+# ServerSideApply: a CRD 72 KB, ma meg belefer a client-side apply 256 KB-os
+# annotacios limitjebe, de egy CRD-nel a server-side apply az eleve helyes
+# valasztas - ugyanaz a dontes, mint a longhorn-backup Applicationnel.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: system-upgrade
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Pironex9/homelab.git
+    targetRevision: main
+    path: k8s/manifests/system-upgrade
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: system-upgrade
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

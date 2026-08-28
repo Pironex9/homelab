@@ -65,7 +65,7 @@ PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 MASTER="${K3S_BACKUP_MASTER:-nex@opt5060-i5}"
 PVE="${K3S_BACKUP_PVE:-root@192.168.0.109}"
 DEST_DIR="${K3S_BACKUP_DEST:-/mnt/storage/backup/k3s}"
-KEEP="${K3S_BACKUP_KEEP:-7}"
+KEEP="${K3S_BACKUP_KEEP:-30}"
 STAGE="/tmp/k3s-backup-staging"
 PASSFILE="${K3S_BACKUP_PASSFILE:-/root/.secrets/k3s-backup-passphrase}"
 
