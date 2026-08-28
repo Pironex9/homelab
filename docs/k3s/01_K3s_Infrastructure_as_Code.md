@@ -158,8 +158,9 @@ alert, instead of being discovered the day it was needed.
 
 ## Related
 
-- [K3s Cluster host reference](../hosts/k3s-cluster.md) - live state, DNS, the
-  incidents and their measurements
+- [K3s Cluster host reference](../hosts/k3s-cluster.md) - hardware, addressing,
+  live state, node clock sync
+- [Version Upgrades](02_Version_Upgrades.md) · [Longhorn Storage](03_Longhorn_Storage.md) · [Hardening and Recovery](04_Hardening_and_Recovery.md) · [Wake-on-LAN](05_Wake_on_LAN.md)
 - [`k8s/README.md`](https://github.com/Pironex9/homelab/blob/main/k8s/README.md) -
   the full Argo CD layer, in detail
 - [`ansible/README.md`](https://github.com/Pironex9/homelab/blob/main/ansible/README.md) -

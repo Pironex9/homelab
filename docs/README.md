@@ -17,7 +17,7 @@ Per-host reference documentation - current configuration, running services, and 
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
 - [kan](./hosts/kan.md) - Kan kanban board (Docker stack on LXC 100) - self-hosted Trello alternative, PostgreSQL
 - [agentos](./hosts/agentos.md) - Hermes + Odysseus agentic OS layer (LXC 113) - local Ollama primary, DeepSeek fallback, restricted Claude Code delegation
-- [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - Kubernetes, Longhorn, Ansible-managed config layer, GitOps version upgrades via system-upgrade-controller, WoL, Tailscale access
+- [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - the machine reference: hardware, addressing, live state, Tailscale access, node clock sync. The work done on the cluster is under `k3s/`
 - [vps](./hosts/vps.md) - Hetzner VPS (CX23) - Pangolin reverse proxy, Komodo managed via Tailscale
 
 ### Retired
@@ -93,6 +93,10 @@ The K3s cluster's own code layers. The live cluster state lives on the
 [k3s-cluster host page](./hosts/k3s-cluster.md).
 
 - [01 - Infrastructure as Code](./k3s/01_K3s_Infrastructure_as_Code.md) - the three layers that describe the cluster: Ansible for k3s itself, Argo CD for its contents, and the restore proofs behind the backups
+- [02 - Version Upgrades](./k3s/02_Version_Upgrades.md) - system-upgrade-controller under Argo CD, the one-minor-at-a-time rule it does not enforce, the three hops of 2026-08-28
+- [03 - Longhorn Storage](./k3s/03_Longhorn_Storage.md) - real usable capacity vs raw, the restore that was actually performed, the Garage S3 backup target
+- [04 - Hardening and Recovery](./k3s/04_Hardening_and_Recovery.md) - proven control-plane restore, default-deny NetworkPolicy, Secrets encrypted at rest
+- [05 - Wake-on-LAN](./k3s/05_Wake_on_LAN.md) - powering the remote nodes on, and why the obvious setup does not survive a shutdown
 
 ## vps/
 

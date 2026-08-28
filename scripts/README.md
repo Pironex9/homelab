@@ -106,7 +106,7 @@ protects integrity, not confidentiality - the content is already encrypted.
 | Item | Why it is needed |
 |---|---|
 | `state.db` (VACUUM INTO copy) | the entire cluster state |
-| `tls/`, `cred/`, `token`, `node-token` | without these you cannot connect to a restored DB and nodes cannot rejoin. Since 2026-08-28 `cred/` also holds `encryption-config.json`, the **only** copy of the key that makes the Secrets in `state.db` readable - see the secrets-encryption section in `docs/hosts/k3s-cluster.md` |
+| `tls/`, `cred/`, `token`, `node-token` | without these you cannot connect to a restored DB and nodes cannot rejoin. Since 2026-08-28 `cred/` also holds `encryption-config.json`, the **only** copy of the key that makes the Secrets in `state.db` readable - see the secrets-encryption section in `docs/k3s/04_Hardening_and_Recovery.md` |
 | `manifests/` | the k3s packaged addon manifests |
 | systemd unit + env files, master and both workers | where `--node-ip` and `K3S_URL` actually live |
 | `kubectl` YAML export (separate file) | human-readable fallback, and the view you need to *rebuild* rather than restore |

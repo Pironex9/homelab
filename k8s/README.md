@@ -287,7 +287,7 @@ dolog vegre merheto:
    ota minden hajnali 1-kor lefut, es eddig **semmit** nem mentett, mert nem volt kotet.
    Az elso valodi backup ettol a kotettol keletkezik.
 2. **A drain last-replica aga.** A 2026-08-28-i meres ures clusteren futott (lasd
-   `docs/hosts/k3s-cluster.md`), tehat a `block-if-contains-last-replica` viselkedese
+   `docs/k3s/03_Longhorn_Storage.md`), tehat a `block-if-contains-last-replica` viselkedese
    nem volt kiprobalhato.
 
 Haszna is van: a homelab repo GitOps-a ma egyetlen kulso olvasasi uton, a github.com-on

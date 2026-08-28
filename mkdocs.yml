@@ -157,6 +157,10 @@ nav:
           - Minecraft Server: proxmox/deprecated/Minecraft_Server_Setup.md
   - K3s Cluster:
       - 01 - Infrastructure as Code: k3s/01_K3s_Infrastructure_as_Code.md
+      - 02 - Version Upgrades: k3s/02_Version_Upgrades.md
+      - 03 - Longhorn Storage: k3s/03_Longhorn_Storage.md
+      - 04 - Hardening and Recovery: k3s/04_Hardening_and_Recovery.md
+      - 05 - Wake-on-LAN: k3s/05_Wake_on_LAN.md
   - VPS:
       - 01 - Hetzner VPS + Pangolin + Jellyfin: vps/01_Hetzner_VPS_Pangolin_Jellyfin_Setup.md
       - 02 - Security Configuration: vps/02_Security_Configuration_Guide.md

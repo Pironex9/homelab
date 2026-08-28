@@ -61,7 +61,7 @@ a 3. reteg (ArgoCD) nincs meg, ezek kezi allapotok:
 - A `k3s_version` emelese a `site.yml`-ben **nem** tamogatott in-place upgrade ut.
   2026-08-28 ota a frissitest a **system-upgrade-controller** vegzi, a
   `k8s/manifests/system-upgrade/plans.yaml`-bol, ArgoCD-n keresztul - se ssh, se kezi
-  kubectl. Reszletek: `docs/hosts/k3s-cluster.md`, "Version upgrades".
+  kubectl. Reszletek: `docs/k3s/02_Version_Upgrades.md`.
   A `k3s_version` itt azt irja le, ami **telepitve van**, es a frissites utan kezzel
   kell atvezetni. Ha nem teszed meg, a kovetkezo `site.yml` futas visszaminositi a
   clustert a regi verziora.
@@ -118,7 +118,7 @@ masteren egyaltalan nem - az oraja 0.687 masodpercet sietett, korrekcio nelkul. 
 router IPv6 **link-local** cimet adja NTP szervernek, ami interfesz-hatokor nelkul
 elerhetetlen, a `FallbackNTP` pedig sosem kerul sorra, mert a systemd csak akkor nyul
 hozza, ha egyetlen szerver sincs konfiguralva. A teljes meres:
-`docs/hosts/k3s-cluster.md`, "Clock synchronisation".
+`docs/hosts/k3s-cluster.md`, "Clock synchronisation" (ez a node-szintu OS beallitas, ezert maradt a host-oldalon).
 
 **Miert itt, es nem kezi lepeskent:** egy ujraepitett node kulonben visszaterne a torott,
 DHCP-bol jovo szerverhez. A `k3s-io/k3s-ansible` collection nem kezel NTP-t, ezert sajat
