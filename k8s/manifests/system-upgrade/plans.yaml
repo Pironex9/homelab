@@ -33,20 +33,35 @@
 # Ez azert nem volt maganyos: a Longhorn node-onkent tart egy PDB-t az
 # instance-manager podra, `disruptionsAllowed: 0`-val, MEG NULLA KOTET MELLETT
 # IS. A pod ráadásul InstanceManager CR tulajdona, nem DaemonSete, tehat az
-# ignoreDaemonSets NEM fedi. A drain megis atment: a Longhorn a cordonolasra
-# eldobja a PDB-t, ha nincs a node-on utolso ep replika. Uncordon utan
-# mindharom PDB magatol visszajott.
+# ignoreDaemonSets NEM fedi.
 #
-# AMIT EZ NEM BIZONYIT: a merés nulla koteten tortent. Kotetekkel a
-# last-replica vizsgalat is beindul. Ott a `node-drain-policy` beallitas dont,
-# es annak az erteke NEM lehet `block-for-eviction` - az addig blokkol, amig
-# minden replika ujraepult mashol, es 3 node + 3 replika mellett nincs hova,
-# tehat orokre logna egy cordonolt node-dal. Az alapertelmezett
-# `block-if-contains-last-replica` a helyes: 3-bol egy node drainje 2 ep
-# replikat hagy, semmi nem blokkol.
+# A PDB VALOBAN ELUTASIT, ES EZ A RETRY MIATT NEM BAJ. Ugyanez a meres eles
+# koteten megismetelve (2026-08-28, Forgejo, 3 replika) ezt irta ki:
 #
-# A `timeout` szandekosan bo: egy elakadt drain igy hibaval feljon, nem
-# csendben log. 300s soha nem kellett a meresnel (masodpercek alatt lefutott).
+#   error when evicting pods/"instance-manager-067..." -n "longhorn-system"
+#   (will retry after 5s): Cannot evict pod as it would violate the pod's
+#   disruption budget.
+#
+# Ketszer, majd a harmadik probara `evicted`. A mechanizmus NEM az, hogy a
+# cordon eldobja a PDB-t (ezt allitotta korabban ez a komment, tevesen): a
+# Longhorn akkor veszi ki a PDB-t, amikor a node-on mar nem fut engine - vagyis
+# miutan a workload podja tavozott es a kotet lecsatolt. Addig az eviction API
+# szabalyosan elutasit. A `kubectl drain` 5 masodperces retry hurka nyeli el a
+# kulonbseget. Uncordon utan mindharom PDB magatol visszajott.
+#
+# EZERT NEM KOZMETIKA A `timeout`. Egy szuk timeout pont ebben az ablakban
+# halna meg, es ugy nezne ki, mintha a drain elakadt volna. Ures clusteren ez
+# a lepes elsore atment, tehat a szuk timeout ott nem is bukott volna meg -
+# eles koteten viszont ~10 masodperc a PDB-ablak. Mert idok eles koteten:
+# drain 12s, a workload 42s mulva szolgalt ki ujra masik node-on, a harmadik
+# replika ujraepulese uncordon utan 37s.
+#
+# A `node-drain-policy` erteke NEM lehet `block-for-eviction` - az addig
+# blokkol, amig minden replika ujraepult mashol, es 3 node + 3 replika mellett
+# nincs hova, tehat orokre logna egy cordonolt node-dal. Az alapertelmezett
+# `block-if-contains-last-replica` a helyes, es 2026-08-28-an eles koteten
+# meg is lett merve: 3-bol egy node drainje 2 ep replikat hagy, semmi nem
+# blokkolt, a kotet degraded lett majd ujraepult.
 # ---------------------------------------------------------------------------
 apiVersion: upgrade.cattle.io/v1
 kind: Plan

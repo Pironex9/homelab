@@ -359,14 +359,58 @@ pod/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3 evicted
 node/opt3050-i5 drained
 ```
 
-Longhorn drops the PDB in response to the cordon, once no volume's last healthy replica
-lives on that node - which, at zero volumes, is every node. After `uncordon` all three
-PDBs came back on their own, and every pod returned to `Running`.
+After `uncordon` all three PDBs came back on their own, and every pod returned to
+`Running`.
 
-!!! warning "What that measurement does *not* cover"
-    It ran on an empty cluster. With volumes present, the last-replica check actually has
-    something to check, and the `node-drain-policy` setting decides the outcome. The
-    drain path is proven; the drain path **under load** is not.
+#### Repeated on a live volume, and the mechanism turned out to be different
+
+The empty-cluster run left one question open: with volumes present, the last-replica
+check actually has something to check. That was measured on 2026-08-28 with Forgejo
+running, a 10 GiB volume and three healthy replicas, one per node, with the workload pod
+on the node being drained:
+
+```
+node/opt3050-i5 cordoned
+evicting pod tailscale/ts-forgejo-99j4d-0
+evicting pod apps/forgejo-6dcd59d94d-gvz7c
+evicting pod longhorn-system/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3
+error when evicting pods/"instance-manager-067..." -n "longhorn-system"
+  (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+pod/ts-forgejo-99j4d-0 evicted
+pod/forgejo-6dcd59d94d-gvz7c evicted
+evicting pod longhorn-system/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3
+error when evicting pods/"instance-manager-067..." -n "longhorn-system"
+  (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod longhorn-system/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3
+pod/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3 evicted
+node/opt3050-i5 drained
+```
+
+**The PDB does reject the eviction, twice, and the drain's own retry absorbs it.** So the
+earlier explanation on this page - "Longhorn drops the PDB in response to the cordon" -
+was wrong. Longhorn removes the PDB when the node no longer runs an engine, which is
+*after* the workload pod has gone and the volume has detached. Until then the eviction
+API refuses, correctly. On the empty cluster there was no engine to wait for, so the
+first attempt succeeded and the retry never showed.
+
+Measured, end to end:
+
+| Stage | Time |
+|---|---|
+| `kubectl drain` complete (incl. ~10 s of PDB rejections) | 12 s |
+| Forgejo pod `Ready` again on `opt3060-i3` | 42 s |
+| HTTPS 200 on `/api/healthz` through the Tailscale Ingress | 42 s |
+| Third replica back after `uncordon` | 8 s |
+| Volume `robustness: healthy` again | 37 s |
+
+The volume went `attached/healthy` on `opt3050-i5` → `attaching/unknown` → `degraded`
+with 2 replicas → `attached/healthy` on `opt3060-i3`. Total user-visible outage was
+under a minute, against the ~90 s estimated from the 2026-08-24 reattach measurement.
+
+One thing that was claimed but never tested also held: the Tailscale proxy pod
+`ts-forgejo-99j4d-0` was evicted with the rest and came back with the same tailnet
+identity, because its StatefulSet secret carries the node key. The HTTPS endpoint
+recovered without any manual step.
 
 !!! danger "`block-for-eviction` would deadlock this cluster"
     The common advice for Longhorn plus system-upgrade-controller is to set the
@@ -397,13 +441,22 @@ from the vendored CRD rather than guessed:
 No `cordon: true` alongside it: `drain` cordons first by itself, so the two together are
 redundant.
 
-The `timeout` is deliberately generous. The measured drain finished in seconds; 300 s
-exists so that a drain which genuinely gets stuck **fails visibly** instead of hanging
-forever with a node cordoned. If it ever trips, that is a signal, not a tuning problem.
+The `timeout` is deliberately generous, and the live-volume measurement is the reason it
+is not cosmetic. There is a window - about 10 seconds here - in which the instance-manager
+PDB legitimately refuses the eviction while the volume is still detaching. A tight timeout
+would die inside that window and look exactly like a stuck drain. On an empty cluster the
+window does not exist, so a tight timeout would have passed the test and failed in
+production.
 
-If a future drain does stall on `Cannot evict pod as it would violate the pod's
-disruption budget`, the fix is a `podSelector` on the Plan that skips the
-instance-manager pods - not a shorter timeout and not `disableEviction`.
+300 s also exists so that a drain which genuinely gets stuck **fails visibly** instead of
+hanging forever with a node cordoned. If it ever trips, that is a signal, not a tuning
+problem.
+
+`Cannot evict pod as it would violate the pod's disruption budget` on an instance-manager
+pod is therefore **normal and transient** - expect it in the log of every drain on a node
+holding a running engine. It is only a problem if the drain never gets past it. If that
+happens, the fix is a `podSelector` on the Plan that skips the instance-manager pods, not
+a shorter timeout and not `disableEviction`.
 
 !!! note "Changing `drain` does not re-run anything"
     After the switch landed, `status.latestHash` on both Plans was unchanged
@@ -1301,6 +1354,52 @@ acceptable as a general pattern.
 The restore is the half that matters. A backup that has never been read back is a
 guess, and this one was read back into a different volume.
 
+#### Re-verified on a live application volume (2026-08-28)
+
+The 2026-08-25 test used a synthetic 1 GiB PVC holding one known file. That proves the
+mechanism, but not the case that actually matters: a running application with an open
+database. Repeated against the Forgejo volume, **without stopping Forgejo**, so the
+snapshot is crash-consistent exactly as it would be if the node died.
+
+| Step | Result |
+|---|---|
+| `Snapshot` on the running volume | `readyToUse` in 6 s |
+| `Backup` to Garage | `Completed` in 11 s |
+| Restore into a new PVC (`fromBackup` StorageClass) | pod `Running` after 72 s |
+| Verification | Forgejo's own binary listed the admin user off the restored volume |
+| Teardown | verify pod, PVC and StorageClass removed; snapshot and backup kept |
+
+The restored volume contained this:
+
+```
+gitea.db        1 257 472 bytes
+gitea.db-wal    4 128 272 bytes   <- larger than the database itself
+gitea.db-shm       32 768 bytes
+```
+
+The snapshot caught SQLite mid-WAL. `forgejo -c <app.ini> admin user list` run against the
+restored copy recovered the WAL and returned the correct user, so the restore is a usable
+Forgejo data directory, not just matching bytes.
+
+!!! warning "A checksum of the database file would have given the wrong answer"
+    Comparing `gitea.db` byte-for-byte against the live copy would have failed, and
+    comparing it against the pre-snapshot copy would have "passed" while hiding 4 MB of
+    unmerged WAL. With SQLite, verify a restore by opening it with the application, not
+    by hashing the file.
+
+!!! note "`status.size` is not what the backup costs"
+    The `Backup` object reported `size: 283115520` (270 MiB) for a volume holding 5.4 MB
+    of data. That field is the snapshot's logical extent. What actually moved was
+    `newlyUploadDataSize: 554286` (541 KiB, lz4-compressed), and the Garage bucket
+    independently reported 570.4 kB across 35 objects for its entire contents.
+
+    Plan `RecurringJob` retention against `newlyUploadDataSize`. Using `size` overestimates
+    by roughly 500x here.
+
+The 72 s restore is almost entirely volume creation and attach, not transfer - 541 KiB
+does not take 70 seconds. It matches the ~90 s reattach measured on 2026-08-24, so the
+recovery time for a volume this size is set by attach, not by data size.
+
 #### It is monitored, and by the right question
 
 `scripts/longhorn-backup-check.sh` runs on LXC 109 at 02:00 UTC - an hour after the
@@ -1376,17 +1475,17 @@ terminal whose output is logged.
 - [ ] Verify `AC Power Recovery = Power On` in the BIOS of all three OptiPlexes - the master stayed down for 2 d 4 h after the 2026-08-25 outage while the workers returned a day earlier, so at least the master is not set
 - [x] Automated, GitOps-driven version upgrades - system-upgrade-controller v0.20.1 under Argo CD (2026-08-28)
 - [x] k3s v1.34.5 -> v1.36.4 and Longhorn v1.11.1 -> v1.12.1, done on an empty cluster (2026-08-28)
-- [x] Switch the Plans from `cordon` to `drain` - **done 2026-08-28**, after one live worker drain proved Longhorn drops the instance-manager PDB on cordon
-- [ ] Re-verify the drain path once real volumes exist - the 2026-08-28 measurement ran on an empty cluster, so the last-replica branch is untested
+- [x] Switch the Plans from `cordon` to `drain` - **done 2026-08-28**; the mechanism was re-measured on a live volume the same day and the first explanation turned out to be wrong, see the drain section
+- [x] Re-verify the drain path once real volumes exist - **done 2026-08-28** on the Forgejo volume with 3 healthy replicas: drain 12 s, workload serving again in 42 s, replica rebuilt 37 s after uncordon, nothing blocked
 - [x] local-path-provisioner frozen at v0.0.34 by the `.skip` file - **decided 2026-08-28: leave it**, four options weighed, revisit when something needs `local-path`
 - [x] Re-check whether Longhorn can go under Argo CD - longhorn/longhorn#6415 was fixed in v1.6.0, so the old reason is stale; **still not adopting**, new reason in `k8s/README.md`
 - [ ] Prometheus + Grafana monitoring stack
-- [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
+- [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly
 - [ ] RBAC policies
 - [ ] Network policies
-- [x] Volume backup target - Garage S3 on LXC 100, backup and restore verified (2026-08-25)
+- [x] Volume backup target - Garage S3 on LXC 100, backup and restore verified (2026-08-25), re-verified on a live application volume with an open SQLite database (2026-08-28)
 - [ ] Velero backup (cluster-object backup; the volume half is covered by Longhorn + Garage)
-- [ ] First workload deployment
+- [x] First workload deployment - Forgejo 16.0.3 on a 10 GiB Longhorn volume behind a Tailscale Ingress (2026-08-28), see `k8s/README.md`
 
 ---
 
