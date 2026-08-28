@@ -59,8 +59,12 @@ a 3. reteg (ArgoCD) nincs meg, ezek kezi allapotok:
 ## Csapdak
 
 - A `k3s_version` emelese a `site.yml`-ben **nem** tamogatott in-place upgrade ut.
-  Frissiteshez a collection kulon `upgrade.yml` playbookja es `k3s_upgrade` role-ja
-  valo.
+  2026-08-28 ota a frissitest a **system-upgrade-controller** vegzi, a
+  `k8s/manifests/system-upgrade/plans.yaml`-bol, ArgoCD-n keresztul - se ssh, se kezi
+  kubectl. Reszletek: `docs/hosts/k3s-cluster.md`, "Version upgrades".
+  A `k3s_version` itt azt irja le, ami **telepitve van**, es a frissites utan kezzel
+  kell atvezetni. Ha nem teszed meg, a kovetkezo `site.yml` futas visszaminositi a
+  clustert a regi verziora.
 - Az `extra_server_args` a **teljes** `INSTALL_K3S_EXEC`, ezert kezdodik `server`-rel.
   Az agenteknel viszont az `agent --server https://...` reszt a role teszi ele, oda
   csak a tovabbi kapcsolok jonnek.

@@ -79,11 +79,11 @@
 
 | Property | Value |
 |----------|-------|
-| K3s version | v1.34.5+k3s1 |
-| Kubernetes | v1.34 |
-| Container runtime | containerd 2.1.5-k3s1 |
+| K3s version | v1.36.4+k3s1 (upgraded 2026-08-28, see [Version upgrades](#version-upgrades-system-upgrade-controller)) |
+| Kubernetes | v1.36 |
+| Container runtime | containerd 2.3.4-k3s1.36 |
 | CNI | Flannel |
-| Ingress | Traefik 3.6.9 (built-in), no Ingress objects yet |
+| Ingress | Traefik 3.7.1 (built-in), one Ingress (Argo CD, `tailscale` class) |
 | Storage class | longhorn (sole default since 2026-08-24), local-path (available, not default) |
 | Access | Tailscale mesh VPN |
 
@@ -245,6 +245,147 @@ LXC 109 manages the K3s cluster via Tailscale + kubectl.
 ssh nex@opt5060-i5 "sudo cat /etc/rancher/k3s/k3s.yaml" | sed 's/127.0.0.1/opt5060-i5/' > ~/.kube/config
 chmod 600 ~/.kube/config
 ```
+
+---
+
+## Version upgrades (system-upgrade-controller)
+
+Set up 2026-08-28. Before that, upgrading k3s meant SSH plus a manual
+`INSTALL_K3S_VERSION` re-run on three machines, and the Ansible layer had no path for
+it at all.
+
+Now the target version lives in git. Argo CD syncs the `Plan` objects, the
+[system-upgrade-controller](https://github.com/rancher/system-upgrade-controller) (SUC)
+runs the upgrade node by node. No SSH, no manual `kubectl`.
+
+| Piece | Where |
+|-------|-------|
+| SUC controller + CRD, upstream v0.20.1, unmodified | `k8s/manifests/system-upgrade/{controller,crd}.yaml` |
+| The two Plans (this is the file you edit) | `k8s/manifests/system-upgrade/plans.yaml` |
+| Argo CD Application | `k8s/apps/system-upgrade.yaml` |
+
+To upgrade: change both `version:` fields in `plans.yaml`, commit, push. That is the
+whole procedure.
+
+### One minor at a time
+
+Skipping an intermediate minor is **not supported**, and the SUC will not stop you - it
+will happily run an invalid path. The 2026-08-28 upgrade went in three hops, each one
+verified before the next started:
+
+| Hop | From | To | Wall clock | API outage |
+|-----|------|----|-----------|------------|
+| 1 | v1.34.5+k3s1 | v1.34.11+k3s1 | ~440 s | one 20 s poll |
+| 2 | v1.34.11+k3s1 | v1.35.8+k3s1 | ~220 s | one 20 s poll |
+| 3 | v1.35.8+k3s1 | v1.36.4+k3s1 | ~200 s | one 20 s poll |
+
+Hop 1 was deliberately a patch-only hop inside the 1.34 line. If the Plan, the RBAC or
+the `nodeSelector` had been wrong, it would have surfaced there, where rolling back is
+trivial - not in the middle of a minor.
+
+Most of hop 1's 440 s was pulling the `rancher/k3s-upgrade` image for the first time.
+The later hops are the honest steady-state number: **3 to 4 minutes per hop**.
+
+### What to check between hops
+
+```bash
+kubectl get nodes -o wide                 # all three on the new version, none cordoned
+kubectl get nodes.longhorn.io -n longhorn-system   # every node and disk Ready
+kubectl get applications -n argocd        # all Synced/Healthy
+./scripts/longhorn-backup-check.sh        # the 5-step gate
+```
+
+!!! danger "There is one control plane"
+    While the master upgrades, the Kubernetes API is unreachable for a couple of
+    minutes. That is the price of the non-HA setup, not a fault. Argo CD, `kubectl` and
+    anything reading the API will fail during that window.
+
+    The recovery path is SSH, and it stays available the whole time - the upgrade
+    replaces the binary and restarts the service, it does not reboot the node. Verify
+    before starting: `ssh nex@opt5060-i5 'sudo -n true'` on all three. Root SSH is
+    **not** enabled on these nodes; the user is `nex` with passwordless sudo.
+
+!!! note "`FAILED 1` on the agent jobs is normal"
+    After a hop, `kubectl get jobs -n system-upgrade` shows the two agent jobs with
+    `COMPLETIONS 1` **and** `FAILED 1`, and two pods stuck in `Unknown`.
+
+    That is not a failed upgrade. The k3s agent restarts underneath the pod that is
+    performing the upgrade, so the first attempt's pod loses its kubelet and goes
+    `Unknown`; the retry finishes the job. The server plan never shows this, because the
+    master's job is already done by the time the API returns. Judge the outcome by
+    `kubectl get nodes`, not by the pod list.
+
+### `cordon`, not `drain`
+
+The Plans use `cordon: true`. With zero PVCs there is nothing to evict, and drain would
+only add failure modes.
+
+**This has to change before the first stateful workload lands.** A `drain` on a Longhorn
+node needs the `instance-manager` pods handled explicitly, otherwise the drain blocks on
+their PodDisruptionBudget and the plan hangs with the node cordoned.
+
+### Side effect: local-path-provisioner is frozen
+
+Measured on 2026-08-28, immediately after the upgrade:
+
+```
+running:  rancher/local-path-provisioner:v0.0.34
+on disk:  local-path-provisioner:v0.0.37   (in the manifest k3s just rewrote)
+```
+
+This is the cost of the `local-storage.yaml.skip` file that fixed the dual-default
+StorageClass problem on 2026-08-24. k3s rewrites `local-storage.yaml` on every start
+(the timestamp does move), but the `.skip` stops it being applied - so the bundled
+`local-path-provisioner` never gets its new image either. It has been drifting since
+2026-08-24 and will keep drifting.
+
+Today that costs nothing: `local-path` is not the default class and nothing uses it. If
+it ever matters, the fix is not to delete the `.skip` - that brings back two default
+StorageClasses. It is to let k3s manage `local-storage.yaml` again and move the
+`is-default-class: "false"` patch into Argo CD, accepting a sync-interval-long window
+after each k3s restart where both classes claim to be default.
+
+### Longhorn is upgraded separately
+
+Longhorn is a Helm release and deliberately **not** under Argo CD (the pre-upgrade hook
+would run as a `PreSync` before its service account exists, longhorn/longhorn#6415). So
+it is a manual `helm upgrade`, and it goes **before** the k3s hops - the CSI layer should
+already know the target Kubernetes version, not the other way round.
+
+```bash
+helm repo update longhorn
+helm upgrade longhorn longhorn/longhorn -n longhorn-system --version 1.12.1 \
+  --set defaultSettings.defaultDataPath=/var/lib/longhorn --timeout 15m
+```
+
+Pass the values explicitly rather than `--reuse-values`: across a chart version bump,
+`--reuse-values` replays the old computed values and silently drops new chart defaults.
+`helm get values longhorn -n longhorn-system` prints the short list to reproduce.
+
+One minor at a time here too (1.11.x -> 1.12.x). The v1.12 breaking changes - V2 backing
+images removed, the pre-allocated LUKS2 header on encrypted volumes, no live upgrade
+between v1.12 patch releases for V2 volumes - touch none of this cluster: V1 data engine,
+no encryption, no backing images.
+
+### Before you start
+
+Run `scripts/k3s-backup.sh` by hand, so the newest archive is the pre-upgrade state.
+`KEEP` defaults to 30 archives (raised from 7 on 2026-08-28 - it counts archives, not
+days, and seven manual runs in one afternoon had once collapsed the whole restore window
+to a single day).
+
+Rollback, if the master does not come back: `sudo /usr/local/bin/k3s-killall.sh` on the
+node, reinstall the old version with `INSTALL_K3S_VERSION=<previous>`, and restore
+`state.db` from the archive:
+
+```bash
+gpg --pinentry-mode loopback --decrypt <file>.tar.gz.gpg | tar xzf - -C /somewhere
+```
+
+Longhorn cannot be rolled back to an earlier minor at all. Its recovery path is the
+14-day Garage backup and a `fromBackup` StorageClass, verified byte-for-byte on
+2026-08-25. That asymmetry is exactly why the whole upgrade was done on an empty
+cluster.
 
 ---
 
@@ -501,9 +642,9 @@ Status: all 3 nodes have `wol.service` enabled and active.
 
 ```
 NAME         STATUS   ROLES           VERSION        INTERNAL-IP     KERNEL
-opt5060-i5   Ready    control-plane   v1.34.5+k3s1   192.168.1.101   6.8.0-138-generic
-opt3060-i3   Ready    <none>          v1.34.5+k3s1   192.168.1.102   6.8.0-138-generic
-opt3050-i5   Ready    <none>          v1.34.5+k3s1   192.168.1.103   6.8.0-138-generic
+opt5060-i5   Ready    control-plane   v1.36.4+k3s1   192.168.1.101   6.8.0-138-generic
+opt3060-i3   Ready    <none>          v1.36.4+k3s1   192.168.1.102   6.8.0-138-generic
+opt3050-i5   Ready    <none>          v1.36.4+k3s1   192.168.1.103   6.8.0-138-generic
 ```
 
 ### Resource usage (idle)
@@ -681,7 +822,7 @@ helm upgrade --install longhorn longhorn/longhorn \
   --wait --timeout 10m
 ```
 
-Installed version: **v1.11.1**
+Installed version: **v1.12.1** (upgraded from v1.11.1 on 2026-08-28, chart revision 2)
 
 After install, `local-path` was removed from default to avoid dual-default conflict:
 ```bash
@@ -931,10 +1072,10 @@ Checked live against the cluster after the subnet incident described above.
 
 | Component | Version | State |
 |-----------|---------|-------|
-| Longhorn | v1.11.1 | All 3 nodes `Ready` and schedulable, **0 volumes** |
-| Traefik | 3.6.9 | Running, LoadBalancer has an external IP per node, **0 Ingress objects** |
+| Longhorn | v1.12.1 | All 3 nodes `Ready` and schedulable, **0 volumes** |
+| Traefik | 3.7.1 | Running, LoadBalancer has an external IP per node, 1 Ingress (Argo CD) |
 | metrics-server | - | Running |
-| local-path-provisioner | - | Running |
+| local-path-provisioner | v0.0.34 | Running, but **frozen** - see the `.skip` note under [Version upgrades](#version-upgrades-system-upgrade-controller) |
 
 **Longhorn disk capacity per node**, read from `nodes.longhorn.io` status rather than
 `df`, so it reflects what the scheduler actually sees:
@@ -1116,6 +1257,10 @@ terminal whose output is logged.
 - [x] Longhorn disk health in the daily check - added after the 2026-08-27 USB unmount (`longhorn-backup-check.sh` step 5)
 - [x] Out-of-band signal for the remote site - Kuma ping monitor on the Orange Pi (2026-08-27)
 - [ ] Verify `AC Power Recovery = Power On` in the BIOS of all three OptiPlexes - the master stayed down for 2 d 4 h after the 2026-08-25 outage while the workers returned a day earlier, so at least the master is not set
+- [x] Automated, GitOps-driven version upgrades - system-upgrade-controller v0.20.1 under Argo CD (2026-08-28)
+- [x] k3s v1.34.5 -> v1.36.4 and Longhorn v1.11.1 -> v1.12.1, done on an empty cluster (2026-08-28)
+- [ ] Switch the Plans from `cordon` to `drain` before the first stateful workload - needs the Longhorn `instance-manager` PDBs handled, or the drain blocks
+- [ ] local-path-provisioner is frozen at v0.0.34 by the `.skip` file - harmless today, decide before anything uses `local-path`
 - [ ] Prometheus + Grafana monitoring stack
 - [ ] Traefik ingress with Let's Encrypt SSL - Traefik runs, but 0 Ingress objects and no cert-manager/ClusterIssuer
 - [ ] RBAC policies

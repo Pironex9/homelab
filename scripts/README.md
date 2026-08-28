@@ -127,6 +127,22 @@ would have pushed out the last good backup after a few bad days.
 ./k3s-backup.sh --no-ntfy    # no notification, for running by hand
 ```
 
+### Retention
+
+`KEEP` defaults to **30** (`K3S_BACKUP_KEEP` overrides it). It counts **archives, not
+days** - that distinction has bitten once already. On 2026-08-24 seven manual runs
+during a single afternoon of Argo CD work filled the whole window, and the oldest
+restore point available the next morning was from that same afternoon:
+
+```
+$ ls -1 /mnt/storage/backup/k3s/ | sed -E "s/.*-(2026-[0-9-]+)_.*/\1/" | sort -u
+2026-08-24
+```
+
+Raised 7 -> 30 on 2026-08-28, before the k3s upgrade, precisely because that day was
+going to involve several manual runs again. Thirty archives are roughly 64 MB - the
+cost of the fix is nothing, the cost of not having it is having no yesterday.
+
 ### Restoring
 
 Deliberately not automated.

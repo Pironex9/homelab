@@ -111,6 +111,26 @@ curl --resolve argocd.tailc6abe2.ts.net:443:<proxy IP> https://argocd.tailc6abe2
 
 Az admin jelszo a jelszokezeloben van, az `argocd-initial-admin-secret` torolve.
 
+## K3s verziofrissites (2026-08-28)
+
+A `system-upgrade` Application a `k8s/manifests/system-upgrade/` alatti harom fajlt
+kezeli: az upstream SUC v0.20.1 `crd.yaml`-jat es `controller.yaml`-jat valtozatlanul,
+plusz a sajat `plans.yaml`-t.
+
+**A frissites menete: atirod a ket `version:` mezot a `plans.yaml`-ben, commit, push.**
+Semmi mas. Az ArgoCD kiszinkronizalja a Planeket, a controller pedig node-onkent
+lefuttatja, a masterrel kezdve.
+
+Egyszerre egy minort - a `1.34 -> 1.36` ugras nem tamogatott, es a SUC nem ved ellene.
+A 2026-08-28-i frissites harom hopban ment: `v1.34.5 -> v1.34.11 -> v1.35.8 -> v1.36.4`,
+hoponkent 3-7 perc, hoponkent ~20 masodperc API-kimaradassal a master frissitese kozben.
+
+Az `ansible/group_vars/k3s_cluster.yml` `k3s_version` valtozojat a frissites utan kezzel
+kell atvezetni, kulonben a kovetkezo `site.yml` futas visszaminositene a clustert.
+
+A Longhorn NEM igy frissul (lasd a kovetkezo szakaszt): az Helm release, es kezzel megy,
+a k3s hopok **elott**.
+
 ## Amit az Argo CD NEM kezel
 
 A **Longhorn Helm release-t** szandekosan nem adoptaljuk. Ismert utkozes: az Argo CD a

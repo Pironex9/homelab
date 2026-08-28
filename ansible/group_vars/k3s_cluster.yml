@@ -6,9 +6,15 @@ ansible_user: nex
 ansible_port: 22
 
 # A jelenleg telepitett verzio. NE ird at frissiteshez: a k3s_version emelese a
-# site.yml-ben nem tamogatott in-place upgrade ut, arra a collection kulon
-# upgrade.yml playbookja es k3s_upgrade role-ja valo.
-k3s_version: v1.34.5+k3s1
+# site.yml-ben nem tamogatott in-place upgrade ut.
+#
+# A frissitest a system-upgrade-controller vegzi, a k8s/manifests/system-upgrade/
+# Planjeibol, ArgoCD-n keresztul. Ez a valtozo azt irja le, ami TELEPITVE VAN,
+# es a frissites utan kezzel kell ide atvezetni - kulonben a kovetkezo site.yml
+# futas visszaminositene a clustert erre a verziora.
+#
+# 2026-08-28: v1.34.5 -> v1.34.11 -> v1.35.8 -> v1.36.4, harom SUC hopban.
+k3s_version: v1.36.4+k3s1
 
 api_endpoint: 192.168.1.101
 api_port: 6443
