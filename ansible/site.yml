@@ -26,5 +26,51 @@
         mode: "0755"
         force: false
 
+# ---------------------------------------------------------------------------
+# NTP. 2026-08-28-ig egyik node sem volt megbizhatoan szinkronban, es a masteren
+# egyaltalan nem: a DHCP a router IPv6 LINK-LOCAL cimet adja NTP szervernek, ami
+# interfesz-hatokor nelkul elerhetetlen. A master oraja emiatt 0.687 masodpercet
+# sietett, korrekcio nelkul - a friss Prometheus stack talalta meg.
+#
+# A `FallbackNTP` nem mentette meg: a systemd csak akkor nyul hozza, ha EGYETLEN
+# szerver sincs konfiguralva. Egy konfiguralt, de halott szerver eleg ahhoz, hogy
+# a mukodo tartalek sose keruljon sorra.
+#
+# Ez a play azert van itt, es nem kezi lepeskent, mert egy ujraepitett node
+# kulonben visszaterne a torott, DHCP-bol jovo szerverhez. A collection nem kezel
+# NTP-t, ezert sajat task.
+#
+# A router IPv4 cimehez nem kell hatokor, helyben marad (~1 ms), es nem hoz be
+# internet-fuggoseget. Reszletek: docs/hosts/k3s-cluster.md, "Clock synchronisation".
+- name: Ensure the nodes have an NTP server that actually answers
+  hosts: k3s_cluster
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Create the timesyncd drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/timesyncd.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure an NTP server that needs no interface scope
+      ansible.builtin.copy:
+        dest: /etc/systemd/timesyncd.conf.d/10-router-ipv4.conf
+        content: |
+          [Time]
+          NTP={{ ntp_server }}
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart systemd-timesyncd
+
+  handlers:
+    - name: Restart systemd-timesyncd
+      ansible.builtin.systemd_service:
+        name: systemd-timesyncd
+        state: restarted
+
 - name: Run the upstream k3s-ansible site playbook
   ansible.builtin.import_playbook: k3s.orchestration.site

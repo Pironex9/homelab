@@ -75,11 +75,24 @@ spec:
                 memory: 2Gi
 
         alertmanager:
-          # Bekapcsolva, de meg NINCS receiver konfiguralva - a riasztasok a sajat
-          # feluleten latszanak, de nem mennek sehova. A Discord/ntfy utvonal
-          # kulon Secretet igenyel, a repo pedig publikus. Nincs PVC sem: az
-          # allapota nemitasokbol all, ami ujrainduláskor elveszik.
+          # Nincs PVC: az allapota nemitasokbol all, ami ujrainduláskor elveszik.
           alertmanagerSpec:
+            # A TELJES alertmanager.yaml egy kezzel keszitett Secretbol jon, mert
+            # ket titkot tartalmaz (bot token + chat id), a repo pedig publikus.
+            # A sablon a k8s/README.md-ben van, hogy reprodukalhato maradjon.
+            #
+            # Miert Telegram, es nem az ntfy, ami a homelab bevett csatornaja:
+            # a cluster a MASIK helyszinen van, es nem eri el a 192.168.0.208-at.
+            # Merve a node-rol es podbol is: HTTP 000, mert a 192.168.0.0/24
+            # utvonala a helyi gatewayen megy ki, nincs subnet route hazafele.
+            # Az api.telegram.org viszont a clusterbol elerheto (merve).
+            configSecret: alertmanager-telegram
+            # Enelkul a chart MELLE generalna egy sajat, alapertelmezett configot
+            # tartalmazo Secretet is (alertmanager-monitoring-kube-prometheus-...).
+            # Az operator nem hasznalna, de ott ulne, es aki debugolas kozben
+            # beleolvas, azt hinne, hogy AZ a fut konfig. Ez a kapcsolo a
+            # configSecret parja.
+            useExistingSecret: true
             resources:
               requests:
                 cpu: 10m

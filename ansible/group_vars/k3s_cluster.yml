@@ -42,3 +42,8 @@ user_kubectl: false
 # nem nyul. A mukodo context tovabbra is a `default`, ami a Tailscale neven megy:
 # server: https://opt5060-i5:6443
 kubeconfig: /root/.kube/k3s-ansible.yaml
+
+# A helyszini router IPv4 cime. Ez a node-ok NTP szervere - IPv4, mert a DHCP
+# altal kinalt IPv6 link-local valtozat interfesz-hatokor nelkul elerhetetlen.
+# Merve: hatokorrel 1 ms alatt valaszol, hatokor nelkul timeout.
+ntp_server: 192.168.1.1

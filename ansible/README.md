@@ -99,3 +99,21 @@ mindig `changed`-et jelent, ez a role felepitesebol adodik, nem drift:
 
 **Egy eles futas ujraindítja a k3s-t mind a harom node-on.** Nincs cordon vagy drain,
 tehat futo workloaddal ezt karbantartasi ablakban kell csinalni.
+
+## NTP - sajat play, nem a collection resze
+
+A `site.yml` elso jatszmai kozott van egy sajat play, ami minden node-ra kiteszi a
+`/etc/systemd/timesyncd.conf.d/10-router-ipv4.conf` drop-int (`ntp_server` valtozo,
+`group_vars/k3s_cluster.yml`).
+
+**Miert kellett:** 2026-08-28-ig egyik node sem volt megbizhatoan szinkronban, es a
+masteren egyaltalan nem - az oraja 0.687 masodpercet sietett, korrekcio nelkul. A DHCP a
+router IPv6 **link-local** cimet adja NTP szervernek, ami interfesz-hatokor nelkul
+elerhetetlen, a `FallbackNTP` pedig sosem kerul sorra, mert a systemd csak akkor nyul
+hozza, ha egyetlen szerver sincs konfiguralva. A teljes meres:
+`docs/hosts/k3s-cluster.md`, "Clock synchronisation".
+
+**Miert itt, es nem kezi lepeskent:** egy ujraepitett node kulonben visszaterne a torott,
+DHCP-bol jovo szerverhez. A `k3s-io/k3s-ansible` collection nem kezel NTP-t, ezert sajat
+task.
+

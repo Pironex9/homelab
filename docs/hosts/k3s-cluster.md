@@ -1655,9 +1655,9 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [ ] k3s is one patch ahead of the release channel on all three hops (v1.36.4 vs `stable` v1.36.3) - cannot be undone, wait for the channel to catch up
 - [x] Prometheus + Grafana monitoring stack - **kube-prometheus-stack 88.6.0 under Argo CD (2026-08-28)**, `https://grafana.tailc6abe2.ts.net`, details in `k8s/README.md`
 - [x] Fix NTP on the k3s nodes - **done 2026-08-28**, found by the new monitoring stack on its first day; master was 0.687 s fast with no correction
-- [ ] Move the NTP drop-in into Ansible - applied by hand, so a rebuilt node returns to the broken DHCP-provided IPv6 link-local server
-- [ ] Wire the NTP drop-in check into the daily digest - nothing would notice if a node lost sync again between Prometheus alerts
-- [ ] Route Alertmanager somewhere - it runs, but no receiver is configured, so alerts are only visible in its own UI. Needs a webhook URL, so an out-of-band Secret
+- [ ] Home-side Tailscale subnet router for `192.168.0.0/24`, so the cluster could reach ntfy and Uptime Kuma directly - only a route exists in the other direction today
+- [x] Move the NTP drop-in into Ansible - **done 2026-08-28**, own play in `ansible/site.yml`, so a rebuilt node no longer returns to the broken DHCP server
+- [x] Route Alertmanager somewhere - **Telegram (2026-08-28)**, not ntfy: the cluster is at the other site and cannot reach `192.168.0.208` (measured, HTTP 000 from both a node and a pod) - it runs, but no receiver is configured, so alerts are only visible in its own UI. Needs a webhook URL, so an out-of-band Secret
 - [x] Longhorn UI reachable without port-forward - `https://longhorn.tailc6abe2.ts.net` (2026-08-28). **It has no authentication**; the tailnet is the only thing protecting it
 - [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly
 - [ ] RBAC policies

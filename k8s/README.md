@@ -456,13 +456,74 @@ limit 79%-a. Stabil volt, nem kuszott, de egy OOMKill itt csendes hiba: a pod
 ujraindul, a dashboardok ConfigMapbol visszajonnek, es semmi nem mondja meg, miert volt
 egy lyuk a grafikonokon.
 
-### Az Alertmanager fut, de meg nem szol sehova
+### Az Alertmanager Telegramra kuld
 
-Be van kapcsolva, mert a chart alapertelmezett riasztasi szabalyai a stack fo erteke -
-de **nincs receiver konfiguralva**. A riasztasok a sajat feluleten latszanak, es nem
-mennek Discordra vagy ntfy-ra. Az utvonal egy webhook URL-t igenyel, a repo pedig
-publikus, tehat az egy kulon, kezi Secret lesz. PVC-je sincs: az allapota nemitasokbol
-all, ami ujrainduláskor elveszik.
+**Nem az ntfy-ra, es ennek meresi oka van.** Az ntfy a homelab bevett csatornaja
+(`https://ntfy.lan/homelab-digest` a Caddyn at, 192.168.0.208), de a k3s cluster a
+**masik helyszinen** van, es nem eri el. Merve a masterrol es egy podbol is:
+
+```
+curl --max-time 8 -k --resolve ntfy.lan:443:192.168.0.208 https://ntfy.lan/   ->  000
+ip route get 192.168.0.208   ->  via 192.168.1.1 dev eno1
+```
+
+A `192.168.0.0/24` utvonala a helyszini gatewayen megy ki, tehat kisetal az internetre
+es elhal - **nincs subnet route hazafele**. (A meglevo route a masik iranyba mutat: az
+`opt3060-i3` hirdeti a `192.168.1.0/24`-et a tailnetre.) Az `api.telegram.org` viszont a
+clusterbol elerheto, merve. Ha valaha kell az ntfy, az egy home-oldali subnet router
+lenne - kulon dontes, nem mellekesen elintezendo.
+
+A **teljes** `alertmanager.yaml` egy kezzel keszitett Secretbol jon
+(`alertmanagerSpec.configSecret`), mert ket titkot tartalmaz. A sablon itt van, hogy
+reprodukalhato maradjon - a `.env.example` mintajara:
+
+```yaml
+# alertmanager.yaml
+global:
+  resolve_timeout: 5m
+route:
+  group_by: ["alertname", "namespace"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: telegram
+  routes:
+    # A Watchdog SZANDEKOSAN tuzel mindig - a riasztasi lanc eletjele. Ide nem
+    # kell ertesites belole, kulonben 12 orankent szolna a semmirol. Ha egyszer
+    # dead man's switchet akarsz belole, az egy Kuma push URL lenne receiverkent.
+    - matchers: ['alertname = "Watchdog"']
+      receiver: "null"
+receivers:
+  - name: "null"
+  - name: telegram
+    telegram_configs:
+      - bot_token: <BOT_TOKEN>
+        chat_id: <CHAT_ID>
+        parse_mode: HTML
+        message: |-
+          <b>{{ .Status | toUpper }}</b> {{ .CommonLabels.alertname }}
+          {{ range .Alerts }}{{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+```
+
+Letrehozas (a bot token es a chat id a `/root/.secrets/telegram-bot` fajlban, ket sor):
+
+```bash
+kubectl -n monitoring create secret generic alertmanager-telegram \
+    --from-file=alertmanager.yaml=/root/.secrets/alertmanager.yaml
+```
+
+**A Secret kulcsa `alertmanager.yaml` kell legyen** - a prometheus-operator ezt varja,
+mas nevvel az Alertmanager ures konfiggal indul.
+
+A `configSecret` melle **`useExistingSecret: true` is kell**. Enelkul a chart melle
+generalna egy sajat, alapertelmezett configot tartalmazo Secretet
+(`alertmanager-monitoring-kube-prometheus-alertmanager`). Az operator nem hasznalna, de
+ott ulne - es aki debugolas kozben beleolvas, azt hinne, hogy az a futo konfig.
+Ellenorizve `helm template`-tel: a kapcsoloval a chart nem general Secretet.
+
+PVC-je nincs: az allapota nemitasokbol all, ami ujrainduláskor elveszik.
 
 ## Longhorn felulet: `https://longhorn.tailc6abe2.ts.net`
 
