@@ -106,7 +106,7 @@ protects integrity, not confidentiality - the content is already encrypted.
 | Item | Why it is needed |
 |---|---|
 | `state.db` (VACUUM INTO copy) | the entire cluster state |
-| `tls/`, `cred/`, `token`, `node-token` | without these you cannot connect to a restored DB and nodes cannot rejoin |
+| `tls/`, `cred/`, `token`, `node-token` | without these you cannot connect to a restored DB and nodes cannot rejoin. Since 2026-08-28 `cred/` also holds `encryption-config.json`, the **only** copy of the key that makes the Secrets in `state.db` readable - see the secrets-encryption section in `docs/hosts/k3s-cluster.md` |
 | `manifests/` | the k3s packaged addon manifests |
 | systemd unit + env files, master and both workers | where `--node-ip` and `K3S_URL` actually live |
 | `kubectl` YAML export (separate file) | human-readable fallback, and the view you need to *rebuild* rather than restore |
@@ -241,7 +241,9 @@ only read, for comparison.
 3. reads the k3s version out of `state.db` (`strings` for `v1.x.y+k3sN`, highest
    wins) and downloads that exact binary, cached under `/root/.cache/k3s-restore-test`
 4. puts `state.db`, `tls/`, `cred/` and the three tokens in place and starts
-   `k3s server --disable-agent` on `127.0.0.1:6443`
+   `k3s server --disable-agent` on `127.0.0.1:6443`, adding `--secrets-encryption`
+   if the archive contains `cred/encryption-config.json` - the decision comes from
+   the backup, not from a setting here
 5. compares against the live cluster and checks the Secret contents
 6. kills the server and deletes everything, including on failure (`trap`)
 
@@ -310,7 +312,7 @@ KEEP=1 ./k3s-restore-test.sh                                     # leave it up t
 The full k3s log of the last run survives cleanup at
 `/root/.cache/k3s-restore-test/last-run.log`.
 
-### Three traps it walked into first
+### Four traps it walked into first
 
 Worth keeping, because a real restore at 3am walks into the same ones.
 
@@ -327,6 +329,13 @@ Worth keeping, because a real restore at 3am walks into the same ones.
    string contains a space, so a field-count filter silently dropped every
    cluster-scoped object: the table read 0 CRDs where there are 84. `jsonpath`
    prints an empty string instead.
+4. **An encrypted cluster restored without `--secrets-encryption` looks like it
+   worked.** Added on 2026-08-28 when secrets encryption went on. Nodes, CRDs and
+   Deployments all read back; only Secrets fail, with `identity transformer tried
+   to read encrypted data`, and the server never reaches ready -
+   `/readyz` returns `[-]informer-sync failed` forever because the Secret informer
+   cannot sync. 474 of 962 log lines were that one error. The script therefore
+   takes the decision from the archive, not from a flag someone has to remember.
 
 ## longhorn-backup-check.sh
 

@@ -41,7 +41,7 @@ erdemes egy friss mentest keszitteni: `scripts/k3s-backup.sh`.
 | Ami | Hol |
 |---|---|
 | k3s verzio (v1.34.5+k3s1) | `group_vars/k3s_cluster.yml` |
-| `--node-ip`, `--advertise-address`, `--flannel-iface` | `host_vars/<node>.yml` |
+| `--node-ip`, `--advertise-address`, `--flannel-iface`, `--secrets-encryption` | `host_vars/<node>.yml` |
 | api endpoint es port | `group_vars/k3s_cluster.yml` |
 | cluster token | `/root/.secrets/k3s-token`, a repon **kivul** |
 
@@ -68,6 +68,13 @@ a 3. reteg (ArgoCD) nincs meg, ezek kezi allapotok:
 - Az `extra_server_args` a **teljes** `INSTALL_K3S_EXEC`, ezert kezdodik `server`-rel.
   Az agenteknel viszont az `agent --server https://...` reszt a role teszi ele, oda
   csak a tovabbi kapcsolok jonnek.
+- **A `--secrets-encryption` kihagyasa a `host_vars/opt5060-i5.yml`-bol nem kozombos.**
+  2026-08-28 ota a Secretek titkositva vannak a `state.db`-ben. Ha egy `site.yml` futas
+  leszedne a kapcsolot, a szerver titkositas nelkul indulna, es **soha nem lenne ready**:
+  a `/readyz` vegtelenul `[-]informer-sync failed`-et adna, mert a Secret informer
+  `identity transformer tried to read encrypted data`-val elhasal. A nem-Secret
+  eroforrasok kozben olvashatok maradnak, tehat a hiba nem nyilvanvalo. Megmerve
+  eldobhato clusteren ugyanaznap.
 - `manage_firewall: false`. A collection alapertelmezese `true` lenne, ami tuzfal
   szabalyokat kezdene felvenni olyan gepeken, ahol se ufw, se firewalld nem aktiv.
 - `user_kubectl: false`. `true` eseten a role a masteren `~/.kube/config.new`-t irna

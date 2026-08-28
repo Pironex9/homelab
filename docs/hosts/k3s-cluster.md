@@ -962,15 +962,19 @@ This setting persists across reboots.
 
 ## Security Status
 
+Re-measured on 2026-08-28. Three rows were wrong before that, and the firewall one
+was wrong in the direction that matters: it claimed a control that does not exist.
+
 | Item | Status |
 |------|--------|
 | Tailscale mesh VPN | Active |
 | SSH key auth | Configured |
-| UFW firewall | Active on all nodes |
+| UFW firewall | **Inactive on all three nodes** - `ufw status` returns `Status: inactive` on each. This is also why `manage_firewall: false` is set in `ansible/group_vars/k3s_cluster.yml`: the collection would otherwise start writing rules on a host with no active firewall |
 | WoL only on local network | Yes |
 | K3s RBAC | Default (not hardened) |
-| Network policies | Not configured |
-| Pod Security Standards | Not configured |
+| Secrets encryption at rest | **Enabled 2026-08-28**, AES-CBC, all 39 secrets re-encrypted. See the section below for what it does and does not protect |
+| Network policies | Partial: 7 in `argocd`, 6 in `longhorn-system`, both shipped by their Helm charts. `apps`, `monitoring`, `kube-system`, `system-upgrade` and `tailscale` have none |
+| Pod Security Standards | Partial: `apps` is `baseline`, `system-upgrade` is `privileged`. The other eight namespaces are unlabelled, `monitoring` deliberately so - node-exporter needs `hostNetwork` and `hostPath` |
 
 ---
 
@@ -1638,6 +1642,91 @@ worse than no check.
 
 ---
 
+## Secrets encryption at rest (2026-08-28)
+
+Until this day every Secret sat in `state.db` as plaintext protobuf: the Telegram bot
+token, the Garage S3 key, the Forgejo `SECRET_KEY`, the Grafana admin password. The
+control-plane restore test above is what made that concrete - it read all 116 Secret
+keys back out of a restored database without anything resembling a key.
+
+It was deliberately done **after** the restore proof, in that order. Enabling encryption
+makes one file on the master load-bearing for every Secret in the cluster; doing that
+before you can restore is how you lose them.
+
+### What it protects, and what it does not
+
+The key lives in `/var/lib/rancher/k3s/server/cred/encryption-config.json`, on the same
+disk as `state.db`. Anyone who takes the disk takes both. This protects a **copied or
+leaked database** - a stray `state.db`, an unencrypted backup, a support dump. It is not
+protection against the machine being stolen, and it should not be described as such.
+
+### The procedure
+
+Single server, so no per-node dance. On the master:
+
+```bash
+# 1. a rollback point first
+scripts/k3s-backup.sh --no-ntfy
+
+# 2. add the flag to the unit, restart
+#    ExecStart gets a new line:  '--secrets-encryption' \
+sudo systemctl daemon-reload && sudo systemctl restart k3s
+sudo k3s secrets-encrypt status          # Enabled, stage: start
+
+# 3. re-encrypt the secrets that are already there
+sudo k3s secrets-encrypt rotate-keys     # wait for stage: reencrypt_finished
+sudo systemctl restart k3s
+```
+
+Step 3 is not optional. `--secrets-encryption` alone only encrypts Secrets written
+**after** the restart; the 39 already in the database would have stayed in plaintext
+while `status` cheerfully reported `Enabled`.
+
+### Verified by reading the database, not the status output
+
+```
+titkositott Secret sor:   39
+titkositatlan Secret sor: 0
+pelda (/registry/secrets/apps/forgejo-secrets):
+  b'k8s:enc:aescbc:v1:aescbckey-2026-08-28T12:21:41+'
+```
+
+`kubectl` reads them normally afterwards - the transformation happens inside the
+apiserver - so `forgejo-secrets` still decodes to 44 bytes and the Alertmanager config
+still contains its `telegram_configs` block.
+
+### `secrets-encrypt status` lies for the first few seconds
+
+Immediately after the restart it returns
+`Internal error occurred: secret-encrypt error ID 73844`, and the server log spells it
+out: `missing annotation on node opt5060-i5`. Encryption is already on at that point;
+the node annotation that `status` reads has just not been written yet. Retry rather than
+roll back.
+
+### The flag is now part of the restore procedure
+
+`--secrets-encryption` is in `ansible/host_vars/opt5060-i5.yml`, because an Ansible run
+would otherwise remove it. And `scripts/k3s-restore-test.sh` passes it automatically
+when the archive contains `cred/encryption-config.json` - which is the interesting half,
+because restoring an encrypted cluster **without** it was measured the same day:
+
+```
+Error from server (InternalError): Internal error occurred:
+identity transformer tried to read encrypted data
+```
+
+The restored server never becomes ready. `/readyz` returns
+`[+]ping ok [+]log ok [+]etcd ok [+]etcd-readiness ok [-]informer-sync failed` forever,
+because the Secret informer cannot sync - 474 of the 962 log lines were that one error.
+Meanwhile nodes, CRDs and Deployments all read back fine, which is exactly what makes it
+dangerous: the restore looks like it worked until something asks for a Secret.
+
+The whole 2026-08-28 backup archive grew from 7.0 MB to 14 MB, and `state.db` from 25 MB
+to 34 MB. Encrypted values do not compress, and the re-encryption wrote a new kine row
+for every Secret.
+
+---
+
 ## Clock synchronisation: found by the monitoring stack on day one (2026-08-28)
 
 `kube-prometheus-stack` went in and immediately raised `NodeClockNotSynchronising`
@@ -1748,9 +1837,10 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [x] Longhorn UI reachable without port-forward - `https://longhorn.tailc6abe2.ts.net` (2026-08-28). **It has no authentication**; the tailnet is the only thing protecting it
 - [x] Ingress with real TLS - solved by the `tailscale` IngressClass, not by cert-manager: two live Ingresses (`argocd`, `forgejo`) with Let's Encrypt certificates renewed by Tailscale. Traefik still runs and is still the **default** IngressClass, so every tailnet Ingress must set `ingressClassName: tailscale` explicitly
 - [ ] RBAC policies
-- [ ] Network policies
 - [x] Volume backup target - Garage S3 on LXC 100, backup and restore verified (2026-08-25), re-verified on a live application volume with an open SQLite database (2026-08-28)
 - [x] Actually restore a control-plane backup, not just decrypt one - **done 2026-08-28**, `scripts/k3s-restore-test.sh`: API up in 6 s, nothing missing, three traps found on the way
+- [x] Secrets encryption at rest - **done 2026-08-28** after the restore proof, deliberately in that order. AES-CBC, all 39 secrets re-encrypted, verified by reading the raw kine values. Protects a leaked database, not a stolen disk - the key sits on the same disk
+- [ ] NetworkPolicy for the five uncovered namespaces (`apps`, `monitoring`, `kube-system`, `system-upgrade`, `tailscale`) - `argocd` and `longhorn-system` already have 13 between them from their Helm charts
 - [ ] Velero backup (cluster-object backup; the volume half is covered by Longhorn + Garage)
 - [x] First workload deployment - Forgejo 16.0.3 on a 10 GiB Longhorn volume behind a Tailscale Ingress (2026-08-28), see `k8s/README.md`
 

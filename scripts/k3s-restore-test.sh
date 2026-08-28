@@ -196,6 +196,24 @@ cp "$SRC/state.db" "$S/db/state.db"
 cp -a "$SRC/tls" "$SRC/cred" "$S/"
 cp -a "$SRC/token" "$SRC/node-token" "$SRC/agent-token" "$S/"
 
+# A titkositott clusternel a --secrets-encryption NEM elhagyhato. Az
+# encryption-config.json ott van a cred/ alatt, de a k3s csak ettol a kapcsolotol
+# adja at az apiservernek. MEGMERVE 2026-08-28-an, a kapcsolo nelkul:
+#
+#   Error from server (InternalError): Internal error occurred:
+#   identity transformer tried to read encrypted data
+#
+# es a szerver SOHA nem lesz ready - a /readyz vegtelenul "[-]informer-sync failed"-et
+# ad, mert a Secret informer nem tud szinkronizalni (962 log sorbol 474 volt ez az
+# egy hiba). Kozben a nem-Secret eroforrasok olvashatok maradnak, tehat a
+# visszaallitas sikeresnek LATSZIK. Ez a sor a mentesbol dolgozik, nem beallitasbol:
+# ha az archivumban ott a fajl, a kapcsolo is kell.
+ENC_ARGS=()
+if [ -f "$SRC/cred/encryption-config.json" ]; then
+    ENC_ARGS=(--secrets-encryption)
+    echo "  az archivum titkositott clusterbol jon, --secrets-encryption bekapcsolva"
+fi
+
 nohup "$WORK/k3s" server \
     --disable-agent \
     --egress-selector-mode disabled \
@@ -204,6 +222,7 @@ nohup "$WORK/k3s" server \
     --node-name k3s-restore-test \
     --write-kubeconfig "$WORK/kubeconfig" \
     --write-kubeconfig-mode 600 \
+    "${ENC_ARGS[@]+"${ENC_ARGS[@]}"}" \
     > "$WORK/k3s.log" 2>&1 < /dev/null &
 K3SPID=$!
 disown

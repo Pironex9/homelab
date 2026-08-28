@@ -1,8 +1,20 @@
 ---
 # A jelenlegi /etc/systemd/system/k3s.service ExecStart sorai, szo szerint.
 # Az extra_server_args a TELJES INSTALL_K3S_EXEC lesz, ezert kezdodik `server`-rel.
+#
+# A `--secrets-encryption` 2026-08-28-an kerult be, kezzel a unitba es ide is.
+# Enelkul a kovetkezo site.yml futas LESZEDNE a kapcsolot. Nem eleg, hogy az
+# encryption-config.json ott van a cred/ alatt: a k3s csak ettol a kapcsolotol
+# adja at a fajlt az apiservernek --encryption-provider-config-kent.
+#
+# Megmerve ugyanaznap, eldobhato clusteren, a kapcsolo nelkul: a szerver SOHA nem
+# lesz ready, a /readyz vegtelenul "[-]informer-sync failed"-et ad, mert a Secret
+# informer nem tud szinkronizalni ("identity transformer tried to read encrypted
+# data"). A nem-Secret eroforrasok kozben olvashatok maradnak, tehat elsore ugy
+# nez ki, mintha mukodne.
 extra_server_args: >-
   server
   --node-ip=192.168.1.101
   --advertise-address=192.168.1.101
   --flannel-iface=eno1
+  --secrets-encryption
