@@ -107,6 +107,18 @@ spec:
             existingSecret: grafana-admin
             userKey: admin-user
             passwordKey: admin-password
+          # KOTELEZO a persistence melle, es ez elsore kimaradt. A chart
+          # alapertelmezese RollingUpdate; egy RWO koteten az uj pod
+          # `FailedAttachVolume`-mal orokre var a regire, a regi pedig sosem all
+          # le, mert az uj nem lesz Ready. 2026-08-28-an 25 percig allt igy:
+          #
+          #   Waiting for detach for volume "pvc-8d6accc7..."
+          #   Volume is already used by pod(s) monitoring-grafana-765dcb66d6-fwt9j
+          #
+          # Ugyanaz a csapda, mint a Forgejo Deploymentjenel. Barmi, aminek RWO
+          # kotete van, Recreate-tel megy.
+          deploymentStrategy:
+            type: Recreate
           persistence:
             # A chart dashboardjai ConfigMapbol jonnek, azok enelkul is
             # megvannak. Ez a kezzel keszitett dashboardokat es beallitasokat

@@ -420,6 +420,38 @@ szakaszaban. Itt csak a lenyeg: **ez a stack elso napjan talalt egy hibat, ami h
 allt fenn es `date -u`-val nem latszott** - 0.687 masodperc a `date` egy masodperces
 felbontasa alatt van.
 
+### Ket dolog, ami elsore rosszul ment
+
+**A Grafana persistence melle `deploymentStrategy: Recreate` is kell, es ez kimaradt.**
+A chart alapertelmezese `RollingUpdate`. Egy RWO Longhorn koteten ez holtpont: az uj pod
+`FailedAttachVolume`-mal var a kotetre, a regi pedig sosem all le, mert az uj nem lesz
+Ready. 2026-08-28-an 25 percig allt igy, es emiatt a Grafana memoria-limit emelese sem
+lepett eletbe:
+
+```
+Warning  FailedAttachVolume  25m  attachdetach-controller
+  Waiting for detach for volume "pvc-8d6accc7-..."
+  Volume is already used by pod(s) monitoring-grafana-765dcb66d6-fwt9j
+```
+
+Pontosan ugyanaz a csapda, ami a Forgejo Deploymentjenel ki van irva a manifestbe -
+csak oda beirtam, ide nem. **Barmi, aminek RWO kotete van, `Recreate`-tel megy.** A regi
+pod addig kiszolgalt, tehat kiesés nem volt, de az uj ertekek nem ertek foldet.
+
+**Helm forras eseten a `status.sync.revision` NEM a git commit.** A SUC szakaszban az
+all, hogy ha egy valtozas nem latszik, hasonlitsd a `status.sync.revision`-t a
+`git rev-parse HEAD`-hez. **Ez a `monitoring` Applicationre nem mukodik**, mert annak a
+forrasa Helm chart, nem git path:
+
+```
+$ kubectl -n argocd get app monitoring -o jsonpath='{.status.sync.revision}'
+88.6.0
+```
+
+A chart verzioja jon vissza, ami sosem valtozik egy values-modositastol. Itt a magan az
+objektumon kell nezni, hogy landolt-e - peldaul
+`kubectl -n monitoring get alertmanager -o jsonpath='{.items[0].spec.configSecret}'`.
+
 ### Uzemeltetesi apro dolgok, amik elsore meglepnek
 
 **A `Watchdog` riasztas mindig tuzel, es ez szandekos.** Nem hiba es nem kell

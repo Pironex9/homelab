@@ -499,6 +499,11 @@ a shorter timeout and not `disableEviction`.
     5 minutes after the push. If a Plan edit looks like it did not land, check
     `status.sync.revision` against `git rev-parse HEAD` before assuming something broke.
 
+    That check works here because this Application has a **git** source. It does **not**
+    work for an Application with a Helm chart source - there `status.sync.revision` is
+    the chart version (`88.6.0` for `monitoring`), which never moves when only the values
+    change. For those, check the rendered object itself.
+
 #### Exercising the SUC drain path without a version bump (2026-08-28)
 
 The Plan wiring can be tested at the current version, because of how the SUC decides
