@@ -119,6 +119,41 @@ else
     lines+=("Docker (LXC 100): minden konténer OK")
 fi
 
+# --- Vaultwarden verzió (LXC 103) ---
+# A jelszókezelő szándékosan NEM frissül magától: egy felügyelet nélküli
+# apk upgrade pont azon a gépen hibázna, ami az összes többi hitelesítő adatot
+# tartja, és pont akkor zárna ki mindenből, amikor a hozzáférés kellene.
+# Ami eddig hiányzott, az nem a frissítés volt, hanem az észrevétel:
+# 2026-08-28-án a szerver 1.37.0-n állt, miközben az 1.37.2 kiadási jegyzete
+# kimondja, hogy a 2026.8.0+ kliensekhez kötelező. Ez a fajta elmaradás nem itt
+# jelentkezik, hanem egy kliensen, "An error has occurred" formájában, ami
+# semmit nem árul el a szerver verziójáról - ezért kell ide.
+#
+# Az `apk update` csak az index-cache-t frissíti a containerben, csomagot nem
+# telepít. A kimenete azért van külön OK/FAIL sorban, mert nélküle egy megszakadt
+# DNS (ismert hibamód ezeken az LXC-ken) üres listát adna, és a blokk
+# "naprakész"-t jelentene, miközben valójában vak.
+vw_out=$(pve "pct exec 103 -- sh -c '
+    if apk update >/dev/null 2>&1; then echo OK; else echo FAIL; fi
+    apk list -I vaultwarden 2>/dev/null | cut -d\" \" -f1
+    apk version -l \"<\" 2>/dev/null | grep \"^vaultwarden\" | tr -s \" \" | sed \"s/ *\$//\"
+'" 2>/dev/null)
+
+vw_rc=$(echo "$vw_out" | sed -n 1p)
+vw_inst=$(echo "$vw_out" | sed -n 2p)
+vw_old=$(echo "$vw_out" | tail -n +3 | sed '/^$/d')
+
+if [[ "$vw_rc" != "OK" || -z "$vw_inst" ]]; then
+    lines+=("⚠️ Vaultwarden: nem kérdezhető le a verzió (LXC 103)")
+    warn=1
+elif [[ -n "$vw_old" ]]; then
+    lines+=("⚠️ Vaultwarden frissítés vár (LXC 103):")
+    while IFS= read -r l; do lines+=("    $l"); done <<<"$vw_old"
+    warn=1
+else
+    lines+=("Vaultwarden: naprakész (${vw_inst#vaultwarden-})")
+fi
+
 # --- Uptime ---
 up=$(pve "uptime -p" 2>/dev/null)
 lines+=("pve uptime: $up")
