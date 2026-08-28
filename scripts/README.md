@@ -145,7 +145,9 @@ cost of the fix is nothing, the cost of not having it is having no yesterday.
 
 ### Restoring
 
-Deliberately not automated.
+Deliberately not automated. Proven end to end on 2026-08-28 by
+`k3s-restore-test.sh` (below), which is where the two constraints in this section
+come from.
 
 ```bash
 gpg --decrypt --passphrase-file /root/.secrets/k3s-backup-passphrase \
@@ -155,6 +157,22 @@ gpg --decrypt --passphrase-file /root/.secrets/k3s-backup-passphrase \
 #   systemctl start k3s
 # then on the workers: systemctl restart k3s-agent
 ```
+
+**The archive only works at the default path and the default port.** The six
+kubeconfigs in `cred/` hard-code both, so `/somewhere` above is a staging
+directory, not a place k3s can be pointed at:
+
+- every one of them names `/var/lib/rancher/k3s/server/tls/...` as an absolute
+  path, so a k3s started with a different `--data-dir` dies at once with
+  `unable to read client-cert /var/lib/rancher/k3s/server/tls/client-supervisor.crt`
+- every one of them names `https://127.0.0.1:6444`, which is `--https-listen-port`
+  plus one. Restore on any other listen port and the scheduler and the
+  controller-manager keep calling 6444 while the apiserver listens elsewhere:
+  `unable to load configmap based request-header-client-ca-file ... dial tcp
+  127.0.0.1:6444: connect: connection refused`, and k3s shuts itself down
+
+Either could be worked around by rewriting the six files, but on a real restore
+there is no reason to: the files go back exactly where they came from.
 
 That form needs `/root/.secrets/k3s-backup-passphrase`, which is exactly the file that
 will be missing in a real disaster - LXC 109 is where it lives. The passphrase is also
@@ -199,6 +217,116 @@ see - a trap that has silently killed three jobs in this homelab. Test with
 `env -i PATH=/usr/bin:/bin HOME=/root ./k3s-backup.sh`.
 
 Measured on 2026-08-24: 29 seconds end to end, 68 MB archive plus a 1.2 MB export.
+
+## k3s-restore-test.sh
+
+Restores the newest control-plane archive into a throwaway k3s and reads the
+result back. On-demand, like `longhorn-restore-test.sh`.
+
+`k3s-backup.sh` already proves the archive **decrypts** and that `state.db` is in
+the tar listing. That is not the same claim. Between 2026-08-24 and 2026-08-28 the
+answer to "does a cluster actually come back from this" was unknown, and two of
+the three problems found on the first run would have surfaced during an outage.
+
+It runs on LXC 109, because that is where the passphrase is. The live cluster is
+only read, for comparison.
+
+### How it works
+
+1. picks the newest `k3s-control-plane-*.tar.gz.gpg` on pve (or takes a filename
+   as `$1`), streams it back, decrypts and unpacks it into a mode-700 directory
+2. re-runs `PRAGMA integrity_check` on the transferred copy. The backup ran one
+   too, but on the file as it was on the master - this copy has since been through
+   gpg, tar and two SSH hops
+3. reads the k3s version out of `state.db` (`strings` for `v1.x.y+k3sN`, highest
+   wins) and downloads that exact binary, cached under `/root/.cache/k3s-restore-test`
+4. puts `state.db`, `tls/`, `cred/` and the three tokens in place and starts
+   `k3s server --disable-agent` on `127.0.0.1:6443`
+5. compares against the live cluster and checks the Secret contents
+6. kills the server and deletes everything, including on failure (`trap`)
+
+### Why `--disable-agent`
+
+Without it the restored control plane also becomes a node, the kubelet starts, and
+it begins scheduling the pods it found in the restored database - Longhorn, Argo
+CD, all of it. Argo CD would immediately pull the real GitHub repository and
+Longhorn would talk to the real Garage S3 bucket. With no agent not a single pod
+starts, and none is needed: the question is whether the **data** came back, not
+whether it runs.
+
+### How the verdict is reached
+
+There is no hard-coded list of expected objects. The first version looked for the
+six Argo CD Applications by name and failed on the 06:49 archive, correctly
+restored, because `monitoring` was only installed at 07:25. The rule instead is:
+**every live object whose `creationTimestamp` is older than the backup must be
+present in the restored cluster.** Anything newer is drift and is listed
+separately, with a reminder to take a fresh backup.
+
+The cutoff comes from the filename, which `k3s-backup.sh` writes in LXC 109's
+**local** time while `creationTimestamp` is UTC - so it is parsed as local and
+converted, never with `date -u -d`, which would read a naive timestamp as UTC and
+put the cutoff two hours late, in the direction that invents failures. As a
+cross-check the script also takes the newest `creationTimestamp` in the restored
+data; if that is later than the filename cutoff, the data wins. That guard exists
+because LXC 109 only moved to `Europe/Budapest` on 2026-08-26, so older archives
+carry UTC in their names.
+
+The last check is the one that matters most: Secret **contents**, not counts. If
+kine rows had been truncated the object count would still be right. An empty value
+is not a failure by itself - Kubernetes allows it and this cluster has three - so
+a key only counts as lost when the live side has content and the restored side
+does not.
+
+### Proven on 2026-08-28
+
+Against the 11:42 archive (7.0 MB encrypted, 25 MB `state.db`, 3061 kine rows), the
+API answered `/readyz` **6 seconds** after start, and nothing was missing:
+
+| | nodes | ns | crd | secret | cm | pvc | pv | deploy | sts | ds | Applications | LH volumes | LH replicas |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| expected | 3 | 10 | 84 | 39 | 57 | 3 | 3 | 22 | 7 | 5 | 6 | 3 | 9 |
+| missing | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+116 Secret keys decoded, 3 of them empty on both sides.
+
+### What it touches
+
+Nothing on the live cluster, and nothing on pve beyond reading one file. On LXC 109
+it creates and then deletes `/var/lib/rancher/k3s`, `/etc/rancher/k3s`,
+`/etc/rancher/node` and `/tmp/k3s-restore-test`. The 79 MB cached binary is
+deliberately kept; on a host at 91% that is worth knowing about.
+
+It refuses to start if a `k3s.service` or `k3s-agent.service` unit exists, because
+its own cleanup deletes `/var/lib/rancher/k3s` - on a real node that is the cluster.
+It also refuses if port 6443 is already in use.
+
+```bash
+./k3s-restore-test.sh                                            # newest archive
+./k3s-restore-test.sh k3s-control-plane-2026-08-27_01-30-01.tar.gz.gpg
+KEEP=1 ./k3s-restore-test.sh                                     # leave it up to poke at
+```
+
+The full k3s log of the last run survives cleanup at
+`/root/.cache/k3s-restore-test/last-run.log`.
+
+### Three traps it walked into first
+
+Worth keeping, because a real restore at 3am walks into the same ones.
+
+1. **The `cred/` kubeconfigs pin the data-dir path and the apiserver port.** See
+   the Restoring section above. Both are silent: the error text names a missing
+   certificate or a refused connection, not a wrong path or port.
+2. **k3s rewrites its own argv.** After startup `/proc` shows only
+   `<path>/k3s server` - every flag is gone. A `pkill -f 'k3s server --disable-agent'`
+   in the cleanup therefore never matched, two orphaned control planes kept running
+   on their own already-deleted data directories, and the next run failed on a busy
+   6443. The wait loop had the same bug and made a healthy k3s look dead. Both now
+   track the PID.
+3. **`kubectl -o go-template` prints `<no value>` for a missing namespace.** That
+   string contains a space, so a field-count filter silently dropped every
+   cluster-scoped object: the table read 0 CRDs where there are 84. `jsonpath`
+   prints an empty string instead.
 
 ## longhorn-backup-check.sh
 

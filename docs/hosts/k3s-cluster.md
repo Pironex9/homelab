@@ -647,6 +647,11 @@ node, reinstall the old version with `INSTALL_K3S_VERSION=<previous>`, and resto
 gpg --pinentry-mode loopback --decrypt <file>.tar.gz.gpg | tar xzf - -C /somewhere
 ```
 
+`/somewhere` is staging only. The files then go back to `/var/lib/rancher/k3s/server`
+and nowhere else, and the restored server has to listen on the default 6443 - the six
+kubeconfigs in `cred/` hard-code both the path and the port. See the control-plane
+restore section below.
+
 Longhorn cannot be rolled back to an earlier minor at all. Its recovery path is the
 14-day Garage backup and a `fromBackup` StorageClass, verified byte-for-byte on
 2026-08-25. That asymmetry is exactly why the whole upgrade was done on an empty
@@ -1556,6 +1561,83 @@ terminal whose output is logged.
 
 ---
 
+## Control-plane restore, actually performed (2026-08-28)
+
+The nightly `k3s-backup.sh` has run since 2026-08-24, and it verified that the
+encrypted archive **decrypts** and that `state.db` is inside the tar. Whether a
+cluster comes back from it was an assumption until this day. `scripts/k3s-restore-test.sh`
+now answers it by doing the thing: restore into a throwaway k3s on LXC 109, then read
+the objects back.
+
+### The result
+
+Against the 11:42 archive - 7.0 MB encrypted, 25 MB `state.db`, 3061 kine rows - the
+API answered `/readyz` **6 seconds** after start, and every object that existed at
+backup time came back:
+
+| | nodes | ns | crd | secret | cm | pvc | pv | deploy | sts | ds | Applications | LH volumes | LH replicas |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| expected | 3 | 10 | 84 | 39 | 57 | 3 | 3 | 22 | 7 | 5 | 6 | 3 | 9 |
+| missing | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+116 Secret keys decoded cleanly. Three are empty, and they are empty on the live
+cluster too - counting them as corruption is what the first version of the check did.
+
+### The restored server runs with no agent, on purpose
+
+`k3s server --disable-agent`. With an agent the restored control plane would also be a
+node: the kubelet would start and begin scheduling the pods it found in the restored
+database. Argo CD would pull the real GitHub repository and Longhorn would reach for
+the real Garage S3 bucket, from a cluster that is meant to be a copy. With no agent not
+one pod starts, and none is needed - the question is whether the data came back.
+
+### The archive only fits back where it came from
+
+Two constraints, both found by trying, both with error messages that name something
+other than the actual cause. Every one of the six kubeconfigs in `cred/`:
+
+- names `/var/lib/rancher/k3s/server/tls/...` as an **absolute path**. A different
+  `--data-dir` and k3s dies immediately with `unable to read client-cert
+  /var/lib/rancher/k3s/server/tls/client-supervisor.crt: no such file or directory`
+- names `https://127.0.0.1:6444`, which is `--https-listen-port` **plus one**. Restore
+  on any other listen port and the scheduler and controller-manager keep calling 6444
+  while the apiserver listens elsewhere: `unable to load configmap based
+  request-header-client-ca-file ... dial tcp 127.0.0.1:6444: connect: connection
+  refused`, followed by `Shutdown request received`
+
+On a real restore neither bites, because the files go back exactly where they came
+from. They bite when you try to restore *beside* a running cluster - which is what a
+test does, and what a cautious admin would try first.
+
+### A backup is only as current as the last run
+
+The first attempt used the 06:49 archive and reported five failures: no `forgejo`
+Application, no `monitoring`, no PVCs, no Longhorn volumes. All correct - Forgejo went
+in at 05:53 UTC and the monitoring stack at 07:25 UTC, and the 06:49 archive sits
+between them. The restore was fine; the expectation was wrong.
+
+So the check has no list of expected names. The rule is that **every live object older
+than the backup must be present in the restored cluster**, by `creationTimestamp`;
+anything newer is listed as drift with a prompt to take a fresh backup. A name list
+would have to be edited after every deployment, and would quietly rot.
+
+### Two things this cost that are worth remembering
+
+**k3s rewrites its own argv.** After startup `/proc` shows only `<path>/k3s server` -
+every flag is gone. `pkill -f 'k3s server --disable-agent'` therefore matches nothing.
+The cleanup used exactly that pattern, so two orphaned control planes kept running on
+their own already-deleted data directories, and the next run failed on a busy 6443. The
+readiness loop had the same bug and made a perfectly healthy k3s look dead. Track the
+PID, not the command line.
+
+**`kubectl -o go-template` prints `<no value>` for a missing namespace.** That string
+contains a space, so anything filtering on field count drops every cluster-scoped
+object: the comparison table read 0 CRDs where there are 84, and reported it as a pass.
+`jsonpath` prints an empty string. A check that reads zero and calls it agreement is
+worse than no check.
+
+---
+
 ## Clock synchronisation: found by the monitoring stack on day one (2026-08-28)
 
 `kube-prometheus-stack` went in and immediately raised `NodeClockNotSynchronising`
@@ -1668,6 +1750,7 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [ ] RBAC policies
 - [ ] Network policies
 - [x] Volume backup target - Garage S3 on LXC 100, backup and restore verified (2026-08-25), re-verified on a live application volume with an open SQLite database (2026-08-28)
+- [x] Actually restore a control-plane backup, not just decrypt one - **done 2026-08-28**, `scripts/k3s-restore-test.sh`: API up in 6 s, nothing missing, three traps found on the way
 - [ ] Velero backup (cluster-object backup; the volume half is covered by Longhorn + Garage)
 - [x] First workload deployment - Forgejo 16.0.3 on a 10 GiB Longhorn volume behind a Tailscale Ingress (2026-08-28), see `k8s/README.md`
 
