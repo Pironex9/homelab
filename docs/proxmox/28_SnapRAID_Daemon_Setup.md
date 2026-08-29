@@ -59,7 +59,7 @@ sys_engine = /usr/bin/snapraid
 | `sys_engine` | `/usr/bin/snapraid` | Force the new v14.9 binary, avoid PATH ambiguity (above) |
 | `net_port` | `0.0.0.0:7627` | Reach the dashboard from LAN/Tailscale, not just localhost |
 | `net_acl` | `+100.0.0.0/8,+192.168.0.0/24,+127.0.0.1` | Restrict access to Tailscale CGNAT range + LAN + loopback |
-| `maintenance_schedule` | `Sun 03:00` | Matches the old cron's timing; avoids the 02:00 nightly `vzdump` job |
+| `maintenance_schedule` | `Sun 03:00` | Matches the old cron's timing; avoids the 02:00 nightly `vzdump` job. **Changed to daily `03:00` on 2026-08-29**, below |
 
 ### Tuning pass 2026-08-12: the weekly job had been failing silently for ten days
 
@@ -115,22 +115,157 @@ scrub: "Scrub plan: auto. 5.0% of the array, older than 6 days"  ->  error_soft 
 1. **No authentication in this release.** The GitHub `master` branch docs (manpage, `snapraidd.conf.example`) describe a `net_auth_credential` config option and a `snapraidd -g user:pass` flag to generate an Argon2id hash for HTTP Basic Auth. **Neither exists in the actual v1.14 release binary** - `snapraidd -H` doesn't list `-g`/`--gen-auth`, and `net_auth_credential` isn't a recognized key in the shipped config. This is an unreleased feature documented ahead of the release. Access control for now is `net_acl` (IP allowlist) only, no password. Caddy reverse-proxy Basic Auth is an option if password protection becomes necessary before the daemon catches up.
 2. **Bare port number doesn't bind to all interfaces.** The docs say `net_port = 7627` (no IP) binds to all IPv4 interfaces (`0.0.0.0`). In practice it bound to `127.0.0.1`/`::1` only. Using the explicit form `net_port = 0.0.0.0:7627` worked as expected.
 
-## Still open: nothing notifies when the chain fails
+## Tuning pass 2026-08-29: weekly to daily, and the notifications wired
 
-The 2026-08-12 tuning pass fixed the abort, but not the reason it went unnoticed for ten days. `notify_result` is still commented out, and syslog is the only sink configured:
+### Why weekly was the wrong end of the range
+
+The SnapRAID [FAQ](https://www.snapraid.it/faq) allows a range - *"Run the 'sync' command
+frequently, from once a day to once a week"* - and this array sat at the slow end of it.
+Two measurements moved it to the fast end.
+
+The first is the churn. The last clean weekly run wrote `660 added, 231 removed, 22
+updated, 31 moved`, spread almost entirely across three directories on one disk:
+
+```console
+root@pve:~# grep -E "^scan:(add|remove|update)" /var/log/snapraid/20260823-030014-sync.log \
+    | cut -d: -f3-4 | sed 's|\(:[^/]*/[^/]*\).*|\1|' | sort | uniq -c | sort -rn
+    357 d1:backup/proxmox
+    264 d1:media/konyvek
+    246 d1:immich/library
+     20 d1:media/downloads
+```
+
+Files are added daily, so by the FAQ's own rule the sync belongs on a daily schedule.
+
+The second is the one that actually decides it, and it is easy to get backwards. The
+obvious cost of syncing more often is the shrinking window to undelete something with
+`snapraid fix`. But a deletion between syncs does not only lose the deleted file: **parity
+is computed across all disks, so removing a file invalidates the parity for every other
+file sharing those blocks until the next sync.** If a disk dies inside that window, the
+survivors sharing those stripes are unrecoverable too - as though a second disk had failed.
+With one parity disk over three data disks, a whole week of accumulated deletions is a real
+dent in the only redundancy this array has. This is spelled out in
+[Using SnapRAID safely](https://ruderich.org/simon/notes/using-snapraid-safely) and in the
+`snapraid.conf` example's own commentary.
+
+Weekly also means a single aborted run costs **two** weeks of parity currency, which is
+exactly what the 2026-08-09 abort cost above.
+
+| Setting | Was | Now | Why |
+|---|---|---|---|
+| `maintenance_schedule` | `Sun 03:00` | `03:00` | Daily. Omitting the day is the daemon's own syntax for every night |
+| `scrub_percentage` | `5` | `1` | Keeps the annual scrub volume roughly flat while spreading the load: 5% x 52 weeks is a full pass every 140 days, 1% x 365 days is one every 100 days. Slightly more coverage, in nightly slices - which suits d1, the disk already flagged for replacement |
+| `sync_threshold_deletes` | `1000` | `300` | 1000 was sized for a week's housekeeping. Against a daily delta averaging ~33 deletions it can never trigger, so the guard was effectively off |
+| `notify_result_level` | `error` | `warning` | See below - `error` would have stayed silent through the failure this whole page is about |
+
+`scrub_older_than` stays at `6`: blocks touched in the last six days are skipped, which is
+what keeps a nightly scrub from re-reading the same fresh data every run.
+
+Before the first daily run, confirm the backlog will not trip the new threshold. `snapraid
+diff` is read-only and answers it directly:
+
+```console
+root@pve:~# snapraid diff | tail -8
+   72833 equal
+    2732 added
+     250 removed
+       7 updated
+```
+
+250 against a limit of 300 - the catch-up run proceeds. Had it been over, the fix is one
+`ignore_thresholds` maintenance call, not a permanently loosened guard.
+
+### `notify_result_level = error` would not have caught the failure on this page
+
+The level was already set to `error` before any of this, and it looks correct. It is not.
+A sync with soft errors ends `summary:exit:warning`, and that is what stops the maintenance
+chain before the scrub - the ten-day silent gap documented above. At `error` the daemon
+would have had a notification hook wired and still said nothing. `warning` is the level
+that catches it.
+
+### The wiring
+
+Two hooks, one Uptime Kuma push monitor, opposite directions:
 
 ```
-notify_syslog_enabled = 1
-notify_syslog_level = info
-#notify_result = curl --narrow -f --max-time 30 --retry 3 -H "Title: %s" ... https://ntfy.sh/your_private_topic
-notify_result_level = error
+notify_heartbeat = curl -fsS -m 10 -o /dev/null "http://<kuma>/api/push/<token>?status=up"
+notify_result    = sh /usr/local/bin/snapraid-notify.sh "%s"
+notify_result_level = warning
 ```
 
-`notify_result_level = error` is already correct, so wiring the command would send on failure only. `notify_heartbeat` is likewise unset, so a daemon that stops running the Sunday chain entirely would also pass unnoticed.
+`notify_heartbeat` runs only after a successful maintenance chain, so it is the dead man's
+switch: a daemon that stops running at all pushes nothing, the 25-hour monitor window
+expires, and Uptime Kuma alerts. `notify_result` handles the other case, a run that
+happened and went wrong.
 
-This matters more here than for an ordinary service. Every other scheduled job on this homelab either pushes to an Uptime Kuma monitor as a dead man's switch or posts to ntfy - see [35 - Cron Job Monitoring with Uptime Kuma Push Monitors](./35_Cron_Job_Monitoring_Uptime_Kuma.md). SnapRAID guards the only parity copy of an 8.1 TB array and reports to nobody.
+`snapraid-notify.sh` (in `scripts/`) sends to two places on purpose. Uptime Kuma carries
+the alert, because its Discord notifier is the channel that demonstrably reaches a phone;
+ntfy on the agentos LXC carries the full report text for reading afterwards. The daemon
+pipes that report into the command's stdin, and the script reads it exactly once - if
+nothing consumes the pipe the writer can block.
 
-The follow-up audit in [42 - Sonarr/Radarr Missing Media Audit](./42_Sonarr_Radarr_Missing_Media_Audit.md) reached the same conclusion from the other direction, and also documents two false alarms worth not repeating: the orphaned `# SnapRAID sync minden vasárnap hajnali 3-kor` comment left behind in root's crontab reads like a lost job, and `sync_threshold_deletes` is invisible to anyone grepping `/etc/snapraid.conf` for `deletethreshold`.
+The Kuma push token stays out of this repo and out of the daemon's config parser by living
+in `/etc/snapraid-notify.env` (mode 600), which the script sources. That also keeps the
+`notify_result` line in the documented shape, `sh <script> "%s"`, rather than an
+`sh -c 'ENV=... script'` wrapper whose quoting the daemon would have to survive.
+
+**One trap worth the two minutes it cost.** Uptime Kuma's push endpoint takes its
+parameters as a query string, and the stored URL has none:
+
+```bash
+# wrong - "&status=down" becomes part of the path, the token absorbs it, Kuma returns 404
+curl -G --data-urlencode "msg=$SUBJECT" "${KUMA_PUSH_URL}&status=down"
+
+# right - let -G build the whole query string
+curl -G --data-urlencode "status=down" --data-urlencode "msg=$SUBJECT" "$KUMA_PUSH_URL"
+```
+
+The failure is quiet in the worst way: `curl` exits non-zero, the script's `|| echo` writes
+to stderr, and the daemon does not care. Test the notification path by hand before trusting
+it - a push with an obviously wrong token would look identical.
+
+### Verifying it without waiting for a failure
+
+Both ends are testable on demand. The endpoints first:
+
+```console
+root@pve:~# printf "test report\n  1 error\n" | sh /usr/local/bin/snapraid-notify.sh \
+    "[ERROR] snapraid-notify endpoint test"
+root@pve:~# curl -fsS -m 10 -o /dev/null "http://<kuma>/api/push/<token>?status=up"
+```
+
+The first drops the monitor to DOWN with the subject as the message and fires Discord; the
+second brings it back. Then the daemon's own invocation of those hooks, which the endpoint
+test does not cover - trigger a real chain through the REST API on port 7627 and watch the
+heartbeat land:
+
+```console
+root@pve:~# curl -s -X POST http://127.0.0.1:7627/snapraid/v1/maintenance \
+    -H 'Content-Type: application/json' -d '{}'
+{ "success": true }
+```
+
+Note the base path is `/snapraid/v1/`, not `/api/v1/` - the latter 404s on every verb.
+
+The catch-up chain on 2026-08-29 is the proof for both halves. Sync ran 10:21:13 to
+11:01:52 (40 min for six days of backlog), scrub 11:01:52 to 11:08:06:
+
+```
+sync:  equal 72833, added 2732, removed 250, updated 7, error_soft 0, exit ok
+scrub: "Scrub plan: auto. 1.0% of the array, older than 6 days, will be checked."
+       error_soft 0, exit ok
+```
+
+The scrub line confirms the new `scrub_percentage` is live rather than merely written to
+the file. And in Uptime Kuma, one second after the scrub ended:
+
+```
+1|OK|2026-08-29 11:08:06
+```
+
+That heartbeat is the thing the endpoint test could not show: the daemon really does invoke
+the hook. `notify_result` correctly stayed quiet - a clean run reports at info level, below
+the `warning` threshold - so the absence of an ntfy message is also a result, not a gap.
 
 ## Removed: old manual cron
 

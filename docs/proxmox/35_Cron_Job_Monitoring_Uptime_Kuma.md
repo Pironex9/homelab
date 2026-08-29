@@ -39,7 +39,7 @@ A Push monitor inverts the usual direction: Kuma stops polling and waits to be p
 
 ## The monitors
 
-Nine of the 35 jobs have a monitor - the ones whose silent absence costs something. The rest (logrotate, certificate renewal, `qm reboot`) fail loudly on their own. Eight were set up on 2026-08-14; the ninth arrived with the Longhorn backup target on 2026-08-25.
+Eleven of the 35 jobs have a monitor - the ones whose silent absence costs something. The rest (logrotate, certificate renewal, `qm reboot`) fail loudly on their own. Eight were set up on 2026-08-14; the ninth arrived with the Longhorn backup target on 2026-08-25, the tenth with the K3s control-plane backup, and the eleventh with the SnapRAID daemon on 2026-08-29.
 
 | Monitor | Host | Schedule | Interval |
 |---|---|---|---|
@@ -52,8 +52,12 @@ Nine of the 35 jobs have a monitor - the ones whose silent absence costs somethi
 | `cron: homelab-digest (LXC 109)` | LXC 109 | daily 07:00 CEST | 90000 s |
 | `cron: ai-digest (LXC 109)` | LXC 109 | daily 07:30 CEST | 90000 s |
 | `cron: longhorn-backup-check (109)` | LXC 109 | daily 04:00 CEST | 90000 s |
+| `cron: k3s-backup (LXC 109)` | LXC 109 | daily 01:30 CEST | 90000 s |
+| `cron: snapraid maintenance (pve)` | pve | daily 03:00 | 90000 s |
 
 Intervals are the job period plus deliberate slack - 90000 s is 25 hours for a daily job, 612000 s is 7 days plus 2 hours - so ordinary jitter does not alert. A monitor that cries wolf is worse than no monitor, which this homelab already learned from the vzdump extension bug in [30 - Backup Verification](./30_Backup_Verification_Restore_Test.md).
+
+`cron: snapraid maintenance (pve)` is the only monitor fed from both directions. The SnapRAID daemon has a `notify_heartbeat` hook that fires only on a successful maintenance chain, which pushes `status=up`, and a `notify_result` hook that pushes `status=down` with the subject line when a run reports at warning level or worse. The push token therefore lives in the daemon's own config rather than in a crontab - see [28 - SnapRAID Daemon Setup](./28_SnapRAID_Daemon_Setup.md).
 
 ## Creating monitors without the UI
 

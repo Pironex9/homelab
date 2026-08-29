@@ -22,6 +22,33 @@ reader who went looking for where Immich was covered. What actually runs:
 Configuration for the script below lives in `scripts/.env` (gitignored). See
 `.env.example` for every key and for the values that match the live pve setup.
 
+## snapraid-notify.sh
+
+Not a backup script and not scheduled: this is the `notify_result` handler the
+SnapRAID daemon on pve calls when a maintenance run reports at warning level or
+worse. It is deployed to `/usr/local/bin/snapraid-notify.sh` on pve, not run from
+this repo.
+
+The daemon pipes the full task report into stdin and passes the subject line as
+`$1`. The script reads stdin exactly once - if nothing consumes that pipe the
+writing side can block - then fans out to two places:
+
+| Destination | Carries | Why |
+|---|---|---|
+| Uptime Kuma push (`cron: snapraid maintenance (pve)`) | subject line, `status=down` | Kuma's Discord notifier is the channel that demonstrably reaches a phone |
+| ntfy on the agentos LXC, topic `snapraid` | the whole report | The detail to read afterwards |
+
+The Kuma push URL, token included, is read from `/etc/snapraid-notify.env` (mode
+600, not in this repo). The script exits 0 on every path, because a dead
+notification target must not make the daemon treat the maintenance task itself as
+failed.
+
+The other half of the pair is not a script at all: `notify_heartbeat` in
+`/etc/snapraidd.conf` is a plain `curl` that pushes `status=up` after a successful
+chain, which is what makes the same monitor a dead man's switch. Full reasoning,
+the `notify_result_level = warning` correction, and the `curl -G` trap are in
+[28 - SnapRAID Daemon Setup](../docs/proxmox/28_SnapRAID_Daemon_Setup.md).
+
 ## restore-test.sh
 
 Proves the backups are actually restorable. Discovers every restic repository
