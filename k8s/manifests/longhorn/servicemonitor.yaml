@@ -1,0 +1,34 @@
+# Makes Prometheus scrape the Longhorn manager.
+#
+# Without this nothing in the monitoring stack knows anything about the storage
+# layer. The kube-prometheus-stack dashboards only see what the kubelet reports
+# (`kubelet_volume_stats_*`), which is how full a PV is - not whether a volume
+# is degraded, whether a replica was lost, or whether last night's backup to
+# Garage S3 actually succeeded.
+#
+# THE `release: monitoring` LABEL IS MANDATORY. The Prometheus CR selects with
+# `serviceMonitorSelector: {matchLabels: {release: monitoring}}` while its
+# `serviceMonitorNamespaceSelector` is empty, meaning every namespace but only
+# labelled ServiceMonitors. Drop the label and this object is created, synced
+# and healthy in Argo CD while Prometheus silently ignores it - there is no
+# error anywhere, the target list simply never grows.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      # Only longhorn-backend carries this; the webhook, frontend and
+      # recovery-backend Services do not, so the match stays unambiguous.
+      app: longhorn-manager
+  namespaceSelector:
+    matchNames:
+      - longhorn-system
+  endpoints:
+    - port: manager
+      path: /metrics
+      interval: 30s

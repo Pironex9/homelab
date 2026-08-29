@@ -1,0 +1,47 @@
+# Lets Prometheus reach the Longhorn manager's /metrics endpoint.
+#
+# The Longhorn chart ships its own `longhorn-manager` NetworkPolicy that allows
+# ingress only from a fixed list of Longhorn's own pods (ui, csi-plugin,
+# driver-deployer, recurring jobs). Prometheus lives in the `monitoring`
+# namespace and is not on that list, so with the ServiceMonitor alone every
+# target sat at `up=0`.
+#
+# THE SYMPTOM LIES. A blocked scrape reports
+#
+#   dial tcp 10.42.0.43:9500: connect: connection refused
+#
+# which reads as "nothing is listening", not "a policy dropped this". Inside the
+# pod `ss -lntp` showed longhorn-manager listening on exactly that address and
+# port the whole time. Do not go looking for a wrong port on this error.
+#
+# This is a SECOND policy rather than an edit of the chart's one. NetworkPolicies
+# are additive - the union of every policy that selects a pod is what is allowed -
+# so the chart's object stays untouched and a Longhorn Helm upgrade cannot revert
+# this. The Longhorn release itself is deliberately not managed by Argo CD (see
+# k8s/README.md), which is exactly why this must not live in its values.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: longhorn-manager-allow-prometheus
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-manager
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Both selectors sit in ONE list entry, so they are ANDed: the
+        # monitoring namespace AND a Prometheus pod. Split into two entries
+        # they would be ORed, which would open the port to every pod in
+        # monitoring and to any pod named prometheus anywhere.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9500

@@ -716,6 +716,99 @@ Ellenorizve `helm template`-tel: a kapcsoloval a chart nem general Secretet.
 
 PVC-je nincs: az allapota nemitasokbol all, ami ujrainduláskor elveszik.
 
+### Grafana kezdolap
+
+A friss Grafana az ures welcome oldalra nyit. Az org szintu beallitas
+(`PUT /api/org/preferences`) a **Kubernetes / Compute Resources / Cluster**
+dashboardra allitja, `Europe/Budapest` idozonaval es hetfoi hetkezdettel:
+
+```json
+{"theme":"dark","homeDashboardUID":"efa86fd1d0c121a26444b636a3f509a8",
+ "timezone":"Europe/Budapest","weekStart":"monday"}
+```
+
+**Ez nincs a gitben.** A Grafana SQLite-jaban ul, az 5 GiB-os Longhorn koteten, tehat
+pod-ujrainditast tulel, de egy ures kotettel valo ujratelepitest nem. A helm values-ba
+tenni korulmenyesebb: a `default_home_dashboard_path` egy fajlutat var a sidecar
+konyvtaraban, ami a dashboard fajlnevehez kotne a configot.
+
+> A `/api/datasources/proxy/1/...` (numerikus id) alak **404 Not found** a mostani
+> Grafanan, csak a `/api/datasources/proxy/uid/prometheus/...` mukodik. A 404 JSON-je
+> ures eredmenynek nez ki, ha a hivo csak a `data.result` hosszat nezi - igy elsore
+> ugy tunt, hogy egyik metrika sem letezik, pedig mind megvolt.
+
+### Longhorn metrikak (2026-08-29)
+
+A stack alapbol **nem latja a tarolo reteget**. A beepitett `Kubernetes / Persistent
+Volumes` dashboard a kubelet `kubelet_volume_stats_*` metrikaibol dolgozik, ami csak
+annyit tud, hogy mennyire tele van egy PV. Arrol nem, hogy egy kotet degradalt, hogy
+elveszett egy replika, vagy hogy az ejszakai Garage S3 mentes sikerult-e.
+
+Harom fajl a `k8s/manifests/longhorn/` alatt zarja ezt be:
+
+| Fajl | Mit csinal |
+|---|---|
+| `servicemonitor.yaml` | a `longhorn-backend:9500/metrics` scrape-elese |
+| `networkpolicy-metrics.yaml` | atengedi a Prometheust a Longhorn sajat netpolja mellett |
+| `grafana-dashboard.yaml` | a 16888-as dashboard ConfigMapkent |
+
+**A `release: monitoring` cimke a ServiceMonitoron kotelezo.** A Prometheus CR
+`serviceMonitorSelector`-e `matchLabels: {release: monitoring}`, a
+`serviceMonitorNamespaceSelector`-e viszont ures, tehat barmelyik namespace johet, de
+csak cimkezve. Cimke nelkul az objektum letrejon, az Argo CD Synced es Healthy, a
+Prometheus meg nemán figyelmen kivul hagyja.
+
+**A Longhorn sajat NetworkPolicy-ja kizarja a Prometheust.** A chart `longhorn-manager`
+netpolja csak a Longhorn sajat podjait engedi be (ui, csi-plugin, driver-deployer,
+recurring jobok). A monitoring namespace nincs a listan, tehat a ServiceMonitorral
+onmagaban mind a harom target `up=0` maradt. A hibauzenet felrevezet:
+
+```
+dial tcp 10.42.0.43:9500: connect: connection refused
+```
+
+Ez ugy olvasodik, hogy nem figyel senki a porton. A podban viszont `ss -lntp` pontosan
+azt a cimet es portot mutatta LISTEN-ben vegig. **Erre a hibara ne a portot keresd.**
+
+A javitas egy **masodik** netpol, nem a chart objektumanak atirasa: a NetworkPolicy-k
+osszeadodnak, igy a Longhorn Helm frissitese nem viszi el. A Longhorn release
+szandekosan nincs Argo CD alatt (lasd fentebb), ezert a values-ba sem kerulhet.
+
+A ket selector **egy** `from` listaelemben van, tehat ANDolodik (monitoring namespace
+ES prometheus pod). Ket kulon elemben ORolodna, ami kinyitna a portot a monitoring
+minden podjanak es barhol futo `prometheus` nevu podnak.
+
+A harmadik target egy scrape ciklussal kesobb jott fel, mint a masik ketto: a netpol
+iptables szabalyai node-onkent frissulnek.
+
+**A dashboard ConfigMap barmelyik namespace-ben lehet.** A sidecar `NAMESPACE=ALL`,
+`LABEL=grafana_dashboard`, `LABEL_VALUE=1` beallitassal fut, ezert a ConfigMap
+elfer a ServiceMonitor mellett a `longhorn-system`-ben, es nem kell hozza egy masodik
+Argo CD Application a monitoring namespace-re.
+
+A [16888](https://grafana.com/grafana/dashboards/16888) ("Longhorn Monitoring &
+Backups", rev 14) lett a valasztas a regi "Longhorn Example"-ok helyett: a 13032 utoljara
+2020-ban, a Longhorn v1.1.0-hoz frissult, a cluster v1.12.1-et futtat. Ket szerkesztes
+kellett bele, es egyik sem opcionalis: az `__inputs`/`__requires` blokkok kivetele (ezek
+a Grafana import varazslojanak szolnak, amin egy provisionalt dashboard nem megy at) es
+a `${DS_PROMETHEUS}` helyettesitese a `prometheus` datasource uid-jevel. Enelkul minden
+panel feloldatlan datasource-szal nyilna meg.
+
+Merve a bekotes utan (`3/3` target UP):
+
+```
+longhorn_volume_state          3 kotet, 6 state-sor kotetenkent (one-hot, nem duplikatum)
+longhorn_volume_robustness     12 sor,  degradalt/faulted: 0
+longhorn_backup_state          4 sor
+longhorn_volume_last_backup_at 3 sor
+longhorn_disk_capacity_bytes   2289 GiB
+```
+
+A `longhorn_volume_state` kotetenkenti 6 sora nem a harom manager duplikatuma: a hat
+lehetseges allapot (`attached`, `attaching`, `creating`, `deleting`, `detached`,
+`detaching`) egy-egy sor, egyesevel 0/1 ertekkel. A kotet metrikait csak az ot birtoklo
+manager exportalja, tehat osszegzo panelekben nincs tobbszoros szamolas.
+
 ## Longhorn felulet: `https://longhorn.tailc6abe2.ts.net`
 
 Eddig csak `kubectl port-forward`-dal volt elerheto, ami egy folyamat a 109-en es a
