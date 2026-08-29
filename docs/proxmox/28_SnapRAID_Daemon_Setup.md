@@ -200,7 +200,7 @@ happened and went wrong.
 
 `snapraid-notify.sh` (in `scripts/`) sends to two places on purpose. Uptime Kuma carries
 the alert, because its Discord notifier is the channel that demonstrably reaches a phone;
-ntfy on the agentos LXC carries the full report text for reading afterwards. The daemon
+ntfy on the agentos LXC carries the full report text for reading afterwards. The script posts to `http://192.168.0.71:8091/snapraid` by IP rather than through the `ntfy.lan` Caddy hostname the other jobs use, because that route needs `--resolve ntfy.lan:443:192.168.0.208 -k` to work and this call has no reason to carry a TLS workaround. The daemon
 pipes that report into the command's stdin, and the script reads it exactly once - if
 nothing consumes the pipe the writer can block.
 

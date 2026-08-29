@@ -225,9 +225,9 @@ mv "$D/immich-$(date +%Y%m%d).sql.gz.tmp" "$D/immich-$(date +%Y%m%d).sql.gz"
 ls -t "$D"/immich-*.sql.gz | tail -n +8 | xargs -r rm -f
 ```
 
-`$D` is `/mnt/storage/immich/pgdump`, inside the SnapRAID-protected pool, so the weekly sync picks the dump up as an ordinary file. Roughly 61 MB gzipped, seven kept.
+`$D` is `/mnt/storage/immich/pgdump`, inside the SnapRAID-protected pool, so the nightly sync picks the dump up as an ordinary file. Roughly 61 MB gzipped, seven kept.
 
-Two details that are not decoration. The dump writes to `.tmp` and is renamed only on success, so an interrupted run cannot leave a truncated file under a name that looks complete. And **the cron hour is UTC while the SnapRAID schedule is CEST**: LXC 100 runs on UTC, pve does not, so `30 2` in that crontab would have fired at 04:30 CEST, an hour *after* the Sunday 03:00 sync it is supposed to precede.
+Two details that are not decoration. The dump writes to `.tmp` and is renamed only on success, so an interrupted run cannot leave a truncated file under a name that looks complete. And **the cron hour is UTC while the SnapRAID schedule is CEST**: LXC 100 runs on UTC, pve does not, so `30 2` in that crontab would have fired at 04:30 CEST, an hour *after* the 03:00 sync it is supposed to precede. The sync moved from Sunday to nightly on 2026-08-29, which does not change that arithmetic - only how often it matters.
 
 ### The exclusion
 

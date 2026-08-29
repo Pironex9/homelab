@@ -253,7 +253,7 @@ real	0m0.003s
 
 200 MB in 3 ms, same branch. A cross-disk fallback would have taken seconds and doubled the space.
 
-Finally, keep the bin out of parity so a fortnight of pending deletions does not churn every weekly sync - in `/etc/snapraid.conf`, where paths are relative to each data disk root:
+Finally, keep the bin out of parity so a fortnight of pending deletions does not churn every sync - in `/etc/snapraid.conf`, where paths are relative to each data disk root:
 
 ```
 exclude /media/.recyclebin/
@@ -283,6 +283,10 @@ Root's crontab on pve carries the comment but not the job:
 root@pve:~# grep maintenance_schedule /etc/snapraidd.conf
 maintenance_schedule = Sun 03:00
 ```
+
+That value read `Sun 03:00` at the time of this audit. It became a nightly `03:00` on
+2026-08-29 - see [28 - SnapRAID Daemon Setup](./28_SnapRAID_Daemon_Setup.md) for why a
+week between syncs was the wrong end of the range.
 
 The log directory shows the chain actually running, week by week:
 

@@ -481,7 +481,7 @@ docker volume prune
 **Parity protection for media files:**
 ```bash
 # On Proxmox host
-snapraid sync   # Weekly (Sunday 03:00)
+snapraid sync   # Nightly 03:00 (was Sunday only until 2026-08-29)
 snapraid scrub  # Monthly (bit rot check)
 ```
 
@@ -591,7 +591,7 @@ pct delsnapshot 100 pre-docker-update-20251225
 02:15 - LXC 100 backup finish (~15 min, 2-5GB)
 02:15 - Proxmox backup start (VM 101)
 02:30 - VM 101 backup finish (~15 min, 5-10GB)
-03:00 - SnapRAID sync (Sunday, media protection)
+03:00 - SnapRAID sync (nightly, media protection)
 05:00 - Windows offsite sync (manual/scheduled)
 ```
 
@@ -810,7 +810,7 @@ cmdkey /add:192.168.0.109 /user:smbuser /pass:PASSWORD
 
 **WEEKLY (automatic):**
 ```
-Sunday 03:00 - SnapRAID sync (media protection)
+Daily 03:00 - SnapRAID sync (media protection)
 ```
 
 **MONTHLY (automatic):**
