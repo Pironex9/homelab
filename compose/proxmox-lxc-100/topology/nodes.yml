@@ -138,6 +138,7 @@ nodes:
     name: orangepione
     site: remote
     kind: sbc
+    ip: 192.168.1.100
     role: "WoL + exit node"
     hw: "Xunlong Orange Pi One (armv7l, 512 MB)"
-    detail: "Armbian. The three OptiPlex nodes are powered off when not in use; this board stays on and wakes them with magic packets (etherwake plus a raw UDP form), driven by a crontab entry, a small Flask UI and an SSH one-liner. It is also an approved Tailscale exit node. Its LAN address comes from DHCP with no reservation and has moved twice, so the tailnet address 100.120.73.44 is the one worth remembering."
+    detail: "Armbian. The three OptiPlex nodes are powered off when not in use; this board stays on and wakes them with magic packets (etherwake plus a raw UDP form), driven by a crontab entry, a small Flask UI and an SSH one-liner. It is also an approved Tailscale exit node. The LAN address is a DHCP reservation on the remote router, added 2026-08-29 after the lease had drifted twice; over the tailnet it is 100.120.73.44."

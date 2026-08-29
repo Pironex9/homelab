@@ -25,18 +25,20 @@ The cluster is powered off when not in use. An Orange Pi One (Armbian) on the sa
 | OS | Armbian 25.8.1 Noble |
 | Role | WoL server + Tailscale exit node |
 | Interface | end0 (MAC `02:81:85:dc:83:d9`, locally administered) |
-| Local IP | DHCP, no reservation - `192.168.1.100` when last measured, 2026-08-29 |
+| Local IP | 192.168.1.100 (DHCP reservation on the remote router, 2026-08-29) |
 | Tailscale IP | 100.120.73.44 |
 | Tailscale hostname | orangepione |
 | User | nex |
 
-**Do not address this board by its LAN IP.** It takes a DHCP lease with no
-reservation on the remote router, and it has moved: this page said `192.168.1.52`,
-the host page said `192.168.1.51`, and on 2026-08-29 it answered on
-`192.168.1.100`. Nothing broke, because every caller reaches it by the Tailscale
-name `orangepione`, which is the whole reason the drift went unnoticed for months.
-A DHCP reservation on the remote router would fix it properly; that router is
-reachable over the subnet route `opt3060-i3` advertises.
+**The LAN address drifted for months before anyone noticed.** It had no DHCP
+reservation, and the two places that recorded it disagreed with each other and with
+reality: this page said `192.168.1.52`, the host page said `192.168.1.51`, and on
+2026-08-29 it answered on `192.168.1.100`. Nothing broke, because every caller
+reaches it by the Tailscale name `orangepione` - which is exactly why the drift
+stayed invisible. A reservation for `192.168.1.100` was added on the remote router
+the same day, so the two now agree. The interface still reports the address as
+`dynamic`; a reservation is a pinned lease, not a static address, and `ip addr`
+cannot tell the two apart.
 
 **It offers an exit node, not the subnet route.** Measured from a peer on
 2026-08-29, its approved `AllowedIPs` are `0.0.0.0/0` and `::/0` only. It also
