@@ -1,6 +1,6 @@
 ---
-# Az `agent --server https://<api_endpoint>:<api_port>` reszt a role teszi ele,
-# ide csak a tovabbi kapcsolok jonnek.
+# The role puts the `agent --server https://<api_endpoint>:<api_port>` part in front;
+# only the additional flags go here.
 extra_agent_args: >-
   --node-ip=192.168.1.102
   --flannel-iface=enp1s0

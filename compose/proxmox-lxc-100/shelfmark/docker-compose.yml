@@ -1,11 +1,11 @@
 services:
   shelfmark:
-    # Shelfmark: a calibre-web-automated-book-downloader utodja (a projektet 2026-ban
-    # atneveztek). Konyv- es hangoskonyv-kereso + letolteskezelo, ami a talalatokat
-    # egyenesen a CWA ingest mappajaba teszi.
-    # A standard image egy valodi Chromiumot indit a Cloudflare-challenge megoldasahoz,
-    # ezert kell a mem_limit: enelkul egy megakadt bongeszo elvinne a hoszt szabad RAM-jat
-    # a masik 32 konteertol.
+    # Shelfmark: the successor of calibre-web-automated-book-downloader (the project
+    # was renamed in 2026). A book and audiobook search plus download manager that
+    # drops its results straight into the CWA ingest directory.
+    # The standard image starts a real Chromium to solve the Cloudflare challenge,
+    # hence mem_limit: without it a stuck browser would eat the host's free RAM away
+    # from the other 32 containers.
     image: ghcr.io/calibrain/shelfmark:latest
     container_name: shelfmark
     environment:
@@ -15,13 +15,13 @@ services:
       - INGEST_DIR=/books
     volumes:
       - /srv/docker-data/shelfmark:/config
-      # A CWA inotify-figyelt ingest mappaja: ami ide leesik, azt a Calibre-Web
-      # magatol beolvassa. PUID=0, mert a CWA is rootkent mozgatja/torli innen a fajlokat.
+      # CWA's inotify-watched ingest directory: whatever lands here is imported by
+      # Calibre-Web on its own. PUID=0, because CWA also moves and deletes files here as root.
       - /mnt/storage/media/konyv_ingest:/books
-      # A qBittorrent letoltesi mappaja, PONTOSAN ugyanazon az utvonalon, ahogy a
-      # qBittorrent latja (Session\DefaultSavePath=/downloads). A kesz torrentet a
-      # qBittorrent teljes eleresi uttal jelenti vissza; ha ez az ut itt mas lenne,
-      # a Shelfmark nem talalna meg a fajlt es az import csendben elmaradna.
+      # qBittorrent's download directory, at EXACTLY the same path qBittorrent sees
+      # it (Session\DefaultSavePath=/downloads). qBittorrent reports a finished torrent
+      # by full path; if that path differed here, Shelfmark would not find the file and
+      # the import would silently be skipped.
       - /mnt/storage/media/downloads:/downloads
     ports:
       - 8084:8084

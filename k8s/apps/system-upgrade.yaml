@@ -1,13 +1,13 @@
 ---
-# A system-upgrade-controller es a k3s frissitesi Planek.
+# The system-upgrade-controller and the k3s upgrade Plans.
 #
-# A controller es a CRD az upstream v0.20.1 kiadasbol van bemasolva
-# (k8s/manifests/system-upgrade/{crd,controller}.yaml), valtoztatas nelkul.
-# Frissiteshez a ket fajlt kell ujra lehuzni a kovetkezo release-bol.
+# The controller and the CRD are copied from the upstream v0.20.1 release
+# (k8s/manifests/system-upgrade/{crd,controller}.yaml), unmodified. To upgrade,
+# pull those two files again from the next release.
 #
-# ServerSideApply: a CRD 72 KB, ma meg belefer a client-side apply 256 KB-os
-# annotacios limitjebe, de egy CRD-nel a server-side apply az eleve helyes
-# valasztas - ugyanaz a dontes, mint a longhorn-backup Applicationnel.
+# ServerSideApply: the CRD is 72 KB, which still fits into the 256 KB client-side
+# apply annotation limit today, but for a CRD server-side apply is the correct
+# choice anyway - the same decision as on the longhorn-backup Application.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

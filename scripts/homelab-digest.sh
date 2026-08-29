@@ -1,13 +1,13 @@
 #!/bin/bash
-# Reggeli homelab állapot-összefoglaló - ntfy-ra küldi.
-# Determinisztikus adatgyűjtés, nem igényel LLM-et (ld. private/todo.md 7. pont).
+# Morning homelab status summary - sent to ntfy.
+# Deterministic data collection, needs no LLM (see private/todo.md, point 7).
 set -uo pipefail
 
 PVE=192.168.0.109
 DOCKER_HOST=192.168.0.110
-# ntfy.lan proxyol a Caddyn (192.168.0.208) át; ez a gép nem AdGuard DNS-t
-# használ, ezért --resolve-lal kötjük a hostname-et a Caddy IP-hez (SNI-t
-# így is helyesen küldi curl, csak a rendszer-DNS-t kerüljük meg).
+# ntfy.lan is proxied through Caddy (192.168.0.208); this machine does not use AdGuard
+# DNS, so we bind the hostname to the Caddy IP with --resolve (curl still sends the
+# SNI correctly, we only bypass the system DNS).
 NTFY_URL="https://ntfy.lan/homelab-digest"
 NTFY_RESOLVE="--resolve ntfy.lan:443:192.168.0.208 -k"
 
@@ -40,16 +40,16 @@ else
     lines+=("LXC/VM: mind fut")
 fi
 
-# --- Backups (ma minden guest lement?) ---
+# --- Backups (did every guest get backed up today?) ---
 today=$(date +%Y_%m_%d)
-# A vzdump job vmid listája = amit ma le kellett volna menteni. Sikert csak az
-# archívum jelent (.tar.zst LXC-nél, .vma.zst VM-nél); hibás futás is hagy .log-ot,
-# ezért a puszta fájlszám zöldet mutatna kiesett guestek mellett is.
+# The vmid list of the vzdump job = what should have been backed up today. Only the
+# archive counts as success (.tar.zst for LXC, .vma.zst for VM); a failed run leaves a
+# .log too, so a bare file count would show green even with guests missing.
 want=$(pve "grep -h vmid /etc/pve/jobs.cfg 2>/dev/null | tr -d ' \t' | sed 's/^vmid//' | tr ',' '\n' | sed '/^\$/d' | sort -un")
 have=$(pve "ls /mnt/storage/backup/proxmox/dump/ 2>/dev/null | grep '$today' | grep -E '\.(tar|vma)\.zst\$' | grep -oE 'vzdump-(lxc|qemu)-[0-9]+' | grep -oE '[0-9]+\$' | sort -un")
 
 if [[ -z "$want" ]]; then
-    # Nincs kiolvasható vmid lista - visszaesünk a "futott-e ma bármi" ellenőrzésre.
+    # No readable vmid list - fall back to the "did anything run today" check.
     if [[ -z "$have" ]]; then
         lines+=("⚠️ Nincs mai vzdump backup")
         warn=1
@@ -73,10 +73,10 @@ else
     fi
 fi
 
-# --- Restic (a host-config repo friss-e?) ---
-# Heti mentés (vasárnap 04:00), ezért 8 nap a küszöb: egy kihagyott futás még
-# belefér, kettő már nem. --no-lock, hogy sose ütközzön a mentéssel vagy a
-# vasárnapi restore-teszttel - ez csak olvas.
+# --- Restic (is the host-config repo fresh?) ---
+# Weekly backup (Sunday 04:00), hence the 8 day threshold: one missed run still fits,
+# two do not. --no-lock so it never collides with the backup or with the Sunday
+# restore test - this only reads.
 restic_out=$(pve "RESTIC_PASSWORD_FILE=/root/.secrets/restic-password timeout 60 restic -r /mnt/disk1/backup/proxmox-host snapshots --latest 1 --no-lock 2>/dev/null")
 restic_dt=$(echo "$restic_out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' | tail -1)
 if [[ -z "$restic_dt" ]]; then
@@ -119,29 +119,28 @@ else
     lines+=("Docker (LXC 100): minden konténer OK")
 fi
 
-# --- Vaultwarden verzió (LXC 103) ---
-# A jelszókezelő szándékosan NEM frissül magától: egy felügyelet nélküli
-# apk upgrade pont azon a gépen hibázna, ami az összes többi hitelesítő adatot
-# tartja, és pont akkor zárna ki mindenből, amikor a hozzáférés kellene.
-# Ami eddig hiányzott, az nem a frissítés volt, hanem az észrevétel:
-# 2026-08-28-án a szerver 1.37.0-n állt, miközben az 1.37.2 kiadási jegyzete
-# kimondja, hogy a 2026.8.0+ kliensekhez kötelező. Ez a fajta elmaradás nem itt
-# jelentkezik, hanem egy kliensen, "An error has occurred" formájában, ami
-# semmit nem árul el a szerver verziójáról - ezért kell ide.
+# --- Vaultwarden version (LXC 103) ---
+# The password manager deliberately does NOT update itself: an unattended apk upgrade
+# would fail on exactly the machine that holds every other credential, and would lock
+# you out at exactly the moment you need access.
+# What was missing so far was not the upgrade but the noticing: on 2026-08-28 the
+# server was on 1.37.0 while the release notes of 1.37.2 state that it is mandatory
+# for 2026.8.0+ clients. This kind of lag does not show up here but on a client, as
+# "An error has occurred", which says nothing about the server version - hence this check.
 #
-# Két KÜLÖN dolgot jelent, mert a teendő is más:
+# It reports TWO SEPARATE things, because the action differs:
 #
-#   VW=  csomag-elmaradás. A container kiadása és a repo ugyanaz, tehát az
-#        `apk upgrade` sima patch-szintű művelet.
-#   REL= az `alpine-release` is elmaradásban van, vagyis a `latest-stable`
-#        átbillent a következő Alpine kiadásra. Ilyenkor ugyanaz az
-#        `apk upgrade` MÁR KIADÁSUGRÁS, és mentés meg karbantartási ablak kell
-#        hozzá. Ez a 2026-08-28-i helyzet volt, csak akkor senki nem látta.
+#   VW=  package lag. The container release and the repo are the same, so
+#        `apk upgrade` is a plain patch-level operation.
+#   REL= `alpine-release` is lagging as well, meaning `latest-stable` has rolled over
+#        to the next Alpine release. In that case the same `apk upgrade` IS ALREADY A
+#        RELEASE JUMP, and it needs a backup and a maintenance window. That was the
+#        situation on 2026-08-28, only nobody saw it at the time.
 #
-# Az `apk update` csak az index-cache-t frissíti a containerben, csomagot nem
-# telepít. A kimenete azért van külön OK/FAIL sorban, mert nélküle egy megszakadt
-# DNS (ismert hibamód ezeken az LXC-ken) üres listát adna, és a blokk
-# "naprakész"-t jelentene, miközben valójában vak.
+# `apk update` only refreshes the index cache in the container, it installs no
+# packages. Its result is on a separate OK/FAIL line because without it a broken DNS
+# (a known failure mode on these LXCs) would return an empty list and the block would
+# report "up to date" while actually being blind.
 vw_out=$(pve "pct exec 103 -- sh -c '
     if apk update >/dev/null 2>&1; then echo RC=OK; else echo RC=FAIL; fi
     apk list -I vaultwarden 2>/dev/null | cut -d\" \" -f1 | sed \"s/^/INST=/\"
@@ -165,9 +164,9 @@ else
     else
         lines+=("Vaultwarden: naprakész (${vw_inst#vaultwarden-})")
     fi
-    # Külön sor, és akkor is, ha a vaultwarden éppen naprakész: a kiadásugrás
-    # a következő apk upgrade-et teszi veszélyessé, függetlenül attól, hogy
-    # most van-e mit frissíteni.
+    # A separate line, and shown even if vaultwarden happens to be up to date: the
+    # release jump makes the next apk upgrade dangerous regardless of whether there is
+    # anything to upgrade right now.
     if [[ -n "$vw_rel" ]]; then
         lines+=("⚠️ LXC 103: az Alpine latest-stable átbillent ($vw_rel)")
         lines+=("    a következő apk upgrade KIADÁSUGRÁS - mentés + ablak kell")

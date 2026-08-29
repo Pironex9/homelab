@@ -1,5 +1,5 @@
-# A "default" csoport minden olyan kotetre vonatkozik, amelyik nem jelol meg
-# sajat recurring jobot - vagyis mindenre, hacsak kifejezetten mast nem mondunk.
+# The "default" group applies to every volume that does not name a recurring job of
+# its own - that is, to everything unless we explicitly say otherwise.
 apiVersion: longhorn.io/v1beta2
 kind: RecurringJob
 metadata:

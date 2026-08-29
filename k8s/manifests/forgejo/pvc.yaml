@@ -1,15 +1,15 @@
 ---
-# A cluster ELSO valodi kotete. Eddig 0 PVC volt, ezert ket dolog nem volt
-# merheto rajta: a Longhorn visszaallitas a Garage S3-rol, es a drain
-# last-replica aga. Mindketto ettol a kotettol indul.
+# The cluster's FIRST real volume. Until now there were 0 PVCs, so two things could
+# not be measured on it: a Longhorn restore from Garage S3, and the last-replica
+# branch of drain. Both start from this volume.
 #
-# A `longhorn` az alapertelmezett StorageClass, de kiirjuk: a clusteren ott van a
-# `local-path` is, es egy nema default-valtas nem vihet egy adatos kotetet a
-# rossz provisionerre.
+# `longhorn` is the default StorageClass, but we spell it out: `local-path` is also
+# present on the cluster, and a silent default change must not move a data volume to
+# the wrong provisioner.
 #
-# Prune=false: az Argo CD `prune: true`-val fut. Enelkul ha ez a fajl kikerul a
-# gitbol, az Argo CD torolne a PVC-t, a StorageClass `reclaimPolicy: Delete`
-# pedig vinne a Longhorn kotetet is. A Deployment torlese olcso, ez nem az.
+# Prune=false: Argo CD runs with `prune: true`. Without this, if this file left git,
+# Argo CD would delete the PVC, and the StorageClass `reclaimPolicy: Delete` would
+# take the Longhorn volume with it. Deleting the Deployment is cheap, this is not.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

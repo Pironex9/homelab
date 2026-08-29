@@ -25,10 +25,10 @@ PROMPT_FILE = f"{OUT_DIR}/prompt.md"
 STATE_FILE = f"{OUT_DIR}/.last-run"
 MAX_LOOKBACK_H = 36  # ha rég futott, ennél régebbre nem megyünk vissza
 TG_LIMIT = 4000      # a Telegram limit 4096, hagyunk ráhagyást
-# A Telegram csak ezeket a tageket fogadja el, minden más 400-as hibát ad.
+# Telegram only accepts these tags, anything else returns a 400.
 TG_TAGS = "b|strong|i|em|u|s|strike|del|a|code|pre|blockquote|tg-spoiler"
-# Abszolút út: a cron PATH-jában nincs benne a ~/.local/bin. Ez a symlink stabil,
-# a mögötte lévő verziós könyvtár frissüléskor cserélődik.
+# Absolute path: the cron PATH does not contain ~/.local/bin. This symlink is stable,
+# the versioned directory behind it is swapped on every update.
 CLAUDE = "/root/.local/bin/claude"
 
 

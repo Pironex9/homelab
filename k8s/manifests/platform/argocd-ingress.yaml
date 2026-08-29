@@ -1,17 +1,17 @@
 ---
-# Az Argo CD webfelulete a tailneten, sajat MagicDNS nevvel es automatikusan
-# kezelt Tailscale TLS tanusitvannyal:
+# The Argo CD web UI on the tailnet, with its own MagicDNS name and an automatically
+# managed Tailscale TLS certificate:
 #
 #   https://argocd.tailc6abe2.ts.net
 #
-# A Tailscale operator minden `ingressClassName: tailscale` Ingresshez felvesz egy
-# kulon proxy podot, ami sajat eszkozkent csatlakozik a tailnethez. A nev a
-# spec.tls[0].hosts[0] ertekebol es a tailnet domainbol all ossze.
+# For every Ingress with `ingressClassName: tailscale` the Tailscale operator brings
+# up a separate proxy pod that joins the tailnet as its own device. The name is built
+# from spec.tls[0].hosts[0] and the tailnet domain.
 #
-# FONTOS: az argocd-server `server.insecure: "true"`-val fut (argocd-cmd-params-cm).
-# Enelkul az Argo CD sajat maga is HTTPS-t beszelne, es barmely TLS-t termnalo
-# Ingress mogott vegtelen atiranyitasi hurokba futna. Ez a beallitas NEM ebben a
-# repoban el, mert az Argo CD sajat telepitese sem - lasd k8s/README.md.
+# IMPORTANT: argocd-server runs with `server.insecure: "true"` (argocd-cmd-params-cm).
+# Without it Argo CD would speak HTTPS itself and would run into an endless redirect
+# loop behind any TLS-terminating Ingress. That setting does NOT live in this repo,
+# because neither does Argo CD's own installation - see k8s/README.md.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

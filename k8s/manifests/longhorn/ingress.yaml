@@ -1,26 +1,26 @@
 ---
 # https://longhorn.tailc6abe2.ts.net
 #
-# Eddig a Longhorn felulete csak `kubectl port-forward`-dal volt elerheto, ami
-# egy folyamat a 109-en, es a session-nel egyutt meghal. Ugyanaz a minta, mint
-# az argocd es a forgejo Ingressnel: a Tailscale operator felvesz egy proxy
-# podot sajat tailnet identitassal es valodi Let's Encrypt tanusitvannyal.
+# Until now the Longhorn UI was only reachable through `kubectl port-forward`, which
+# is a process on 109 that dies together with the session. Same pattern as the argocd
+# and forgejo Ingress: the Tailscale operator brings up a proxy pod with its own
+# tailnet identity and a real Let's Encrypt certificate.
 #
-# Az `ingressClassName` nem hagyhato el: a clusteren a `traefik` az
-# alapertelmezett IngressClass.
+# `ingressClassName` cannot be omitted: `traefik` is the default IngressClass on this
+# cluster.
 #
 # ---------------------------------------------------------------------------
-# FIGYELEM: A LONGHORN FELULETEN NINCS HITELESITES.
+# WARNING: THE LONGHORN UI HAS NO AUTHENTICATION.
 #
-# Az argocd-nek es a forgejonak van sajat bejelentkezese, ennek nincs. Aki eleri,
-# az kotetet torolhet es mentest allithat vissza. A vedelmet ITT KIZAROLAG a
-# tailnet adja: az Ingress csak a tailneten belulrol erheto el, es a tailnet a
-# sajat eszkozeidbol all.
+# argocd and forgejo have their own login, this one does not. Anyone who reaches it
+# can delete volumes and restore backups. The protection here is EXCLUSIVELY the
+# tailnet: the Ingress is only reachable from inside the tailnet, and the tailnet
+# consists of your own devices.
 #
-# Ebbol ket dolog kovetkezik:
-#   - ez az Ingress SOHA nem kerulhet a Pangolin ala vagy barmi mas publikus utra
-#   - ha valaha megosztott eszkoz kerul a tailnetre, ez a dontes ujragondolando
-#     (a Tailscale oldalan ACL-lel lehet szukiteni, hogy melyik eszkoz eri el)
+# Two things follow from that:
+#   - this Ingress must NEVER go behind Pangolin or any other public path
+#   - if a shared device ever joins the tailnet, this decision has to be revisited
+#     (on the Tailscale side an ACL can narrow down which device can reach it)
 # ---------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress

@@ -1,7 +1,7 @@
 name: "Enci"
 age: 13
 intro: "Szeretek rajzolni, különösen anime-stílusú karaktereket."
-# Kategória mappanevek (ékezet nélküli slugok) megjelenítési neve az oldalon.
+# Display names on the site for the category directory names (unaccented slugs).
 categories:
   csendelet: "Csendélet"
   tajkep: "Tájkép"

@@ -1,33 +1,33 @@
 ---
 # kube-prometheus-stack: Prometheus + Grafana + Alertmanager + node-exporter +
-# kube-state-metrics, Argo CD alol, Helm forrasbol. Az ertekek itt vannak a
-# gitben, tehat nincs `helm upgrade --set` szajhagyomany.
+# kube-state-metrics, under Argo CD, from a Helm source. The values live here in
+# git, so there is no `helm upgrade --set` oral tradition.
 #
-# A chart verzioja pontos, nem `*`. A 88.6.0 (2026-08-27) es a 88.5.4 kozott
-# egyetlen PR van (HTTPRoute timeout), tehat nem friss nagy valtozas.
+# The chart version is exact, not `*`. Between 88.6.0 (2026-08-27) and 88.5.4 there
+# is a single PR (HTTPRoute timeout), so this is not a fresh major change.
 #
 # ---------------------------------------------------------------------------
-# AMIT K3S-EN KI KELL KAPCSOLNI, ES MIERT
+# WHAT HAS TO BE TURNED OFF ON K3S, AND WHY
 #
-# A chart alapbol negy control-plane komponensre is szeretne metrikat gyujteni.
-# k3s-en ezek nem kulon podok, hanem ugyanabban a k3s processzben futnak, es a
-# metrika-portjaik a masteren LOOPBACKRA vannak kotve - merve 2026-08-28-an:
+# By default the chart also wants to scrape four control-plane components. On k3s
+# these are not separate pods but run inside the same k3s process, and their metric
+# ports are bound to LOOPBACK on the master - measured on 2026-08-28:
 #
 #   LISTEN 127.0.0.1:10257   kube-controller-manager
 #   LISTEN 127.0.0.1:10259   kube-scheduler
 #   LISTEN 127.0.0.1:10249   kube-proxy
-#   (2381 nincs is: a datastore kine + sqlite, etcd egyaltalan nincs)
+#   (2381 does not even exist: the datastore is kine + sqlite, there is no etcd at all)
 #
-# Egy podbol ezek nem elerhetok, tehat a ServiceMonitorok orokre `down`-t
-# mutatnanak, es a hozzajuk tartozo riasztasok folyamatosan tuzelnenek. A chart
-# `jobNameOverride: k3s-server` javaslata ezen NEM segit - az csak a dashboard
-# cimkeket javitja, az elerhetoseget nem.
+# These are unreachable from a pod, so the ServiceMonitors would show `down`
+# forever and their alerts would fire continuously. The chart's suggested
+# `jobNameOverride: k3s-server` does NOT help with this - it only fixes the
+# dashboard labels, not reachability.
 #
-# A kubelet marad bekapcsolva: a 10250 `*`-on figyel, tehat elerheto.
+# The kubelet stays enabled: 10250 listens on `*`, so it is reachable.
 #
-# Ha valaha kellenek: a k3s `--kube-controller-manager-arg=bind-address=0.0.0.0`
-# es tarsai nyitjak meg oket - az viszont a control-plane metrikakat kiteszi a
-# halozatra, tehat kulon dontes, nem mellekesen elintezendo.
+# If they are ever needed: k3s `--kube-controller-manager-arg=bind-address=0.0.0.0`
+# and friends open them up - but that exposes the control-plane metrics to the
+# network, so it is a separate decision, not something to settle in passing.
 # ---------------------------------------------------------------------------
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -53,15 +53,15 @@ spec:
 
         prometheus:
           prometheusSpec:
-            # Enelkul minden riasztas ugy vegzodik, hogy "on cluster ." - a
-            # szoveg a `cluster` cimkere hivatkozik, ami ures. Merve a 2026-08-28-i
-            # elso valodi riasztasokon. Akkor is hasznos, ha egyszer tobb forras
-            # kerul ugyanabba a Prometheusba vagy Grafanaba.
+            # Without this every alert ends in "on cluster ." - the text refers to
+            # the `cluster` label, which is empty. Measured on the first real alerts
+            # on 2026-08-28. It is also useful if more than one source ever ends up
+            # in the same Prometheus or Grafana.
             externalLabels:
               cluster: homelab-k3s
-            # 15 nap es 15 GiB - amelyik elobb jon. A retentionSize-nak a PVC
-            # merete alatt kell lennie, kulonben a TSDB tolti tele a kotetet
-            # ahelyett, hogy o maga vagna vissza.
+            # 15 days and 15 GiB - whichever comes first. retentionSize has to stay
+            # below the PVC size, otherwise the TSDB fills the volume instead of
+            # trimming itself.
             retention: 15d
             retentionSize: "15GiB"
             storageSpec:
@@ -81,23 +81,23 @@ spec:
                 memory: 2Gi
 
         alertmanager:
-          # Nincs PVC: az allapota nemitasokbol all, ami ujrainduláskor elveszik.
+          # No PVC: its state is silences, which are lost on a restart.
           alertmanagerSpec:
-            # A TELJES alertmanager.yaml egy kezzel keszitett Secretbol jon, mert
-            # ket titkot tartalmaz (bot token + chat id), a repo pedig publikus.
-            # A sablon a k8s/README.md-ben van, hogy reprodukalhato maradjon.
+            # The COMPLETE alertmanager.yaml comes from a hand-made Secret, because
+            # it contains two secrets (bot token + chat id) and the repo is public.
+            # The template is in k8s/README.md so it stays reproducible.
             #
-            # Miert Telegram, es nem az ntfy, ami a homelab bevett csatornaja:
-            # a cluster a MASIK helyszinen van, es nem eri el a 192.168.0.208-at.
-            # Merve a node-rol es podbol is: HTTP 000, mert a 192.168.0.0/24
-            # utvonala a helyi gatewayen megy ki, nincs subnet route hazafele.
-            # Az api.telegram.org viszont a clusterbol elerheto (merve).
+            # Why Telegram and not ntfy, the homelab's usual channel: the cluster is
+            # at the OTHER site and cannot reach 192.168.0.208. Measured from both a
+            # node and a pod: HTTP 000, because the route to 192.168.0.0/24 leaves
+            # through the local gateway, there is no subnet route homewards.
+            # api.telegram.org, on the other hand, is reachable from the cluster (measured).
             configSecret: alertmanager-telegram
-            # Enelkul a chart MELLE generalna egy sajat, alapertelmezett configot
-            # tartalmazo Secretet is (alertmanager-monitoring-kube-prometheus-...).
-            # Az operator nem hasznalna, de ott ulne, es aki debugolas kozben
-            # beleolvas, azt hinne, hogy AZ a fut konfig. Ez a kapcsolo a
-            # configSecret parja.
+            # Without this the chart would ALSO generate its own Secret holding a
+            # default config (alertmanager-monitoring-kube-prometheus-...). The
+            # operator would not use it, but it would sit there, and anyone reading it
+            # while debugging would think THAT is the running config. This switch is
+            # the counterpart of configSecret.
             useExistingSecret: true
             resources:
               requests:
@@ -109,35 +109,35 @@ spec:
 
         grafana:
           admin:
-            # Kezzel letrehozott Secret, mert a repo publikus. Ld. k8s/README.md.
+            # Hand-created Secret, because the repo is public. See k8s/README.md.
             existingSecret: grafana-admin
             userKey: admin-user
             passwordKey: admin-password
-          # KOTELEZO a persistence melle, es ez elsore kimaradt. A chart
-          # alapertelmezese RollingUpdate; egy RWO koteten az uj pod
-          # `FailedAttachVolume`-mal orokre var a regire, a regi pedig sosem all
-          # le, mert az uj nem lesz Ready. 2026-08-28-an 25 percig allt igy:
+          # MANDATORY alongside persistence, and it was missed the first time. The
+          # chart defaults to RollingUpdate; on an RWO volume the new pod waits
+          # forever with `FailedAttachVolume` for the old one, and the old one never
+          # shuts down because the new one never becomes Ready. On 2026-08-28 it stood
+          # like this for 25 minutes:
           #
           #   Waiting for detach for volume "pvc-8d6accc7..."
           #   Volume is already used by pod(s) monitoring-grafana-765dcb66d6-fwt9j
           #
-          # Ugyanaz a csapda, mint a Forgejo Deploymentjenel. Barmi, aminek RWO
-          # kotete van, Recreate-tel megy.
+          # The same trap as on the Forgejo Deployment. Anything with an RWO volume
+          # runs with Recreate.
           deploymentStrategy:
             type: Recreate
           persistence:
-            # A chart dashboardjai ConfigMapbol jonnek, azok enelkul is
-            # megvannak. Ez a kezzel keszitett dashboardokat es beallitasokat
-            # menti at egy pod-ujrainduláson.
+            # The chart's dashboards come from ConfigMaps and survive without this.
+            # This carries hand-made dashboards and settings across a pod restart.
             enabled: true
             type: pvc
             storageClassName: longhorn
             size: 5Gi
           ingress:
             # https://grafana.tailc6abe2.ts.net
-            # Ures `hosts` mellett a chart host nelkuli szabalyt general, a `tls`
-            # blokkot pedig valtozatlanul atadja - pont az az alak, amit a
-            # Tailscale operator var (ld. az argocd es a forgejo Ingresst).
+            # With an empty `hosts` the chart generates a rule without a host and
+            # passes the `tls` block through unchanged - exactly the shape the
+            # Tailscale operator expects (see the argocd and forgejo Ingress).
             enabled: true
             ingressClassName: tailscale
             hosts: []
@@ -150,11 +150,11 @@ spec:
               memory: 256Mi
             limits:
               cpu: 500m
-              # 512Mi volt, es merve a Grafana 405Mi-n allt be - a limit 79%-a.
-              # Stabil volt, nem kuszott, de egy OOMKill itt csendes hiba: a pod
-              # ujraindul, a dashboardok visszajonnek, es semmi nem mondja meg,
-              # hogy miert volt egy lyuk a grafikonokon. Az `apps` namespace
-              # LimitRange-e ide nem er el, a `monitoring` sajat namespace.
+              # It was 512Mi, and Grafana measured out at 405Mi - 79% of the limit.
+              # It was stable, not creeping, but an OOMKill here is a silent failure:
+              # the pod restarts, the dashboards come back, and nothing tells you why
+              # there was a hole in the graphs. The `apps` namespace LimitRange does
+              # not reach here, `monitoring` is its own namespace.
               memory: 768Mi
   destination:
     server: https://kubernetes.default.svc
@@ -164,11 +164,10 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      # A `monitoring` namespace szandekosan NEM kap PSA cimket, ellentetben az
-      # `apps`-szal: a node-exporter hostNetworkot es hostPathot hasznal, amit a
-      # `baseline` elutasitana.
+      # The `monitoring` namespace deliberately gets NO PSA label, unlike `apps`:
+      # node-exporter uses hostNetwork and hostPath, which `baseline` would reject.
       - CreateNamespace=true
-      # A chart CRD-i nagyok. Kliensoldali apply eseten a teljes manifest egy
-      # annotacioba kerulne, es a 256 KB-os limitbe futna - ugyanaz a hiba, ami
-      # az Argo CD sajat telepitesenel is eloszor eljott.
+      # The chart's CRDs are large. With a client-side apply the whole manifest would
+      # go into an annotation and hit the 256 KB limit - the same failure that came up
+      # first during Argo CD's own installation.
       - ServerSideApply=true

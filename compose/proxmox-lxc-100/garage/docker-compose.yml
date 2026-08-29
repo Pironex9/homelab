@@ -4,7 +4,7 @@ services:
     container_name: garage
     hostname: garage
     environment:
-      # Komodo Stack Environment / .env - soha nem a repoban
+      # Komodo Stack Environment / .env - never in the repo
       - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
       - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN}
     volumes:
@@ -12,8 +12,8 @@ services:
       - /srv/docker-data/garage/meta:/var/lib/garage/meta
       - /mnt/storage/backup/garage:/var/lib/garage/data
     ports:
-      # csak az S3 API; a 3901 (RPC) es a 3903 (admin) a konteneren belul marad,
-      # a garage CLI-t docker exec-cel hasznaljuk
+      # only the S3 API; 3901 (RPC) and 3903 (admin) stay inside the container,
+      # the garage CLI is used through docker exec
       - 3900:3900
     restart: unless-stopped
     networks:

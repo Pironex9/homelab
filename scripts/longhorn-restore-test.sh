@@ -1,41 +1,41 @@
 #!/bin/bash
-# Longhorn kötetmentés visszaállítási próbája - éles, futó alkalmazás kötetén.
+# Longhorn volume backup restore test - on the volume of a live, running application.
 #
-# A 109-en fut, mert itt van a kubectl a K3s clusterhez.
+# Runs on 109, because this is where kubectl for the K3s cluster is.
 #
-# MIÉRT KELL, HA MÁR VAN longhorn-backup-check.sh:
-#   Az azt mondja meg, hogy KELETKEZETT mentés, és hogy a BackupTarget elérhető.
-#   Ez a script azt kérdezi, hogy a mentés VISSZAOLVASHATÓ-e, és hogy amit
-#   visszakapunk, az használható-e az alkalmazásnak. A kettő nem ugyanaz: egy
-#   sikeresen feltöltött, de sérült vagy féllélegzetű mentés az elsőn átmegy.
+# WHY IT IS NEEDED WHEN longhorn-backup-check.sh ALREADY EXISTS:
+#   That one tells you a backup WAS CREATED and that the BackupTarget is reachable.
+#   This script asks whether the backup is READABLE BACK, and whether what comes back
+#   is usable by the application. The two are not the same: a successfully uploaded
+#   but corrupt or half-drawn backup passes the first one.
 #
-# MIÉRT NEM CHECKSUMMAL ELLENŐRIZ (2026-08-28-i mérés):
-#   A snapshot FUTÓ alkalmazásról készül, tehát crash-consistent - pontosan úgy,
-#   ahogy egy node-halálnál lenne. A Forgejo sqlite adatbázisánál ekkor a WAL
-#   nagyobb volt, mint maga a db fájl (4 128 272 vs 1 257 472 bájt). A gitea.db
-#   önmagában elavult a WAL nélkül, tehát egy bájt-összehasonlítás vagy
-#   megbukott volna, vagy átment volna úgy, hogy 4 MB be nem olvasztott WAL-t
-#   rejt el. Ezért a verdikt az, hogy az ALKALMAZÁS SAJÁT BINÁRISA megnyitja-e a
-#   visszaállított adatkönyvtárat és megtalálja-e benne a várt adatot.
+# WHY IT DOES NOT VERIFY BY CHECKSUM (measured 2026-08-28):
+#   The snapshot is taken of a RUNNING application, so it is crash-consistent -
+#   exactly as it would be on a node death. On Forgejo's sqlite database the WAL was
+#   larger at that moment than the db file itself (4,128,272 vs 1,257,472 bytes).
+#   gitea.db on its own is stale without the WAL, so a byte comparison would either
+#   have failed, or passed while hiding 4 MB of un-merged WAL. Hence the verdict is
+#   whether the APPLICATION'S OWN BINARY opens the restored data directory and finds
+#   the expected data in it.
 #
-# AMIHEZ HOZZÁNYÚL:
-#   Az éles PVC-t CSAK OLVASSA (snapshot). Az alkalmazás nem áll le és nem indul
-#   újra. Létrehoz és a végén töröl: egy "restore-test-" nevű snapshotot és
-#   backupot, egy StorageClasst, egy PVC-t és egy podot. A RecurringJob
-#   mentéseihez nem nyúl - névelőtag szerint szűr.
+# WHAT IT TOUCHES:
+#   It only READS the live PVC (snapshot). The application is not stopped and not
+#   restarted. It creates and then deletes: a snapshot and a backup named
+#   "restore-test-", a StorageClass, a PVC and a pod. It does not touch the
+#   RecurringJob's backups - it filters by name prefix.
 #
-#   KEEP_BACKUP=1 esetén a snapshot és a backup megmarad. Alapból törli, hogy az
-#   ismételt futások ne halmozzák.
+#   With KEEP_BACKUP=1 the snapshot and the backup are kept. By default they are
+#   deleted so that repeated runs do not pile up.
 #
-# ROLLBACK, ha félbeszakad:
+# ROLLBACK, if it breaks off halfway:
 #   kubectl -n $NS delete pod  restore-test-verify --ignore-not-found
 #   kubectl -n $NS delete pvc  restore-test-data   --ignore-not-found
 #   kubectl delete sc longhorn-restore-test        --ignore-not-found
 #   kubectl -n longhorn-system delete backup,snapshot -l restore-test=true
 #
-# Használat:
+# Usage:
 #   ./longhorn-restore-test.sh
-#   NS=apps PVC=masik-data DEPLOY=masik ./longhorn-restore-test.sh
+#   NS=apps PVC=other-data DEPLOY=other ./longhorn-restore-test.sh
 #
 set -uo pipefail
 
@@ -116,14 +116,14 @@ done
 
 URL=$(kubectl -n longhorn-system get backup "$TAG" -o jsonpath='{.status.url}')
 [ -n "$URL" ] || fail "ures backup URL"
-# A `size` a snapshot logikai kiterjedese, NEM a mentes koltsege. A retenciot a
-# newlyUploadDataSize alapjan kell tervezni - 2026-08-28-an 283 115 520 vs 554 286.
+# `size` is the logical extent of the snapshot, NOT the cost of the backup. Retention
+# has to be planned from newlyUploadDataSize - on 2026-08-28 283,115,520 vs 554,286.
 printf 'logikai meret (size):      %s bajt\n' "$(kubectl -n longhorn-system get backup "$TAG" -o jsonpath='{.status.size}')"
 printf 'ami tenylegesen felment:   %s bajt\n' "$(kubectl -n longhorn-system get backup "$TAG" -o jsonpath='{.status.newlyUploadDataSize}')"
 echo "url: $URL"
 
 step "3. StorageClass es PVC a mentesbol"
-# numberOfReplicas 1: ez egy eldobhato ellenorzo kotet, nem kell redundancia.
+# numberOfReplicas 1: this is a throwaway verification volume, it needs no redundancy.
 kubectl apply -f - >/dev/null <<EOF || fail "restore SC/PVC"
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

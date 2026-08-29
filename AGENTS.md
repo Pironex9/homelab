@@ -44,6 +44,7 @@ Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + P
 - Use Context7 MCP proactively for any library/framework/CLI question - `resolve-library-id` then `query-docs` before answering.
 - Never rely solely on training knowledge for technical questions - search or inspect current docs first for versions, pricing, and third-party configs.
 - Never use em dashes; use plain hyphens.
+- Everything committed is English: commit messages (subject and body), code comments, YAML comments. The conversation language follows the user; the repo does not.
 - `.env` and `private/` are gitignored - never commit them; keep `.env.example` updated.
 - Docs/commits: redact API keys with placeholders; private LAN IPs (192.168.0.x) are NEVER redacted.
 

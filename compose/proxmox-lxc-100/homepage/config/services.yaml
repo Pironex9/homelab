@@ -151,10 +151,10 @@
             statusStyle: dot
 
 - K3s:
-    # A negy webfelulet a 3 node-os K3s clusteren, mind Tailscale Ingressen.
-    # A `href` tailnet nev: csak tailnetes eszkozrol nyilik meg, LAN-rol nem -
-    # ez szandekos, nem hiba. A `siteMonitor` ugyanaz a nev, es a homepage
-    # konteneben az `extra_hosts` oldja fel (lasd a compose fajlt).
+    # The four web UIs on the 3-node K3s cluster, all behind a Tailscale Ingress.
+    # The `href` is a tailnet name: it only opens from a tailnet device, not from the
+    # LAN - that is deliberate, not a fault. `siteMonitor` is the same name, and the
+    # homepage container resolves it through `extra_hosts` (see the compose file).
     - Argo CD:
         icon: argo-cd.png
         href: https://argocd.tailc6abe2.ts.net

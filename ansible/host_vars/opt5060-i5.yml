@@ -1,17 +1,18 @@
 ---
-# A jelenlegi /etc/systemd/system/k3s.service ExecStart sorai, szo szerint.
-# Az extra_server_args a TELJES INSTALL_K3S_EXEC lesz, ezert kezdodik `server`-rel.
+# The current ExecStart lines of /etc/systemd/system/k3s.service, verbatim.
+# extra_server_args becomes the COMPLETE INSTALL_K3S_EXEC, which is why it starts
+# with `server`.
 #
-# A `--secrets-encryption` 2026-08-28-an kerult be, kezzel a unitba es ide is.
-# Enelkul a kovetkezo site.yml futas LESZEDNE a kapcsolot. Nem eleg, hogy az
-# encryption-config.json ott van a cred/ alatt: a k3s csak ettol a kapcsolotol
-# adja at a fajlt az apiservernek --encryption-provider-config-kent.
+# `--secrets-encryption` was added on 2026-08-28, by hand into the unit and here.
+# Without it the next site.yml run would STRIP the flag. Having
+# encryption-config.json under cred/ is not enough: k3s hands the file to the
+# apiserver as --encryption-provider-config only because of this flag.
 #
-# Megmerve ugyanaznap, eldobhato clusteren, a kapcsolo nelkul: a szerver SOHA nem
-# lesz ready, a /readyz vegtelenul "[-]informer-sync failed"-et ad, mert a Secret
-# informer nem tud szinkronizalni ("identity transformer tried to read encrypted
-# data"). A nem-Secret eroforrasok kozben olvashatok maradnak, tehat elsore ugy
-# nez ki, mintha mukodne.
+# Measured the same day on a throwaway cluster, without the flag: the server NEVER
+# becomes ready, /readyz returns "[-]informer-sync failed" forever because the
+# Secret informer cannot sync ("identity transformer tried to read encrypted
+# data"). Non-Secret resources stay readable meanwhile, so at first glance it
+# looks like it works.
 extra_server_args: >-
   server
   --node-ip=192.168.1.101

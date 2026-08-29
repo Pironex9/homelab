@@ -19,14 +19,14 @@ services:
       - ./images/background.webp:/app/public/images/background.webp:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/storage:/mnt/storage:ro
-    # A K3s cluster negy webfelulete Tailscale Ingressen keresztul erheto el, es
-    # ezt a negy nevet a LXC 100 NEM tudja feloldani: a tailscaled itt
-    # `accept-dns=false`-szal fut, szandekosan (lasd a tailnet DNS szabalyt a
-    # docs/proxmox/31-ben), tehat nincs MagicDNS. Nev nelkul viszont a
-    # siteMonitor nem mukodik: a Tailscale Ingress SNI alapjan valaszt, ezert a
-    # nyers tailnet IP-re kuldott keres TLS szinten elhasal - a TCP kapcsolat
-    # felall, a curl megis 000-t ad, ami "halott szolgaltatas"-nak latszik.
-    # Ez a negy sor csak ebben a konteneben old fel nevet, a host DNS-ehez nem nyul.
+    # The four web UIs of the K3s cluster are reachable through a Tailscale Ingress,
+    # and LXC 100 cannot resolve those four names: tailscaled runs here with
+    # `accept-dns=false`, deliberately (see the tailnet DNS rule in
+    # docs/proxmox/31), so there is no MagicDNS. Without a name the siteMonitor does
+    # not work either: the Tailscale Ingress selects on SNI, so a request sent to the
+    # raw tailnet IP fails at the TLS layer - the TCP connection comes up and curl
+    # still returns 000, which looks like a "dead service".
+    # These four lines resolve names inside this container only, they do not touch host DNS.
     extra_hosts:
       - "argocd.tailc6abe2.ts.net:100.87.160.51"
       - "longhorn.tailc6abe2.ts.net:100.127.135.123"

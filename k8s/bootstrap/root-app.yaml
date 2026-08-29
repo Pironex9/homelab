@@ -1,11 +1,11 @@
 ---
-# App-of-apps gyoker. Ez az EGYETLEN objektum, amit kezzel kell felvenni;
-# minden mas ezen keresztul, gitbol kerul a clusterbe.
+# App-of-apps root. This is the ONLY object that has to be created by hand;
+# everything else reaches the cluster through it, from git.
 #
 #   kubectl apply -f k8s/bootstrap/root-app.yaml
 #
-# A k8s/apps/ ala tett minden Application-t automatikusan felveszi es szinkronban
-# tartja. A finalizer miatt a root torlese a gyerekeket is elviszi.
+# It picks up and keeps in sync every Application placed under k8s/apps/. Because
+# of the finalizer, deleting the root takes the children with it.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

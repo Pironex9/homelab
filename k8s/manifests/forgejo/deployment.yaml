@@ -1,24 +1,23 @@
 ---
-# Forgejo 16.0.3, rootless image, sqlite3, egyetlen Longhorn koteten.
+# Forgejo 16.0.3, rootless image, sqlite3, on a single Longhorn volume.
 #
-# MIERT A ROOTLESS VALTOZAT: az `apps` namespace PSA `baseline` szinten
-# enforce-ol es `restricted` szinten figyelmeztet. A rootless image
-# `USER 1000:1000`-rel indul (a v16.0.3 Dockerfile.rootless-bol), igy a lenti
-# securityContext-tel a `restricted` figyelmeztetes is elnemul.
+# WHY THE ROOTLESS VARIANT: the `apps` namespace enforces PSA at `baseline` level
+# and warns at `restricted`. The rootless image starts with `USER 1000:1000` (from
+# the v16.0.3 Dockerfile.rootless), so with the securityContext below the
+# `restricted` warning goes silent too.
 #
-# EGY KOTET ELEG. A doksi ket volume-ot ir (`/var/lib/gitea` + `/etc/gitea`), de
-# a v16.0.3 imageben `GITEA_APP_INI=/var/lib/gitea/custom/conf/app.ini`, tehat a
-# config a data koteten belul van. A masodik mount felesleges lenne.
+# ONE VOLUME IS ENOUGH. The docs describe two volumes (`/var/lib/gitea` +
+# `/etc/gitea`), but in the v16.0.3 image `GITEA_APP_INI=/var/lib/gitea/custom/conf/app.ini`,
+# so the config lives inside the data volume. A second mount would be redundant.
 #
-# A `FORGEJO__szekcio__KULCS` valtozokat az `environment-to-ini` MINDEN
-# indulaskor ujra beleirja az app.ini-be, tehat ezek deklarativak. A
-# `docker-setup.sh` sima valtozoi (DB_TYPE, ROOT_URL, INSTALL_LOCK) csak az
-# elso induláskor, a template kitolteseig szamitanak - ezert nem azokat
-# hasznaljuk.
+# The `FORGEJO__section__KEY` variables are rewritten into app.ini by
+# `environment-to-ini` on EVERY start, so these are declarative. The plain variables
+# of `docker-setup.sh` (DB_TYPE, ROOT_URL, INSTALL_LOCK) only matter on the first
+# start, until the template is filled in - which is why we do not use those.
 #
-# strategy: Recreate KOTELEZO. A kotet ReadWriteOnce, egy RollingUpdate az uj
-# podot a regi mellett inditana, az pedig `Multi-Attach error`-ral orokre
-# Pendingben allna.
+# strategy: Recreate is MANDATORY. The volume is ReadWriteOnce; a RollingUpdate would
+# start the new pod next to the old one, and it would sit in Pending forever with a
+# `Multi-Attach error`.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -40,8 +39,8 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         runAsNonRoot: true
-        # A Longhorn kotet gyoker tulajdonu jon letre. fsGroup nelkul az uid 1000
-        # nem tudna beleirni, es a docker-setup.sh mar az elso sorral elszallna
+        # The Longhorn volume is created root-owned. Without fsGroup uid 1000 could
+        # not write into it, and docker-setup.sh would already fail on its first line
         # ("/var/lib/gitea/git is not writable").
         fsGroup: 1000
         seccompProfile:
@@ -63,21 +62,21 @@ spec:
               value: https://forgejo.tailc6abe2.ts.net/
             - name: FORGEJO__server__HTTP_PORT
               value: "3000"
-            # Git-over-SSH kikapcsolva: egy Ingress csak HTTP-t visz, a
-            # tailnetes HTTPS clone pedig mukodik. Ha kesobb megis kell, a
-            # Tailscale operator `tailscale.com/expose` annotacioja tud egy
-            # kulon TCP Service-t adni a 2222-es portra.
+            # Git-over-SSH is off: an Ingress only carries HTTP, and the tailnet HTTPS
+            # clone works. If it is ever needed, the Tailscale operator's
+            # `tailscale.com/expose` annotation can provide a separate TCP Service on
+            # port 2222.
             - name: FORGEJO__server__DISABLE_SSH
               value: "true"
             - name: FORGEJO__security__INSTALL_LOCK
               value: "true"
             - name: FORGEJO__service__DISABLE_REGISTRATION
               value: "true"
-            # NEM elhagyhato. Ha ures, a Forgejo a forraskodba drotozott
-            # "!#@FDEWREWR&*(" ertekkel titkositja a 2FA titkokat, a mirror
-            # jelszavakat es az OAuth tokeneket (modules/setting/security.go,
-            # loadSecurityFrom). Nem generalodik magatol. A Secret nincs a
-            # gitben - a repo publikus -, kezzel jon letre, lasd k8s/README.md.
+            # NOT optional. If empty, Forgejo encrypts the 2FA secrets, the mirror
+            # passwords and the OAuth tokens with the hardcoded value "!#@FDEWREWR&*("
+            # (modules/setting/security.go, loadSecurityFrom). It is not generated
+            # automatically. The Secret is not in git - the repo is public - it is
+            # created by hand, see k8s/README.md.
             - name: FORGEJO__security__SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -92,10 +91,10 @@ spec:
               port: http
             periodSeconds: 10
             failureThreshold: 30
-          # A liveness szandekosan csak TCP. Az /api/healthz 503-at ad egy
-          # akado adatbazis-komponensre is, es egy liveness probe-ra kotve az
-          # ujrainditasi hurokba vinne a podot ahelyett, hogy csak kiforgatna a
-          # Service mogul.
+          # The liveness probe is deliberately TCP only. /api/healthz returns 503 for a
+          # stalling database component as well, and wired to a liveness probe that
+          # would push the pod into a restart loop instead of merely rotating it out
+          # from behind the Service.
           livenessProbe:
             tcpSocket:
               port: http

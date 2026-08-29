@@ -1,82 +1,84 @@
 ---
-# K3s verziofrissites a system-upgrade-controllerrel.
+# K3s version upgrades with the system-upgrade-controller.
 #
-# A frissites UTJA a git: ide irod a cel verziot, az ArgoCD kiszinkronizalja, a
-# SUC pedig node-onkent lefuttatja. Nem kell sem ssh, sem kezi kubectl.
+# The upgrade PATH is git: write the target version here, ArgoCD syncs it out, and the
+# SUC runs it node by node. Neither ssh nor manual kubectl is needed.
 #
-# EGYSZERRE EGY MINORT. A 1.34 -> 1.36 ugras NEM tamogatott, es a SUC nem is
-# ved ellene - simán lefuttat egy ervenytelen utat. A sorrend, amit vegigviszunk:
-#   v1.34.5+k3s1  ->  v1.34.11+k3s1   (patch, a SUC mechanika probaja)
+# ONE MINOR AT A TIME. The 1.34 -> 1.36 jump is NOT supported, and the SUC does not
+# protect against it either - it will happily run an invalid path. The order we go
+# through:
+#   v1.34.5+k3s1  ->  v1.34.11+k3s1   (patch, a trial of the SUC mechanics)
 #   v1.34.11+k3s1 ->  v1.35.8+k3s1
 #   v1.35.8+k3s1  ->  v1.36.4+k3s1
-# Minden hop utan: minden node Ready az uj verzioval, es a Longhorn lemezek
-# Ready-k. Csak utana jon a kovetkezo.
+# After every hop: every node Ready on the new version, and the Longhorn disks Ready.
+# Only then comes the next one.
 #
-# A `version` mezoben `+k3s1` all, a SUC ebbol keszit `-k3s1` image tagot.
+# The `version` field carries `+k3s1`, from which the SUC builds a `-k3s1` image tag.
 #
-# HONNAN VEDD A VERZIOSZAMOT. Nem a GitHub legfrissebb tagjebol - a k3s sajat
-# csatornajabol:
+# WHERE TO TAKE THE VERSION NUMBER FROM. Not from the latest GitHub tag - from k3s's
+# own channel:
 #
 #   curl -s https://update.k3s.io/v1-release/channels | jq -r '.data[] | "\(.id) \(.latest)"'
 #
-# 2026-08-28-i tanulsag: mind a harom hop egy patch-csel a stable ELE ment,
-# mert a legfrissebb letezo taget vettem celnak. A csatorna akkor v1.34.10 /
-# v1.35.7 / v1.36.3 volt, mi v1.34.11 / v1.35.8 / v1.36.4-re mentunk. A
-# v1.36.4+k3s1 a GitHubon `prerelease: true` (2026-08-27), tehat az upstream
-# meg nem leptette elo. Nem rc es nem hibas - de a k3s NEM tamogat downgrade-et,
-# tehat ezt visszavonni nem lehet, csak elore kivarni.
+# Lesson from 2026-08-28: all three hops went one patch AHEAD of stable, because I
+# took the newest existing tag as the target. The channel was at v1.34.10 / v1.35.7 /
+# v1.36.3 at the time, and we went to v1.34.11 / v1.35.8 / v1.36.4. v1.36.4+k3s1 is
+# `prerelease: true` on GitHub (2026-08-27), so upstream had not promoted it yet. It
+# is neither an rc nor broken - but k3s does NOT support downgrades, so this cannot be
+# taken back, only waited out.
 #
-# A szabaly: a cel verzio legyen benne a megfelelo csatornaban. Ha ujabbat
-# akarsz, az tudatos dontes legyen, ne mellektermek.
+# The rule: the target version should be in the matching channel. If you want
+# something newer, let that be a deliberate decision, not a by-product.
 #
-# A `drain` maga cordonol elsokent, ezert nincs kulon `cordon: true` - a ketto
-# egyutt felesleges. Az indoklas lentebb, a drain blokk felett.
+# `drain` cordons first by itself, hence there is no separate `cordon: true` - the two
+# together are redundant. The reasoning is below, above the drain block.
 #
-# Az agent-plan `prepare` lepese megvarja, amig a server-plan vegez. Ez a
-# sorrend kotelezo: a worker sosem elozheti meg a control plane-t.
+# The agent plan's `prepare` step waits until the server plan finishes. That order is
+# mandatory: a worker must never get ahead of the control plane.
 #
-# FIGYELEM: egyetlen control plane van. A master frissitese alatt a Kubernetes
-# API nehany percig elerhetetlen. Ez nem hiba, hanem a nem-HA setup ara.
+# WARNING: there is a single control plane. While the master is being upgraded the
+# Kubernetes API is unreachable for a few minutes. That is not a fault, it is the
+# price of a non-HA setup.
 #
 # ---------------------------------------------------------------------------
-# DRAIN (2026-08-28 ota, elotte csak `cordon: true` volt)
+# DRAIN (since 2026-08-28, before that it was only `cordon: true`)
 #
-# A flagek nem talalgatasbol jonnek: pontosan ezekkel futott le egy eles
-# `kubectl drain opt3050-i5` a clusteren, es a kritikus sor benne volt:
+# The flags do not come from guesswork: a live `kubectl drain opt3050-i5` ran on the
+# cluster with exactly these, and the critical line was in it:
 #   pod/instance-manager-067cfdfdabf25fe0c8f8a8a0becb9fd3 evicted
 #
-# Ez azert nem volt maganyos: a Longhorn node-onkent tart egy PDB-t az
-# instance-manager podra, `disruptionsAllowed: 0`-val, MEG NULLA KOTET MELLETT
-# IS. A pod ráadásul InstanceManager CR tulajdona, nem DaemonSete, tehat az
-# ignoreDaemonSets NEM fedi.
+# That was not incidental: Longhorn keeps a per-node PDB on the instance-manager pod,
+# with `disruptionsAllowed: 0`, EVEN WITH ZERO VOLUMES. On top of that the pod is
+# owned by an InstanceManager CR, not by a DaemonSet, so ignoreDaemonSets does NOT
+# cover it.
 #
-# A PDB VALOBAN ELUTASIT, ES EZ A RETRY MIATT NEM BAJ. Ugyanez a meres eles
-# koteten megismetelve (2026-08-28, Forgejo, 3 replika) ezt irta ki:
+# THE PDB DOES REJECT, AND THAT IS FINE BECAUSE OF THE RETRY. The same measurement
+# repeated on a live volume (2026-08-28, Forgejo, 3 replicas) printed this:
 #
 #   error when evicting pods/"instance-manager-067..." -n "longhorn-system"
 #   (will retry after 5s): Cannot evict pod as it would violate the pod's
 #   disruption budget.
 #
-# Ketszer, majd a harmadik probara `evicted`. A mechanizmus NEM az, hogy a
-# cordon eldobja a PDB-t (ezt allitotta korabban ez a komment, tevesen): a
-# Longhorn akkor veszi ki a PDB-t, amikor a node-on mar nem fut engine - vagyis
-# miutan a workload podja tavozott es a kotet lecsatolt. Addig az eviction API
-# szabalyosan elutasit. A `kubectl drain` 5 masodperces retry hurka nyeli el a
-# kulonbseget. Uncordon utan mindharom PDB magatol visszajott.
+# Twice, then `evicted` on the third attempt. The mechanism is NOT that the cordon
+# drops the PDB (this comment claimed that before, wrongly): Longhorn removes the PDB
+# when no engine runs on the node any more - that is, after the workload's pod has
+# left and the volume has detached. Until then the eviction API rejects, as designed.
+# The 5 second retry loop of `kubectl drain` absorbs the difference. After uncordon
+# all three PDBs came back on their own.
 #
-# EZERT NEM KOZMETIKA A `timeout`. Egy szuk timeout pont ebben az ablakban
-# halna meg, es ugy nezne ki, mintha a drain elakadt volna. Ures clusteren ez
-# a lepes elsore atment, tehat a szuk timeout ott nem is bukott volna meg -
-# eles koteten viszont ~10 masodperc a PDB-ablak. Mert idok eles koteten:
-# drain 12s, a workload 42s mulva szolgalt ki ujra masik node-on, a harmadik
-# replika ujraepulese uncordon utan 37s.
+# THIS IS WHY `timeout` IS NOT COSMETIC. A tight timeout would die in exactly that
+# window, and it would look as if the drain had stalled. On an empty cluster this step
+# passed on the first try, so a tight timeout would not even have failed there - on a
+# live volume the PDB window is ~10 seconds. Measured times on a live volume: drain
+# 12s, the workload served again 42s later on another node, the third replica rebuilt
+# 37s after uncordon.
 #
-# A `node-drain-policy` erteke NEM lehet `block-for-eviction` - az addig
-# blokkol, amig minden replika ujraepult mashol, es 3 node + 3 replika mellett
-# nincs hova, tehat orokre logna egy cordonolt node-dal. Az alapertelmezett
-# `block-if-contains-last-replica` a helyes, es 2026-08-28-an eles koteten
-# meg is lett merve: 3-bol egy node drainje 2 ep replikat hagy, semmi nem
-# blokkolt, a kotet degraded lett majd ujraepult.
+# The value of `node-drain-policy` must NOT be `block-for-eviction` - that blocks until
+# every replica has been rebuilt elsewhere, and with 3 nodes and 3 replicas there is
+# nowhere to go, so it would hang forever with a cordoned node. The default
+# `block-if-contains-last-replica` is the correct one, and it was measured on a live
+# volume on 2026-08-28: draining one node out of three leaves 2 healthy replicas,
+# nothing blocked, the volume went degraded and then rebuilt.
 # ---------------------------------------------------------------------------
 apiVersion: upgrade.cattle.io/v1
 kind: Plan

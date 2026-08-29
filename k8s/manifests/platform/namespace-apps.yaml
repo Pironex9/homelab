@@ -1,16 +1,16 @@
 ---
-# A sajat workloadok landolo namespace-e. A kube-system es a longhorn-system nem
-# kap PSA cimket: azok rendszerkomponensek, es a `baseline` tobbet torne el
-# bennuk, mint amennyit hasznal.
+# The landing namespace for our own workloads. kube-system and longhorn-system get no
+# PSA label: those are system components, and `baseline` would break more in them than
+# it is worth.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: apps
   labels:
-    # Enforce a `baseline` szinten: tiltja a privileged konténert, a hostPath-ot,
-    # a host halozatot es a host namespace-eket. A `restricted` szandekosan csak
-    # figyelmeztet, mert az mar seccomp profilt es nem-root futast is megkovetel,
-    # amit sok kesz image nem teljesit.
+    # Enforce at `baseline` level: it forbids privileged containers, hostPath, host
+    # networking and host namespaces. `restricted` deliberately only warns, because
+    # that would also require a seccomp profile and non-root execution, which many
+    # off-the-shelf images do not meet.
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/warn: restricted
@@ -18,9 +18,9 @@ metadata:
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest
 ---
-# Alapertelmezett requests es limits minden podra, ami nem hoz sajatot. Az audit
-# szerint 35 podbol mind limits nelkul futott: emiatt a scheduler nem lat valos
-# igenyt, es egyetlen elszabadult pod kieheztetheti a node-ot.
+# Default requests and limits for every pod that does not bring its own. According to
+# the audit all 35 pods ran without limits: because of that the scheduler sees no real
+# demand, and a single runaway pod can starve the node.
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -36,24 +36,24 @@ spec:
         cpu: 50m
         memory: 64Mi
 ---
-# Alapertelmezett tiltas BEFELE. Enelkul a cluster barmelyik podja eleri az itt
-# futo alkalmazasokat kozvetlenul, a Service es az Ingress megkerulesevel.
+# Default deny for INBOUND traffic. Without it any pod in the cluster can reach the
+# applications running here directly, bypassing the Service and the Ingress.
 #
-# Csak Ingress: a kimeno forgalom szandekosan szabad marad. A Forgejonak
-# DNS kell, es kesobb git remote, webhook vagy avatar-lekeres is jöhet - egy
-# egress-tiltas tobbet torne el most, mint amennyit vedene.
+# Ingress only: outbound traffic is deliberately left open. Forgejo needs DNS, and
+# later a git remote, a webhook or an avatar fetch may come too - an egress deny would
+# break more now than it would protect.
 #
-# A KUBELET PROBE-OK ATMENNEK EZEN, es ez merve van, nem feltetelezve. A
-# k3s-io/k3s#10030 szerint egy default-deny megolte a liveness es readiness
-# probe-okat; ezen a verzion (v1.36.4+k3s1, beepitett kube-router v2.6.3-k3s1)
-# 2026-08-28-an eldobhato namespace-ben lemerve a pod 60 masodpercen at Ready
-# maradt, 5 masodperces probe-periodus es 2-es kuszob mellett. Ha egy jovobeli
-# k3s frissites utan egy pod a policy felrakasa utan ~10 masodperccel NotReady-re
-# valt, ez az elso hely, ahova nezni kell.
+# THE KUBELET PROBES DO PASS THROUGH THIS, and that is measured, not assumed. Per
+# k3s-io/k3s#10030 a default-deny killed the liveness and readiness probes; on this
+# version (v1.36.4+k3s1, built-in kube-router v2.6.3-k3s1) it was measured on
+# 2026-08-28 in a throwaway namespace that the pod stayed Ready for 60 seconds, with a
+# 5 second probe period and a threshold of 2. If after some future k3s upgrade a pod
+# turns NotReady ~10 seconds after the policy is applied, this is the first place to
+# look.
 #
-# Ami ATENGEDVE van, az a Forgejo sajat NetworkPolicy-jaban ul, a
-# k8s/manifests/forgejo/networkpolicy.yaml-ben - hogy egy uj alkalmazas ne
-# ebbol a fajlbol kerjen engedelyt maganak.
+# What is ALLOWED THROUGH sits in Forgejo's own NetworkPolicy, in
+# k8s/manifests/forgejo/networkpolicy.yaml - so that a new application does not ask
+# for permission for itself from this file.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

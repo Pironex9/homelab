@@ -1,16 +1,17 @@
 ---
-# Wrapper a k3s.orchestration.site kore.
+# Wrapper around k3s.orchestration.site.
 #
-# Miert kell: a collection csak akkor tolti le a /usr/local/bin/k3s-install.sh-t,
-# ha a telepitett k3s verzio regebbi a kertnel, vagy egyaltalan nincs k3s a gepen.
-# A "Run K3s install script" taskot viszont FELTETEL NELKUL lefuttatja. Egy olyan
-# clusteren, amit nem o telepitett - a mienket kezzel telepitettuk a get.k3s.io-rol,
-# ami nem hagy masolatot ezen az utvonalon - ez
-# "[Errno 2] No such file or directory: /usr/local/bin/k3s-install.sh"-val elhasal.
-# 2026-08-24-en pontosan ez tortent az elso eles futasnal.
+# Why it is needed: the collection only downloads /usr/local/bin/k3s-install.sh if
+# the installed k3s version is older than the requested one, or if there is no k3s
+# on the machine at all. The "Run K3s install script" task, however, runs
+# UNCONDITIONALLY. On a cluster it did not install - ours was installed by hand
+# from get.k3s.io, which leaves no copy at that path - this fails with
+# "[Errno 2] No such file or directory: /usr/local/bin/k3s-install.sh".
+# That is exactly what happened on the first live run on 2026-08-24.
 #
-# A telepito ettol nem tolt ujra binarist: a role INSTALL_K3S_SKIP_DOWNLOAD-ja
-# ilyenkor 'true', a szkript csak a systemd unitot es az env fajlt generalja ujra.
+# This does not make the installer re-download a binary: the role sets
+# INSTALL_K3S_SKIP_DOWNLOAD to 'true' in this case, so the script only regenerates
+# the systemd unit and the env file.
 - name: Ensure the k3s install script is present
   hosts: k3s_cluster
   gather_facts: false
@@ -27,21 +28,21 @@
         force: false
 
 # ---------------------------------------------------------------------------
-# NTP. 2026-08-28-ig egyik node sem volt megbizhatoan szinkronban, es a masteren
-# egyaltalan nem: a DHCP a router IPv6 LINK-LOCAL cimet adja NTP szervernek, ami
-# interfesz-hatokor nelkul elerhetetlen. A master oraja emiatt 0.687 masodpercet
-# sietett, korrekcio nelkul - a friss Prometheus stack talalta meg.
+# NTP. Until 2026-08-28 no node was reliably in sync, and the master not at all:
+# DHCP hands out the router's IPv6 LINK-LOCAL address as the NTP server, which is
+# unreachable without an interface scope. The master's clock was 0.687 seconds
+# fast because of this, with no correction - the fresh Prometheus stack found it.
 #
-# A `FallbackNTP` nem mentette meg: a systemd csak akkor nyul hozza, ha EGYETLEN
-# szerver sincs konfiguralva. Egy konfiguralt, de halott szerver eleg ahhoz, hogy
-# a mukodo tartalek sose keruljon sorra.
+# `FallbackNTP` did not save it: systemd only reaches for it if NO server is
+# configured at all. One configured but dead server is enough to make sure the
+# working fallback never gets its turn.
 #
-# Ez a play azert van itt, es nem kezi lepeskent, mert egy ujraepitett node
-# kulonben visszaterne a torott, DHCP-bol jovo szerverhez. A collection nem kezel
-# NTP-t, ezert sajat task.
+# This play exists here, rather than as a manual step, because a rebuilt node
+# would otherwise go back to the broken server coming from DHCP. The collection
+# does not manage NTP, hence a task of our own.
 #
-# A router IPv4 cimehez nem kell hatokor, helyben marad (~1 ms), es nem hoz be
-# internet-fuggoseget. Reszletek: docs/hosts/k3s-cluster.md, "Clock synchronisation".
+# The router's IPv4 address needs no scope, stays local (~1 ms), and brings in no
+# internet dependency. Details: docs/hosts/k3s-cluster.md, "Clock synchronisation".
 - name: Ensure the nodes have an NTP server that actually answers
   hosts: k3s_cluster
   gather_facts: false

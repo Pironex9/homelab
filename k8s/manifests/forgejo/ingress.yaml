@@ -1,14 +1,13 @@
 ---
 # https://forgejo.tailc6abe2.ts.net
 #
-# Ugyanaz a minta, mint az argocd Ingressnel: a Tailscale operator felvesz egy
-# proxy podot, ami sajat eszkozkent lep be a tailnetbe, es valodi Let's Encrypt
-# tanusitvanyt kap. Nincs cert-manager, nincs ClusterIssuer, nincs sajat DNS
-# bejegyzes.
+# The same pattern as on the argocd Ingress: the Tailscale operator brings up a proxy
+# pod that joins the tailnet as its own device and gets a real Let's Encrypt
+# certificate. No cert-manager, no ClusterIssuer, no DNS record of our own.
 #
-# Az `ingressClassName` KOTELEZO ES NEM ELHAGYHATO: a clusteren a `traefik` az
-# alapertelmezett IngressClass, tehat kihagyva ez az Ingress a Traefikhez
-# kerulne, ami se tanusitvanyt, se tailnetes nevet nem ad hozza.
+# `ingressClassName` IS MANDATORY AND CANNOT BE OMITTED: `traefik` is the default
+# IngressClass on this cluster, so if left out this Ingress would go to Traefik, which
+# adds neither a certificate nor a tailnet name.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

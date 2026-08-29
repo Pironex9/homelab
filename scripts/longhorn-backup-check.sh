@@ -1,53 +1,52 @@
 #!/bin/bash
-# Dead man's switch a Longhorn kötetmentésre és a Garage S3 célpontra.
+# Dead man's switch for the Longhorn volume backups and the Garage S3 target.
 #
-# A 109-en fut, mert itt van a kubectl a K3s clusterhez ÉS az SSH kulcs a
-# 100-as LXC-hez, ahol a Garage lakik.
+# Runs on 109, because this is where both kubectl for the K3s cluster AND the SSH key
+# for LXC 100, where Garage lives, are.
 #
-# Miért nem elég a Kuma sima HTTP monitorja a Garage-ra:
-#   Az azt mondaná meg, hogy a Garage válaszol - de a Garage attól még
-#   válaszol, hogy a Longhorn nem tud beleírni (rossz kulcs, lejárt jog,
-#   megtelt pool), és attól is, hogy a RecurringJob egyáltalán nem futott le.
-#   A "fut-e valami" és a "megtörtént-e valami" két külön kérdés; ez a script
-#   a másodikat teszi fel.
+# Why a plain Kuma HTTP monitor on Garage is not enough:
+#   That would tell you that Garage answers - but Garage answers just as well when
+#   Longhorn cannot write into it (wrong key, expired permission, full pool), and
+#   also when the RecurringJob never ran at all. "Is something running" and "did
+#   something happen" are two different questions; this script asks the second one.
 #
-# Mit ellenőriz, ebben a sorrendben:
-#   1. a BackupTarget elérhető-e         - ez ma is értelmes, nulla kötettel is
-#   2. a Garage bucket olvasható-e       - és mekkora
-#   3. minden kötetnek van-e MAX_AGE_HOURS-nál frissebb, Completed mentése
-#   4. van-e Error állapotú Backup objektum
-#   5. minden Longhorn node és lemez Ready-e
+# What it checks, in this order:
+#   1. is the BackupTarget available     - this is meaningful today, even with zero volumes
+#   2. is the Garage bucket readable     - and how large it is
+#   3. does every volume have a Completed backup newer than MAX_AGE_HOURS
+#   4. is there any Backup object in Error state
+#   5. is every Longhorn node and disk Ready
 #
-# Az 5. pont 2026-08-27-én került bele: aznap az opt3050-i5 USB-lemeze
-# újraenumerálódott, a systemd lecsatolta és nem csatolta vissza, a Longhorn a
-# root FS-re írt egy friss longhorn-disk.cfg-t, és a lemez DiskFilesystemChanged
-# miatt kiesett. Ez a script akkor "up - no-volumes"-t pusholt, mert nulla
-# kötetnél a 3. lépés nem néz semmit. A lemezek állapota független attól, hogy
-# van-e ma kötet - egy halott lemezről akkor is tudni kell.
+# Point 5 was added on 2026-08-27: that day the USB disk of opt3050-i5 re-enumerated,
+# systemd unmounted it and did not mount it back, Longhorn wrote a fresh
+# longhorn-disk.cfg onto the root FS, and the disk dropped out with
+# DiskFilesystemChanged. This script pushed "up - no-volumes" at the time, because
+# with zero volumes step 3 looks at nothing. Disk health is independent of whether
+# there is a volume today - a dead disk has to be known about anyway.
 #
-# A nulla kötet NEM hiba: a clusteren ma tényleg nincs PVC. De külön üzenetet
-# kap ("no-volumes"), különben a heartbeat-előzményben nem lehet megkülönböztetni
-# attól, hogy minden rendben lement.
+# Zero volumes is NOT an error: there really is no PVC on the cluster today. But it
+# gets its own message ("no-volumes"), otherwise the heartbeat history could not tell
+# it apart from everything having been backed up fine.
 #
-# Használat:
+# Usage:
 #   ./longhorn-backup-check.sh
 #   KUMA_PUSH_URL="http://.../api/push/<token>" ./longhorn-backup-check.sh
 #
-# A push tokent szándékosan NEM tartalmazza ez a fájl: a repo publikus. A token
-# a crontab sorban él, ugyanúgy, mint a többi Kuma-figyelőnél.
+# The push token is deliberately NOT in this file: the repo is public. The token lives
+# in the crontab line, the same way as for the other Kuma watchers.
 
 set -uo pipefail
 
-# A cron PATH-ában nincs /usr/local/bin, a kubectl viszont ott lakik. Ez a
-# homelabban már három jobot megölt csendben. Ellenőrzés:
+# The cron PATH does not contain /usr/local/bin, and kubectl lives there. That has
+# already killed three jobs silently in this homelab. Check with:
 #   env -i PATH=/usr/bin:/bin HOME=/root bash -c 'which kubectl'
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 NS="longhorn-system"
 DOCKER_HOST_SSH="${GARAGE_SSH:-root@192.168.0.110}"
 BUCKET="${GARAGE_BUCKET:-longhorn}"
-# A RecurringJob 01:00 UTC-kor fut. 26 óra ad egy kimaradt futásnyi ráhagyást
-# anélkül, hogy két egymást követő kimaradás elférne benne.
+# The RecurringJob runs at 01:00 UTC. 26 hours gives one missed run of slack without
+# leaving room for two consecutive misses.
 MAX_AGE_HOURS="${LONGHORN_BACKUP_MAX_AGE_HOURS:-26}"
 
 ERRORS=()
@@ -61,7 +60,7 @@ if [ -z "$BT_JSON" ]; then
     fail "a BackupTarget/default nem olvasható (kubectl)"
 else
     BT_URL="$(printf '%s' "$BT_JSON" | jq -r '.spec.backupTargetURL // ""')"
-    # A Longhorn fordítva jelzi: Unavailable=False jelenti azt, hogy elérhető.
+    # Longhorn reports this inverted: Unavailable=False means it is available.
     BT_UNAVAIL="$(printf '%s' "$BT_JSON" | jq -r '.status.conditions[]? | select(.type=="Unavailable") | .status')"
     BT_MSG="$(printf '%s' "$BT_JSON" | jq -r '.status.conditions[]? | select(.type=="Unavailable") | .message')"
     if [ -z "$BT_URL" ]; then
@@ -96,14 +95,14 @@ if [ -n "$VOLUMES" ]; then
     NOW="$(date -u +%s)"
     for v in $VOLUMES; do
         VOL_COUNT=$((VOL_COUNT + 1))
-        # Egy ma létrehozott kötetnek még jogosan nincs mentése: a RecurringJob
-        # 01:00 UTC-kor fut. Enélkül minden új PVC azonnal pirosat adna, és pár
-        # ilyen után senki nem nézi meg a riasztást.
+        # A volume created today may legitimately have no backup yet: the RecurringJob
+        # runs at 01:00 UTC. Without this every new PVC would go red immediately, and
+        # after a few of those nobody looks at the alert any more.
         VOL_CREATED="$(printf '%s' "$VOL_JSON" | jq -r --arg v "$v" \
             '.items[]? | select(.metadata.name == $v) | .metadata.creationTimestamp')"
         VOL_AGE_H=$(( (NOW - $(date -u -d "$VOL_CREATED" +%s)) / 3600 ))
 
-        # backupCreatedAt RFC3339 UTC-ben; a legfrissebb Completed kell
+        # backupCreatedAt is RFC3339 UTC; we want the most recent Completed one
         NEWEST="$(printf '%s' "$BACKUPS" | jq -r --arg v "$v" '
             [.items[]? | select(.status.volumeName == $v and .status.state == "Completed")
              | .status.backupCreatedAt] | sort | last // ""')"
@@ -143,9 +142,9 @@ LHNODE_JSON="$(kubectl get nodes.longhorn.io -n "$NS" -o json 2>/dev/null)"
 if [ -z "$LHNODE_JSON" ]; then
     fail "a Longhorn node objektumok nem olvashatók (kubectl)"
 else
-    # Node Ready + lemezenkénti Ready kondíció. A lemez üzenete tartalmazza az
-    # okot (pl. "record diskUUID doesn't match the one on the disk"), ezért azt
-    # visszük tovább a Kuma üzenetbe, nem csak a lemez nevét.
+    # Node Ready plus the per-disk Ready condition. The disk's message carries the
+    # reason (e.g. "record diskUUID doesn't match the one on the disk"), so we pass
+    # that on into the Kuma message, not just the disk name.
     BAD_NODES="$(printf '%s' "$LHNODE_JSON" | jq -r '
         [.items[]? | select([.status.conditions[]? | select(.type=="Ready") | .status] | index("True") | not)
          | .metadata.name] | join(",")')"
@@ -166,7 +165,7 @@ else
     fi
 fi
 
-# --- összegzés és Kuma push ---------------------------------------------------
+# --- summary and Kuma push ----------------------------------------------------
 if [ ${#ERRORS[@]} -gt 0 ]; then
     STATUS="down"
     MSG="$(printf '%s; ' "${ERRORS[@]}")"
@@ -176,8 +175,8 @@ elif [ "$VOL_COUNT" -eq 0 ]; then
     MSG="no-volumes, bucket ${BUCKET_SIZE:-?}"
 else
     STATUS="up"
-    # A türelmi időben lévő köteteket külön mondjuk ki: azoknak MÉG nincs
-    # mentésük, tehát nem ugyanaz, mint a "mentve" állapot.
+    # Volumes still inside the grace period are called out separately: those do NOT
+    # have a backup yet, which is not the same as being backed up.
     OKC=$((VOL_COUNT - GRACE))
     MSG="${OKC}/${VOL_COUNT} kotet mentve"
     [ "$GRACE" -gt 0 ] && MSG="$MSG, ${GRACE} uj (meg nincs mentes)"
