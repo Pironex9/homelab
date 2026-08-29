@@ -196,7 +196,14 @@ curl -X POST $API/write -H "$AUTH" \
 # 5. revoke the PAT on github.com/settings/personal-access-tokens
 ```
 
-Two things that are easy to get wrong:
+Step 5 was done on 2026-08-29. GitHub had the token listed as **Never used** -
+the repo is public, so git never sent the embedded credential in the first
+place. Deleting it took away nothing that had ever worked, which is the cleanest
+possible confirmation that the credential was never needed. Fine-grained tokens
+have no separate "revoke"; **Delete** on the token page is the revocation, and
+the token string is not recoverable afterwards.
+
+Three things that are easy to get wrong:
 
 - **Clearing `git_account` only cleans the clones Komodo actually pulls.** The
   pull log has a `Set Git Remote` stage that rewrites the remote URL on every
@@ -206,6 +213,13 @@ Two things that are easy to get wrong:
 - **Stacks do not carry the account.** All 32 stacks have `git_account: ""` and
   inherit the setting from the Repo resource through `linked_repo`, so this is
   one field to change, not 32.
+- **Do not verify a root-owned clone as a non-root user.** On Nobara,
+  `git -C /etc/komodo/repos/github remote -v` run as `nex` fails with
+  `detected dubious ownership`, and `ls-remote origin` then reports
+  `'origin' does not appear to be a git repository` - git refused to read the
+  config, so it does not know what `origin` is. That looks exactly like a broken
+  remote and is not one. Read `.git/config` directly, or run `ls-remote` against
+  the bare URL.
 
 What it costs: the Komodo UI can no longer create or delete the GitHub webhook,
 because that API call needs a token. **Existing webhooks are unaffected** - they
@@ -220,7 +234,8 @@ curl -s -X POST http://192.168.0.105:9120/read -H "X-Api-Key: $K" -H "X-Api-Secr
 ```
 
 and on each managed server, `git -C /etc/komodo/repos/github remote -v` must show
-a bare `https://github.com/Pironex9/homelab`.
+a bare `https://github.com/Pironex9/homelab`. All five checked out clean, and an
+anonymous `ls-remote` from each returned the same commit.
 
 ## Lessons Learned
 
