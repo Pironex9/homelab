@@ -372,7 +372,7 @@ was wrong in the direction that matters: it claimed a control that does not exis
 | WoL only on local network | Yes |
 | K3s RBAC | Default (not hardened) |
 | Secrets encryption at rest | **Enabled 2026-08-28**, AES-CBC, all 39 secrets re-encrypted. See [Hardening and Recovery](../k3s/04_Hardening_and_Recovery.md) for what it does and does not protect |
-| Network policies | Partial: `apps` is default-deny ingress since 2026-08-28 with one explicit allow, and 13 more come from the `argocd` and `longhorn-system` Helm charts. `monitoring`, `kube-system`, `system-upgrade` and `tailscale` still have none. Enforcement verified, not assumed - see [Hardening and Recovery](../k3s/04_Hardening_and_Recovery.md) |
+| Network policies | Partial: `apps` is default-deny ingress since 2026-08-28 with one explicit allow, `longhorn-system` gained a hand-written allow for Prometheus on 2026-08-29, and 13 more come from the `argocd` and `longhorn-system` Helm charts. `monitoring`, `kube-system`, `system-upgrade` and `tailscale` still have none. Enforcement verified, not assumed - see [Hardening and Recovery](../k3s/04_Hardening_and_Recovery.md) |
 | Pod Security Standards | Partial: `apps` is `baseline`, `system-upgrade` is `privileged`. The other eight namespaces are unlabelled, `monitoring` deliberately so - node-exporter needs `hostNetwork` and `hostPath` |
 
 ---
@@ -480,6 +480,7 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [x] Scale `coredns` to 2 replicas - **done 2026-08-28**. Not via a `.skip` file: k3s's bundled `coredns.yaml` has no `replicas` field at all, so re-applying it does not reset the count. Re-check after the next k3s restart anyway - that check is exactly what was skipped in April, which is why the local-path patch silently reverted for four months
 - [ ] k3s is one patch ahead of the release channel on all three hops (v1.36.4 vs `stable` v1.36.3) - cannot be undone, wait for the channel to catch up
 - [x] Prometheus + Grafana monitoring stack - **kube-prometheus-stack 88.6.0 under Argo CD (2026-08-28)**, `https://grafana.tailc6abe2.ts.net`, details in `k8s/README.md`
+- [x] Longhorn metrics in Grafana - **done 2026-08-29**. The stack's 25 bundled dashboards saw nothing of the storage layer; a ServiceMonitor, a second NetworkPolicy and dashboard 16888 fixed that, 3/3 targets up. Longhorn's own chart policy held every target at `up=0` first, reporting `connection refused` while the manager was demonstrably listening - see [Longhorn Storage](../k3s/03_Longhorn_Storage.md#monitoring-the-storage-layer-2026-08-29)
 - [x] Fix NTP on the k3s nodes - **done 2026-08-28**, found by the new monitoring stack on its first day; master was 0.687 s fast with no correction
 - [ ] Home-side Tailscale subnet router for `192.168.0.0/24`, so the cluster could reach ntfy and Uptime Kuma directly - only a route exists in the other direction today
 - [x] Move the NTP drop-in into Ansible - **done 2026-08-28**, own play in `ansible/site.yml`, so a rebuilt node no longer returns to the broken DHCP server

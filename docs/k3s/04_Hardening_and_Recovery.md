@@ -124,6 +124,12 @@ version.
 targets `apps`, so Prometheus needs no exception. The day a ServiceMonitor does point
 here, this policy is the first thing to widen, or the target goes `down` quietly.
 
+> That day came for a different namespace on 2026-08-29: a tenth ServiceMonitor was added
+> in `longhorn-system`, and Longhorn's own chart-installed NetworkPolicy held every
+> target at `up=0` until a second policy admitted Prometheus. The failure looked like a
+> wrong port, not like a policy - see
+> [Longhorn Storage](./03_Longhorn_Storage.md#monitoring-the-storage-layer-2026-08-29).
+
 ### Proving it, in both directions
 
 A NetworkPolicy nobody tested is the same shape of mistake as the firewall row in the

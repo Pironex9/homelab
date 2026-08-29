@@ -598,3 +598,153 @@ The repository is public, so the S3 key is not in it. It lives in the
 `kubectl create secret generic`, and the `BackupTarget` only references it by name.
 Note that `garage key create` prints the secret key on stdout - do not run it in a
 terminal whose output is logged.
+
+---
+
+## Monitoring the storage layer (2026-08-29)
+
+The `kube-prometheus-stack` that went in on 2026-08-28 arrived with 25 dashboards and
+saw nothing of Longhorn. The built-in `Kubernetes / Persistent Volumes` dashboard reads
+the kubelet's `kubelet_volume_stats_*` series, which answer one question: how full is a
+PV. They cannot say whether a volume is degraded, whether a replica was lost, or whether
+last night's backup to Garage S3 landed - and this is the storage under the only live
+workload on the cluster.
+
+Three objects under `k8s/manifests/longhorn/`, all carried by the existing
+`longhorn-backup` Argo CD Application:
+
+| File | What it does |
+|---|---|
+| `servicemonitor.yaml` | scrapes `longhorn-backend:9500/metrics` |
+| `networkpolicy-metrics.yaml` | admits Prometheus past Longhorn's own policy |
+| `grafana-dashboard.yaml` | grafana.com dashboard 16888 as a ConfigMap |
+
+### The label that decides whether Prometheus even looks
+
+```yaml
+metadata:
+  labels:
+    release: monitoring
+```
+
+The Prometheus CR selects ServiceMonitors with
+`serviceMonitorSelector: {matchLabels: {release: monitoring}}` while its
+`serviceMonitorNamespaceSelector` is empty - any namespace, but only labelled objects.
+Without the label the ServiceMonitor is created, Argo CD reports Synced and Healthy, and
+Prometheus ignores it. There is no error anywhere; the target list simply never grows.
+
+### Longhorn's own NetworkPolicy blocks Prometheus, and the error message lies
+
+With the ServiceMonitor alone all three targets sat at `up=0`:
+
+```
+http://10.42.0.43:9500/metrics | down | dial tcp 10.42.0.43:9500: connect: connection refused
+http://10.42.1.54:9500/metrics | down | dial tcp 10.42.1.54:9500: connect: connection refused
+http://10.42.3.55:9500/metrics | down | dial tcp 10.42.3.55:9500: connect: connection refused
+```
+
+`connection refused` reads as "nothing is listening on that port", which sends you
+looking for a wrong port number in the Service or the ServiceMonitor. Inside the pod:
+
+```console
+$ kubectl -n longhorn-system exec longhorn-manager-jh9qd -c longhorn-manager -- ss -lntp
+State  Recv-Q Send-Q Local Address:Port  Process
+LISTEN 0      4096      10.42.0.43:9500  users:(("longhorn-manage",pid=1,fd=19))
+```
+
+It was listening on exactly that address and port the whole time. The cause is the
+`longhorn-manager` NetworkPolicy the Longhorn chart installs, which admits ingress only
+from Longhorn's own pods - `longhorn-ui`, `longhorn-csi-plugin`,
+`longhorn-driver-deployer`, and the recurring-job pods. Prometheus lives in `monitoring`
+and is not on that list.
+
+**Do not read `connection refused` as proof that a port is wrong.** On this cluster a
+policy drop presents identically to a closed port.
+
+The fix is a **second** policy, not an edit of the chart's object. NetworkPolicies are
+additive - what a pod accepts is the union of every policy selecting it - so the chart's
+object stays untouched and a Longhorn Helm upgrade cannot revert the change. That matters
+here specifically because the Longhorn release is deliberately not managed by Argo CD, so
+the alternative would have been a hand-edited Helm value with nothing to reconcile it.
+
+```yaml
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9500
+```
+
+Both selectors sit in **one** list entry, so they are ANDed: the monitoring namespace and
+a Prometheus pod. Split across two entries they would be ORed, which opens port 9500 to
+every pod in `monitoring` and to any pod labelled `prometheus` in any namespace.
+
+After applying it, two targets came up on the next scrape and the third one cycle later -
+the policy's iptables rules are refreshed per node, so a node can lag by a scrape
+interval. A single red target 30 seconds after a NetworkPolicy change is not yet a
+failure.
+
+### The dashboard, and why the JSON needed editing
+
+The ConfigMap lives in `longhorn-system`, next to the ServiceMonitor, rather than in
+`monitoring`. The Grafana dashboard sidecar runs with `NAMESPACE=ALL`,
+`LABEL=grafana_dashboard`, `LABEL_VALUE=1`, so it picks the ConfigMap up from any
+namespace - which means no second Argo CD Application pointed at `monitoring` was needed.
+
+[Dashboard 16888](https://grafana.com/grafana/dashboards/16888) ("Longhorn Monitoring &
+Backups", revision 14, updated 2026-07-13) was chosen over the older "Longhorn Example"
+dashboards: 13032 was last updated in 2020 against Longhorn v1.1.0 and this cluster runs
+v1.12.1. Two edits to the downloaded JSON were required, and neither is optional:
+
+1. **Remove `__inputs` and `__requires`.** They exist for Grafana's import wizard, which
+   a provisioned dashboard never goes through.
+2. **Replace `${DS_PROMETHEUS}` with the `prometheus` datasource uid** and pin the
+   datasource template variable to it. Left alone, every panel opens on an unresolved
+   datasource and draws nothing.
+
+### Measured after wiring
+
+```
+longhorn-backend targets        3 / 3 up
+longhorn_volume_state           3 volumes
+longhorn_volume_robustness      12 series, degraded/faulted: 0
+longhorn_backup_state           4 series
+longhorn_volume_last_backup_at  3 series
+longhorn_disk_capacity_bytes    2289 GiB
+```
+
+`longhorn_volume_state` returns six series per volume, which looks like the three
+managers each reporting the same thing. It is not: the six are the six possible states
+(`attached`, `attaching`, `creating`, `deleting`, `detached`, `detaching`), one-hot
+encoded with a single 1 among them. A volume's metrics are exported only by the manager
+that owns it, so summing panels do not double-count.
+
+### One setting that is not in git
+
+Grafana opens on an empty welcome page by default. The home dashboard, timezone and week
+start are set org-wide through the API:
+
+```console
+$ curl -u admin:<password> -X PUT https://grafana.tailc6abe2.ts.net/api/org/preferences \
+    -H 'Content-Type: application/json' \
+    -d '{"theme":"dark","homeDashboardUID":"efa86fd1d0c121a26444b636a3f509a8",
+         "timezone":"Europe/Budapest","weekStart":"monday"}'
+```
+
+That lives in Grafana's SQLite on its 5 GiB Longhorn volume. It survives a pod restart,
+but not a reinstall onto an empty volume. The Helm-values route is more awkward than it
+looks: `default_home_dashboard_path` wants a file path inside the sidecar's directory,
+which ties the setting to a dashboard's filename.
+
+> A trap while testing this from outside the cluster: the
+> `/api/datasources/proxy/<numeric id>/...` form returns `{"message":"Not found"}` on the
+> current Grafana; only `/api/datasources/proxy/uid/<uid>/...` works. The 404 body parses
+> as JSON, so a script that reads `data.result` sees an empty list - which is
+> indistinguishable from a metric that genuinely has no data. Every metric looked missing
+> until the path was corrected.
