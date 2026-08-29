@@ -15,7 +15,7 @@
 5. [Pangolin Resource Rules](#5-pangolin-resource-rules)
 6. [Future Security Improvements](#6-future-security-improvements)
 7. [Security Monitoring](#7-security-monitoring)
-8. [Incident Response](#8-incident-response)
+8. [Incident Response](#8-incident-response) - start at [8.0 SSH refused on port 22](#80-ssh-refused-on-port-22-check-this-before-anything-else)
 9. [Backup Strategy](#9-backup-strategy)
 10. [Security Checklist](#10-security-checklist)
 
@@ -1119,6 +1119,29 @@ Action items:
 ---
 
 ## 8. Incident Response
+
+### 8.0 SSH refused on port 22 - check this before anything else
+
+**Symptom:** `ssh vps` answers `Connection refused` on port 22 while the VPS is
+plainly alive: 443 open, the sites returning 200, ICMP fine.
+
+This is almost always **ufw's own `LIMIT` rule on 22**, not an outage, not a
+compromise, and not fail2ban. Six new SSH connections from one source IP inside
+30 seconds trip it, and it rejects with ICMP port-unreachable, which a TCP
+client prints as "Connection refused". A burst of deploy commands is enough.
+
+**Do not retry.** The rule refreshes its window on every attempt, so knocking
+keeps it shut. Wait a full minute without connecting, or come in over Tailscale
+(`ssh root@100.118.239.117`), which bypasses ufw entirely.
+
+Full diagnosis, the three commands that confirm it, and why fail2ban looks
+identical from the client side:
+[Hetzner VPS - the LIMIT on 22](../hosts/vps.md#the-limit-on-22-locks-out-the-maintainer-and-retrying-keeps-it-locked).
+
+Only once this is ruled out is [8.2 Suspected Attack](#82-suspected-attack)
+the right page.
+
+---
 
 ### 8.1 Service Down
 

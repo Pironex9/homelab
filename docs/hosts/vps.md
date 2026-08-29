@@ -110,6 +110,58 @@ Port 8120 is NOT open - Komodo Periphery uses outbound mode via Tailscale.
 
 The 3001 rule allows only the pangolin Docker bridge subnet to reach Uptime Kuma on the host. Port 3001 is not reachable from the internet.
 
+### The LIMIT on 22 locks out the maintainer, and retrying keeps it locked
+
+`LIMIT` is not a synonym for `ALLOW` with a note attached. ufw expands it into
+
+```
+-m recent --seconds 30 --hitcount 6 ... -j ufw-user-limit
+ufw-user-limit: REJECT --reject-with icmp-port-unreachable
+```
+
+so the **sixth new SSH connection from one source IP inside 30 seconds** is
+rejected, and a TCP client renders an ICMP port-unreachable as
+**`Connection refused`**. That is the trap: refused reads like a dead sshd or a
+changed port, not like a firewall - a firewall is supposed to time out.
+
+Hit on 2026-08-29 during a deploy session that opened one SSH connection per
+command. Everything else on the box was healthy at the same moment: 443 open,
+`https://homelabor.net` returning 200, ICMP fine, and `ss -lntp` showing sshd
+listening on `0.0.0.0:22` the whole time.
+
+**The retry is what sustains it.** The rule uses `--update`, which refreshes
+`last_seen` on every arriving packet, so the 30-second window restarts with each
+attempt and never expires while you keep knocking. Measured: 65 seconds of not
+connecting cleared it and the next single attempt succeeded.
+
+Confirm it is this and not something else, in three commands:
+
+```bash
+curl -s -4 ifconfig.me                                   # your egress IP
+# then, on the VPS over Tailscale:
+grep -F "src=<that ip> " /proc/net/xt_recent/DEFAULT      # ours read oldest_pkt: 15
+iptables -L ufw-user-limit -n                             # LOG + REJECT icmp-port-unreachable
+```
+
+**Rule fail2ban out rather than assuming it.** `fail2ban-client status sshd`
+listed two unrelated banned IPs that day, and the `f2b-sshd` chain does not even
+appear in `iptables -S` when it holds nothing. The two mechanisms look identical
+from the client side and are configured in completely different places.
+
+**The tailnet path is unaffected**, because Tailscale traffic enters through the
+`ts-input` chain, which sits ahead of ufw in `INPUT`:
+
+```bash
+ssh root@100.118.239.117   # homelab-vps, works throughout
+```
+
+That is how to finish an interrupted deploy without waiting, and how to inspect
+the firewall that is blocking you. The lasting fix for scripted work is to batch
+VPS commands into one SSH invocation instead of one per step, which is also why
+the landing-page redeploy in
+[compose/vps/landing/README.md](https://github.com/Pironex9/homelab/blob/main/compose/vps/landing/README.md)
+is written as a single chained command.
+
 ## Komodo Integration
 
 Periphery runs in outbound mode, connecting to Komodo Core via Tailscale mesh:
