@@ -142,7 +142,7 @@ projects.
 | `54:bf:64:68:a0:30` | opt5060-i5 | 192.168.1.101 |
 | `54:bf:64:a2:ff:77` | opt3060-i3 | 192.168.1.102 |
 | `d8:9e:f3:13:4d:97` | opt3050-i5 | 192.168.1.103 |
-| Orange Pi MAC | orangepione | 192.168.1.51 (DHCP, no reservation) |
+| `02:81:85:dc:83:d9` | orangepione | none - DHCP, `192.168.1.100` on 2026-08-29 |
 
 ### Reaching the remote router UI (2026-08-24)
 
@@ -168,8 +168,11 @@ Notes:
   the mobile app, unlike Windows and macOS.
 - If the client device is itself on a 192.168.1.0/24 network, its local subnet wins
   and 192.168.1.1 resolves to its own gateway instead.
-- `orangepione` used to advertise the old `192.168.2.0/24` here. That route is dead
-  and was left in place rather than removed.
+- `orangepione` used to advertise the old `192.168.2.0/24` here. That is gone: on
+  2026-08-29 its `AdvertiseRoutes` read `0.0.0.0/0`, `::/0`, `192.168.1.0/24`. Only
+  the two exit-node prefixes are approved, so it duplicates the advertisement of
+  this subnet without serving it - `PrimaryRoutes` on it is empty and `opt3060-i3`
+  remains the one carrying the prefix.
 
 
 ---

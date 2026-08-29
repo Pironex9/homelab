@@ -24,7 +24,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:type" content="image/png">
-<meta property="og:image:alt" content="A homelab run like production. Norbert Csicsay, homelabor.net. Fourteen nodes across two sites.">
+<meta property="og:image:alt" content="A homelab run like production. Norbert Csicsay, homelabor.net. Fifteen nodes across two sites.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
@@ -115,13 +115,14 @@
             <picture>
               <source type="image/webp" srcset="topology.webp">
               <img src="topology.png" width="1280" height="1360" loading="lazy" decoding="async"
-                   alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries nine LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a three-node K3s cluster on a second site.">
+                   alt="Topology map of the homelab. A Proxmox VE hypervisor at 192.168.0.109 carries nine LXC containers and one virtual machine on the home LAN, covering Docker, DNS, reverse proxy, password management, GitOps and automation. A Tailscale mesh links it to a second site holding a three-node K3s cluster and an Orange Pi One that wakes those nodes and serves as a Tailscale exit node.">
             </picture>
           </a>
         </div>
         <figcaption>
           The Proxmox host with its nine containers and one virtual machine, plus the
-          three K3s nodes at the second site: fourteen nodes over two subnets. The
+          three K3s nodes and the Orange Pi that wakes them at the second site:
+          fifteen nodes over two subnets. The
           Hetzner VPS serving this page and the desktop that holds the backup mirror
           are not on it. Every box is generated from one YAML file, so adding a host
           is a data edit rather than a redraw, but the rebuild is a deliberate step

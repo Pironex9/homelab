@@ -24,7 +24,7 @@ is shared. It is generated from `og.html` in this directory, which is kept out o
 `src/` on purpose: `build.sh` copies `src/` wholesale into a public web root, so the
 generator would otherwise be served at `https://homelabor.net/og.html`.
 
-The card prints two figures, **14 nodes** and **2 sites**. Both come from the same
+The card prints two figures, **15 nodes** and **2 sites**. Both come from the same
 `compose/proxmox-lxc-100/topology/nodes.yml` that generates `src/topology.png`, and
 the figcaption under the diagram on the page repeats them in words. Adding or removing
 a host therefore moves five things, and they must move in one go:

@@ -13,6 +13,7 @@ kinds:
   lxc: { label: "LXC container", color: "#5cc8ff" }
   vm: { label: "Virtual machine", color: "#b18aff" }
   k3s: { label: "K3s node", color: "#6ee7a0" }
+  sbc: { label: "Single-board computer", color: "#ff8fa3" }
 
 nodes:
   - badge: "PVE"
@@ -132,3 +133,11 @@ nodes:
     role: "K3s worker"
     hw: "Dell OptiPlex 3050, i5"
     detail: "Worker node. Longhorn replica target; kube-prometheus-stack runs on the cluster with Grafana behind a Tailscale Ingress."
+
+  - badge: "OPI ONE"
+    name: orangepione
+    site: remote
+    kind: sbc
+    role: "WoL + exit node"
+    hw: "Xunlong Orange Pi One (armv7l, 512 MB)"
+    detail: "Armbian. The three OptiPlex nodes are powered off when not in use; this board stays on and wakes them with magic packets (etherwake plus a raw UDP form), driven by a crontab entry, a small Flask UI and an SSH one-liner. It is also an approved Tailscale exit node. Its LAN address comes from DHCP with no reservation and has moved twice, so the tailnet address 100.120.73.44 is the one worth remembering."
