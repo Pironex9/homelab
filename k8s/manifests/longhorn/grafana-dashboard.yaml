@@ -189,7 +189,7 @@ data:
           "uid": "${datasource}"
          },
          "editorMode": "code",
-         "expr": "count(\r\n  (longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",volume=~\"$pv_name\"} == 1)\r\n  or\r\n  (longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",robustness=\"healthy\",volume=~\"$pv_name\"} == 1)\r\n) OR on() vector(0)",
+         "expr": "count(longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",state=\"healthy\",volume=~\"$pv_name\"} == 1) OR on() vector(0)",
          "interval": "",
          "legendFormat": "",
          "range": true,
@@ -365,7 +365,7 @@ data:
           "uid": "${datasource}"
          },
          "editorMode": "code",
-         "expr": "count(\r\n  (longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",volume=~\"$pv_name\"} == 2)\r\n  or\r\n  (longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",robustness=\"degraded\",volume=~\"$pv_name\"} == 1)\r\n) OR on() vector(0)",
+         "expr": "count(longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",state=\"degraded\",volume=~\"$pv_name\"} == 1) OR on() vector(0)",
          "interval": "",
          "legendFormat": "",
          "range": true,
@@ -431,7 +431,7 @@ data:
           "uid": "${datasource}"
          },
          "editorMode": "code",
-         "expr": "count(\r\n  (longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",volume=~\"$pv_name\"} == 3)\r\n  or\r\n  (longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",robustness=\"faulted\",volume=~\"$pv_name\"} == 1)\r\n) OR on() vector(0)",
+         "expr": "count(longhorn_volume_robustness{pvc_namespace=~\"$namespace\",pvc=~\"$pvc\",state=\"faulted\",volume=~\"$pv_name\"} == 1) OR on() vector(0)",
          "interval": "",
          "legendFormat": "",
          "range": true,

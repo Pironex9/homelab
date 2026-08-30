@@ -1,0 +1,104 @@
+# Alerts on the Longhorn metrics that the ServiceMonitor next to this file
+# started collecting on 2026-08-29.
+#
+# Until this object existed the storage layer was only visible on a dashboard,
+# which means it was only visible while somebody was looking at it. A volume
+# can sit degraded for days without a single character appearing anywhere.
+#
+# THE `release: monitoring` LABEL IS MANDATORY, for the same reason it is on
+# the ServiceMonitor: the Prometheus CR selects rules with
+# `ruleSelector: {matchLabels: {release: monitoring}}`. Without it Argo CD
+# reports Synced and Healthy while Prometheus never loads a single rule.
+#
+# `longhorn_volume_robustness` IS ONE-HOT ENCODED, NOT AN ENUM. On v1.12.1 the
+# manager emits one series per state with the state in a `state` label and the
+# value 0 or 1 (metrics_collector/volume_collector.go, collectVolumeRobustness).
+# So `longhorn_volume_robustness == 2` - the form the published dashboards and
+# most blog posts use - matches nothing here, silently and forever. Check the
+# label set before trusting any expression copied from outside this repo.
+#
+# `longhorn_backup_state` is the opposite: a plain numeric enum, from
+# metrics_collector/backup_collector.go, getBackupStateValue():
+#   0 New   1 Pending   2 InProgress   3 Completed   4 Error   5 Unknown
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: longhorn.rules
+      rules:
+        - alert: LonghornVolumeFaulted
+          # No usable replica left. This is data loss in progress, not a warning.
+          expr: longhorn_volume_robustness{state="faulted"} == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn volume {{ $labels.volume }} is FAULTED"
+            description: "PVC {{ $labels.pvc_namespace }}/{{ $labels.pvc }} has no healthy replica. Restore from the Garage S3 backup target."
+
+        - alert: LonghornVolumeDegraded
+          # A replica is missing and Longhorn is rebuilding, or cannot.
+          # `for: 10m` is deliberate: a normal rebuild took 37 seconds on
+          # 2026-08-28 and a node drain leaves a volume degraded for about as
+          # long. Anything shorter alerts on healthy maintenance.
+          expr: longhorn_volume_robustness{state="degraded"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume {{ $labels.volume }} degraded for 10m"
+            description: "PVC {{ $labels.pvc_namespace }}/{{ $labels.pvc }} has been rebuilding or missing a replica for over 10 minutes."
+
+        - alert: LonghornDiskNotSchedulable
+          # The three Longhorn disks are mounted from fstab with `nofail`, so a
+          # disk that fails to mount after a reboot does NOT stop the node from
+          # coming up. The k8s node stays Ready and only Longhorn notices.
+          expr: longhorn_disk_status{condition="schedulable"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn disk on {{ $labels.node }} is not schedulable"
+            description: "Disk {{ $labels.disk }} on {{ $labels.node }} cannot take replicas. Check that /var/lib/longhorn is mounted."
+
+        - alert: LonghornDiskFillingUp
+          # The usable size is set by the smallest node (457 GiB), not by the
+          # 2289 GiB of raw capacity, because the default is 3 replicas.
+          expr: longhorn_disk_usage_bytes / longhorn_disk_capacity_bytes > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn disk on {{ $labels.node }} is {{ $value | humanizePercentage }} full"
+            description: "Disk {{ $labels.disk }} on {{ $labels.node }} is over 85% full."
+
+        - alert: LonghornBackupFailed
+          # 4 = BackupStateError. Fires per backup, so the alert names the one
+          # that failed rather than just the volume.
+          expr: longhorn_backup_state == 4
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn backup {{ $labels.backup }} failed"
+            description: "Backup of volume {{ $labels.volume }} (job {{ $labels.recurring_job }}) is in Error state. Check the Garage S3 target on 192.168.0.110."
+
+        - alert: LonghornVolumeBackupStale
+          # RecurringJob backup-daily runs at 01:00 UTC, so 36h means two runs
+          # were missed, not one late one.
+          #
+          # The `> 0` guard is not cosmetic: a volume that has never been backed
+          # up reports 0 here, and `time() - 0` is 56 years. Without the guard
+          # every new PVC alerts the moment it is created.
+          expr: (time() - longhorn_volume_last_backup_at > 129600) and (longhorn_volume_last_backup_at > 0)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume {{ $labels.volume }} has no backup for 36h"
+            description: "The last backup of {{ $labels.volume }} is older than 36 hours. The daily RecurringJob at 01:00 UTC has missed at least two runs."
