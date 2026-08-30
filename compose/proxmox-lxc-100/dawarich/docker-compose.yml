@@ -9,6 +9,9 @@ services:
       POSTGRES_DB: dawarich
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DAWARICH_DB_PASSWORD}
+    # Docker's 10s default is not enough for a shutdown checkpoint - see the
+    # immich stack for the incident this comes from.
+    stop_grace_period: 60s
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d dawarich"]

@@ -33,6 +33,9 @@ services:
   kan-db:
     image: postgres:15
     container_name: kan-db
+    # Docker's 10s default is not enough for a shutdown checkpoint - see the
+    # immich stack for the incident this comes from.
+    stop_grace_period: 60s
     restart: unless-stopped
     environment:
       - POSTGRES_DB=kan_db
