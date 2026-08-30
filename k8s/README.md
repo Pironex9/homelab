@@ -627,7 +627,12 @@ route:
     # A Watchdog SZANDEKOSAN tuzel mindig - a riasztasi lanc eletjele. Ide nem
     # kell ertesites belole, kulonben 12 orankent szolna a semmirol. Ha egyszer
     # dead man's switchet akarsz belole, az egy Kuma push URL lenne receiverkent.
-    - matchers: ['alertname = "Watchdog"']
+    #
+    # Az InfoInhibitor 2026-08-30-ig kiment a telefonra, es a sajat szovege
+    # mondja meg, hogy nem kellene: "This alert should be routed to a null
+    # receiver". A stack sajat segedalertje az inhibition szabalyokhoz, egy
+    # embernek semmit nem jelent. Regexbe kerult a Watchdog melle.
+    - matchers: ['alertname =~ "Watchdog|InfoInhibitor"']
       receiver: "null"
 receivers:
   - name: "null"
