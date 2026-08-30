@@ -1,0 +1,31 @@
+# Monitoring for the home-side hosts, from the cluster.
+#
+# Separate from `monitoring` because that Application is a pure Helm source and
+# cannot carry plain manifests, and separate from `platform` because these are
+# not cluster plumbing. What lives here is everything the K3s cluster needs in
+# order to watch machines that are not part of it: a ScrapeConfig with static
+# tailnet targets, and the alerts on what those targets report.
+#
+# Both objects go into the `monitoring` namespace even though they describe
+# hosts elsewhere - that is where the Prometheus operator looks, and its
+# namespace selectors are empty (any namespace, labelled objects only).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homelab-hosts
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Pironex9/homelab.git
+    targetRevision: HEAD
+    path: k8s/manifests/homelab-hosts
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

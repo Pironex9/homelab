@@ -1,0 +1,51 @@
+# Scrapes the node_exporter on the two home-side hosts over the tailnet.
+#
+# The K3s cluster lives at a different location and reaches nothing on
+# 192.168.0.0/24 - the subnet route only exists in the other direction. Both
+# targets are therefore addressed by their tailnet IP, not their LAN IP. This
+# is why a home-side Tailscale subnet router is still on the roadmap: the six
+# LXCs that are not themselves on the tailnet (102 adguard, 103 vaultwarden,
+# 106 karakeep, 107 n8n, 110 caddy, 113 agentos) cannot be scraped until it
+# exists.
+#
+# Measured before writing this, from a throwaway pod in the monitoring
+# namespace, because pod egress to a 100.64.0.0/10 address is not obvious:
+#
+#   100.116.49.30:9100 -> 200
+#   100.97.95.101:9100 -> 200
+#
+# THE `release: monitoring` LABEL IS MANDATORY, the same as on the
+# ServiceMonitor and the PrometheusRule: the Prometheus CR selects with
+# `scrapeConfigSelector: {matchLabels: {release: monitoring}}`. Without it the
+# object is created, Argo CD is green, and no target appears.
+#
+# IPs rather than MagicDNS names on purpose. MagicDNS is not what resolves
+# inside the cluster - the pods use coredns - so `pve.tailc6abe2.ts.net` would
+# not resolve here.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: homelab-hosts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  staticConfigs:
+    - targets:
+        - 100.116.49.30:9100
+      labels:
+        instance: pve
+        role: hypervisor
+    - targets:
+        - 100.97.95.101:9100
+      labels:
+        instance: docker-host
+        role: lxc
+  scrapeInterval: 30s
+  metricsPath: /metrics
+  relabelings:
+    # Without this every series lands with `job: scrapeConfig/monitoring/homelab-hosts`,
+    # which is unreadable in a dashboard legend and sorts nowhere near the
+    # cluster's own node-exporter series.
+    - targetLabel: job
+      replacement: homelab-hosts

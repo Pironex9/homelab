@@ -1,0 +1,121 @@
+# Alerts for the two home-side hosts scraped by scrapeconfig.yaml.
+#
+# Until 2026-08-30 the K3s cluster - three machines running one workload - had
+# 22 scrape targets and six alerts, while the Proxmox box running nine LXCs,
+# 24 Compose stacks and 8.1 TB of data had nothing at all. `pve/data` has been
+# at 92% before, and the only thing that noticed was a person looking at the
+# dashboard.
+#
+# `release: monitoring` is mandatory here too (`ruleSelector`), same as on every
+# other object in this repo that the Prometheus operator has to pick up.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab-hosts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: homelab-hosts.rules
+      rules:
+        - alert: HomelabHostDown
+          # Also covers the tailnet path itself: these targets are reached over
+          # Tailscale, so a dead tailscaled looks identical to a dead host here.
+          # That is on purpose - both are worth knowing about.
+          expr: up{job="homelab-hosts"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Homelab host {{ $labels.instance }} is not answering"
+            description: "The node_exporter on {{ $labels.instance }} has been unreachable for 5 minutes. Either the host is down or its tailscaled is."
+
+        - alert: LvmThinPoolFillingUp
+          expr: lvm_thin_pool_data_percent > 85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LVM thin pool {{ $labels.vg }}/{{ $labels.lv }} is {{ $value }}% full"
+            description: "Every LXC and VM disk is carved out of this pool. `fstrim -av` on the host is the stopgap; the real fix is the second NVMe."
+
+        - alert: LvmThinPoolMetadataFillingUp
+          # Lower threshold and higher severity than the data area, deliberately.
+          # The metadata area is about 1 GiB for the 165 GiB pool here, it fills
+          # from snapshot churn rather than from stored data, and when it runs
+          # out the pool goes read-only - which stops every guest on it at once.
+          expr: lvm_thin_pool_metadata_percent > 70
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "LVM thin pool {{ $labels.vg }}/{{ $labels.lv }} metadata is {{ $value }}% full"
+            description: "The metadata area filling up takes the pool read-only, and with it every guest. This is more urgent than the data percentage."
+
+        - alert: HomelabThinPoolMetricsStale
+          # The two metrics above come from a textfile written by a systemd timer
+          # on pve. If the timer stops, node_exporter keeps serving the last
+          # values it read, for ever, with no error anywhere - the alerts above
+          # would then be watching a frozen number. The timer runs every 5
+          # minutes, so 30 minutes means six missed runs.
+          #
+          # The `file` label is the FULL PATH, not the basename. `file="lvm_thin.prom"`
+          # matches zero series and the alert is dead without a word of complaint -
+          # measured, after writing exactly that by hand first.
+          expr: time() - node_textfile_mtime_seconds{file=~".*/lvm_thin[.]prom"} > 1800
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Thin pool metrics on {{ $labels.instance }} are stale"
+            description: "lvm_thin_pool_* has not been refreshed for over 30 minutes. Check lvm-thin-textfile.timer on pve - the thin pool alerts are blind until it runs again."
+
+        - alert: HomelabDiskFillingUp
+          # The SnapRAID disks. /mnt/storage is the mergerfs union over them, so
+          # it appears here too - not a duplicate, it is the number that decides
+          # whether a new download fits.
+          expr: 100 * (1 - node_filesystem_avail_bytes{job="homelab-hosts",mountpoint=~"/mnt/.*"} / node_filesystem_size_bytes{job="homelab-hosts",mountpoint=~"/mnt/.*"}) > 90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full"
+            description: "SnapRAID needs free space on the data disks to sync. /mnt/disk3 is the smallest at 916 GB and the one that gets there first."
+
+        - alert: HomelabRootFilesystemFillingUp
+          # 85 rather than 90: the root filesystems here are small (59 GB on pve,
+          # 52 GB on the docker-host LV), so the last 10% is only a few GB and a
+          # single image pull can eat it.
+          expr: 100 * (1 - node_filesystem_avail_bytes{job="homelab-hosts",mountpoint="/"} / node_filesystem_size_bytes{job="homelab-hosts",mountpoint="/"}) > 85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Root filesystem on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full"
+            description: "Root on {{ $labels.instance }} is over 85%. On docker-host this is usually image and build-cache churn: `docker system df` first."
+
+        - alert: HomelabDiskSmartFailing
+          # The overall SMART self-assessment. It is a blunt instrument - a disk
+          # can be dying with this still at 1 - which is why the bad-sector rule
+          # below exists as well.
+          expr: smartmon_device_smart_healthy == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "SMART says {{ $labels.disk }} on {{ $labels.instance }} is failing"
+            description: "Overall SMART health assessment on {{ $labels.disk }} has flipped to failed. Replace it before the next SnapRAID sync overwrites the parity that could still rebuild it."
+
+        - alert: HomelabDiskBadSectors
+          # All four SnapRAID disks and the NVMe read exactly 0 on every one of
+          # these counters on 2026-08-30, so `> 0` is a real signal here, not a
+          # threshold picked to be quiet. These move before the overall health
+          # flag does.
+          expr: smartmon_current_pending_sector_raw_value > 0 or smartmon_reallocated_sector_ct_raw_value > 0 or smartmon_offline_uncorrectable_raw_value > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.disk }} on {{ $labels.instance }} has bad sectors ({{ $value }})"
+            description: "Pending, reallocated or uncorrectable sectors appeared on {{ $labels.disk }}. All of these were 0 when this alert was written."
