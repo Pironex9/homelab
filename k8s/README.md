@@ -884,6 +884,37 @@ modositasat tehat nem lehet elore lemerni ugy, ahogy egy ujat**; az uj Prometheu
 azert maradt meg, mert nincs rajta tracking-id, es a prune csak kovetett objektumot
 torol. Ilyenkor a sorrend forditott: push, aztan meres.
 
+### A hazai gepek metrikai a clusterbol (2026-08-30)
+
+A cluster - harom gep egy workloaddal - 22 targetet es 6 riasztast vitt, mikozben a pve,
+amin 9 LXC, 24 Compose stack es 8.1 TB adat fut, egyetlen kuszob-riasztast sem kuldott
+senkinek. `k8s/apps/homelab-hosts.yaml` + `k8s/manifests/homelab-hosts/` zarja ezt:
+
+| Fajl | Mit csinal |
+|---|---|
+| `scrapeconfig.yaml` | `ScrapeConfig` statikus tailnet targetekkel (pve, docker-host) |
+| `prometheusrule.yaml` | 8 riasztas: host down, thin pool, lemez telites, SMART |
+
+**Miert kulon Application:** a `monitoring` app tiszta Helm source, oda nyers manifest
+nem teheto; a `platform` viszont cluster-vizvezetek, ez meg nem az.
+
+**`ScrapeConfig`, nem `additionalScrapeConfigs`.** A CRD megvan
+(`scrapeconfigs.monitoring.coreos.com/v1alpha1`), a Prometheus CR `scrapeConfigSelector`-e
+ugyanaz a `release: monitoring` minta. Igy a kulso targetek gitbol jonnek, Helm values
+modositas es kezi Secret nelkul.
+
+**Tailnet IP-k, nem MagicDNS nevek.** A podok a corednst hasznaljak, tehat a
+`pve.tailc6abe2.ts.net` bent nem oldodna fel. Es hogy a pod egyaltalan kiter-e egy
+`100.64.0.0/10` cimre, az nem magatol ertetodo - eldobhato poddal merve a `monitoring`
+namespace-ben: `100.116.49.30:9100 -> 200`, `100.97.95.101:9100 -> 200`.
+
+**Amit nem fed:** a hat LXC, ami nincs a tailneten (102, 103, 106, 107, 110, 113). Azokhoz
+a hazai oldali subnet router kell.
+
+A host oldali resz - a Debian `/mnt` kizarasa, a `nofail`-es bind, a thin pool textfile
+collector es a Netdata amirol kiderult, hogy vegig riasztott a semmibe - a
+[44-es doksiban](https://docs.homelabor.net/proxmox/44_Host_Metrics_Into_The_K3s_Prometheus/).
+
 ## Longhorn felulet: `https://longhorn.tailc6abe2.ts.net`
 
 Eddig csak `kubectl port-forward`-dal volt elerheto, ami egy folyamat a 109-en es a

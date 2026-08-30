@@ -595,3 +595,51 @@ picking - the full argument is in
 - [Backup Strategy](../docs/proxmox/15_Proxmox_Backup_System_Documentation.md)
 - [HTTPS for .lan on Windows](../docs/hosts/winpc.md#https-for-lan-services)
 - [Seelen UI on the Windows dual boot](../docs/hosts/winpc.md#seelen-ui)
+
+---
+
+## lvm-thin-textfile.sh
+
+Exports the `pve/data` thin pool fill levels for the Prometheus node_exporter. Runs on
+**pve**, not on this LXC, from a systemd timer every five minutes.
+
+```
+lvm_thin_pool_data_percent{vg="pve",lv="data"} 62.55
+lvm_thin_pool_metadata_percent{vg="pve",lv="data"} 3.41
+lvm_thin_pool_size_bytes{vg="pve",lv="data"} 177100292096
+```
+
+node_exporter has no LVM collector, and a thin pool is not a filesystem, so
+`node_filesystem_*` cannot see it - while it is the thing every LXC and VM disk is carved
+out of, and the thing that has been at 92% before.
+
+### Install
+
+```bash
+scp scripts/lvm-thin-textfile.sh root@192.168.0.109:/usr/local/bin/
+ssh root@192.168.0.109 'chmod 755 /usr/local/bin/lvm-thin-textfile.sh'
+# then lvm-thin-textfile.service (Type=oneshot) and .timer
+#      (OnBootSec=2min, OnUnitActiveSec=5min) in /etc/systemd/system/
+ssh root@192.168.0.109 'systemctl enable --now lvm-thin-textfile.timer'
+```
+
+The full unit files and the reasoning are in
+[44 - Host Metrics Into The K3s Prometheus](../docs/proxmox/44_Host_Metrics_Into_The_K3s_Prometheus.md).
+
+### Two things in it that look optional and are not
+
+**`--select 'lv_attr =~ ^t'`** keeps the output to thin *pools*. Without it every thin
+volume carved out of the pool reports its own `data_percent`, and each guest disk shows
+up looking like a pool of its own.
+
+**The write is atomic** - temp file, then `mv`. The textfile collector reads whole files
+on every scrape, so writing in place produces a parse error whenever a scrape lands
+mid-write. Rare, and therefore the kind of bug that surfaces once a month looking like
+something else entirely.
+
+### It has a dead man's switch
+
+If the timer stops, node_exporter keeps serving the last values it read, for ever, with
+no error anywhere - and the thin-pool alerts would be watching a frozen number while
+reporting healthy. `HomelabThinPoolMetricsStale` in
+`k8s/manifests/homelab-hosts/prometheusrule.yaml` fires after six missed runs.
