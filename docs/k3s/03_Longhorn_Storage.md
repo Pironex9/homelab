@@ -748,3 +748,121 @@ which ties the setting to a dashboard's filename.
 > as JSON, so a script that reads `data.result` sees an empty list - which is
 > indistinguishable from a metric that genuinely has no data. Every metric looked missing
 > until the path was corrected.
+
+---
+
+## Alerting on the storage layer (2026-08-30)
+
+The three files from the day before made the storage layer visible. Visible is not the
+same as noticed: a dashboard only reports while somebody is looking at it, and a volume
+can sit degraded for days without producing a single character anywhere. A fourth file,
+`k8s/manifests/longhorn/prometheusrule.yaml`, closes that with six rules.
+
+| Alert | Expression | `for` | Severity |
+|---|---|---|---|
+| `LonghornVolumeFaulted` | `longhorn_volume_robustness{state="faulted"} == 1` | 1m | critical |
+| `LonghornVolumeDegraded` | `longhorn_volume_robustness{state="degraded"} == 1` | 10m | warning |
+| `LonghornDiskNotSchedulable` | `longhorn_disk_status{condition="schedulable"} == 0` | 10m | warning |
+| `LonghornDiskFillingUp` | `longhorn_disk_usage_bytes / longhorn_disk_capacity_bytes > 0.85` | 15m | warning |
+| `LonghornBackupFailed` | `longhorn_backup_state == 4` | 5m | warning |
+| `LonghornVolumeBackupStale` | `time() - longhorn_volume_last_backup_at > 129600` | 30m | warning |
+
+The `release: monitoring` label is mandatory here too, for the same reason as on the
+ServiceMonitor. The Prometheus CR was read rather than assumed:
+
+```console
+$ kubectl -n monitoring get prometheus -o jsonpath='{.items[*].spec.ruleSelector}'
+{"matchLabels":{"release":"monitoring"}}
+```
+
+### The metric is one-hot, and that breaks every expression copied from elsewhere
+
+`longhorn_volume_robustness` is not an enum. On v1.12.1 the manager emits one series per
+robustness state, with the state in a `state` label and the value 0 or 1
+(`metrics_collector/volume_collector.go`, `collectVolumeRobustness`). The published
+dashboards and most write-ups still use the old numeric form, `== 2` for degraded. That
+matches nothing here, silently, forever. Measured on the live cluster:
+
+```
+longhorn_volume_robustness{robustness=~".+"}   0 series   <- no such label exists
+longhorn_volume_robustness >= 2                0 series   <- no such value exists
+longhorn_volume_robustness == 1                3 series   <- exactly one per volume
+```
+
+### The imported dashboard was already lying about it
+
+Grafana dashboard 16888 tries both encodings in its three robustness panels - `== 2`
+**or** `robustness="degraded"` - and on 1.12.1 neither branch matches. The result is not
+an empty panel, which would be obvious. It is a wrong number that looks right:
+
+- **Number Of Degraded Volumes** and **Number Of Fault Volumes** read 0 forever
+- **Number Of Healthy Volumes** counts *every* volume, because in a one-hot encoding
+  exactly one series per volume has the value 1 no matter which state it is
+
+With three healthy volumes all three panels showed the correct figures on the day they
+were installed. That is precisely what made it worth checking: a panel that agrees with
+reality while everything is fine proves nothing about the day something breaks. All
+three expressions are now rewritten to `state="..."`.
+
+`longhorn_backup_state`, by contrast, really is a plain numeric enum
+(`metrics_collector/backup_collector.go`, `getBackupStateValue`): `0 New, 1 Pending,
+2 InProgress, 3 Completed, 4 Error, 5 Unknown`. Hence `== 4` rather than a label match.
+
+### Two thresholds that are measurements, not taste
+
+**`for: 10m` on degraded.** A normal replica rebuild took 37 seconds in the
+2026-08-28 drain measurement, and a node drain leaves a volume degraded for roughly that
+long. A shorter window would page on healthy maintenance.
+
+**The `> 0` guard on backup age.** A volume that has never been backed up reports 0 for
+`longhorn_volume_last_backup_at`, and `time() - 0` is 56 years. Without the guard every
+new PVC would alert the moment it is created:
+
+```
+(time() - longhorn_volume_last_backup_at > 129600) and (longhorn_volume_last_backup_at > 0)
+```
+
+129600 seconds is 36 hours, so it takes two missed runs of the 01:00 UTC RecurringJob,
+not one late one.
+
+### The `nofail` alert
+
+The three Longhorn disks are mounted from `/etc/fstab` with `nofail`, so a disk that
+fails to mount after a reboot does not stop the node from coming up. The Kubernetes node
+stays `Ready` and nothing at that level looks wrong; only Longhorn knows its disk is
+gone. `LonghornDiskNotSchedulable` is the alert for the failure mode that option
+creates.
+
+### The chain was measured end to end, not just the rules
+
+Rules that load are not rules that reach anyone. A temporary rule named
+`LonghornAlertPipelineTest` (`for: 0s`, always-true expression) was applied, and every
+hop confirmed before it was deleted again: Prometheus evaluated it, Alertmanager listed
+it as `active` with `receivers: [telegram]`, and no error appeared in the Alertmanager
+log. After deletion the alert lingered for a few minutes because `resolve_timeout` is
+`5m`, then resolved itself.
+
+Both selector sets were also checked against reality before trusting them - every one of
+the six expressions returns series when the state filter is removed, and zero series
+with the alert condition applied, which is the correct answer for a healthy cluster:
+
+```
+longhorn_volume_robustness{state="faulted"}      3 series   -> == 1 gives 0
+longhorn_volume_robustness{state="degraded"}     3 series   -> == 1 gives 0
+longhorn_disk_status{condition="schedulable"}    3 series   -> == 0 gives 0
+longhorn_disk_usage_bytes / *_capacity_bytes     3 series   -> > 0.85 gives 0
+longhorn_backup_state                            7 series   -> == 4 gives 0
+longhorn_volume_last_backup_at > 0               3 series   -> stale check gives 0
+```
+
+### Argo CD's selfHeal changes the order of work
+
+The dashboard fix was applied with `kubectl apply` first, the way every other change on
+this cluster is measured before it is pushed. It reported `configmap ... configured` and
+then quietly reverted: `selfHeal: true` put the git version back within seconds, and the
+Grafana sidecar log shows the two writes in a row.
+
+The rule that follows from this: **an object Argo CD already tracks cannot be measured
+before the push, only after it.** A brand new object can, which is why the new
+PrometheusRule survived its own `kubectl apply` - it carries no tracking-id yet, and
+prune only removes what is tracked.

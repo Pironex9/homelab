@@ -809,6 +809,81 @@ lehetseges allapot (`attached`, `attaching`, `creating`, `deleting`, `detached`,
 `detaching`) egy-egy sor, egyesevel 0/1 ertekkel. A kotet metrikait csak az ot birtoklo
 manager exportalja, tehat osszegzo panelekben nincs tobbszoros szamolas.
 
+### Longhorn riasztasok (2026-08-30)
+
+A 08-29-i harom fajl a metrikakat lathatova tette, de csak egy dashboardon, tehat csak
+addig, amig valaki oda nez. Egy kotet napokig allhatott volna degradaltan ugy, hogy
+sehol egyetlen karakter nem jelenik meg rola. Ezt zarja be a negyedik fajl,
+`k8s/manifests/longhorn/prometheusrule.yaml`, hat szaballyal:
+
+| Alert | Kifejezes | `for` | Sulyossag |
+|---|---|---|---|
+| `LonghornVolumeFaulted` | `longhorn_volume_robustness{state="faulted"} == 1` | 1m | critical |
+| `LonghornVolumeDegraded` | `longhorn_volume_robustness{state="degraded"} == 1` | 10m | warning |
+| `LonghornDiskNotSchedulable` | `longhorn_disk_status{condition="schedulable"} == 0` | 10m | warning |
+| `LonghornDiskFillingUp` | `longhorn_disk_usage_bytes / longhorn_disk_capacity_bytes > 0.85` | 15m | warning |
+| `LonghornBackupFailed` | `longhorn_backup_state == 4` | 5m | warning |
+| `LonghornVolumeBackupStale` | `time() - longhorn_volume_last_backup_at > 129600` | 30m | warning |
+
+A `release: monitoring` cimke itt is kotelezo, ugyanabbol az okbol, mint a
+ServiceMonitoron: `ruleSelector: {"matchLabels":{"release":"monitoring"}}`,
+`ruleNamespaceSelector: {}` (leellenorizve a Prometheus CR-en, nem feltetelezve).
+
+**A `longhorn_volume_robustness` ONE-HOT, nem enum - es ezen bukik el minden
+mashonnan masolt kifejezes.** A v1.12.1 managere allapotonkent kulon sort ad ki, az
+allapot a `state` cimkeben van, az ertek 0 vagy 1
+(`metrics_collector/volume_collector.go`, `collectVolumeRobustness`). Merve ezen a
+clusteren:
+
+```
+longhorn_volume_robustness{robustness=~".+"}   0 sor   <- ilyen cimke nincs
+longhorn_volume_robustness >= 2                0 sor   <- a regi enum sincs
+longhorn_volume_robustness == 1                3 sor   <- kotetenkent pontosan egy
+```
+
+Ennek **egy meglevo panel is aldozatul esett**: a beimportalt 16888-as dashboard harom
+`robustness` panelje mindket kodolast probalja (`== 2` VAGY `robustness="degraded"`), es
+1.12.1-en egyik agra sincs egyetlen sor sem. A kovetkezmeny nem az, hogy uresen marad,
+hanem hogy **hazudik**: a "Number Of Degraded Volumes" es a "Number Of Fault Volumes"
+orokre 0, a "Number Of Healthy Volumes" pedig az OSSZES kotetet szamolja, mert a
+`== 1` a one-hot kodolasban kotetenkent pontosan egy sorra igaz, fuggetlenul attol,
+melyik allapot az. Harom kotettel ma mind a harom panel a helyes szamot mutatta, es
+pont ez a rossz benne. A `grafana-dashboard.yaml`-ben mind a harom kifejezes at lett
+irva `state="..."` alakra.
+
+**A `longhorn_backup_state` ezzel szemben sima szamenum**
+(`metrics_collector/backup_collector.go`, `getBackupStateValue`):
+`0 New, 1 Pending, 2 InProgress, 3 Completed, 4 Error, 5 Unknown`. A riasztas ezert
+`== 4`, nem cimkere szur.
+
+**A `> 0` kapu a mentes-korra nem kozmetika.** Egy sose mentett kotet 0-t ir ide, es
+`time() - 0` az 56 ev, tehat kapu nelkul minden uj PVC azonnal riasztana a
+letrehozasa pillanataban.
+
+**A `for: 10m` a degradalt agon merve van, nem tippelve:** egy normal
+replika-ujraepules 37 masodperc volt a 2026-08-28-i meresen, egy node drain nagyjabol
+ennyi ideig hagyja degradaltan a kotetet. Rovidebb ablak az egeszseges karbantartasra
+riasztana.
+
+**A `LonghornDiskNotSchedulable` a `nofail` miatt van.** A harom Longhorn lemez az
+fstabbol jon `nofail`-lel, tehat egy fel nem csatolodo lemez utan a node **feljon es
+`Ready` marad**, a k8s szintjen semmi nem latszik. Csak a Longhorn tudja.
+
+**A lancot vegig lemertuk, nem csak a szabalyokat.** Egy ideiglenes,
+`LonghornAlertPipelineTest` nevu szabaly (`for: 0s`, mindig igaz kifejezes) vegigment az
+uton: Prometheus kiertekelte, az Alertmanager `active` allapotban felvette, a
+`receivers` mezoje `telegram`, es hibauzenet nem keletkezett. A szabaly utana torolve;
+az Alertmanager a `resolve_timeout: 5m` miatt meg par percig mutatta, majd magatol
+resolved-et kuldott.
+
+**Amit menet kozben megtanultunk az Argo CD-rol:** a `grafana-dashboard.yaml` javitasat
+a `kubectl apply` elfogadta (`configmap ... configured`), de a `selfHeal: true` par
+masodpercen belul visszaallitotta a gitben levo valtozatra - a sidecar naplojaban ket
+`Writing /tmp/dashboards/longhorn.json` sor all egymas utan. **Mar kovetett objektum
+modositasat tehat nem lehet elore lemerni ugy, ahogy egy ujat**; az uj PrometheusRule
+azert maradt meg, mert nincs rajta tracking-id, es a prune csak kovetett objektumot
+torol. Ilyenkor a sorrend forditott: push, aztan meres.
+
 ## Longhorn felulet: `https://longhorn.tailc6abe2.ts.net`
 
 Eddig csak `kubectl port-forward`-dal volt elerheto, ami egy folyamat a 109-en es a
