@@ -247,6 +247,140 @@ $ kubectl -n monitoring run reach --rm -i --restart=Never --image=curlimages/cur
 
 Both targets answered, and both came up in Prometheus within one scrape interval.
 
+## Netdata, narrowed instead of silenced (2026-08-30)
+
+Leaving 329 alarms wired to a mailbox nobody reads was not an option once it was known,
+and turning all 329 loose on a phone would have been worse. What it got instead: local
+mail off, critical-only to ntfy, and the three alarms that now overlap with the
+Alertmanager muted.
+
+### The division of labour
+
+**Prometheus owns storage.** `disk_space_usage`, `lvm_lv_data_space_utilization` and
+`lvm_lv_metadata_space_utilization` are muted in Netdata, because the same disk filling
+up would otherwise arrive twice, on two channels, at two different thresholds, with no
+shared silencing during maintenance.
+
+**Netdata owns everything Prometheus is not watching on this host** - CPU, RAM, swap,
+TCP accept/SYN queue drops, conntrack saturation, file descriptors, inode exhaustion,
+process counts. Of its 329 alarms only 65 have a CRITICAL threshold at all, across 22
+distinct names, and that is the set that can now reach a phone.
+
+### `to: silent` in `health.d` did nothing, the silencers file did
+
+The obvious way to disarm a stock alarm is a file in `/etc/netdata/health.d/` that
+redeclares the template with `to: silent`. It was written, `netdatacli reload-health`
+returned 0, no error appeared in any log - and the recipients were unchanged:
+
+```
+disk_space_usage                    9 instances  recipient=['sysadmin']
+lvm_lv_data_space_utilization       1 instance   recipient=['sysadmin']
+```
+
+A partial redeclaration is not enough to replace the stock template, and nothing says so.
+The mechanism that does work is the health management API, which persists to
+`/var/lib/netdata/health.silencers.json` immediately:
+
+```bash
+TOKEN=$(cat /var/lib/netdata/netdata.api.key)
+for A in disk_space_usage lvm_lv_data_space_utilization lvm_lv_metadata_space_utilization; do
+  curl -s -H "X-Auth-Token: $TOKEN" \
+    "http://localhost:19999/api/v1/manage/health?cmd=SILENCE&alarm=$A"
+done
+```
+
+`SILENCE` keeps evaluating the alarm and only stops the notification, so it stays visible
+in the Netdata UI. `DISABLE` would stop the evaluation too. The dead `health.d` file was
+removed rather than left in place looking like it works.
+
+### The `|critical` filter is broken for ntfy on this version
+
+Netdata's documented way to say "critical only" is a suffix on the recipient:
+
+```
+DEFAULT_RECIPIENT_NTFY="https://ntfy.lan/homelab-digest|critical"
+```
+
+On v2.11.0-174-nightly `send_ntfy()` puts the recipient string straight into the curl URL
+without stripping that suffix, so the POST goes to a URL that does not exist:
+
+```
+failed to send ntfy notification to 'https://ntfy.lan/homelab-digest|critical'
+... with HTTP response status code 404.
+```
+
+Measured both ways from the host: suffixed **404**, plain **200**. The generic recipient
+loop in `alarm-notify.sh` does strip it (`arr_var[${r/|*/}]`), and ntfy is in
+`method_names`, so this reads like it should work - which is why it is worth writing
+down rather than rediscovering.
+
+What makes it dangerous is where the failure shows up. The severity filter itself works,
+so warnings correctly stop; only criticals are attempted, and they fail in the
+notification log. A quick test on a warning alarm reports success. The narrowing would
+have looked configured and delivered exactly nothing - the same shape as the original
+problem, one layer in.
+
+### `custom_sender()` instead
+
+`SEND_NTFY="NO"`, `SEND_CUSTOM="YES"`, and a sender that gates on `${status}` itself:
+
+```bash
+custom_sender() {
+    case "${status}" in
+        CRITICAL) prio="urgent"; tags="rotating_light" ;;
+        CLEAR)
+            [ "${old_status}" != "CRITICAL" ] && return 1
+            prio="default"; tags="white_check_mark"
+            ;;
+        *) return 1 ;;
+    esac
+    ...
+}
+```
+
+The `CLEAR` arm is not optional. Without it an alarm that goes critical and then resolves
+itself stays open as far as the phone is concerned, and the next one reads as a
+continuation rather than a new event.
+
+Verified with `alarm-notify.sh test`, which walks all three transitions:
+
+```
+# SENDING TEST WARNING ALARM TO ROLE: sysadmin
+# FAILED        <- the gate: nothing sent, which is the intended result
+# SENDING TEST CRITICAL ALARM TO ROLE: sysadmin
+# OK
+# SENDING TEST CLEAR ALARM TO ROLE: sysadmin
+# OK
+```
+
+A warning transition logs nothing at all, so the suppressed path leaves no trail that
+looks like a fault later.
+
+### The file only holds the differences
+
+`alarm-notify.sh` sources the stock config first and `/etc/netdata/health_alarm_notify.conf`
+second, so the user file needs only what changes. Copying the whole stock file - which is
+what `edit-config` does - would freeze every other default at the version it was copied
+from, and that drift is invisible until something else stops working.
+
+### The mkcert CA had to go into pve's trust store
+
+`ntfy.lan` is served by Caddy with an mkcert certificate. pve resolved the name but did
+not trust the issuer:
+
+```console
+$ curl https://ntfy.lan/
+curl: (60) SSL certificate problem: unable to get local issuer certificate
+```
+
+Every homelab script had been papering over this with `curl -k`. The custom sender
+deliberately does not, so the CA went in properly - `rootCA.pem` from the Caddy LXC into
+`/usr/local/share/ca-certificates/homelab-mkcert.crt`, then `update-ca-certificates`.
+Only the public CA, never `rootCA-key.pem`. Adding `-k` to the sender instead would have
+worked and would also have silenced a genuine certificate failure for ever.
+
+---
+
 ## What this does not cover
 
 Six LXCs are not on the tailnet and cannot be scraped from the cluster: 102 adguard, 103
