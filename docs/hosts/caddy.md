@@ -7,7 +7,7 @@
 | Hostname | caddy |
 | IP Address | 192.168.0.208 (static since 2026-07-06, was DHCP - see proxmox doc 25) |
 | VMID | 110 |
-| OS | Alpine Linux 3.23 |
+| OS | Alpine Linux 3.24.1 (upgraded from 3.23.3 on 2026-08-30 - see proxmox doc 45) |
 | CPU | 1 core |
 | RAM | 256 MB |
 | Disk | 3 GB (local-lvm) |
@@ -29,7 +29,7 @@
 
 ## Caddy
 
-**Version:** v2.11.2 (installed via community-scripts Alpine LXC)
+**Version:** v2.11.4 (installed via community-scripts Alpine LXC; 2.11.2 -> 2.11.4 with the 3.24 release upgrade on 2026-08-30)
 **Config:** `/etc/caddy/Caddyfile`
 **Certs:** `/etc/caddy/certs/`
 

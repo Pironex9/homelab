@@ -152,6 +152,7 @@ nav:
           - 42 - Sonarr/Radarr Missing Media Audit: proxmox/42_Sonarr_Radarr_Missing_Media_Audit.md
           - 43 - Nobara DSCP SSH Timeout: proxmox/43_Nobara_DSCP_SSH_Timeout.md
           - 44 - Host Metrics Into The K3s Prometheus: proxmox/44_Host_Metrics_Into_The_K3s_Prometheus.md
+          - 45 - Fleet-Wide Package Updates: proxmox/45_Fleet_Wide_Package_Updates.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
