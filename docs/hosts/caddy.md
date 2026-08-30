@@ -63,7 +63,7 @@ Renewing the server cert therefore touches nothing on the clients. Use the thumb
 pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   -cert-file /etc/caddy/certs/lan.pem \
   -key-file /etc/caddy/certs/lan-key.pem \
-  proxmox.lan adguard.lan komodo.lan karakeep.lan n8n.lan ollama.lan \
+  proxmox.lan adguard.lan komodo.lan karakeep.lan n8n.lan \
   jellyfin.lan homepage.lan portfolio.lan topology.lan immich.lan bentopdf.lan docuseal.lan \
   qbit.lan sonarr.lan form.lan syncthing.lan \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
@@ -155,7 +155,6 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | komodo.lan | http://192.168.0.105:9120 |
 | karakeep.lan | http://192.168.0.128:3000 |
 | n8n.lan | http://192.168.0.112:5678 |
-| ollama.lan | http://192.168.0.231:11434 |
 | jellyfin.lan | http://192.168.0.110:8096 |
 | homepage.lan | http://192.168.0.110:3002 |
 | portfolio.lan | http://192.168.0.110:3008 |
@@ -183,6 +182,14 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | agentos.lan | http://192.168.0.71:7000 (Odysseus, LXC 113) |
 | hermes.lan | http://192.168.0.71:8787 (Hermes WebUI, LXC 113) |
 | ntfy.lan | http://192.168.0.71:8091 (ntfy, Odysseus sidecar, LXC 113) |
+
+**Removed 2026-08-30: `ollama.lan`.** It proxied to `192.168.0.231:11434`, a host that no
+longer answers ICMP - the Ollama LXC was decommissioned on 2026-07-21 and Karakeep's AI
+moved to Gemini on 2026-08-13, but the Caddy block outlived both. The symptom was a 502,
+which is worth distinguishing from a proxy fault: a 502 means Caddy is working and the
+upstream is not. With the block gone the hostname falls through to the catch-all and
+returns 404. The mkcert SAN list above still needs regenerating to drop the name, which
+is deferred - an unused SAN costs nothing and regenerating the cert touches every client.
 
 **Note on qbit.lan:** qBittorrent 5.1+ reads `X-Forwarded-Proto: https` from trusted proxies to automatically set the `Secure` flag on its session cookie. The Caddy block explicitly sets this header even on HTTP requests so the behavior is consistent.
 

@@ -352,6 +352,49 @@ it started. A second pass after the two Alpine upgrades gave back another 1.7 GB
 
 ---
 
+## The two follow-ups, closed the same evening
+
+**Every database got a stop timeout.** The 10-second default is what turned a daemon
+restart into a SIGKILL, so `stop_grace_period: 60s` went on all five:
+
+| Container | Host | Where the setting lives |
+|---|---|---|
+| `immich_postgres` | LXC 100 | `compose/proxmox-lxc-100/immich/docker-compose.yml` |
+| `dawarich_db` | LXC 100 | `compose/proxmox-lxc-100/dawarich/docker-compose.yml` |
+| `kan-db` | LXC 100 | `compose/proxmox-lxc-100/kan/docker-compose.yml` |
+| `rails-lab-db` | LXC 100 | `/opt/rails-lab/compose.yaml` - deliberately not in this repo |
+| `komodo-mongo-1` | LXC 105 | `/opt/komodo/mongo.compose.yaml` - not in this repo |
+
+Redis and valkey were left at the default on purpose. Their SIGTERM path is a background
+save that finishes well inside ten seconds, and neither was involved in the incident.
+
+**Editing the compose file is not enough.** `stop_grace_period` is baked into the container
+at creation, so until the container is recreated `docker inspect -f '{{.Config.StopTimeout}}'`
+still returns `<nil>` and the next daemon restart kills it exactly as before. All five were
+recreated - the three git-backed stacks through the Komodo API, the other two in place.
+
+There is a trap in that recreation. `docker compose up -d` stops the old container using the
+**old** setting, which is the very 10 seconds being fixed. So each database was stopped by
+hand first:
+
+```bash
+docker stop -t 60 immich_postgres
+#   ExitCode=0
+#   LOG:  database system is shut down
+```
+
+`ExitCode=0` and `database system is shut down`, against the morning's `Exited (137)`. Mongo
+the same: `mongod shutdown complete`, `exitCode: 0`, 41 ms.
+
+**The dead `ollama.lan` route came out of the Caddyfile.** The 502 found during the Caddy
+verification was a hostname proxying to `192.168.0.231:11434`, a machine that no longer
+answers ICMP - the Ollama LXC was decommissioned on 2026-07-21 and Karakeep moved to Gemini
+on 2026-08-13, but the reverse-proxy block outlived both by six weeks. It now returns 404
+from the catch-all instead. The mkcert SAN list still carries the name; regenerating the
+cert touches every client for no benefit, so that is deferred.
+
+---
+
 ## End state
 
 | | Before | After |
