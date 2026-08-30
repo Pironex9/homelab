@@ -700,7 +700,9 @@ ki, hogy a config nem frissul, pedig frissult. A nem-titkos mezok - peldaul a
 **Amivel a tokencsere tenyleg bizonyithato:** a visszavont token 401-et ad, tehat ha az
 Alertmanager meg azzal kuldene, az
 `alertmanager_notifications_failed_total{reason="authError"}` nonne. Egy sikeres kuldes
-nulla hibaval csak az uj tokennel lehetseges. Szintetikus riasztast a
+nulla hibaval csak az uj tokennel lehetseges. **Igy is tortent 2026-08-30-an:**
+1 kuldes, 0 hiba, es a `FIRING` + `RESOLVED` par megjelent a csoportban 20:59-kor es
+21:04-kor. Szintetikus riasztast a
 `POST /api/v2/alerts`-szel lehet betolni, ideiglenes PrometheusRule nelkul - a
 konteneren belul `--post-data`-val, mert a fajlrendszer read-only.
 

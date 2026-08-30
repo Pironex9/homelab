@@ -381,6 +381,29 @@ worked and would also have silenced a genuine certificate failure for ever.
 
 ---
 
+## Three disk-health tools, and which one wakes you up
+
+Adding SMART alerts to the Alertmanager put a third tool on the same disks, so the
+division has to be written down or someone will later assume two of them are broken.
+
+| Tool | Where | What it is for |
+|---|---|---|
+| **Scrutiny** | container on LXC 100, `:8082`; collector timer on pve, hourly | the UI. Full attribute history per disk, temperature curves, failure-rate context |
+| **Netdata** | pve, port 19999 | live troubleshooting for everything except storage - see the section above |
+| **Alertmanager** | K3s cluster | the only one that reaches a phone |
+
+`HomelabDiskSmartFailing` and `HomelabDiskBadSectors` read the `smartmon.prom` textfile
+that the node_exporter package's own hourly timer writes, not Scrutiny's database. That
+is deliberate: two collectors on the same `smartctl` output is cheap, while making the
+alerting depend on Scrutiny's container being up would put a UI in the path of a disk
+failure notification.
+
+**So Scrutiny stays, and it stays silent.** It is where you look once an alert has
+arrived, or when deciding which disk to replace. It is not expected to notify, and if it
+ever starts, that is a duplicate to turn off rather than a fix.
+
+---
+
 ## What this does not cover
 
 Six LXCs are not on the tailnet and cannot be scraped from the cluster: 102 adguard, 103
