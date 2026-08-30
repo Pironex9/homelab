@@ -613,6 +613,14 @@ A **teljes** `alertmanager.yaml` egy kezzel keszitett Secretbol jon
 (`alertmanagerSpec.configSecret`), mert ket titkot tartalmaz. A sablon itt van, hogy
 reprodukalhato maradjon - a `.env.example` mintajara:
 
+**A riasztasoknak sajat botja van 2026-08-30 ota: `@Homelabor_net_bot`.** Addig az AI
+digest botja (`Friss_AI_news_bot`) kuldte a riasztasokat is - egy token ket
+szolgaltatasra, tehat az egyik szivargasa mindkettot magaval viszi. Pontosan ez tortent
+aznap. A `chat_id` valtozatlan, mert az a csoporte, nem a bote; **az uj botot tagkent
+hozza kell adni a csoporthoz**, kulonben a `sendMessage` 403-mal hasal el
+(`bot is not a member of the group chat`), es az Alertmanager `clientError`-kent
+szamolja el.
+
 ```yaml
 # alertmanager.yaml
 global:
@@ -668,6 +676,41 @@ csoportba** -> csak ezutan adja vissza a `getUpdates` az azonositot.
 > **Ha a csoportot Telegram kesobb szupercsoportta alakitja, az azonosito MEGVALTOZIK**,
 > es a riasztasok csendben elhalnak - a `..._failed_total{reason="clientError"}` szamlalo
 > viszont jelezni fogja. Ilyenkor ugyanez a lepessor kell ujra.
+
+#### A token harom helyen el, es a harmadikat az elso felmeres kihagyta
+
+| Hely | Mire jo |
+|---|---|
+| `monitoring/alertmanager-telegram` Secret | ezt olvassa az Alertmanager (`configSecret`) |
+| `/root/.secrets/alertmanager.yaml` (109, mode 600) | ebbol keszul a Secret |
+| `/root/.secrets/telegram-alerts-bot` (109, mode 600) | csak a token, a cserehez |
+
+A masodik konnyen elavul: 2026-08-30-an a benne levo token mar halott volt **es** a regi,
+csak `Watchdog`-os matchert tartalmazta. Ha a Secret valtozik, ez a fajl is valtozzon,
+kulonben a kovetkezo ujraletrehozas visszaviszi a regi configot. Az AI digest botja
+kulon fajlban marad (`/root/.secrets/telegram-bot`: 1. sor token, 2. sor chat id).
+
+#### CSAPDA: az `/api/v2/status` nem mutatja a tokent
+
+`<secret>`-et ir helyette, ami 8 karakter. Egy `grep <token>` a futo configon ezert
+**mindig** nem talal, fuggetlenul attol, hogy a csere sikerult-e. Tiz percig ugy nezett
+ki, hogy a config nem frissul, pedig frissult. A nem-titkos mezok - peldaul a
+`matchers` - viszont latszanak, azokat ezen az uton lehet ellenorizni.
+
+**Amivel a tokencsere tenyleg bizonyithato:** a visszavont token 401-et ad, tehat ha az
+Alertmanager meg azzal kuldene, az
+`alertmanager_notifications_failed_total{reason="authError"}` nonne. Egy sikeres kuldes
+nulla hibaval csak az uj tokennel lehetseges. Szintetikus riasztast a
+`POST /api/v2/alerts`-szel lehet betolni, ideiglenes PrometheusRule nelkul - a
+konteneren belul `--post-data`-val, mert a fajlrendszer read-only.
+
+#### A pod nem a kezzel keszitett Secretet csatolja
+
+A lanc harom lepcsos: `alertmanager-telegram` -> az operator ujragenerálja a
+`...-alertmanager-generated` Secretet (gzippelve) -> a pod ezt mountolja -> a
+config-reloader kicsomagolja a `config_out/alertmanager.env.yaml`-be. Mindegyik lepcsonek
+sajat kesese van, a kubelet volume-frissitese onmagaban is akar ket perc. A
+`config_out/alertmanager.env.yaml` tartalma az, ami tenyleg fut.
 
 Letrehozas:
 
