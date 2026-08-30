@@ -47,5 +47,11 @@ spec:
     # Without this every series lands with `job: scrapeConfig/monitoring/homelab-hosts`,
     # which is unreadable in a dashboard legend and sorts nowhere near the
     # cluster's own node-exporter series.
-    - targetLabel: job
+    #
+    # `action: replace` is spelled out even though it is the default. The CRD
+    # writes it into the stored object, and Argo CD then reports the app
+    # permanently OutOfSync against a manifest that omits it - a sync that
+    # succeeds and leaves the app OutOfSync, for ever, with nothing wrong.
+    - action: replace
+      targetLabel: job
       replacement: homelab-hosts
