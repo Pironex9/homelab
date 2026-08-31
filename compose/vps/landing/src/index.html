@@ -215,5 +215,16 @@
      stale the moment anyone edits the code. Keep it external. -->
 <script src="ui.js" defer></script>
 <script src="status.js" defer></script>
+
+<!-- Umami. The path is relative on purpose: the tracker derives its collect
+     endpoint from its own script URL, so this resolves to
+     https://homelabor.net/api/send with nothing else to configure. Both paths
+     are proxied by ../Caddyfile to the K3s cluster over the tailnet; the
+     dashboard itself is not public.
+
+     Same-origin is what keeps the CSP above untouched - script-src 'self' and
+     connect-src 'self' already cover this, where a separate analytics
+     subdomain would have needed an exception in both. -->
+<script src="/script.js" data-website-id="27731283-838a-4d06-8339-9172c85fd272" defer></script>
 </body>
 </html>

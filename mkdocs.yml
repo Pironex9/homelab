@@ -41,6 +41,9 @@ repo_name: Pironex9/homelab
 docs_dir: docs
 theme:
   name: material
+  # Exists only to carry the Umami <script> tag, which needs a data-* attribute
+  # that no MkDocs config key can express. See overrides/main.html.
+  custom_dir: overrides
   logo: assets/mark.svg
   favicon: assets/mark.svg
   # Stops Material fetching Roboto from Google Fonts. The faces are then set

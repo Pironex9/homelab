@@ -88,6 +88,12 @@ No host port is published; Traefik reaches the container directly on the `pangol
 
 Public URL: https://homelabor.net (apex, no subdomain) - **no authentication**, by design. This is the one resource meant to be reachable with no session, the same precedent Jellyfin already set.
 
+Besides the static site, this Caddy proxies four hand-picked paths and nothing else: two Uptime Kuma routes for the status widget, and since 2026-08-31 the Umami tracker (`/script.js` and `/api/send`), which it forwards over the tailnet to the K3s cluster. The Umami dashboard itself is not published here and stays on the tailnet.
+
+A separate `umami.homelabor.net` resource was the obvious alternative and was rejected: it would serve Umami's login page publicly, and narrowing it would depend on Pangolin path rules, which mean "bypass auth" rather than "permit" and are known to misfire on protected resources ([fosrl/pangolin#2551](https://github.com/fosrl/pangolin/issues/2551)). A route table is an allow-list; a rule set here would not have been. Same-origin also means the landing page CSP (`script-src 'self'`, `connect-src 'self'`) needed no exception.
+
+The tailnet target is pinned with `extra_hosts` in the compose file, because this host runs `accept-dns=false` and MagicDNS names do not resolve in the container. Re-creating the cluster's `umami` Ingress gives the Tailscale operator's proxy a **new** address and silently breaks that mapping - the symptom is tracker requests timing out while the dashboard still works.
+
 Pangolin resource setup notes (recorded here because they differ from what was planned):
 
 - The apex resource worked on the first try with a blank subdomain field - the installed Pangolin version did not need the Traefik file-provider fallback that fosrl/pangolin issue #2645 warns about. Anyone adding a future apex-style resource does not need that fallback either.

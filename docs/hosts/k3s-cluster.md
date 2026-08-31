@@ -498,7 +498,7 @@ task. Until then, a rebuilt node will come back with the broken DHCP-provided se
 - [ ] NetworkPolicy for `monitoring` - the next candidate, and the harder one: Prometheus must reach every namespace, Grafana is on the tailnet, the operator talks to all three. `kube-system` and `tailscale` stay out on purpose
 - [ ] Velero backup (cluster-object backup; the volume half is covered by Longhorn + Garage)
 - [x] First workload deployment - Forgejo 16.0.3 on a 10 GiB Longhorn volume behind a Tailscale Ingress (2026-08-28), see `k8s/README.md`
-- [x] Second workload - Umami 3.3.1 web analytics with its own Postgres 17 on a 10 GiB Longhorn volume (2026-08-31), see `k8s/README.md`. The dashboard is on the tailnet; the public tracker endpoint is still to be published through Pangolin
+- [x] Second workload - Umami 3.3.1 web analytics with its own Postgres 17 on a 10 GiB Longhorn volume (2026-08-31), see `k8s/README.md`. The dashboard is on the tailnet; the public tracker endpoint is two proxied paths on the homelabor.net apex, measured end to end the same day
 
 ---
 

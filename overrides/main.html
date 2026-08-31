@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{#
+  Umami analytics. Material has no config key that can carry a data-* attribute,
+  and `extra_javascript` cannot either, so the tag needs a theme override -
+  which is the only reason this file exists.
+
+  The script comes from homelabor.net rather than from an analytics subdomain
+  because that apex is the only public entrance to Umami: its Caddy proxies
+  exactly /script.js and /api/send to the K3s cluster over the tailnet, and the
+  dashboard stays private. Cross-origin from here works because Umami answers
+  /api/* with `Access-Control-Allow-Origin: *`; the preflight was measured on
+  2026-08-31 (204, POST in allow-methods).
+
+  This is a hard dependency on homelabor.net being up. If it is not, the tag
+  404s and the docs render exactly as before - `defer` means it cannot block
+  the page either way.
+
+  IF `navigation.instant` IS EVER ADDED to theme.features, revisit this: with
+  instant loading MkDocs swaps the document body without a page load, and the
+  tracker would then only ever record the first view of a session.
+#}
+{% block extrahead %}
+  {{ super() }}
+  <script defer src="https://homelabor.net/script.js"
+          data-website-id="31b40f93-f107-4889-95bb-4759a0dd8c31"></script>
+{% endblock %}

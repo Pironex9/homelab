@@ -1168,13 +1168,47 @@ curl -s --resolve umami.tailc6abe2.ts.net:443:<tailnet-ip> \
 
 A tailnet IP-t a `tailscale status | grep umami` adja.
 
-### Ami meg nincs kesz
+### A tracker vegpont: ket ut a homelabor.net apexen (2026-08-31)
 
-A dashboard tailneten van, a **tracker vegpont viszont meg nem publikus**. Amig az
-nincs, az Umami nem gyujt semmit: a homelabor.net latogatoinak bongeszoje nem eri
-el a tailnetet. A tervezett ut a meglevo Pangolin/newt (a `newt.service` a pve
-hoston fut, ami rajta van a tailneten), tehat uj alagut nem kell.
+A dashboard tailneten marad. Publikus **ket ut**, semmi tobb:
 
-Az admin jelszo meg a telepiteskori alapertelmezes (`admin` / `umami`), ezt az elso
-belepeskor kell lecserelni - ez nem automatizalhato, mert az adatbazisban hash-kent
-tarolodik.
+| Ut | Mit szolgal ki |
+|---|---|
+| `https://homelabor.net/script.js` | a tracker script |
+| `https://homelabor.net/api/send` | a gyujto vegpont |
+
+Nem uj Pangolin resource viszi, hanem a **VPS-en futo landing Caddy**
+(`compose/vps/landing/Caddyfile`) - ugyanaz az auth nelkuli apex, ami mar ket
+kivalasztott Uptime Kuma utat is proxyz. Ket okbol:
+
+1. Egy kulon `umami.homelabor.net` a login oldalt is publikusan szolgalna ki, a
+   szukites pedig a Pangolin path szabalyaira epulne, amik "auth megkerulese"-t
+   jelentenek, nem "engedelyezes"-t, es vedett resource-on ismerten elhibaznak
+   (fosrl/pangolin#2551). Itt maga a route tabla az engedelyezo lista.
+2. A landing oldal CSP-je `script-src 'self'` es `connect-src 'self'`. Azonos
+   originnel egyik sem szorul kivetelre; egy aldomain kettot kovetelt volna.
+
+A cel a `umami.tailc6abe2.ts.net`, a VPS-en `extra_hosts`-szal a tailnet IP-re
+kotve, mert ott is `accept-dns=false` van. Merve, nem feltetelezve: egy
+`alpine/curl` kontener a `pangolin` bridge halozaton HTTP 200-at kapott a
+`/api/heartbeat`-rol.
+
+**Vegponttol vegpontig bizonyitva** 2026-08-31-en, publikus internetrol:
+
+| Proba | Eredmeny |
+|---|---|
+| `GET /script.js` | HTTP 200, a valodi tracker |
+| `POST /api/send` valid payloaddal | HTTP 200, es egy sor a `website_event` tablaban |
+| `GET /login` | HTTP 404 (a statikus oldalra esik at) |
+| `GET /api/auth/login` | HTTP 404 |
+| `OPTIONS /api/send` `Origin: docs.homelabor.net` | HTTP 204, `Access-Control-Allow-Origin: *`, POST az allow-methodsban |
+
+A `session` sor a **valodi latogato** orszagat es varosat rogzitette, nem a
+Falkensteinben allo VPS-et: az `X-Forwarded-For` tulelte a
+Traefik -> Caddy -> Tailscale proxy -> Umami lancot, es az Umami a lanc bal
+szelso cimet olvassa (`src/lib/ip.ts`).
+
+A ket weboldal a `website` tablaban SQL-lel keszult, mert a dashboard jelszava
+mar nem az alapertelmezes. A snippet a `compose/vps/landing/src/index.html`-ben
+es a `overrides/main.html`-ben van; utobbi kizarolag azert letezik, mert sem a
+`extra_javascript`, sem mas MkDocs kulcs nem tud `data-*` attributumot vinni.
