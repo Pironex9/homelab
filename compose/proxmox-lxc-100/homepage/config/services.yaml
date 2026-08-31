@@ -183,7 +183,10 @@
     # plausible or matomo), so this is a link entry like the four above rather
     # than a deliberate omission of a stats block.
     - Umami:
-        icon: umami.png
+        # The only `-light` icon on the dashboard. The other four K3s marks are
+        # coloured and read on any background; plain `umami.png` is a solid black
+        # circle that all but disappears on this dark theme.
+        icon: umami-light.png
         href: https://umami.tailc6abe2.ts.net
         description: Web analytics for homelabor.net - dashboard only, the tracker is public
         siteMonitor: https://umami.tailc6abe2.ts.net
