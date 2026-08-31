@@ -19,19 +19,20 @@ services:
       - ./images/background.webp:/app/public/images/background.webp:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/storage:/mnt/storage:ro
-    # The four web UIs of the K3s cluster are reachable through a Tailscale Ingress,
-    # and LXC 100 cannot resolve those four names: tailscaled runs here with
+    # The five web UIs of the K3s cluster are reachable through a Tailscale Ingress,
+    # and LXC 100 cannot resolve those five names: tailscaled runs here with
     # `accept-dns=false`, deliberately (see the tailnet DNS rule in
     # docs/proxmox/31), so there is no MagicDNS. Without a name the siteMonitor does
     # not work either: the Tailscale Ingress selects on SNI, so a request sent to the
     # raw tailnet IP fails at the TLS layer - the TCP connection comes up and curl
     # still returns 000, which looks like a "dead service".
-    # These four lines resolve names inside this container only, they do not touch host DNS.
+    # These five lines resolve names inside this container only, they do not touch host DNS.
     extra_hosts:
       - "argocd.tailc6abe2.ts.net:100.87.160.51"
       - "longhorn.tailc6abe2.ts.net:100.127.135.123"
       - "grafana.tailc6abe2.ts.net:100.73.118.70"
       - "forgejo.tailc6abe2.ts.net:100.99.251.110"
+      - "umami.tailc6abe2.ts.net:100.112.103.40"
     ports:
       - 3002:3000
     restart: unless-stopped

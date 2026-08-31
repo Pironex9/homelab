@@ -59,12 +59,12 @@ layout:
       style: row
       columns: 6
 
-  # Four services and no Links strip below it: this is the cluster's entire web
-  # surface. `columns: 4` = the item count, as in every other group.
+  # Five services and no Links strip below it: this is the cluster's entire web
+  # surface. `columns: 5` = the item count, as in every other group.
   K3s:
     icon: mdi-kubernetes
     style: row
-    columns: 4
+    columns: 5
 
   Media:
     icon: mdi-play-circle

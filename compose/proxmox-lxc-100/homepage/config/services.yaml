@@ -151,7 +151,7 @@
             statusStyle: dot
 
 - K3s:
-    # The four web UIs on the 3-node K3s cluster, all behind a Tailscale Ingress.
+    # The five web UIs on the 3-node K3s cluster, all behind a Tailscale Ingress.
     # The `href` is a tailnet name: it only opens from a tailnet device, not from the
     # LAN - that is deliberate, not a fault. `siteMonitor` is the same name, and the
     # homepage container resolves it through `extra_hosts` (see the compose file).
@@ -178,6 +178,15 @@
         href: https://forgejo.tailc6abe2.ts.net
         description: Git hosting - first workload on a Longhorn volume
         siteMonitor: https://forgejo.tailc6abe2.ts.net
+        statusStyle: dot
+    # gethomepage has no umami widget (159 widgets in v1.13, none for umami,
+    # plausible or matomo), so this is a link entry like the four above rather
+    # than a deliberate omission of a stats block.
+    - Umami:
+        icon: umami.png
+        href: https://umami.tailc6abe2.ts.net
+        description: Web analytics for homelabor.net - dashboard only, the tracker is public
+        siteMonitor: https://umami.tailc6abe2.ts.net
         statusStyle: dot
 
 - Media:
