@@ -1208,6 +1208,13 @@ Falkensteinben allo VPS-et: az `X-Forwarded-For` tulelte a
 Traefik -> Caddy -> Tailscale proxy -> Umami lancot, es az Umami a lanc bal
 szelso cimet olvassa (`src/lib/ip.ts`).
 
+**Egy merési csapda, ami ujra el fog jonni:** a headless Chrome user agentje
+`HeadlessChrome`-ot tartalmaz, az Umami pedig `isbot()`-tal szuri a `/api/send`
+kereseket es **csendben eldobja** oket - HTTP 200 jon vissza, sor nem keletkezik.
+Az elso ket proba-latogatas pontosan igy tunt el. `--user-agent`-tel felulirva
+mindketto azonnal rogzult. Aki ezt kesobb ujra meri, allitson normal UA-t, vagy
+kapcsolja ki egy futasra a `DISABLE_BOT_CHECK`-kel.
+
 A ket weboldal a `website` tablaban SQL-lel keszult, mert a dashboard jelszava
 mar nem az alapertelmezes. A snippet a `compose/vps/landing/src/index.html`-ben
 es a `overrides/main.html`-ben van; utobbi kizarolag azert letezik, mert sem a
