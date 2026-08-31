@@ -36,6 +36,43 @@
 		reverse_proxy 172.17.0.1:3001
 	}
 
+	# Umami tracker, first-party on purpose. The dashboard itself stays on the
+	# tailnet (https://umami.tailc6abe2.ts.net) and is NOT published here -
+	# these two paths are the whole public surface, and anything not listed
+	# falls through to the static site below and 404s.
+	#
+	# WHY THROUGH THIS CADDY AND NOT A PANGOLIN RESOURCE: a separate
+	# umami.homelabor.net would have to serve the login page publicly, and
+	# restricting it would depend on Pangolin path rules, which mean "bypass
+	# auth" rather than "permit" and are known to misfire on protected
+	# resources (fosrl/pangolin#2551). Here the allow-list is the route table.
+	#
+	# The second reason is the CSP in the handle block at the end of this file:
+	# `script-src 'self'` and `connect-src 'self'`. Same-origin means the
+	# tracker needs no exception at all - a subdomain would have forced two.
+	#
+	# The tracker derives its collect endpoint from its own script URL
+	# (src/tracker/index.ts: currentScript.src minus the filename), so
+	# docs.homelabor.net loading https://homelabor.net/script.js posts back to
+	# https://homelabor.net/api/send on its own. Umami answers /api/* with
+	# `Access-Control-Allow-Origin: *`, which is what makes the cross-origin
+	# case work from GitHub Pages.
+	handle /script.js {
+		reverse_proxy https://umami.tailc6abe2.ts.net {
+			header_up Host umami.tailc6abe2.ts.net
+		}
+	}
+
+	# POST only in practice, plus the CORS preflight from docs.homelabor.net.
+	# Caddy appends this hop to the X-Forwarded-For that Traefik already set,
+	# so the leftmost address stays the real visitor - which is the one
+	# Umami reads (src/lib/ip.ts).
+	handle /api/send {
+		reverse_proxy https://umami.tailc6abe2.ts.net {
+			header_up Host umami.tailc6abe2.ts.net
+		}
+	}
+
 	# Applies to every response, including the proxied Kuma routes above.
 	header {
 		X-Content-Type-Options nosniff

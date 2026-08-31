@@ -5,6 +5,24 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./dist:/usr/share/caddy:ro
+    # Tailscale runs on the VPS host, not in this container, and the host has
+    # accept-dns=false - so MagicDNS names do not resolve here. The address is
+    # the tailnet IP of the proxy device the Tailscale operator created for the
+    # umami Ingress in the K3s cluster. Reaching it from this bridge network is
+    # measured, not assumed: an alpine/curl container on `pangolin` got HTTP 200
+    # from /api/heartbeat on 2026-08-31.
+    #
+    # The name is mapped rather than used raw in the Caddyfile so that TLS
+    # verification and SNI still work against the Let's Encrypt certificate the
+    # Tailscale proxy holds.
+    #
+    # WHAT INVALIDATES THIS: deleting and re-creating the umami Ingress makes the
+    # operator register a NEW tailnet device with a NEW address. The symptom is
+    # every tracker request timing out while the dashboard still works. Re-read
+    # it with `tailscale status | grep umami`.
+    extra_hosts:
+      - "umami.tailc6abe2.ts.net:100.112.103.40"
+
     networks:
       pangolin:
         ipv4_address: 172.18.0.10
