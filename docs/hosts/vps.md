@@ -90,7 +90,7 @@ No host port is published; Traefik reaches the container directly on the `pangol
 
 !!! warning "Rebuilding `dist/` used to take the site down"
 
-    `build.sh` cleared the directory by removing it. `dist/` is bind-mounted into the running container, so the mount was left pointing at a deleted inode and the container kept serving the old, empty one - every path 404ing while the files sat visibly on disk. Fixed on 2026-08-31 by emptying the directory instead of replacing it. If a future edit reintroduces `rm -rf "$DIST"`, the recovery is `docker compose up -d --force-recreate`.
+    `build.sh` cleared the directory by removing it. `dist/` is bind-mounted into the running container, so the mount was left pointing at a deleted inode and the container kept serving the old, empty one - every path 404ing while the files sat visibly on disk. Fixed on 2026-08-31 by emptying the directory instead of replacing it, and the fix was then proven the same way it broke: `build.sh` was run against the live container, every path stayed 200, and `docker inspect landing --format '{{.State.StartedAt}}'` was unchanged - the mount survived the rebuild. If a future edit reintroduces `rm -rf "$DIST"`, the recovery is `docker compose up -d --force-recreate`.
 
 Public URL: https://homelabor.net (apex, no subdomain) - **no authentication**, by design. This is the one resource meant to be reachable with no session, the same precedent Jellyfin already set.
 

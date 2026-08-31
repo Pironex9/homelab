@@ -14,6 +14,7 @@ Infrastructure-as-code for a self-hosted homelab on Proxmox VE 9.1: Docker Compo
 - `ansible/` - a K3s cluster config-rétegének IaC leírása (k3s-io/k3s-ansible collection; részletek `ansible/README.md`)
 - `k8s/` - a K3s cluster **tartalmának** IaC leírása, Argo CD app-of-apps (részletek `k8s/README.md`). A k3s verziófrissítés is itt megy: `k8s/manifests/system-upgrade/plans.yaml`, két `version:` mező + push. **2026-08-28 óta fut rajta workload** (Forgejo, `k8s/manifests/forgejo/`; Umami analitika 2026-08-31 óta, `k8s/manifests/umami/`), tehát a clustert érintő műveletek már nem ingyenesek: van élő PVC és Longhorn kötet
 - `scripts/restore-test.sh` - weekly restic restore verification, `scripts/k3s-backup.sh` - daily gpg-encrypted K3s control-plane backup, `scripts/longhorn-restore-test.sh` - on-demand Longhorn restore proof, `scripts/k3s-restore-test.sh` - on-demand control-plane restore proof into a throwaway k3s (see `scripts/README.md` for the full backup layout)
+- `overrides/` - MkDocs Material theme override; exists only to carry the Umami `<script>` tag, which needs a `data-*` attribute no MkDocs config key can express
 - `private/` - gitignored personal files (never commit); `private/todo.md` = planned tasks
 
 ## Infrastructure Overview
