@@ -1,0 +1,105 @@
+---
+# Umami 3.3.1 (released 2026-08-20). Version pinned, not `latest`: the image is
+# rebuilt under the same tag, and `latest` would mean Argo CD reporting Synced while
+# the running version silently changes underneath.
+#
+# WHY runAsUser IS SPELLED OUT: the image's Dockerfile ends with `USER nextjs`, a
+# NAME, not a number. With `runAsNonRoot: true` and a non-numeric user the kubelet
+# cannot decide whether it is root, and refuses to start the container
+# ("container has runAsNonRoot and image has non-numeric user"). 1001 is the uid
+# from the Dockerfile (`adduser --system --uid 1001 nextjs`).
+#
+# NO readOnlyRootFilesystem: on every start scripts/start-docker.sh runs
+# check-db.js (prisma migrate deploy) and update-tracker.js, and the latter rewrites
+# /app/public/script.js in place. A read-only root would break the boot.
+#
+# THE MIGRATIONS RUN ON EVERY START, before `exec node server.js`. So an image
+# version bump is a schema migration too - do not roll two versions at once without
+# reading the release notes.
+#
+# DISABLE_TELEMETRY: Umami phones home on an interval by default. Off.
+#
+# CLIENT_IP_HEADER is deliberately NOT set: `x-forwarded-for` is already in the
+# built-in list in src/lib/ip.ts and it takes the leftmost address of the chain,
+# which is what the Pangolin proxy puts there.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: umami
+  namespace: apps
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: umami
+  template:
+    metadata:
+      labels:
+        app: umami
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: umami
+          image: ghcr.io/umami-software/umami:3.3.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: DISABLE_TELEMETRY
+              value: "1"
+            # Not optional even without 2FA: the login route validates the key and
+            # answers "TWO_FACTOR_ENCRYPTION_KEY is missing or invalid" when it is
+            # empty. 32 bytes of hex, see k8s/README.md.
+            - name: TWO_FACTOR_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: umami-secrets
+                  key: TWO_FACTOR_ENCRYPTION_KEY
+            # Signs the session tokens. If it changes, every session is invalidated.
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: umami-secrets
+                  key: APP_SECRET
+            # Carries the Postgres password, which is why the whole URL is in the
+            # Secret and not assembled here.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: umami-secrets
+                  key: DATABASE_URL
+          ports:
+            - name: http
+              containerPort: 3000
+          # The first start does prisma migrate deploy against an empty database, so
+          # the readiness window is generous. failureThreshold 30 x 10s = 5 minutes.
+          readinessProbe:
+            httpGet:
+              path: /api/heartbeat
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          # TCP only, for the same reason as with Forgejo: an HTTP liveness probe
+          # turns a stalled database into a restart loop instead of a pod rotated out
+          # from behind the Service.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

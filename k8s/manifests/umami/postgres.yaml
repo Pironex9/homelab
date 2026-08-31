@@ -1,0 +1,106 @@
+---
+# Umami's database. Postgres 17-alpine, one replica, one Longhorn volume.
+#
+# WHY 17 AND NOT THE 15-alpine OF THE UPSTREAM COMPOSE FILE: Umami v3 needs 12.14+,
+# but Journeys silently needs 15+ (umami-software/umami#3909, still undocumented).
+# 17 clears both and is supported until 2029-11.
+#
+# WHY PGDATA IS A SUBDIRECTORY: the container runs as uid 70, and a Longhorn volume
+# is handed over root-owned. `fsGroup: 70` only makes the mount point
+# group-writable - initdb would still refuse it, because it checks that the data
+# directory is OWNED by the running user. With PGDATA one level deeper the container
+# creates that directory itself, so it comes out 70:70 with mode 0700. Without this
+# the pod fails at "data directory has invalid owner".
+#
+# --data-checksums is not the default. It costs a few percent CPU and is the only
+# thing that turns silent block corruption on the replicated Longhorn volume into a
+# loud error.
+#
+# strategy: Recreate, exactly as with Forgejo: the volume is ReadWriteOnce, a
+# RollingUpdate would leave the second pod in Pending with a Multi-Attach error.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: umami-db
+  namespace: apps
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: umami-db
+  template:
+    metadata:
+      labels:
+        app: umami-db
+    spec:
+      securityContext:
+        runAsUser: 70
+        runAsGroup: 70
+        runAsNonRoot: true
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: POSTGRES_DB
+              value: umami
+            - name: POSTGRES_USER
+              value: umami
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_INITDB_ARGS
+              value: --data-checksums
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: umami-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "umami", "-d", "umami"]
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: umami-db-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: umami-db
+  namespace: apps
+spec:
+  selector:
+    app: umami-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

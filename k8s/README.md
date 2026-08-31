@@ -1070,3 +1070,111 @@ proxykhoz pedig host szintu forgalom erkezik.
 
 Az `argocd` (7 szabaly) es a `longhorn-system` (6) sajat NetworkPolicykat hoz a
 Helm chartjabol; azokat nem mi irtuk es nem is nyulunk hozzajuk.
+
+## Umami - a masodik workload (2026-08-31)
+
+`k8s/manifests/umami/`, Argo CD Application: `k8s/apps/umami.yaml`. Webanalitika a
+`homelabor.net`-hez es a `docs.homelabor.net`-hez, Umami **3.3.1** (2026-08-20-i
+kiadas) + sajat Postgres 17. A dashboard tailneten:
+`https://umami.tailc6abe2.ts.net`.
+
+Ez az elso app a clusteren, ami nem a clusterrol szol: a Forgejo infrastruktura,
+ez adat.
+
+### Miert 17-alpine, ha az upstream compose 15-alpine-t ir
+
+Az Umami v3 dokumentalt minimuma Postgres 12.14, de a Journeys funkcio **15+**-t
+igenyel, es ez sehol nincs leirva (umami-software/umami#3909). A 17 mindkettot
+lefedi, es 2029-11-ig tamogatott.
+
+### Ket uid, amit ki kell irni, kulonben el sem indul
+
+| Pod | uid | Miert nem elhagyhato |
+|---|---|---|
+| `umami` | 1001 | a Dockerfile `USER nextjs`-szel zar, ami **nev**, nem szam. `runAsNonRoot: true` mellett a kubelet nem tudja eldonteni, hogy root-e, es meg sem inditja a kontenert ("container has runAsNonRoot and image has non-numeric user"). Az 1001 a Dockerfile `adduser --system --uid 1001 nextjs` soraból jon. |
+| `umami-db` | 70 | a hivatalos `postgres:*-alpine` kepben a `postgres` felhasznalo uid-je **70**, nem 999 - az a Debian-alapu valtozate. Merve: `docker run --rm postgres:17-alpine id postgres`. |
+
+A `fsGroup: 70` **onmagaban keves**. A Longhorn kotet root tulajdonu, a csoportjog
+csak irhatova teszi a csatolasi pontot, az initdb viszont **tulajdont** ellenoriz.
+Ezert megy a `PGDATA` egy szinttel lejjebb (`/var/lib/postgresql/data/pgdata`): azt
+a konyvtarat mar a kontener hozza letre, tehat 70:70 lesz, 0700 modban. Enelkul a
+pod a "data directory has invalid owner" hibaval all meg.
+
+### A titkok kezzel keszulnek, mint a Forgejonal
+
+A repo publikus, igy a `umami-secrets` sem gitbol jon. Negy kulcs, egy generalt
+jelszoval:
+
+```bash
+PW=$(openssl rand -hex 24)
+kubectl create secret generic umami-secrets -n apps \
+    --from-literal=POSTGRES_PASSWORD="$PW" \
+    --from-literal=DATABASE_URL="postgresql://umami:${PW}@umami-db:5432/umami" \
+    --from-literal=APP_SECRET="$(openssl rand -hex 32)" \
+    --from-literal=TWO_FACTOR_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+unset PW
+```
+
+A jelszo azert **hex**, mert a `DATABASE_URL`-be kerul: egy `base64` kimenet `+`
+vagy `/` karaktere ott url-kodolast igenyelne.
+
+A `TWO_FACTOR_ENCRYPTION_KEY` akkor is kell, ha senki nem hasznal 2FA-t: a login
+utvonal validalja, es ures ertek mellett "TWO_FACTOR_ENCRYPTION_KEY is missing or
+invalid"-dal all le. Pontosan 64 hex karakter, tehat `openssl rand -hex 32`.
+
+Az `APP_SECRET` a session tokeneket irja ala. Ha megvaltozik, minden bejelentkezes
+ervenyet veszti - adat nem vesz el, de mindenki ujra belep.
+
+### Az elso indulaskori ket ujrainditas nem hiba
+
+A Postgres kontener az elso inditasnal initdb-t futtat: elindul, letrehozza az
+adatbazist, **leall**, majd ujraindul. Az Umami eppen ebbe az ablakba fut bele, es
+`Can't reach database server`-rel kilep - ketszer, majd a harmadikra lefuttatja a
+24 prisma migraciot es `Ready` lesz. Merve: 67 masodperc a pod letrehozasatol a
+`1/1 Running`-ig. Ha ez a ket restart **kesobb** is ismetlodik, az mar valodi hiba.
+
+A migraciok **minden** indulaskor lefutnak (`scripts/start-docker.sh`:
+`check-db.js` -> `prisma migrate deploy` -> `update-tracker.js` -> `exec node
+server.js`), tehat egy verziolepes egyben semavaltozas is. Ket verziot egyszerre
+ne lepjunk a kiadasi jegyzetek elolvasasa nelkul.
+
+Ugyanez a script az oka annak, hogy **nincs** `readOnlyRootFilesystem`: az
+`update-tracker.js` helyben irja at az `/app/public/script.js`-t.
+
+### NetworkPolicy: ket szabaly, mindketto merve
+
+A `umami` podot csak az ehhez az Ingresshez tartozo Tailscale proxy pod erheti el,
+a `umami-db`-t pedig csak a `umami` pod. Bizonyitva 2026-08-31-en egy eldobhato
+busybox poddal ugyanabban a namespace-ben:
+
+```
+db:  BLOCKED
+app: BLOCKED
+```
+
+Ellenpróba ugyanabban a percben: az Umami lefuttatta a migraciokat (tehat eleri a
+Postgrest), es a tailneten `/api/heartbeat` -> `{"ok":true}`, `/login` -> HTTP 200.
+
+### Nevfeloldas a 109-rol
+
+A `umami.tailc6abe2.ts.net` a 109-en **nem** oldodik fel, es ez nem hiba: ezen a
+gepen `accept-dns=false` (lasd `docs/hosts/claude-mgmt.md`). A
+`forgejo.tailc6abe2.ts.net` sem oldodik fel. Meresre:
+
+```bash
+curl -s --resolve umami.tailc6abe2.ts.net:443:<tailnet-ip> \
+    https://umami.tailc6abe2.ts.net/api/heartbeat
+```
+
+A tailnet IP-t a `tailscale status | grep umami` adja.
+
+### Ami meg nincs kesz
+
+A dashboard tailneten van, a **tracker vegpont viszont meg nem publikus**. Amig az
+nincs, az Umami nem gyujt semmit: a homelabor.net latogatoinak bongeszoje nem eri
+el a tailnetet. A tervezett ut a meglevo Pangolin/newt (a `newt.service` a pve
+hoston fut, ami rajta van a tailneten), tehat uj alagut nem kell.
+
+Az admin jelszo meg a telepiteskori alapertelmezes (`admin` / `umami`), ezt az elso
+belepeskor kell lecserelni - ez nem automatizalhato, mert az adatbazisban hash-kent
+tarolodik.

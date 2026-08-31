@@ -1,0 +1,55 @@
+---
+# Umami's exception from the `apps` namespace default-deny-ingress
+# (k8s/manifests/platform/namespace-apps.yaml). Two rules, because there are two
+# pods and they need different things.
+#
+# 1. The dashboard is reachable only by the proxy pod the Tailscale operator built
+#    for THIS Ingress - not by the whole `tailscale` namespace. The labels are put
+#    there by the operator; the pod name changes on re-creation, the labels do not.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: umami-allow-tailscale-ingress
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels:
+      app: umami
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tailscale
+          podSelector:
+            matchLabels:
+              tailscale.com/parent-resource: umami
+              tailscale.com/parent-resource-ns: apps
+              tailscale.com/parent-resource-type: ingress
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+# 2. Postgres accepts connections from the umami pod and from nothing else. Not even
+#    from the rest of the `apps` namespace: the default-deny covers inbound traffic
+#    for every pod, and this is the only hole opened in it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: umami-db-allow-umami
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels:
+      app: umami-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: umami
+      ports:
+        - protocol: TCP
+          port: 5432

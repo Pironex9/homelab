@@ -1,0 +1,24 @@
+---
+# The cluster's second application. Web analytics for homelabor.net and
+# docs.homelabor.net - the first workload here that produces something to look at
+# rather than something to maintain.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: umami
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Pironex9/homelab.git
+    targetRevision: main
+    path: k8s/manifests/umami
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

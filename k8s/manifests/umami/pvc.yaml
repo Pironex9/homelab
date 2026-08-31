@@ -1,0 +1,25 @@
+---
+# The Postgres data volume. Umami itself is stateless - the container writes only
+# /app/public/script.js at start (scripts/update-tracker.js, and only when
+# COLLECT_API_ENDPOINT is set), which is regenerated on every boot.
+#
+# 10Gi for two low-traffic sites is generous on purpose: Longhorn cannot shrink a
+# volume, only grow it, so the cheap direction is the one to leave open.
+#
+# Prune=false for the same reason as forgejo-data: Argo CD runs with `prune: true`,
+# the `longhorn` StorageClass has `reclaimPolicy: Delete`, so a file leaving git
+# would take the analytics history with it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: umami-db-data
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

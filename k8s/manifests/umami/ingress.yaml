@@ -1,0 +1,24 @@
+---
+# https://umami.tailc6abe2.ts.net - the dashboard, tailnet only.
+#
+# THIS IS NOT THE PUBLIC TRACKER ENDPOINT. The browsers of homelabor.net visitors
+# cannot reach the tailnet; the /api/send collector is published separately, through
+# the Pangolin resource on the Hetzner VPS. See docs/k3s/.
+#
+# `ingressClassName` is mandatory: `traefik` is the cluster default, and without this
+# line the Ingress would go there - no tailnet name and no certificate.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: umami
+  namespace: apps
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: umami
+      port:
+        number: 3000
+  tls:
+    - hosts:
+        - umami
