@@ -86,6 +86,12 @@ Managed by Komodo.
 
 No host port is published; Traefik reaches the container directly on the `pangolin` Docker network at `172.18.0.10:80`.
 
+`dist/` is gitignored and built on the VPS, so a deploy is two steps, in this order: Komodo `DeployStack` to pull the repo and recreate the container, then `sh build.sh` in `/etc/komodo/repos/github/compose/vps/landing/`. Komodo has no `pre_deploy` command configured for this stack.
+
+!!! warning "Rebuilding `dist/` used to take the site down"
+
+    `build.sh` cleared the directory by removing it. `dist/` is bind-mounted into the running container, so the mount was left pointing at a deleted inode and the container kept serving the old, empty one - every path 404ing while the files sat visibly on disk. Fixed on 2026-08-31 by emptying the directory instead of replacing it. If a future edit reintroduces `rm -rf "$DIST"`, the recovery is `docker compose up -d --force-recreate`.
+
 Public URL: https://homelabor.net (apex, no subdomain) - **no authentication**, by design. This is the one resource meant to be reachable with no session, the same precedent Jellyfin already set.
 
 Besides the static site, this Caddy proxies four hand-picked paths and nothing else: two Uptime Kuma routes for the status widget, and since 2026-08-31 the Umami tracker (`/script.js` and `/api/send`), which it forwards over the tailnet to the K3s cluster. The Umami dashboard itself is not published here and stays on the tailnet.

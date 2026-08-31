@@ -43,8 +43,18 @@ if [ -n "$risky" ]; then
     exit 1
 fi
 
-rm -rf "$DIST"
+# The contents go, the directory itself stays. `rm -rf "$DIST"` looks
+# equivalent and is not: on the VPS this directory is bind-mounted into the
+# running landing container, and removing it leaves that mount pointing at a
+# deleted inode. The rebuilt directory is a new inode, so the container keeps
+# serving the old, now-empty one and the whole site 404s while every file is
+# visibly on disk. Measured on 2026-08-31 - it took a `docker compose up -d
+# --force-recreate` to come back.
+#
+# The glob is safe without a dotfile pass because the check above refuses to
+# build when src/ contains any hidden file, so dist/ can never hold one.
 mkdir -p "$DIST"
+rm -rf "$DIST"/*
 cp -R "$SRC"/. "$DIST"/
 
 # The brand fonts are not in src/, because brand/ holds the only committed
