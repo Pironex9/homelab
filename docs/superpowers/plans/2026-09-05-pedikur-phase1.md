@@ -382,7 +382,10 @@ def run(db_path: Path, backup_dir: Path,
 
     # Snapshot before touching the schema. Cheap, and it turns a bad migration
     # into seconds of loss rather than falling back to last midnight.
-    backup.snapshot(db_path, backup_dir, tag="pre-migration")
+    # Skipped on a fresh database: sqlite3.connect above already created the
+    # file, so it exists but holds nothing worth keeping.
+    if done:
+        backup.snapshot(db_path, backup_dir, tag="pre-migration")
 
     applied: list[str] = []
     con = sqlite3.connect(db_path)
@@ -3490,7 +3493,8 @@ def health() -> PlainTextResponse:
     return PlainTextResponse("ok")
 ```
 
-The `/api` router is added in Task 10; everything else is wired here.
+The `/api` router is deliberately absent: `app/routers/api.py` does not exist
+until Task 10, and importing it here would break this task. Task 10 adds it.
 
 - [ ] **Step 5: Walk the whole flow by hand and screenshot each step**
 
@@ -3673,12 +3677,23 @@ def api_create_visit(request: Request, payload: dict = Body(...),
 There is deliberately no `Erase` endpoint. It is the only irreversible
 operation in the system and no machine use case needs it.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 4: Wire the router into `app/main.py`**
+
+Without this the routes do not exist and Step 1's tests answer 404 rather than
+401. Two lines:
+
+```python
+from app.routers import api          # beside the other router imports
+
+app.include_router(api.router)       # after the last include_router call
+```
+
+- [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/ -v`
 Expected: PASS, the whole suite
 
-- [ ] **Step 5: Write the stack README**
+- [ ] **Step 6: Write the stack README**
 
 ```markdown
 # pedikur
@@ -3727,7 +3742,7 @@ Redeploy the previous commit in Komodo. Migrations are additive within a
 release, so the older code tolerates the newer schema.
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add compose/proxmox-lxc-100/pedikur
