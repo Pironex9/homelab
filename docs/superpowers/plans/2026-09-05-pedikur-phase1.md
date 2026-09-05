@@ -1,13 +1,10 @@
 # Pedikur Phase 1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
->
-> **Deviation agreed for this plan:** backend tasks are implemented inline with a
-> fresh-eyes review subagent after each task; frontend tasks (3, 6, 7, 8, 9) are
-> implemented inline with a screenshot loop and NOT delegated to subagents. A
-> fresh subagent cannot see what it rendered and does not remember the previous
-> screen's visual decisions, so four screens from four subagents produce four
-> different-looking screens.
+> **For agentic workers: read this block before invoking any skill.** This plan
+> does NOT use superpowers:subagent-driven-development, and does not use
+> superpowers:executing-plans either. The execution mode was chosen deliberately
+> and is described in "Execution mode" below. Steps use checkbox (`- [ ]`)
+> syntax for tracking.
 
 **Goal:** A working appointment book the practitioner can use instead of her paper diary: log in, keep clients and a treatment price list, see the week, book by clicking an empty slot, and close a visit in one tap.
 
@@ -16,6 +13,56 @@
 **Tech Stack:** Python 3.13, FastAPI, Uvicorn, SQLAlchemy 2.0 (ORM, `DeclarativeBase` + `Mapped[]`), Jinja2, htmx 2.x, argon2-cffi, itsdangerous, pytest. SQLite via the stdlib driver.
 
 **Spec:** `docs/superpowers/specs/2026-09-05-pedikur-design.md` - read it before starting. Terms in **bold** here (Visit, Treatment, Visit Item, Archive, Erase) are defined in the repo root `CONTEXT.md` under "Pedikur" and are used in their glossary sense.
+
+## Execution mode
+
+Chosen on 2026-09-05 after reading Anthropic's own subagent guidance against
+the superpowers default. They disagree, and they are not talking about the same
+thing: the subagent's value here is the fresh-eyes review, not the
+implementation.
+
+**Backend tasks (1, 2, 4, 5, 10): implement inline, then one review subagent.**
+These tasks build on each other - the model, then the service, then the routes -
+which is precisely the shape Anthropic says not to hand to parallel subagents.
+The review is where a fresh context pays: the reviewer does not know which
+trade-offs were weighed, so it sees what the implementer has stopped seeing.
+
+Give the reviewer exactly three things and nothing from the working
+conversation: the task's diff (`git show`), this task's section of this plan,
+and `docs/superpowers/specs/2026-09-05-pedikur-design.md`. Ask it for
+correctness and spec compliance. Address the findings, or record in the commit
+why a finding was not acted on.
+
+**Frontend tasks (3, 6, 7, 8, 9): implement inline with a screenshot loop, no
+subagent.** A fresh subagent cannot see what it rendered and does not remember
+the previous screen's decisions, so four screens from four subagents produce
+four different-looking screens. The loop is: render, screenshot, look at the
+image, fix `app.css`, repeat. The script and its three load-bearing settings
+are in Task 3, Step 5.
+
+**Task 3 uses the `impeccable` skill, not `design-taste-frontend`** - the
+latter's own SKILL.md excludes dashboards, data tables and multi-step product
+UI, which is exactly what this is.
+
+### Where to stop, and where not to
+
+Two checkpoints. Stop, report, and wait for the human at both:
+
+1. **After Task 1**, before starting Task 2. Task 1 writes
+   `docker-compose.yml` with `build: .`, and whether Komodo handles a build
+   directive in this git-based setup is unverified. Try the deploy now: if it
+   does not work, the compose file changes shape (a `ghcr.io` image plus a
+   GitHub Actions workflow) and that is far cheaper to find out here than after
+   Task 10.
+2. **After Task 3**, before starting Task 4. This is the visual gate. Six
+   screens will inherit the tokens and the shell. Put the screenshots in front
+   of the human and get a yes on the direction; discovering at screen seven
+   that the typography is wrong means rewriting all seven.
+
+Between every other task, keep going. Do not ask "shall I continue?" and do not
+summarise progress between tasks. Stop only for a blocker: a failing test that
+does not yield, a missing dependency, a step in this plan that turns out to be
+wrong, or anything destructive or outward-facing.
 
 ## Global Constraints
 
