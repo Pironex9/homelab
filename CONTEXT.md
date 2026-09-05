@@ -71,3 +71,72 @@ _Avoid_: Heading font, brand font
 - **Category** — a grouping of drawings shown as a filterable tab in the gallery (e.g. "Csendelet", "Anime karakterek"). Backed by a folder under `content/`. Has two distinct names:
   - **name** — the folder name on disk (e.g. `csendelet`, `anime-karakter`). Technical identifier: used for file paths and as the internal filter key. Not shown to the user.
   - **label** — the human-readable, properly accented/capitalized text shown on the tab (e.g. "Csendelet", "Anime karakterek"). Never derived automatically from `name` — always explicit, so Hungarian accents and casing are correct.
+
+## Pedikur
+
+The pedicure practice management tool at `compose/proxmox-lxc-100/pedikur/`.
+The practitioner works from fixed premises in Slovakia; statutory receipt
+issuing stays outside this system, so every term below describes practice work,
+never bookkeeping.
+
+### Language
+
+**Treatment**:
+One named, priced, timed thing the practitioner performs, as it appears in her
+price list. The catalogue entry, not an instance of it being carried out.
+_Avoid_: Service (the repo already gives that word three infrastructure
+meanings), procedure, job
+
+**Visit**:
+One client session, whether booked ahead or walked in, from its planned state
+through to what was actually done. Booking and treatment record are the same
+thing at different points in its life, not two things.
+_Avoid_: Appointment (excludes the walk-in), booking, session
+
+**Visit Item**:
+One line of what a Visit is charged for: a Treatment, or a Product sold. Holds
+the price actually charged, which is why a later price rise cannot rewrite an
+earlier Visit.
+_Avoid_: Line, charge, entry
+
+**Treatment Recipe**:
+The stock a Treatment is expected to consume, per Product and quantity. It
+drives automatic consumption when a Visit is completed, and it is an estimate
+by nature, reconciled against the shelf by counting.
+_Avoid_: BOM, bill of materials, consumables list
+
+**Product**:
+Anything held in stock: professional supplies consumed during a Visit, and
+later also goods sold to a client. One catalogue, two ways of leaving the
+shelf.
+_Avoid_: Item, stock item, material
+
+**Visit Interval**:
+How often a client tends to come back, taken as the median gap between their
+completed Visits rather than asked for. A manual value overrides it when the
+client states their own rhythm.
+_Avoid_: Frequency, cadence, cycle
+
+**Recall List**:
+Clients whose Visit Interval has run out and who have no Visit booked ahead,
+most overdue first. It stops showing a client once they are past three times
+their interval, because by then they have stopped coming rather than being
+late.
+_Avoid_: Follow-up list, reminders (nothing is sent; this is a list she reads)
+
+**Archive**:
+Removing a client from the working lists while keeping every record intact.
+Reversible, and the practitioner's own call.
+_Avoid_: Delete, deactivate, hide
+
+**Erase**:
+Satisfying an erasure request by emptying a client's identifying and health
+fields and deleting their photos from disk, while the Visits, their treatments
+and their amounts stay. Irreversible, admin only, and distinct from Archive.
+_Avoid_: Delete, purge, GDPR delete
+
+**Stock Movement**:
+One append-only entry of stock arriving or leaving, carrying its own unit
+cost. A mistake is settled by an opposing correction entry, never by editing
+or removing the original, so the shelf always follows from the entries.
+_Avoid_: Adjustment, transaction, stock change
