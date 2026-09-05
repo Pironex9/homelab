@@ -100,15 +100,19 @@ earlier Visit.
 _Avoid_: Line, charge, entry
 
 **Treatment Recipe**:
-The stock a Treatment is expected to consume, per Product and quantity. It
-drives automatic consumption when a Visit is completed, and it is an estimate
-by nature, reconciled against the shelf by counting.
+What a Treatment is expected to consume, stated as how many Treatments one
+unit of a Product lasts for. Asked that way because a practitioner knows a
+bottle gives about thirty fills and does not know it gives 0.4 ml a time. It
+drives automatic consumption when a Visit is completed, and is an estimate by
+nature, reconciled against the shelf by counting.
 _Avoid_: BOM, bill of materials, consumables list
 
 **Product**:
 Anything held in stock: professional supplies consumed during a Visit, and
 later also goods sold to a client. One catalogue, two ways of leaving the
-shelf.
+shelf. Counted in the unit it is bought in - a bottle, a roll, a box - never
+in a unit that would have to be converted, so a part-used bottle simply leaves
+the stock figure fractional.
 _Avoid_: Item, stock item, material
 
 **Visit Interval**:

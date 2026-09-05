@@ -91,7 +91,8 @@ compose/proxmox-lxc-100/pedikur/
     services/        business logic, called by both routers
     google_sync.py   freebusy poll, in-process asyncio task
     backup.py        nightly Connection.backup(), in-process asyncio task
-    cli.py           admin commands (password reset)
+    cli.py           admin commands (create-user, reset-password)
+    migrations/      numbered .sql files, applied at startup
     strings/hu.py    all user-facing text, keyed
     templates/       Jinja2
     static/          htmx 2.x, CSS, small vanilla JS
@@ -186,6 +187,8 @@ client              id, name, phone, email, address,
                     created_by
 
 visit               id, client_id, starts_at, ends_at,
+                    ends_at defaults to the summed duration of the booked
+                    Treatments, is editable, and only ever grows on its own
                     status                 planned | done | cancelled | no_show
                     findings               what was observed
                     note                   what was done
@@ -201,10 +204,15 @@ attachment          id, visit_id, expense_id, path, caption, taken_at
                     exactly one of visit_id / expense_id is set
 
 treatment           id, name, duration_min, price_cents, active, created_by
-treatment_recipe    treatment_id, product_id, qty
+treatment_recipe    treatment_id, product_id, treatments_per_unit
+                    how many Treatments one unit of the Product lasts for;
+                    consumption is stored as 1/treatments_per_unit
 
-product             id, name, unit (ml|db|g), min_stock, active,
+product             id, name, unit, min_stock, active,
                     archived_at, created_by
+                    unit is free text and is whatever she buys and counts:
+                    bottle, roll, box, pair, piece. Never a unit that would
+                    need converting.
 stock_movement      id, product_id, qty (signed), unit_cost_cents,
                     reason (purchase|opening|consumption|sale|correction|waste),
                     visit_id?, expense_id?, created_at, created_by, note
@@ -219,8 +227,9 @@ working_hours       id, weekday, date, start, end, is_closed
                     start/end are local wall-clock times of day, not
                     timestamps: 09:00 stays 09:00 across a DST change
 busy_block          starts_at, ends_at, source, fetched_at   Google cache
-setting             key, value       OAuth token, buffer_min, API token,
-                                     default_interval_days, calendar allowlist
+setting             key, value       OAuth refresh token, buffer_min, API
+                                     token, default_interval_days, calendar
+                                     allowlist, schema_version
 ```
 
 Five decisions carry this model:
@@ -250,6 +259,24 @@ same defect the revenue side was designed to avoid. A moving average would be
 marginally more accurate and was rejected: the practitioner cannot check it
 against a receipt, and an explainable number is worth more here.
 
+**Stock is counted in the unit she buys, and Recipes state yield.** A
+Product is a bottle, a roll, a box - never millilitres, because the receipt
+says "one bottle, EUR 12" and converting it is her arithmetic to do at every
+purchase. The **Treatment Recipe** asks how many Treatments one unit lasts
+for, because nobody knows they use 0.4 ml of lacquer and everybody knows a
+bottle gives about thirty fills. A Recipe filled in with invented numbers
+would feed invented margins. The cost is a fractional stock figure - "3.4
+bottles" - which is exactly true: three sealed and one part-used.
+
+**A Visit can hold several Treatments.** `ends_at` defaults to their summed
+duration, stays editable because a difficult client takes longer than the
+catalogue says, and **only ever grows automatically**: adding a Treatment at
+closing time extends the window, never shrinks one she widened by hand. The
+alternative - a second Visit later the same day - was rejected because it
+breaks the **Visit Interval**: two Visits one day apart contribute a zero-day
+gap, and a few of those drag the median to zero, after which everyone is
+permanently overdue.
+
 **Money is never a float.** All amounts are integer cents, EUR.
 
 **All timestamps are stored UTC and rendered in `Europe/Bratislava`**, except
@@ -262,7 +289,10 @@ opening hours breaks the same two days in the opposite direction.
 One number drives the design: closing a **Visit** must be one tap.
 
 - **Today** (phone home screen). Time, name, Treatment. A red bar on the row of
-  any client with an `alert`, before it is opened. A "walk-in" button opens an
+  any client with an `alert`, before it is opened - **the colour only, never
+  the text**: "diabetic" is Article 9 health data and the Today screen is
+  visible to whoever is sitting in the room. The text lives inside the client
+  card, where only she looks. A "walk-in" button opens an
   immediately `done` Visit. A persistent banner at the top while any past
   Visit is still unclosed.
 - **Close visit.** The booking already gives the Treatment and the price, so
@@ -292,12 +322,20 @@ One number drives the design: closing a **Visit** must be one tap.
   interval.
 - **Stock.** Products with computed quantity, anything under `min_stock`
   highlighted. Tap to record a purchase, correction or waste movement.
-- **Expenses.** A single form: date, vendor, amount, document photos, and
+- **Expenses.** Category comes from a short fixed list in code - Anyag,
+  Eszkoz, Berleti dij, Rezsi, Marketing, Egyeb - with the detail going in the
+  note. Free text would give the dashboard four spellings of one category
+  within two months. A single form: date, vendor, amount, document photos, and
   optionally line items that create the inbound Stock Movements. Buying
   lacquer is money out and stock in, and it should be typed once. An expense
   with no line items is just an expense.
-- **Dashboard.** Per period: revenue, expenses, result; revenue by Treatment;
-  **margin by Treatment**; no-show count. One chart, not five.
+- **Dashboard.** Per period: revenue, expenses, **"result (cash)"**; revenue by
+  Treatment; **"margin (stock used)"** by Treatment; no-show count. One chart,
+  not five. The two headline numbers sit on different bases and will never
+  agree: a EUR 400 restock lands entirely in January's cash result while the
+  same month's margins stay healthy, because only what was consumed counts
+  against them. Both are correct, they answer different questions, and the
+  labels exist so she does not expect them to reconcile.
 - **Settings.** Working hours, Treatments and their Recipes, `buffer_min`,
   Google connection and calendar allowlist (admin), users (admin).
 
@@ -323,6 +361,12 @@ staying put.
   past Google event is left alone.
 - Neither counts toward the Visit Interval.
 
+**There is no payment tracking.** Closing a Visit is the revenue: cash
+changes hands in the room and eKasa records it. A `paid_at` column would
+introduce receivables for an edge case, and if she turns out to extend credit
+regularly it is exactly the kind of nullable, additive column the migration
+discipline below handles.
+
 **Visit Interval** is the median gap between a client's `done` Visits, not a
 field she fills in. Below two `done` Visits it falls back to
 `setting.default_interval_days` (42). `client.interval_override_days` wins
@@ -340,8 +384,8 @@ and she stops reading it.
 `busy_block`. **Every busy interval is extended by `buffer_min` at its end**,
 whether it came from a Visit or from Google - one rule, one implementation.
 Free is the day's `working_hours` minus the extended busy set, with candidate
-starts snapped to a 15 minute grid, keeping only slots where the requested
-Treatment duration fits. No buffer at the end of the working day: a Visit may
+starts snapped to a 15 minute grid, keeping only slots where the **summed
+duration of the requested Treatments** fits. No buffer at the end of the working day: a Visit may
 end exactly at closing time.
 
 **Booking re-checks availability inside the insert transaction.** Checking
@@ -381,6 +425,9 @@ reach Google. This needs a wider scope than reading (`calendar.events`
 family); **the exact minimal write scope is unverified and must be confirmed
 during implementation.**
 
+Updates are pushed only for Visits that are still ahead: correcting the
+length of an event that has already happened is a call with no reader.
+
 **Staleness is shown, never hidden.** If Google is unreachable the last cache
 is kept and labelled with its age ("Google calendar: refreshed 47 minutes
 ago"). Stale busy data presented as current is what produces double bookings.
@@ -415,6 +462,8 @@ per-route tests:
   transition
 - margin calculation
 - `freebusy` response handling from a mocked Google response
+- the migration runner applied twice against a temp database, asserting the
+  second pass changes nothing
 
 These are the places where a wrong number would appear silently.
 
@@ -432,6 +481,34 @@ with `media/`. Attachments are plain files and need nothing special.
 **Restore is proven, not assumed.** Add pedikur to `scripts/restore-test.sh`:
 restore into a temp directory, run `PRAGMA integrity_check`, and count rows in
 `client` and `visit`.
+
+### Schema changes
+
+Numbered SQL files under `app/migrations/`, a `schema_version` row in
+`setting`, and a startup loop that applies anything newer inside a
+transaction. No Alembic: what it would give us is downgrade scripts we would
+never run, and on SQLite its autogenerate needs `render_as_batch=True` or it
+emits migrations SQLite cannot execute. `SQLModel.metadata.create_all` is not
+an option either - it creates missing tables and never adds a column to an
+existing one, so the first new column in phase 2 would fail silently and break
+the app at runtime.
+
+Two properties of SQLite measured locally (3.40.1) rather than assumed:
+`ALTER TABLE ... DROP COLUMN` is supported, and **DDL is transactional** - a
+table created inside a rolled-back transaction leaves no trace. A migration
+that fails half way therefore leaves no half-built schema.
+
+**The migration loop takes a backup first**, using the same
+`Connection.backup()` the nightly task uses. The code already exists, so every
+schema change is preceded by a snapshot, and a bad migration costs seconds
+rather than falling back to midnight.
+
+**The forward-compatibility discipline**, which is what makes the deploy
+rollback below true: one release makes additive changes only. A new column is
+nullable or carries a default. A column is never renamed or dropped in the
+same release that stops using it - stop using it in one release, drop it in
+the next. Old code must tolerate the new schema, because that is exactly what
+a rollback asks of it.
 
 **Rollback paths, written down before they are needed:**
 
@@ -456,12 +533,28 @@ site already builds in CI.
 
 ## 13. Phases
 
-1. Auth, clients, the Treatment catalogue, Visits, closing a Visit. The
-   catalogue is not optional here: closing a Visit needs a Treatment's
-   duration and price. Usable from this point, and data starts accumulating.
+1. Auth, clients, the Treatment catalogue, **the week calendar over her own
+   Visits**, booking by clicking an empty slot, and closing a Visit.
 2. Products, Treatment Recipes, stock, expenses.
-3. Google sync, free slot view.
+3. Google sync, buffers, free slot highlighting.
 4. Dashboard, Recall List, MCP server.
+
+The calendar belongs in phase 1 even though the Google half does not. Without
+a week view she would book by typing a date into a form with no sight of what
+is already taken, and at five to eight Visits a day she would simply keep the
+paper diary because it is faster. If she keeps the paper, no data accumulates,
+and phases 2 to 4 are built on an empty database: no Visit Interval, no margin
+to measure, an empty Recall List. The measure of phase 1 is not that it runs,
+it is that the paper diary can be put down.
+
+**First run needs seed data**, or the app is broken on arrival: no
+`working_hours` means no free slots and an unbounded grid, and no user means
+no login. The first migration seeds Monday to Friday 09:00-17:00,
+`buffer_min` 15 and `default_interval_days` 42; `python -m app.cli create-user`
+makes the first admin.
+
+**One-time task at go-live:** her existing forward bookings have to be typed
+in. A few dozen rows, once.
 
 ## 14. Rejected alternatives
 
@@ -501,7 +594,15 @@ site already builds in CI.
   the question that will actually be asked - did this come from a person or
   from the API - without putting a layer on every write path and without a
   table that outgrows all the others combined.
-- **SQLCipher and at-rest encryption.** See ADR-0005.
+- **SQLCipher and at-rest encryption.** See ADR-0005. The Google refresh token
+  stays in `setting` for the same reasoning: the OAuth flow writes it at
+  runtime, moving it to the Komodo environment would mean hand-copying a token
+  out of a callback at every re-consent, and anyone holding the live database
+  file already has worse than calendar access.
+- **Millilitre and gram stock units.** Rejected with the pack-size machinery
+  they would have required; see the unit decision in section 5.
+- **Alembic.** Rejected with the migration decision in section 11.
+- **Payment tracking.** Rejected in section 7.
 
 ## 15. Assumptions to confirm
 
