@@ -667,7 +667,7 @@ git commit -m "feat(pedikur): stack skeleton, SQLite setup and migration runner"
 
 **Interfaces:**
 - Consumes: `db.Database.session()`, `config.load()`, `migrate.run()` from Task 1.
-- Produces: `models.User/Client/Treatment/Visit/VisitItem/WorkingHours/Setting`; `security.hash_password(str) -> str`, `security.verify(user, password) -> bool`, `security.attempt_login(session, username, password) -> User | None`, `security.current_user(request) -> User | None`, `security.require_user`, `security.require_admin` (FastAPI dependencies); `main.app`; `main.templates` (a configured `Jinja2Templates`).
+- Produces: `models.User/Client/Treatment/Visit/VisitItem/WorkingHours/Setting`; `security.hash_password(str) -> str`, `security.attempt_login(session, username, password) -> User | None` (the only verification entry point: it counts failures and applies the lock, so nothing else calls the hasher), `security.current_user(request) -> User | None`, `security.require_user`, `security.require_admin` (FastAPI dependencies); `main.app`. Templates and the database are reached through `request.app.state.templates` and `request.app.state.db`, never as module attributes.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1328,11 +1328,12 @@ screenshot loop in step 5.
 </html>
 ```
 
-Add a context processor so `user` and `tab` are always present. In
-`app/main.py`, inside `lifespan`, after creating `templates`:
+Add `from app.strings.hu import S` to the imports of `app/main.py`, then make
+`S` a template global so every template can reach it without being passed it.
+Inside `lifespan`, after creating `templates`:
 
 ```python
-    templates.env.globals["S"] = S            # from app.strings.hu import S
+    templates.env.globals["S"] = S
     app.state.templates = templates
 ```
 
@@ -3407,10 +3408,72 @@ Create `icon-192.png` and `icon-512.png`: a plain square in `--accent` with a
 white "P". Any drawing tool or a one-line ImageMagick call is fine; they are
 placeholders for the launcher, not brand assets.
 
-- [ ] **Step 4: Wire the routers into `app/main.py`**
+- [ ] **Step 4: Assemble the final `app/main.py`**
+
+`main.py` accumulated pieces across tasks 2, 3, 4 and 6 - the `S` global, the
+`eur` filter, the two time filters - each added as a fragment to drop into an
+existing function. This is the finished file, so nothing depends on having put
+those fragments in the right place. Replace `app/main.py` with it and move on.
 
 ```python
-from app.routers import auth, calendar, clients, settings, today, visits as visits_router
+from __future__ import annotations
+
+import asyncio
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from app import backup, config, migrate
+from app.db import Database
+from app.routers import auth, calendar, clients, settings, today
+from app.routers import visits as visits_router
+from app.services import timeutil
+from app.strings.hu import S
+
+BASE_DIR = Path(__file__).parent
+
+_settings = config.load()   # once, at import: the middleware needs it early
+
+
+def _eur(cents: int) -> str:
+    return f"{cents / 100:.2f} EUR".replace(".", ",")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings_ = _settings
+    migrate.run(settings_.db_path, backup_dir=settings_.backup_dir)
+
+    templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    templates.env.globals["S"] = S
+    templates.env.filters["eur"] = _eur
+    templates.env.filters["localdate"] = timeutil.localdate
+    templates.env.filters["localtime"] = timeutil.localtime
+
+    app.state.settings = settings_
+    app.state.db = Database(settings_.db_path)
+    app.state.templates = templates
+
+    task = asyncio.create_task(
+        backup.nightly_task(settings_.db_path, settings_.backup_dir))
+    yield
+    task.cancel()
+
+
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_settings.secret_key,
+    https_only=True,
+    same_site="lax",
+    max_age=14 * 24 * 60 * 60,
+)
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 app.include_router(auth.router)
 app.include_router(today.router)
@@ -3418,7 +3481,16 @@ app.include_router(calendar.router)
 app.include_router(clients.router)
 app.include_router(visits_router.router)
 app.include_router(settings.router)
+
+
+@app.get("/health")
+def health() -> PlainTextResponse:
+    """Unauthenticated on purpose: it is the compose healthcheck, and it
+    reveals nothing beyond the process being alive."""
+    return PlainTextResponse("ok")
 ```
+
+The `/api` router is added in Task 10; everything else is wired here.
 
 - [ ] **Step 5: Walk the whole flow by hand and screenshot each step**
 
