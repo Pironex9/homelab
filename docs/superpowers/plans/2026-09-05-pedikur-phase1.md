@@ -2,7 +2,8 @@
 
 > **For agentic workers: read this block before invoking any skill.** This plan
 > does NOT use superpowers:subagent-driven-development, and does not use
-> superpowers:executing-plans either. The execution mode was chosen deliberately
+> superpowers:executing-plans either. Every task is written inline; subagents
+> review, they do not implement. The execution mode was chosen deliberately
 > and is described in "Execution mode" below. Steps use checkbox (`- [ ]`)
 > syntax for tracking.
 
@@ -21,11 +22,19 @@ the superpowers default. They disagree, and they are not talking about the same
 thing: the subagent's value here is the fresh-eyes review, not the
 implementation.
 
-**Backend tasks (1, 2, 4, 5, 10): implement inline, then one review subagent.**
-These tasks build on each other - the model, then the service, then the routes -
-which is precisely the shape Anthropic says not to hand to parallel subagents.
-The review is where a fresh context pays: the reviewer does not know which
-trade-offs were weighed, so it sees what the implementer has stopped seeing.
+**Every task is implemented inline, and every task's Python diff gets a review
+subagent afterwards.** The tasks build on each other - the model, then the
+service, then the routes - which is precisely the shape Anthropic says not to
+hand to parallel subagents. The review is where a fresh context pays: the
+reviewer does not know which trade-offs were weighed, so it sees what the
+implementer has stopped seeing.
+
+Do not split this by "does the task touch a template". Tasks 6, 7 and 8 carry
+the most dangerous logic in the phase - the UTC and DST conversion, the
+overlap re-check inside the transaction, the rule that `ends_at` only grows,
+the grid row arithmetic, and the idempotent close. A wrong close posts the
+revenue twice; a wrong conversion moves every appointment twice a year. Those
+are exactly the diffs that need a second reader.
 
 Give the reviewer exactly three things and nothing from the working
 conversation: the task's diff (`git show`), this task's section of this plan,
@@ -33,12 +42,19 @@ and `docs/superpowers/specs/2026-09-05-pedikur-design.md`. Ask it for
 correctness and spec compliance. Address the findings, or record in the commit
 why a finding was not acted on.
 
-**Frontend tasks (3, 6, 7, 8, 9): implement inline with a screenshot loop, no
-subagent.** A fresh subagent cannot see what it rendered and does not remember
-the previous screen's decisions, so four screens from four subagents produce
-four different-looking screens. The loop is: render, screenshot, look at the
-image, fix `app.css`, repeat. The script and its three load-bearing settings
-are in Task 3, Step 5.
+**Tasks that produce a screen (3, 4, 5, 6, 7, 8, 9) additionally run a screenshot
+loop, and their templates and CSS are never delegated.** Task 2 also writes
+templates, but deliberately unstyled ones; they get their first screenshot in
+Task 3, which is where they are restyled. A fresh subagent
+cannot see what it rendered and does not remember the previous screen's
+decisions, so several screens from several subagents produce several
+different-looking screens. The loop is: render, screenshot, look at the image,
+fix `app.css`, repeat. The script and its three load-bearing settings are in
+Task 3, Step 5.
+
+Scope the review subagent to the Python diff and the SQL. Exclude
+`templates/` and `static/`: appearance cannot be judged from a diff, so asking
+for it produces confident noise.
 
 **Task 3 uses the `impeccable` skill, not `design-taste-frontend`** - the
 latter's own SKILL.md excludes dashboards, data tables and multi-step product
@@ -2522,7 +2538,30 @@ Add to `strings/hu.py`: `new_visit` "Új időpont", `client` "Kliens",
 `starts_at` "Kezdés", `ends_at_optional` "Vége (ha hosszabb a szokásosnál)",
 `slot_taken` "Ez az idősáv már foglalt.".
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Screenshot the booking form and adjust `app.css` only**
+
+```bash
+node scripts/shot.mjs http://localhost:8000/visits/new /tmp/visit-new.png 390 1300
+```
+
+She sees this form at every booking. Check on the image that the treatment
+checkboxes are tappable without zooming, that the two `datetime-local` controls
+are visually distinct enough that the optional end time is not mistaken for the
+start, and that the client select is not the widest thing on the screen.
+
+Add the `.check` rule to `app.css` while you are here; it is used by this form
+and again by the walk-in form in Task 9:
+
+```css
+.check {
+  display: flex; align-items: center; gap: var(--gap-2);
+  min-height: var(--tap);
+  font-weight: 400;
+}
+.check input { width: auto; min-height: auto; }
+```
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add compose/proxmox-lxc-100/pedikur

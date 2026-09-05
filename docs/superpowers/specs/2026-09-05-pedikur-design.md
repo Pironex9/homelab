@@ -121,7 +121,7 @@ compose/proxmox-lxc-100/pedikur/
   docker-compose.yml
   app/
     main.py          FastAPI: HTML routes + /api/* JSON routes
-    models.py        SQLModel tables
+    models.py        SQLAlchemy 2.0 declarative models
     services/        business logic, called by both routers
     google_sync.py   freebusy poll, in-process asyncio task
     backup.py        nightly Connection.backup(), in-process asyncio task
@@ -132,6 +132,12 @@ compose/proxmox-lxc-100/pedikur/
     static/          htmx 2.x, CSS, small vanilla JS
 volume: /srv/docker-data/pedikur/{db.sqlite, media/, backup/}
 ```
+
+**SQLAlchemy 2.0, not SQLModel.** SQLModel is 0.0.39 and still pre-1.0 with no
+API stability guarantee, which is the exact ground PocketBase was rejected on in
+section 14. Its value is one class serving as both ORM model and Pydantic API
+schema, and a server-rendered app collects none of that. The schema of record is
+the numbered SQL under `migrations/`; the model classes mirror it.
 
 **SQLite, not Postgres.** One user at a time, 13 tables, a few thousand rows a
 year. WAL mode plus `busy_timeout=5000`. This removes a container, a password
