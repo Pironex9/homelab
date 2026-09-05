@@ -31,3 +31,6 @@ The offline question is settled by the working conditions rather than by the
 architecture: fixed premises, reliable wifi, and a service worker that caches
 the Today screen read-only. If the practitioner ever starts visiting clients at
 home, that assumption fails and this decision should be revisited alongside it.
+
+Design it argues from: `docs/superpowers/specs/2026-09-05-pedikur-design.md`, whose section 0
+lists the rest of the document set.

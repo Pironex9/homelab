@@ -8,6 +8,40 @@ Implementation plan not yet written.
 Terms in bold below are defined in the repo's root `CONTEXT.md` under
 "Pedikur" and are used in their glossary sense throughout.
 
+## 0. The document set
+
+This spec is the hub. Anything that argues from it points back here, and this
+list is the only place that has to be updated when a new one is written.
+
+**Glossary:** the repo root `CONTEXT.md`, section "Pedikur". Terms in bold
+throughout this spec (Treatment, Visit, Visit Item, Treatment Recipe, Product,
+Visit Interval, Recall List, Archive, Erase, Stock Movement) are used in their
+glossary sense.
+
+**Decisions that are hard to reverse and surprising without context:**
+
+- `docs/adr/0003-pedikur-issues-no-receipts.md` - why a business app issues
+  nothing, and where the eKasa boundary runs
+- `docs/adr/0004-pedikur-hand-written-backend.md` - why the backend is written
+  rather than adopted from a platform
+- `docs/adr/0005-pedikur-health-data-not-encrypted-at-rest.md` - why Article 9
+  data sits unencrypted on disk on purpose
+- `docs/adr/0006-pedikur-server-rendered-not-spa.md` - why there is no SPA and
+  no build step
+
+**Implementation plans**, one per phase, written just in time so each argues
+from code that exists rather than from a guess about the phase before it:
+
+| Phase | Plan | Status |
+|---|---|---|
+| 1. Auth, clients, treatments, week calendar, booking, closing a Visit | `docs/superpowers/plans/2026-09-05-pedikur-phase1.md` | written 2026-09-05, not started |
+| 2. Products, Treatment Recipes, stock, expenses | not written | |
+| 3. Google sync, buffers, free slot highlighting | not written | |
+| 4. Dashboard, Recall List, MCP server | not written | |
+
+The phase contents are defined in section 13. When a plan is written, add it
+here; that is what keeps this table from going stale.
+
 ## 1. Context
 
 A self-employed pedicurist working in Slovakia needs one place for clients,

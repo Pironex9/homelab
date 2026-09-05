@@ -31,3 +31,6 @@ own schedule and are never restored selectively, so restoring an old backup
 means running the erasure again. And the app's own login demands a password
 even behind Pangolin SSO, because a single proxy misconfiguration must not be
 the only thing between the internet and this data.
+
+Design it argues from: `docs/superpowers/specs/2026-09-05-pedikur-design.md`, whose section 0
+lists the rest of the document set.

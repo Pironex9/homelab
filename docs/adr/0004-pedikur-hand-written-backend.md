@@ -32,3 +32,6 @@ What is bought is that nothing in the stack can change its licence, its API or
 its enforcement underneath a tool that someone depends on daily. If that trade
 ever looks wrong, the data model is small and plain enough to lift into a
 platform later; the reverse migration is the hard direction.
+
+Design it argues from: `docs/superpowers/specs/2026-09-05-pedikur-design.md`, whose section 0
+lists the rest of the document set.

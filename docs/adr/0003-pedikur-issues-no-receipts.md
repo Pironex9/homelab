@@ -40,3 +40,6 @@ compulsory for every taxable person, VAT-registered or not, from 2027-01-01.
 Issuing stays out of scope, but supplier documents will start arriving as
 Peppol XML rather than PDF, so the attachment intake must not assume PDF
 forever.
+
+Design it argues from: `docs/superpowers/specs/2026-09-05-pedikur-design.md`, whose section 0
+lists the rest of the document set.

@@ -12,7 +12,7 @@
 
 **Tech Stack:** Python 3.13, FastAPI, Uvicorn, SQLAlchemy 2.0 (ORM, `DeclarativeBase` + `Mapped[]`), Jinja2, htmx 2.x, argon2-cffi, itsdangerous, pytest. SQLite via the stdlib driver.
 
-**Spec:** `docs/superpowers/specs/2026-09-05-pedikur-design.md` - read it before starting. Terms in **bold** here (Visit, Treatment, Visit Item, Archive, Erase) are defined in the repo root `CONTEXT.md` under "Pedikur" and are used in their glossary sense.
+**Spec:** `docs/superpowers/specs/2026-09-05-pedikur-design.md` - read it before starting. Its section 0 lists the whole document set: the glossary, the four ADRs, and the plans for the other phases. When a constraint here looks arbitrary, the reason is usually in an ADR: `0003` receipts stay outside the app, `0004` why the backend is hand-written, `0005` why health data is unencrypted at rest, `0006` why there is no SPA. Terms in **bold** here (Visit, Treatment, Visit Item, Archive, Erase) are defined in the repo root `CONTEXT.md` under "Pedikur" and are used in their glossary sense.
 
 ## Execution mode
 
