@@ -670,7 +670,7 @@ git commit -m "feat(pedikur): stack skeleton, SQLite setup and migration runner"
 
 **Interfaces:**
 - Consumes: `db.Database.session()`, `config.load()`, `migrate.run()` from Task 1.
-- Produces: `models.User/Client/Treatment/Visit/VisitItem/WorkingHours/Setting`; `security.hash_password(str) -> str`, `security.attempt_login(session, username, password) -> User | None` (the only verification entry point: it counts failures and applies the lock, so nothing else calls the hasher), `security.current_user(request) -> User | None`, `security.require_user`, `security.require_admin` (FastAPI dependencies); `main.app`. Templates and the database are reached through `request.app.state.templates` and `request.app.state.db`, never as module attributes.
+- Produces: `models.User/Client/Treatment/Visit/VisitItem/WorkingHours/Setting`; `security.hash_password(str) -> str`, `security.attempt_login(session, username, password) -> tuple[User | None, str | None]` returning the user and an `app.strings.hu.S` key on failure (the only verification entry point: it counts failures and applies the lock, so nothing else calls the hasher; the error key exists because telling a locked-out user her password is wrong sends her back to guessing, and every guess re-arms the lock), `security.current_user(request) -> User | None`, `security.require_user`, `security.require_admin` (FastAPI dependencies); `main.app`. Templates and the database are reached through `request.app.state.templates` and `request.app.state.db`, never as module attributes.
 
 - [ ] **Step 1: Write the failing test**
 

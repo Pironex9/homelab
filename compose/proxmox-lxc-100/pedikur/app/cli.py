@@ -12,6 +12,8 @@ from app import config, migrate, security
 from app.db import Database
 from app.models import User
 
+MIN_PASSWORD = 10
+
 
 def _db() -> Database:
     settings = config.load()
@@ -19,10 +21,19 @@ def _db() -> Database:
     return Database(settings.db_path)
 
 
-def create_user(username: str, name: str, admin: bool) -> None:
-    password = getpass.getpass("Password: ")
+def _ask_password(prompt: str = "Password: ") -> str:
+    """getpass returns "" on an empty line, which hashes and stores happily.
+    This is the only account creation path for an app holding health data."""
+    password = getpass.getpass(prompt)
+    if len(password) < MIN_PASSWORD:
+        sys.exit(f"Password must be at least {MIN_PASSWORD} characters.")
     if password != getpass.getpass("Repeat: "):
         sys.exit("Passwords do not match.")
+    return password
+
+
+def create_user(username: str, name: str, admin: bool) -> None:
+    password = _ask_password()
     with _db().session() as s:
         if s.query(User).filter_by(username=username).one_or_none():
             sys.exit(f"User {username} already exists.")
@@ -32,7 +43,7 @@ def create_user(username: str, name: str, admin: bool) -> None:
 
 
 def reset_password(username: str) -> None:
-    password = getpass.getpass("New password: ")
+    password = _ask_password("New password: ")
     with _db().session() as s:
         user = s.query(User).filter_by(username=username).one_or_none()
         if user is None:

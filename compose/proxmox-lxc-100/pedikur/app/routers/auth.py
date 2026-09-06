@@ -19,11 +19,11 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     db = request.app.state.db
     templates = request.app.state.templates
     with db.session() as s:
-        user = security.attempt_login(s, username, password)
+        user, error = security.attempt_login(s, username, password)
         if user is None:
             return templates.TemplateResponse(
                 request, "login.html",
-                {"S": S, "error": S["login_failed"]}, status_code=401)
+                {"S": S, "error": S[error]}, status_code=401)
         request.session["user_id"] = user.id
     return RedirectResponse("/", status_code=303)
 

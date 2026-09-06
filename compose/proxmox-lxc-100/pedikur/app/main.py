@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from app.routers import auth
 
 BASE_DIR = Path(__file__).parent
 
+log = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,11 +31,22 @@ async def lifespan(app: FastAPI):
         backup.nightly_task(settings.db_path, settings.backup_dir))
     yield
     task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 _settings = config.load()   # once, at import: the middleware needs it early
 
-app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
+if not _settings.https_only:
+    log.warning("PEDIKUR_HTTPS_ONLY=0: session cookies are sent without the "
+                "Secure flag. Never do this on the public route.")
+
+# openapi_url off as well as the docs pages: it would publish the whole route
+# table, and once the /api/* surface lands it would describe every machine
+# write at a path the Pangolin deny rule does not cover.
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.secret_key,
