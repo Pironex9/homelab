@@ -64,17 +64,61 @@ def test_a_missing_client_redirects_instead_of_404ing(logged_in):
 def test_the_history_list_renders_a_closed_visit(logged_in):
     """The localdate filter is resolved when Jinja compiles the template, so a
     missing one breaks the card whether or not any visit exists."""
-    from app.models import Client, Visit
+    from app.models import Client, Treatment, Visit, VisitItem
     with logged_in.app.state.db.session() as s:
         s.add(Client(name="Kovács Anna", created_by="1",
                      created_at="2026-09-06T10:00:00Z"))
+        s.add(Treatment(name="Pedikűr", duration_min=45, price_cents=2500,
+                        created_by="1"))
         s.flush()
         s.add(Visit(client_id=1, starts_at="2026-09-01T07:00:00Z",
                     ends_at="2026-09-01T08:00:00Z", status="done",
                     findings="benőtt köröm", created_by="1",
                     created_at="2026-09-01T06:00:00Z"))
+        s.flush()
+        # with an item, so the template dereferences item.treatment.name and
+        # the lazy load actually happens; without one that path never runs and
+        # a DetachedInstanceError would go unnoticed
+        s.add(VisitItem(visit_id=1, kind="treatment", treatment_id=1, qty=1,
+                        unit_price_cents=2500))
 
     page = logged_in.get("/clients/1").text
     assert "2026. 09. 01." in page      # 07:00 UTC is still 1 September local
     assert "benőtt köröm" in page
+    assert "Pedikűr" in page
     assert "Még nincs lezárt látogatás" not in page
+
+
+def test_archive_and_unarchive_from_the_card(logged_in):
+    """clients.archive existed with no way to reach it from any screen."""
+    logged_in.post("/clients", data={"name": "Kovács Anna", "phone": ""})
+    assert "Kovács Anna" in logged_in.get("/clients").text
+
+    r = logged_in.post("/clients/1/archive")
+    assert r.headers["location"] == "/clients/1"
+    assert "Kovács Anna" not in logged_in.get("/clients").text
+    card = logged_in.get("/clients/1").text
+    assert "Archiválva" in card
+    assert "Visszahozás" in card
+
+    logged_in.post("/clients/1/unarchive")
+    assert "Kovács Anna" in logged_in.get("/clients").text
+
+
+def test_editing_a_client_to_a_blank_name_says_so(logged_in):
+    logged_in.post("/clients", data={"name": "Kovács Anna", "phone": ""})
+    r = logged_in.post("/clients/1", data={
+        "name": "  ", "phone": "", "email": "", "address": "",
+        "alert": "", "notes": ""})
+    assert r.headers["location"] == "/clients/1?error=client_name_required"
+    assert "A kliensnek kell egy név" in logged_in.get(r.headers["location"]).text
+    with logged_in.app.state.db.session() as s:
+        from app.models import Client
+        assert s.get(Client, 1).name == "Kovács Anna"
+
+
+def test_editing_a_client_that_is_gone_redirects_to_the_list(logged_in):
+    r = logged_in.post("/clients/999", data={
+        "name": "X", "phone": "", "email": "", "address": "",
+        "alert": "", "notes": ""})
+    assert r.headers["location"] == "/clients"

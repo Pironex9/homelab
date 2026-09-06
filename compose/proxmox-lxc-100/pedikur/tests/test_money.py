@@ -1,7 +1,8 @@
 """The display filters every price and date on every screen goes through."""
 import pytest
 
-from app.display import eur, localdate
+from app.display import eur
+from app.services.timeutil import localdate
 
 
 @pytest.mark.parametrize("cents,text", [
@@ -22,7 +23,21 @@ def test_eur(cents, text):
     assert eur(cents) == text
 
 
+@pytest.mark.parametrize("cents,text", [
+    # SQLite hands a SUM() back as a float and a nullable column as None, and
+    # neither may turn a whole page into a 500 on the way to a price
+    (2500.0, "25,00 EUR"),
+    (None, "0,00 EUR"),
+])
+def test_eur_survives_what_sqlite_actually_returns(cents, text):
+    assert eur(cents) == text
+
+
 @pytest.mark.parametrize("iso,text", [
+    # A naive string means the writer forgot the Z. Treating it as container
+    # local time would make it silently correct-looking and an hour or two
+    # wrong; every late evening visit would land on the previous day.
+    ("2026-09-01T23:30:00", "2026. 09. 02."),
     ("2026-09-01T07:00:00Z", "2026. 09. 01."),
     # 23:30 UTC is already the next day in Bratislava, summer or winter
     ("2026-09-01T23:30:00Z", "2026. 09. 02."),
@@ -30,4 +45,4 @@ def test_eur(cents, text):
     ("2026-09-01T07:00:00+00:00", "2026. 09. 01."),
 ])
 def test_localdate_converts_out_of_utc(iso, text):
-    assert localdate(iso, "Europe/Bratislava") == text
+    assert localdate(iso) == text

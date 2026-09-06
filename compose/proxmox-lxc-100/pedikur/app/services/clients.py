@@ -37,7 +37,8 @@ def _like_needle(query: str) -> str:
 
 
 def search(session: Session, query: str, limit: int = 20) -> list[ClientRow]:
-    stmt = select(Client).where(Client.archived_at.is_(None))
+    stmt = select(Client).where(Client.archived_at.is_(None),
+                                Client.erased_at.is_(None))
     if query.strip():
         stmt = stmt.where(
             func.fold(Client.name).like(_like_needle(query.strip()), escape="\\"))
@@ -65,7 +66,16 @@ def create(session: Session, name: str, phone: str | None,
     return client
 
 
+# setattr on a declarative instance succeeds for any name: an unmapped one
+# becomes a plain Python attribute, flush reports success, and nothing is
+# written. A typo in an Erase would be a GDPR request silently not honoured.
+_FIELDS = frozenset(Client.__mapper__.columns.keys())
+
+
 def update(session: Session, client_id: int, **fields) -> Client:
+    unknown = set(fields) - _FIELDS
+    if unknown:
+        raise ValueError(f"not columns of client: {sorted(unknown)}")
     client = session.get(Client, client_id)
     if client is None:
         raise LookupError(f"no client {client_id}")

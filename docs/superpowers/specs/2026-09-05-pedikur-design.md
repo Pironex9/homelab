@@ -357,8 +357,12 @@ One number drives the design: closing a **Visit** must be one tap.
   happens once a day, not ten times.
 - **Client card.** The red `alert` banner first, then contact details and
   "last seen 6 weeks ago", then history: date, Treatment, findings,
-  attachments. Search is a plain `LIKE` on the name; FTS5 is unnecessary at a
-  few hundred clients.
+  attachments. Search is a `LIKE` on the name, on both sides
+  folded to lower case with the accents stripped, because SQLite folds ASCII
+  only and "kovacs" would otherwise find nothing at all; FTS5 is unnecessary
+  at a few hundred clients. The folding costs the `name` index, so every
+  keystroke is a table scan: correct at this size, and a decision rather than
+  a free lunch.
 - **Recall List.** Its own menu entry, not a dashboard tile: this is the list
   that produces revenue. Each row shows where the interval came from, "6
   weeks, from history" or "6 weeks, set", because otherwise she cannot judge

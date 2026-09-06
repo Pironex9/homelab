@@ -35,6 +35,16 @@ S = {
     "treatment_duration_invalid": "A hossz csak egész perc lehet, legalább 5.",
     "treatment_name_taken": "Már van ilyen nevű kezelés.",
 
+    "new_visit": "Új időpont",
+    "client": "Kliens",
+    "choose_client": "Válassz klienst",
+    "starts_at": "Kezdés",
+    "ends_at_optional": "Vége (ha hosszabb a szokásosnál)",
+    "slot_taken": "Ez az idősáv már foglalt.",
+    "visit_needs_treatment": "Válassz legalább egy kezelést.",
+    "visit_time_invalid": "A megadott időpont nem értelmezhető.",
+    "visit_client_missing": "Ez a kliens már nem létezik.",
+
     "search": "Keresés",
     "new_client": "Új kliens",
     "client_name": "Név",
@@ -49,6 +59,10 @@ S = {
     "no_history": "Még nincs lezárt látogatás",
     "no_results": "Nincs találat",
     "client_name_required": "A kliensnek kell egy név.",
+    "archive": "Archiválás",
+    "unarchive": "Visszahozás",
+    "archived": "Archiválva",
+    "archive_hint": "Eltűnik a listákból, minden adata megmarad.",
 
     "hours_title": "Munkaidő",
     "closed": "Zárva",

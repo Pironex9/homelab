@@ -106,10 +106,13 @@ def test_user_attributes_survive_the_session_closing(db):
     assert user.name == "Teszt"
 
 
-def test_parallel_wrong_passwords_all_count(db):
-    """Ten threads, ten counted failures. The read-modify-write this replaced
-    landed 1 of 10 and never locked the account, measured, which is the whole
-    parallel brute force the throttle exists to stop."""
+def test_parallel_wrong_passwords_lock_the_account(db):
+    """Ten threads, and the account ends up locked at exactly MAX_FAILED.
+
+    The read-modify-write this replaced landed 1 of 10 and never locked at
+    all, measured. Now the transactions serialise, so attempts six to ten see
+    the lock the fifth one set and return without counting: five is the right
+    number, not ten."""
     import threading
 
     username, _ = _make_user(db)
@@ -126,5 +129,5 @@ def test_parallel_wrong_passwords_all_count(db):
 
     with db.session() as s:
         user = s.query(User).filter_by(username=username).one()
-        assert user.failed_logins == 10
+        assert user.failed_logins == security.MAX_FAILED
         assert user.locked_until is not None

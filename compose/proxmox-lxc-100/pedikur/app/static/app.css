@@ -230,6 +230,25 @@ details > summary::marker { color: var(--accent); }
 form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
 .card h2:first-child { margin-top: 0; }
 
+/* ---------- checkbox groups ---------- */
+
+.checks {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: var(--gap-3) 0 0;
+  padding: var(--gap-2) var(--gap-3) var(--gap-3);
+}
+.checks legend { padding: 0 var(--gap-2); font-weight: 600; font-size: var(--step--1); }
+.checks .check { border-top: 1px solid var(--line); }
+.checks .check:first-of-type { border-top: 0; }
+.check > span { display: grid; }
+.check .muted { font-size: var(--step--1); }
+
+/* the optional end time sits next to a required start time of the same shape,
+   so it says so in the label and stays visually quieter */
+.label--optional { color: var(--ink-muted); font-weight: 400; }
+.input--optional { border-style: dashed; }
+
 /* ---------- working hours ---------- */
 
 .day {

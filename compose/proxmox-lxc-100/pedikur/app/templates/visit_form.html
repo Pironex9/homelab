@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ S["new_visit"] }}{% endblock %}
+{% block heading %}{{ S["new_visit"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/visits/new" class="card">
+  <label for="client_id">{{ S["client"] }}</label>
+  <select id="client_id" name="client_id" required>
+    {# without this the select silently sits on the first name in the list,
+       and a save without touching it books the wrong person #}
+    <option value="" {% if not client_id %}selected{% endif %} disabled>
+      {{ S["choose_client"] }}</option>
+    {% for c in clients %}
+    <option value="{{ c.id }}" {% if c.id == client_id %}selected{% endif %}>
+      {{ c.name }}{% if c.phone %} - {{ c.phone }}{% endif %}
+    </option>
+    {% endfor %}
+  </select>
+
+  <fieldset class="checks">
+    <legend>{{ S["treatments_title"] }}</legend>
+    {% for t in treatments %}
+    <label class="check">
+      <input type="checkbox" name="treatment_ids" value="{{ t.id }}">
+      <span>{{ t.name }}
+        <span class="muted num">{{ t.duration_min }} {{ S["minutes_short"] }}
+          &middot; {{ t.price_cents | eur }}</span>
+      </span>
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <label for="start">{{ S["starts_at"] }}</label>
+  <input id="start" name="start" type="datetime-local" value="{{ start }}" required>
+
+  <label for="end" class="label--optional">{{ S["ends_at_optional"] }}</label>
+  <input id="end" name="end" type="datetime-local" class="input--optional">
+
+  <button type="submit">{{ S["save"] }}</button>
+</form>
+{% endblock %}

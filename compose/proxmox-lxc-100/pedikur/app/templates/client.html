@@ -4,6 +4,10 @@
 {% block body %}
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
+{% if client.archived_at %}
+<p class="notice" role="status">{{ S["archived"] }}</p>
+{% endif %}
+
 {% if client.alert %}
 <p class="alert-banner">
   <span class="alert-dot"></span>
@@ -26,6 +30,16 @@
   <label for="notes">{{ S["client_notes"] }}</label>
   <textarea id="notes" name="notes" rows="3">{{ client.notes or '' }}</textarea>
   <button type="submit">{{ S["save"] }}</button>
+</form>
+
+<form method="post" class="stack-top"
+      action="/clients/{{ client.id }}/{{ 'unarchive' if client.archived_at else 'archive' }}">
+  <button class="secondary" type="submit">
+    {{ S["unarchive"] if client.archived_at else S["archive"] }}
+  </button>
+  {% if not client.archived_at %}
+  <span class="muted"> {{ S["archive_hint"] }}</span>
+  {% endif %}
 </form>
 
 <h2 class="stack-top">{{ S["history"] }}</h2>

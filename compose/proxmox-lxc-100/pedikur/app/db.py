@@ -33,14 +33,32 @@ def make_engine(db_path: Path):
 
     @event.listens_for(engine, "connect")
     def _pragmas(dbapi_connection, _record):
+        # pysqlite opens a transaction lazily, and only just before a write.
+        # That makes every check-then-write a race: two bookings both read the
+        # slot as free, then both insert, and the day is double booked.
+        # Measured: two threads, two visits in the same window, both committed.
+        # Handing transaction control to SQLAlchemy lets us BEGIN IMMEDIATE.
+        dbapi_connection.isolation_level = None
         cur = dbapi_connection.cursor()
         cur.execute("PRAGMA journal_mode = WAL")
         cur.execute("PRAGMA foreign_keys = ON")
         cur.execute("PRAGMA busy_timeout = 5000")
         cur.execute("PRAGMA synchronous = NORMAL")
         cur.close()
-        # deterministic, so the query planner may use it in an index later
+        # Deterministic so SQLite may cache it within a statement. Never build
+        # an index on fold(name): SQLite accepts it, and the database then
+        # cannot be written or even integrity-checked by any connection that
+        # has not registered the function, which is every sqlite3 CLI and the
+        # weekly restore verification in scripts/restore-test.sh.
         dbapi_connection.create_function("fold", 1, fold, deterministic=True)
+
+    @event.listens_for(engine, "begin")
+    def _begin_immediate(connection):
+        # Every transaction takes the write lock up front, reads included.
+        # ponytail: blunt, and right for one practitioner on one device. If
+        # read traffic ever matters, make this per-service and give the
+        # booking path its own immediate session instead.
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine
 

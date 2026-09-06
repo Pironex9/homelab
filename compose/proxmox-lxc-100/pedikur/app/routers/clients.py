@@ -8,6 +8,10 @@ from app.strings.hu import S
 
 router = APIRouter(prefix="/clients")
 
+# One practitioner has a few hundred clients. The service default of 20 is for
+# the type-ahead fragment, not for the screen that has to hold all of them.
+LIST_LIMIT = 1000
+
 _ERRORS = frozenset({"client_name_required"})
 
 
@@ -21,7 +25,7 @@ def _error(key: str | None) -> str | None:
 def index(request: Request, q: str = "", error: str | None = None,
           user: User = Depends(security.require_user)):
     with request.app.state.db.session() as s:
-        rows = clients.search(s, q)
+        rows = clients.search(s, q, limit=LIST_LIMIT)
         return request.app.state.templates.TemplateResponse(
             request, "clients.html",
             {"user": user, "tab": "clients", "rows": rows, "q": q,
@@ -64,6 +68,27 @@ def card(request: Request, client_id: int, error: str | None = None,
             request, "client.html",
             {"user": user, "tab": "clients", "client": client, "visits": visits,
              "error": _error(error)})
+
+
+@router.post("/{client_id}/archive")
+def archive(request: Request, client_id: int,
+            user: User = Depends(security.require_user)):
+    return _toggle(request, client_id, clients.archive)
+
+
+@router.post("/{client_id}/unarchive")
+def unarchive(request: Request, client_id: int,
+              user: User = Depends(security.require_user)):
+    return _toggle(request, client_id, clients.unarchive)
+
+
+def _toggle(request: Request, client_id: int, action):
+    try:
+        with request.app.state.db.session() as s:
+            action(s, client_id)
+    except LookupError:
+        return RedirectResponse("/clients", status_code=303)
+    return RedirectResponse(f"/clients/{client_id}", status_code=303)
 
 
 @router.post("/{client_id}")

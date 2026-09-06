@@ -13,7 +13,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app import backup, config, display, migrate
 from app.db import Database
-from app.routers import auth, clients
+from app.services import timeutil
+from app.routers import auth, clients, visits
 from app.routers import settings as settings_router
 from app.strings.hu import S
 
@@ -33,7 +34,8 @@ async def lifespan(app: FastAPI):
     # Integer math, not cents / 100: the column is integer cents precisely so
     # no float ever touches money, and this is the last place to reintroduce one.
     templates.env.filters["eur"] = display.eur
-    templates.env.filters["localdate"] = lambda iso: display.localdate(iso, settings.tz)
+    templates.env.filters["localdate"] = timeutil.localdate
+    templates.env.filters["localtime"] = timeutil.localtime
     app.state.templates = templates
     task = asyncio.create_task(
         backup.nightly_task(settings.db_path, settings.backup_dir))
@@ -68,6 +70,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(auth.router)
 app.include_router(clients.router)
+app.include_router(visits.router)
 app.include_router(settings_router.router)
 
 
