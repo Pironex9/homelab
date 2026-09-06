@@ -3,12 +3,17 @@ services:
     build: .
     container_name: pedikur
     environment:
-      - TZ=${TZ}
+      - TZ=${TZ:-Europe/Bratislava}
       - PEDIKUR_DATA=/data
-      - PEDIKUR_SECRET_KEY=${PEDIKUR_SECRET_KEY}
-      - PEDIKUR_API_TOKEN=${PEDIKUR_API_TOKEN}
+      # :? so a missing Komodo Stack Environment fails the deploy loudly
+      # instead of signing every session with an empty key
+      - PEDIKUR_SECRET_KEY=${PEDIKUR_SECRET_KEY:?set it in the Komodo Stack Environment}
+      - PEDIKUR_API_TOKEN=${PEDIKUR_API_TOKEN:?set it in the Komodo Stack Environment}
     volumes:
-      - ${DOCKER_DATA}/pedikur:/data
+      # The container runs as uid 1000, but Docker creates a missing bind
+      # mount source as root:root and the image's chown does not apply to it.
+      # On a new host: mkdir -p and chown 1000:1000 this directory first.
+      - ${DOCKER_DATA:?set DOCKER_DATA, otherwise the volume lands in /}/pedikur:/data
     ports:
       - 3010:8000
     restart: unless-stopped
@@ -18,3 +23,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      # migrations plus the pre-migration snapshot run before the first
+      # request is served, and three failed checks would kill the container
+      start_period: 30s

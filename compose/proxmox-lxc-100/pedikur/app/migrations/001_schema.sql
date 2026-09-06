@@ -1,11 +1,20 @@
 -- Phase 1 tables. Times are ISO-8601 UTC text, except working_hours.start
 -- and working_hours.end which are wall-clock "HH:MM" and must never be
 -- timezone-converted. Money is integer cents, EUR.
+--
+-- The typeof() checks are not decoration: SQLite INTEGER affinity stores a
+-- float unchanged when the conversion would lose data, so one stray
+-- price * qty in Python lands in the column as REAL and never comes back.
+--
+-- Every created_at default uses strftime rather than datetime('now'), which
+-- would write "2026-09-06 14:27:47" while application code writes
+-- "2026-09-06T14:27:47Z". Two shapes in one column break ORDER BY and BETWEEN.
 
 CREATE TABLE user (
     id            INTEGER PRIMARY KEY,
     name          TEXT    NOT NULL,
-    username      TEXT    NOT NULL UNIQUE,
+    -- NOCASE so "anna" and "Anna" cannot both exist and log in
+    username      TEXT    NOT NULL COLLATE NOCASE UNIQUE,
     password_hash TEXT    NOT NULL,
     is_admin      INTEGER NOT NULL DEFAULT 0,
     failed_logins INTEGER NOT NULL DEFAULT 0,
@@ -24,15 +33,16 @@ CREATE TABLE client (
     archived_at            TEXT,
     erased_at              TEXT,
     created_by             TEXT NOT NULL,
-    created_at             TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at             TEXT NOT NULL
+        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX idx_client_name ON client (name);
 
 CREATE TABLE treatment (
     id           INTEGER PRIMARY KEY,
     name         TEXT    NOT NULL,
-    duration_min INTEGER NOT NULL,
-    price_cents  INTEGER NOT NULL,
+    duration_min INTEGER NOT NULL CHECK (duration_min > 0),
+    price_cents  INTEGER NOT NULL CHECK (typeof(price_cents) = 'integer'),
     active       INTEGER NOT NULL DEFAULT 1,
     created_by   TEXT    NOT NULL
 );
@@ -48,7 +58,11 @@ CREATE TABLE visit (
     note       TEXT,               -- what was done
     deleted_at TEXT,
     created_by TEXT    NOT NULL,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT    NOT NULL
+        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    -- an inverted visit turns every free-slot subtraction into nonsense
+    -- instead of an error
+    CHECK (ends_at > starts_at)
 );
 CREATE INDEX idx_visit_window ON visit (starts_at, ends_at);
 CREATE INDEX idx_visit_client ON visit (client_id, starts_at);
@@ -59,8 +73,9 @@ CREATE TABLE visit_item (
     kind             TEXT    NOT NULL CHECK (kind IN ('treatment', 'product')),
     treatment_id     INTEGER REFERENCES treatment (id),
     product_id       INTEGER,     -- phase 2
-    qty              REAL    NOT NULL DEFAULT 1,
-    unit_price_cents INTEGER NOT NULL,
+    qty              REAL    NOT NULL DEFAULT 1 CHECK (qty > 0),
+    unit_price_cents INTEGER NOT NULL
+                     CHECK (typeof(unit_price_cents) = 'integer'),
     CHECK (
         (kind = 'treatment' AND treatment_id IS NOT NULL AND product_id IS NULL)
         OR
@@ -76,7 +91,12 @@ CREATE TABLE working_hours (
     start     TEXT NOT NULL,  -- wall clock "HH:MM"
     end       TEXT NOT NULL,  -- wall clock "HH:MM"
     is_closed INTEGER NOT NULL DEFAULT 0,
-    CHECK ((weekday IS NULL) <> (date IS NULL))
+    CHECK ((weekday IS NULL) <> (date IS NULL)),
+    CHECK (weekday IS NULL OR weekday BETWEEN 0 AND 6),
+    CHECK (date IS NULL OR date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    -- shape and range, so "25:99" or "xx" cannot reach the calendar grid
+    CHECK (start GLOB '[0-2][0-9]:[0-5][0-9]' AND start <= '23:59'),
+    CHECK ("end" GLOB '[0-2][0-9]:[0-5][0-9]' AND "end" <= '23:59')
 );
 CREATE UNIQUE INDEX idx_working_hours_weekday ON working_hours (weekday)
     WHERE weekday IS NOT NULL;

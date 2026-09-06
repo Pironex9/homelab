@@ -170,7 +170,7 @@ splitting it would spread the foreign keys across files.
 - Test: `compose/proxmox-lxc-100/pedikur/tests/{conftest.py,test_migrate.py}`
 
 **Interfaces:**
-- Produces: `config.settings` (frozen dataclass with `db_path: Path`, `media_dir: Path`, `backup_dir: Path`, `secret_key: str`, `api_token: str`, `tz: str`); `db.engine`, `db.session_scope()` context manager; `backup.snapshot(db_path: Path, dest_dir: Path, tag: str) -> Path`; `migrate.run(db_path: Path) -> list[str]` returning the filenames applied.
+- Produces: `config.load() -> Settings` (frozen dataclass with `data_dir: Path`, `secret_key: str`, `api_token: str`, `tz: str`, and the `db_path`, `media_dir`, `backup_dir` properties derived from `data_dir`); `db.Database(db_path)` with `.engine` and a `.session()` context manager; `backup.snapshot(db_path: Path, dest_dir: Path, tag: str) -> Path | None` and `backup.prune(dest_dir, tag, keep)`; `migrate.run(db_path: Path, backup_dir: Path, migrations_dir: Path = MIGRATIONS_DIR) -> list[str]` returning the filenames applied.
 
 - [ ] **Step 1: Write the failing test**
 

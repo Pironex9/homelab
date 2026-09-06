@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+log = logging.getLogger(__name__)
+
 KEEP_DAILY = 7
+INTERVAL_SECONDS = 24 * 60 * 60
 
 
 def snapshot(db_path: Path, dest_dir: Path, tag: str = "daily") -> Path | None:
@@ -22,6 +26,13 @@ def snapshot(db_path: Path, dest_dir: Path, tag: str = "daily") -> Path | None:
     try:
         with target:
             source.backup(target)
+    except Exception:
+        # sqlite3.connect(dest) already created the file. Leaving it behind
+        # would put a zero byte file at the top of the sorted list, which is
+        # exactly the one a restore reaches for and the one prune keeps.
+        target.close()
+        dest.unlink(missing_ok=True)
+        raise
     finally:
         target.close()
         source.close()
@@ -35,11 +46,16 @@ def prune(dest_dir: Path, tag: str = "daily", keep: int = KEEP_DAILY) -> None:
 
 
 async def nightly_task(db_path: Path, dest_dir: Path) -> None:
-    """Snapshot once a day. Runs for the life of the process."""
+    """Snapshot once a day, starting at boot. Runs for the life of the process.
+
+    The first copy is taken immediately rather than 24 hours in: a container
+    that gets redeployed most days would otherwise never produce one.
+    The clock is the process start time, not a wall clock hour.
+    """
     while True:
-        await asyncio.sleep(24 * 60 * 60)
         try:
             snapshot(db_path, dest_dir, tag="daily")
             prune(dest_dir, tag="daily")
         except Exception:  # a failed backup must not kill the app
-            pass
+            log.exception("daily backup failed")
+        await asyncio.sleep(INTERVAL_SECONDS)

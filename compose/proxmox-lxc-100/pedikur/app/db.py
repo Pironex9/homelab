@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 def make_engine(db_path: Path):
     engine = create_engine(
         f"sqlite+pysqlite:///{db_path}",
-        connect_args={"timeout": 5.0},  # SQLite has no pool; this is busy_timeout
+        connect_args={"timeout": 5.0},  # busy_timeout, also set as a pragma below
         future=True,
     )
 
