@@ -1,0 +1,20 @@
+services:
+  pedikur:
+    build: .
+    container_name: pedikur
+    environment:
+      - TZ=${TZ}
+      - PEDIKUR_DATA=/data
+      - PEDIKUR_SECRET_KEY=${PEDIKUR_SECRET_KEY}
+      - PEDIKUR_API_TOKEN=${PEDIKUR_API_TOKEN}
+    volumes:
+      - ${DOCKER_DATA}/pedikur:/data
+    ports:
+      - 3010:8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

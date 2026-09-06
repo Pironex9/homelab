@@ -67,3 +67,4 @@ id_rsa*
 .playwright/
 .playwright-cli/
 __pycache__/
+.pytest_cache/
