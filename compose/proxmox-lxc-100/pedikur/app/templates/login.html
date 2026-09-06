@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ S["login_title"] }}{% endblock %}
+{% block body %}
+<main class="login">
+  <h1>{{ S["login_title"] }}</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/login">
+    <label for="username">{{ S["login_user"] }}</label>
+    <input id="username" name="username" autocomplete="username" required>
+    <label for="password">{{ S["login_password"] }}</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" required>
+    <button type="submit">{{ S["login_submit"] }}</button>
+  </form>
+</main>
+{% endblock %}

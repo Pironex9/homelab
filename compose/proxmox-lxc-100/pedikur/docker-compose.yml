@@ -9,6 +9,8 @@ services:
       # instead of signing every session with an empty key
       - PEDIKUR_SECRET_KEY=${PEDIKUR_SECRET_KEY:?set it in the Komodo Stack Environment}
       - PEDIKUR_API_TOKEN=${PEDIKUR_API_TOKEN:?set it in the Komodo Stack Environment}
+      # 1 unless the app is reached over plain http; see .env.example
+      - PEDIKUR_HTTPS_ONLY=${PEDIKUR_HTTPS_ONLY:-1}
     volumes:
       # The container runs as uid 1000, but Docker creates a missing bind
       # mount source as root:root and the image's chown does not apply to it.

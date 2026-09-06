@@ -24,6 +24,11 @@ class Settings:
     secret_key: str
     api_token: str
     tz: str = "Europe/Bratislava"
+    # Session cookies carry Secure by default. Turning it off is for reaching
+    # the app over plain http on the LAN or in the screenshot loop: a browser
+    # drops a Secure cookie on an http origin, and the login form then just
+    # reloads with no error to show for it.
+    https_only: bool = True
 
     @property
     def db_path(self) -> Path:
@@ -44,4 +49,5 @@ def load() -> Settings:
         secret_key=_required("PEDIKUR_SECRET_KEY"),
         api_token=_required("PEDIKUR_API_TOKEN"),
         tz=os.environ.get("TZ") or "Europe/Bratislava",
+        https_only=os.environ.get("PEDIKUR_HTTPS_ONLY", "1") != "0",
     )
