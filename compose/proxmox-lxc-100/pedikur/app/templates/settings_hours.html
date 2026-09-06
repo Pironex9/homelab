@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ S["hours_title"] }}{% endblock %}
+{% block heading %}{{ S["hours_title"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/settings/hours" class="card">
+  {% for weekday, label in weekdays %}
+  {% set row = rows.get(weekday) %}
+  <div class="day" role="group" aria-labelledby="day_{{ weekday }}">
+    <div class="day__head">
+      <span class="day__name" id="day_{{ weekday }}">{{ label }}</span>
+      <label class="check">
+        <input type="checkbox" name="closed_{{ weekday }}"
+               {% if row is none or row.is_closed %}checked{% endif %}>
+        {{ S["closed"] }}
+      </label>
+    </div>
+    <div class="day__times">
+      <span>
+        <label for="start_{{ weekday }}">{{ S["hours_open"] }}</label>
+        <input type="time" id="start_{{ weekday }}" name="start_{{ weekday }}"
+               value="{{ row.start if row else '09:00' }}">
+      </span>
+      <span>
+        <label for="end_{{ weekday }}">{{ S["hours_close"] }}</label>
+        <input type="time" id="end_{{ weekday }}" name="end_{{ weekday }}"
+               value="{{ row.end if row else '17:00' }}">
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+  <button type="submit">{{ S["save"] }}</button>
+</form>
+{% endblock %}

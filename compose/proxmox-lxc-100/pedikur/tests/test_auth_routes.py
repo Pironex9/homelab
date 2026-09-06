@@ -3,37 +3,7 @@
 Nothing else exercises app.state wiring, the session cookie flags the spec
 requires, or the two different redirects require_user has to produce.
 """
-import importlib
-
-import pytest
-from fastapi import Depends
-from fastapi.testclient import TestClient
-
-from app import security
-from app.models import User
-
-PASSWORD = "jelszo-tesztre"
-
-
-@pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("PEDIKUR_DATA", str(tmp_path))
-    monkeypatch.setenv("PEDIKUR_SECRET_KEY", "test-secret-key")
-    monkeypatch.setenv("PEDIKUR_API_TOKEN", "test-token")
-    monkeypatch.setenv("PEDIKUR_HTTPS_ONLY", "0")   # TestClient speaks http
-    import app.main
-    importlib.reload(app.main)
-
-    # There is no guarded route until task 3, so the guard gets one here.
-    @app.main.app.get("/_guarded")
-    def _guarded(user: User = Depends(security.require_user)):
-        return {"name": user.name}
-
-    with TestClient(app.main.app, follow_redirects=False) as c:
-        with c.app.state.db.session() as s:
-            s.add(User(name="Teszt", username="ancsi", is_admin=1,
-                       password_hash=security.hash_password(PASSWORD)))
-        yield c
+from tests.conftest import PASSWORD
 
 
 def test_health_needs_no_session(client):

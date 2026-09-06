@@ -21,7 +21,7 @@
   <main class="content">{% block body %}{% endblock %}</main>
 
   {% if user %}
-  <nav class="tabbar" aria-label="{{ S['app_name'] }}">
+  <nav class="tabbar" aria-label="{{ S['nav_label'] }}">
     <a href="/" class="tab {% if tab == 'today' %}is-active{% endif %}"
        {% if tab == 'today' %}aria-current="page"{% endif %}>{{ S["nav_today"] }}</a>
     <a href="/calendar" class="tab {% if tab == 'calendar' %}is-active{% endif %}"

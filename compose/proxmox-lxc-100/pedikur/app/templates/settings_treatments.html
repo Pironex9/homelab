@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ S["treatments_title"] }}{% endblock %}
+{% block heading %}{{ S["treatments_title"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if not treatments %}
+<p class="muted">{{ S["treatment_none"] }}</p>
+{% endif %}
+
+<ul class="list">
+  {% for t in treatments %}
+  <li class="card row {% if not t.active %}is-muted{% endif %}">
+    <div class="row__main">
+      <strong>{{ t.name }}</strong>
+      <div class="muted">
+        {% if not t.active %}<span class="pill">{{ S["inactive"] }}</span>{% endif %}
+        <span class="num">{{ t.duration_min }}</span> {{ S["minutes_short"] }}
+        &middot; <span class="price">{{ t.price_cents | eur }}</span>
+      </div>
+    </div>
+    <form method="post"
+          action="/settings/treatments/{{ t.id }}/{{ 'deactivate' if t.active else 'activate' }}">
+      <button class="secondary" type="submit">
+        {{ S["deactivate"] if t.active else S["activate"] }}
+      </button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+
+<form method="post" action="/settings/treatments" class="card stack-top">
+  <h2>{{ S["treatment_new"] }}</h2>
+  <label for="name">{{ S["treatment_name"] }}</label>
+  <input id="name" name="name" required>
+  <label for="duration_min">{{ S["treatment_duration"] }}</label>
+  <input id="duration_min" name="duration_min" type="number" min="5" step="5"
+         inputmode="numeric" value="45" required>
+  <label for="price_eur">{{ S["treatment_price"] }}</label>
+  <input id="price_eur" name="price_eur" inputmode="decimal" required>
+  <button type="submit">{{ S["save"] }}</button>
+</form>
+{% endblock %}

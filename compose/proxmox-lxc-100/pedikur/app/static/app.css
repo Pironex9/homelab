@@ -164,6 +164,83 @@ label {
 
 .muted { color: var(--ink-muted); }
 
+/* ---------- lists and rows ---------- */
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--gap-2); }
+.list--links a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.list--links .card { padding: 0; }
+.list--links a { display: block; padding: var(--gap-3); min-height: var(--tap); }
+
+.row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--gap-3);
+}
+.row__main { min-width: 0; }
+/* compact, so "Gombas korom kezeles" keeps its line on a 390px phone instead
+   of wrapping around a button nobody presses often */
+.row form { flex: none; }
+.row form button {
+  padding: 0 var(--gap-3);
+  font-size: var(--step--1);
+}
+
+/* Kept, not deleted: historical visit items still point at it. Faded rather
+   than hidden, so it is obvious the row is out of use and can come back. */
+.is-muted { background: var(--surface-2); }
+.is-muted .row__main > strong { color: var(--ink-muted); }
+
+.pill {
+  display: inline-block;
+  margin-right: var(--gap-2);
+  padding: 2px var(--gap-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: var(--step--1); font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.stack-top { margin-top: var(--gap-4); }
+/* thumb reach: the primary action of a form fills the card */
+form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
+.card h2:first-child { margin-top: 0; }
+
+/* ---------- working hours ---------- */
+
+.day {
+  border-top: 1px solid var(--line);
+  padding: var(--gap-3) 0;
+  display: grid; gap: var(--gap-2);
+}
+.day:first-of-type { border-top: 0; padding-top: 0; }
+.day__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--gap-3);
+}
+.day__name { font-weight: 600; }
+/* minmax(0, 1fr), not 1fr: a native time input's min-content width is wider
+   than half a 390px card once the locale renders it as "09:00 AM" with the
+   picker icon, and 1fr refuses to go below min-content, so it overflows. */
+.day__times {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--gap-3);
+}
+.day__times label { margin-top: 0; font-size: var(--step--1); }
+/* a time input stretched across half a laptop column reads as a text area */
+.day__times input[type="time"] {
+  min-width: 0; max-width: 12rem; padding-inline: var(--gap-2);
+}
+
+.check {
+  display: flex; align-items: center; gap: var(--gap-2);
+  margin: 0; font-weight: 400;
+  min-height: var(--tap);
+}
+.check input[type="checkbox"] {
+  width: 22px; height: 22px; min-height: 0; margin: 0;
+  accent-color: var(--accent);
+}
+
 /* ---------- login ---------- */
 
 .is-login { padding-bottom: 0; }

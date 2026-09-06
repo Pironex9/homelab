@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app import backup, config, migrate
 from app.db import Database
-from app.routers import auth
+from app.routers import auth, settings
 from app.strings.hu import S
 
 BASE_DIR = Path(__file__).parent
@@ -29,6 +29,9 @@ async def lifespan(app: FastAPI):
     app.state.db = Database(settings.db_path)
     templates = Jinja2Templates(directory=BASE_DIR / "templates")
     templates.env.globals["S"] = S   # every template needs it; none should be handed it
+    # Integer math, not cents / 100: the column is integer cents precisely so
+    # no float ever touches money, and this is the last place to reintroduce one.
+    templates.env.filters["eur"] = lambda c: f"{c // 100},{c % 100:02d} EUR"
     app.state.templates = templates
     task = asyncio.create_task(
         backup.nightly_task(settings.db_path, settings.backup_dir))
@@ -62,6 +65,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(auth.router)
+app.include_router(settings.router)
 
 
 @app.get("/health")
