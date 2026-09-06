@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block heading %}{{ client.name }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if client.alert %}
+<p class="alert-banner">
+  <span class="alert-dot"></span>
+  <span><strong>{{ S["alert_label"] }}:</strong> {{ client.alert }}</span>
+</p>
+{% endif %}
+
+<form method="post" action="/clients/{{ client.id }}" class="card">
+  <label for="name">{{ S["client_name"] }}</label>
+  <input id="name" name="name" value="{{ client.name }}" required>
+  <label for="phone">{{ S["client_phone"] }}</label>
+  <input id="phone" name="phone" type="tel" value="{{ client.phone or '' }}">
+  <label for="email">{{ S["client_email"] }}</label>
+  <input id="email" name="email" type="email" value="{{ client.email or '' }}">
+  <label for="address">{{ S["client_address"] }}</label>
+  <input id="address" name="address" value="{{ client.address or '' }}">
+  <label for="alert">{{ S["alert_label"] }}</label>
+  <textarea id="alert" name="alert" rows="2"
+            placeholder="{{ S['alert_hint'] }}">{{ client.alert or '' }}</textarea>
+  <label for="notes">{{ S["client_notes"] }}</label>
+  <textarea id="notes" name="notes" rows="3">{{ client.notes or '' }}</textarea>
+  <button type="submit">{{ S["save"] }}</button>
+</form>
+
+<h2 class="stack-top">{{ S["history"] }}</h2>
+<ul class="list">
+  {% for v in visits %}
+  <li class="card">
+    <strong>{{ v.starts_at | localdate }}</strong>
+    {% for item in v.items if item.kind == 'treatment' %}
+      <span>{{ item.treatment.name }}</span>
+    {% endfor %}
+    {% if v.findings %}<p class="muted">{{ v.findings }}</p>{% endif %}
+  </li>
+  {% else %}
+  <li class="muted">{{ S["no_history"] }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

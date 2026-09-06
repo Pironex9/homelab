@@ -3,6 +3,7 @@
 {% block heading %}{{ S["hours_title"] }}{% endblock %}
 {% block body %}
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if saved %}<p class="notice" role="status">{{ S["hours_saved"] }}</p>{% endif %}
 <form method="post" action="/settings/hours" class="card">
   {% for weekday, label in weekdays %}
   {% set row = rows.get(weekday) %}

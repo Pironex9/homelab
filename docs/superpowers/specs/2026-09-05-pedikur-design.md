@@ -498,8 +498,8 @@ the access token in memory.
 
 ## 10. Testing
 
-A small pytest suite covering four things, no framework ceremony, no
-per-route tests:
+A small pytest suite, no framework ceremony. The places where a wrong number
+would appear silently:
 
 - free slot computation, **including a case on the DST changeover Sunday**
 - stock summation, the snapshotted unit cost, and the idempotent `done`
@@ -509,7 +509,12 @@ per-route tests:
 - the migration runner applied twice against a temp database, asserting the
   second pass changes nothing
 
-These are the places where a wrong number would appear silently.
+Amended 2026-09-06: this section originally said "no per-route tests", and
+that was wrong. Every route that takes a form is a place where bad input
+becomes a 500 rather than a message, and the first pass of route tests found
+exactly that twice: a mistyped price and an inverted opening time both crashed
+the request. Route tests stay, scoped to what a form does with input a human
+actually types, not to re-testing the service layer through HTTP.
 
 ## 11. Backup, restore and rollback
 

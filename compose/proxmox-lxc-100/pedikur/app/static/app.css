@@ -162,6 +162,15 @@ label {
   font-size: var(--step--1);
 }
 
+.notice {
+  border: 1px solid var(--ok);
+  background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: var(--gap-2) var(--gap-3);
+  font-size: var(--step--1);
+}
+
 .muted { color: var(--ink-muted); }
 
 /* ---------- lists and rows ---------- */
@@ -175,7 +184,10 @@ label {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--gap-3);
 }
-.row__main { min-width: 0; }
+.row__main { min-width: 0; display: flex; align-items: center; gap: var(--gap-2); }
+.row--link { color: var(--ink); text-decoration: none; }
+.row--link:hover { background: var(--surface-2); }
+.row--link .alert-dot { flex: none; }
 /* compact, so "Gombas korom kezeles" keeps its line on a 390px phone instead
    of wrapping around a button nobody presses often */
 .row form { flex: none; }
@@ -201,6 +213,19 @@ label {
 }
 
 .stack-top { margin-top: var(--gap-4); }
+
+textarea { min-height: calc(var(--tap) * 2); resize: vertical; }
+/* the health alert is read in a hurry, so it gets the accent of the thing it
+   warns about even in the form */
+#alert { border-color: var(--danger); }
+
+details > summary {
+  min-height: var(--tap);
+  display: flex; align-items: center;
+  font-weight: 600; cursor: pointer;
+}
+details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: var(--gap-2); }
+details > summary::marker { color: var(--accent); }
 /* thumb reach: the primary action of a form fills the card */
 form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
 .card h2:first-child { margin-top: 0; }

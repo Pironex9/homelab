@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ S["nav_clients"] }}{% endblock %}
+{% block heading %}{{ S["nav_clients"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+<input type="search" name="q" value="{{ q }}" placeholder="{{ S['search'] }}"
+       aria-label="{{ S['search'] }}" autocomplete="off"
+       hx-get="/clients/search" hx-trigger="input changed delay:200ms"
+       hx-target="#results">
+<div id="results" class="stack-top">{% include "partials/client_search.html" %}</div>
+
+<details class="card stack-top">
+  <summary>{{ S["new_client"] }}</summary>
+  <form method="post" action="/clients">
+    <label for="name">{{ S["client_name"] }}</label>
+    <input id="name" name="name" required>
+    <label for="phone">{{ S["client_phone"] }}</label>
+    <input id="phone" name="phone" type="tel" inputmode="tel">
+    <button type="submit">{{ S["save"] }}</button>
+  </form>
+</details>
+{% endblock %}

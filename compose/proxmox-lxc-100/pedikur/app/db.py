@@ -1,12 +1,27 @@
 """Engine and session handling. One writer, so the pragmas do the work."""
 from __future__ import annotations
 
+import unicodedata
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+
+
+def fold(text: str | None) -> str | None:
+    """Lower case and strip accents, for search.
+
+    SQLite folds ASCII only: LIKE '%kovacs%' does not match "Kovacs" spelled
+    with its accents, and LIKE '%KOVACS%' with accents does not match the same
+    name in lower case. On a phone keyboard the accents are the slow keys, so
+    the search she actually types would return nothing.
+    """
+    if text is None:
+        return None
+    return "".join(ch for ch in unicodedata.normalize("NFKD", text.casefold())
+                   if not unicodedata.combining(ch))
 
 
 def make_engine(db_path: Path):
@@ -24,6 +39,8 @@ def make_engine(db_path: Path):
         cur.execute("PRAGMA busy_timeout = 5000")
         cur.execute("PRAGMA synchronous = NORMAL")
         cur.close()
+        # deterministic, so the query planner may use it in an index later
+        dbapi_connection.create_function("fold", 1, fold, deterministic=True)
 
     return engine
 

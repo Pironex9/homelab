@@ -1,0 +1,16 @@
+<ul class="list">
+  {% for row in rows %}
+  <li>
+    <a class="card row row--link" href="/clients/{{ row.id }}">
+      <span class="row__main">
+        {% if row.has_alert %}<span class="alert-dot"
+              role="img" aria-label="{{ S['has_alert'] }}"></span>{% endif %}
+        <strong>{{ row.name }}</strong>
+      </span>
+      {% if row.phone %}<span class="muted num">{{ row.phone }}</span>{% endif %}
+    </a>
+  </li>
+  {% else %}
+  <li class="muted">{{ S["no_results"] }}</li>
+  {% endfor %}
+</ul>
