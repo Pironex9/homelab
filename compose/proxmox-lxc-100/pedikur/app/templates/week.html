@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ S["nav_calendar"] }}{% endblock %}
+{% block heading %}{{ grid.monday.strftime("%Y. %m. %d.") }}{% endblock %}
+{% block topbar_actions %}
+<span class="weeknav">
+  <a class="button secondary" href="/calendar?day={{ prev }}"
+     aria-label="{{ S['week_prev'] }}">&larr;</a>
+  <a class="button secondary" href="/calendar">{{ S["week_today"] }}</a>
+  <a class="button secondary" href="/calendar?day={{ next }}"
+     aria-label="{{ S['week_next'] }}">&rarr;</a>
+</span>
+{% endblock %}
+{% block body %}
+{# the day headers are rows of the same grid as the times and the slots, or
+   the times column starts a header's height above every appointment #}
+<div class="week" style="--rows: {{ grid.rows }}">
+  <div class="week__corner"></div>
+  {% for day in grid.days %}
+  <div class="week__dayhead {% if day.date == today %}is-today{% endif %}">
+    <span>{{ day_names[loop.index0] }}</span>
+    <strong class="num">{{ day.date.day }}</strong>
+  </div>
+  {% endfor %}
+
+  <div class="week__times">
+    {% for row in range(grid.rows) %}
+      {% set minute = grid.start_min + row * slot_min %}
+      {% if minute % 60 == 0 %}
+      <span class="week__time num" style="grid-row: {{ row + 1 }}">
+        {{ "%02d:00" | format(minute // 60) }}
+      </span>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {% for day in grid.days %}
+  <div class="week__slots {% if day.is_closed %}is-closed{% endif %}
+              {% if day.date == today %}is-today{% endif %}">
+    {% if day.is_closed %}
+    <span class="week__closed">{{ S["closed_day"] }}</span>
+    {% else %}
+      {% for row in range(grid.rows) %}
+        {% set minute = grid.start_min + row * slot_min %}
+        {% if minute >= day.open_min and minute < day.close_min %}
+        <a class="week__slot {% if minute % 60 == 0 %}is-hour{% endif %}"
+           style="grid-row: {{ row + 1 }}"
+           href="/visits/new?start={{ day.date }}T{{ '%02d:%02d' | format(minute // 60, minute % 60) }}"
+           aria-label="{{ S['book_here'] }} {{ day.date }} {{ '%02d:%02d' | format(minute // 60, minute % 60) }}"></a>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% for block in day.blocks %}
+    {# a row is 20px and a line is 17.5px, so a 45 minute block holds the time
+       and a two line name and nothing else. Below an hour the treatment name
+       would only push the client's name out of view. #}
+    <a class="week__visit is-{{ block.status }}{% if block.row_span < 4 %} is-short{% endif %}{% if block.row_span < 3 %} is-tiny{% endif %}"
+       style="grid-row: {{ block.row_start }} / span {{ block.row_span }}"
+       href="/visits/{{ block.visit_id }}/close">
+      <span class="week__visit-time num">{{ block.starts_at | localtime }}</span>
+      <strong>{% if block.has_alert %}<span class="alert-dot"></span>
+        {% endif %}{{ block.client_name }}</strong>
+      <span class="week__visit-label">{{ block.label }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

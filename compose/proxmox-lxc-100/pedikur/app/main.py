@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import backup, config, display, migrate
 from app.db import Database
 from app.services import timeutil
-from app.routers import auth, clients, visits
+from app.routers import auth, calendar, clients, visits
 from app.routers import settings as settings_router
 from app.strings.hu import S
 
@@ -69,6 +69,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(auth.router)
+app.include_router(calendar.router)
 app.include_router(clients.router)
 app.include_router(visits.router)
 app.include_router(settings_router.router)

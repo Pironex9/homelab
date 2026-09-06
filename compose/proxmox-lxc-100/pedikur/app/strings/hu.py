@@ -75,4 +75,11 @@ S = {
 
     "weekdays": ["Hétfő", "Kedd", "Szerda", "Csütörtök",
                  "Péntek", "Szombat", "Vasárnap"],
+    # strftime("%a") answers "Mon" in a C-locale container, not "Hét"
+    "weekdays_short": ["H", "K", "Sze", "Cs", "P", "Szo", "V"],
+    "book_here": "Foglalás ide",
+    "week_prev": "Előző hét",
+    "week_next": "Következő hét",
+    "week_today": "Ma",
+    "closed_day": "Zárva",
 }

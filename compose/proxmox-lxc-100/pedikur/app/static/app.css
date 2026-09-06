@@ -285,6 +285,89 @@ form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
   accent-color: var(--accent);
 }
 
+/* ---------- week grid ---------- */
+
+.weeknav { display: flex; gap: var(--gap-2); }
+.weeknav .button { padding: 0 var(--gap-3); font-size: var(--step--1); }
+
+.week {
+  display: grid;
+  grid-template-columns: 3.25rem repeat(7, minmax(6.5rem, 1fr));
+  column-gap: 2px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.week__corner, .week__dayhead {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.week__dayhead {
+  display: flex; align-items: baseline; justify-content: center;
+  gap: var(--gap-1);
+  padding: var(--gap-2);
+  font-size: var(--step--1); color: var(--ink-muted);
+}
+.week__dayhead strong { font-size: var(--step-0); color: var(--ink); }
+.week__dayhead.is-today { color: var(--accent); }
+.week__dayhead.is-today strong { color: var(--accent); }
+
+.week__times, .week__slots {
+  display: grid;
+  grid-template-rows: repeat(var(--rows), 1.25rem);
+  background: var(--surface);
+}
+.week__times { background: var(--bg); }
+.week__time {
+  font-size: var(--step--1); color: var(--ink-muted);
+  padding-right: var(--gap-1); text-align: right;
+  /* aligned to the top of its own hour row, matching the .is-hour rule.
+     Centring it on the line instead clips the first label out of the grid. */
+  align-self: start;
+}
+
+.week__slots { position: relative; }
+.week__slots.is-closed { background: var(--surface-2); }
+.week__slots.is-today { background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+.week__closed {
+  grid-row: 1 / -1; align-self: center; justify-self: center;
+  font-size: var(--step--1); color: var(--ink-muted);
+  writing-mode: vertical-rl;
+}
+
+.week__slot { border-top: 1px solid var(--surface-2); }
+.week__slot.is-hour { border-top-color: var(--line); }
+.week__slot:hover { background: var(--accent-soft); }
+
+.week__visit {
+  grid-column: 1;
+  z-index: 1;
+  margin: 1px;
+  padding: 2px var(--gap-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-ink);
+  font-size: var(--step--1); line-height: 1.25;
+  text-decoration: none; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.week__visit strong { font-weight: 600; }
+.week__visit-time { opacity: 0.8; }
+.week__visit-label { opacity: 0.8; overflow: hidden; text-overflow: ellipsis; }
+.week__visit .alert-dot {
+  background: var(--surface);   /* red on green is unreadable; the shape carries it */
+  outline: 2px solid var(--danger);
+  width: 8px; height: 8px;
+}
+.week__visit.is-short .week__visit-label { display: none; }
+/* half an hour is two lines. The row the block sits on already says when it
+   is, so the name gets both of them. */
+.week__visit.is-tiny .week__visit-time { display: none; }
+.week__visit.is-done { background: var(--ok); }
+
 /* ---------- login ---------- */
 
 .is-login { padding-bottom: 0; }
