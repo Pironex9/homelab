@@ -1,6 +1,5 @@
 """The week grid through the real app."""
-from datetime import datetime
-
+from datetime import timedelta
 import pytest
 
 from app.services import timeutil
@@ -38,12 +37,18 @@ def test_any_day_of_the_week_anchors_to_its_monday(week):
         assert "2026. 09. 07." in page, day
 
 
-def test_a_broken_day_parameter_falls_back_to_this_week(week):
+@pytest.mark.parametrize("day", [
+    "tegnap", "2026-13-45", "",
+    # these parse, and then monday +/- 7 days overflows date's range
+    "9999-12-31", "0001-01-01",
+])
+def test_a_broken_day_parameter_falls_back_to_this_week(week, day):
     """A stale link or a hand-edited URL is a bad link, not a 500."""
-    r = week.get("/calendar?day=tegnap")
+    r = week.get(f"/calendar?day={day}")
     assert r.status_code == 200
-    monday = timeutil.local_now().date()
-    assert str(monday.year) in r.text
+    today = timeutil.local_now().date()
+    monday = today - timedelta(days=today.weekday())
+    assert monday.strftime("%Y. %m. %d.") in r.text
 
 
 def test_the_closed_weekend_offers_no_slots(week):

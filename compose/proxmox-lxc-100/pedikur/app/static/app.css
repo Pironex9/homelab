@@ -367,6 +367,12 @@ form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
    is, so the name gets both of them. */
 .week__visit.is-tiny .week__visit-time { display: none; }
 .week__visit.is-done { background: var(--ok); }
+/* drawn, but plainly not a visit that happened */
+.week__visit.is-no_show {
+  background: var(--surface-2); color: var(--ink-muted);
+  border: 1px dashed var(--line-strong);
+}
+.week__visit.is-no_show strong { text-decoration: line-through; }
 
 /* ---------- login ---------- */
 
