@@ -62,7 +62,13 @@ CREATE TABLE visit (
         DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     -- an inverted visit turns every free-slot subtraction into nonsense
     -- instead of an error
-    CHECK (ends_at > starts_at)
+    CHECK (ends_at > starts_at),
+    -- Both columns are compared as TEXT, here and in the overlap query. One
+    -- row written as "+00:00" instead of "Z" sorts below every Z row ('+' is
+    -- 0x2B, 'Z' is 0x5A) and drops out of the overlap check silently, so the
+    -- shape is a constraint rather than a convention.
+    CHECK (starts_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    CHECK (ends_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z')
 );
 CREATE INDEX idx_visit_window ON visit (starts_at, ends_at);
 CREATE INDEX idx_visit_client ON visit (client_id, starts_at);

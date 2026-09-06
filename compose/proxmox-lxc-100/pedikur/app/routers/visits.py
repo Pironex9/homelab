@@ -49,9 +49,11 @@ def create(request: Request,
         return _form_page(request, user, start, client_id,
                           "visit_needs_treatment", status_code=400)
     try:
-        starts = datetime.fromisoformat(start).replace(tzinfo=timeutil.LOCAL)
-        ends = (datetime.fromisoformat(end).replace(tzinfo=timeutil.LOCAL)
-                if end else None)
+        # as_local rather than replace(): replace() would discard an offset a
+        # crafted POST already carried, and would silently relocate a wall
+        # clock time the spring forward skipped.
+        starts = timeutil.as_local(datetime.fromisoformat(start))
+        ends = timeutil.as_local(datetime.fromisoformat(end)) if end else None
     except ValueError:
         return _form_page(request, user, start, client_id,
                           "visit_time_invalid", status_code=400)
@@ -63,7 +65,13 @@ def create(request: Request,
     except visits.SlotTaken:
         return _form_page(request, user, start, client_id,
                           "slot_taken", status_code=409)
-    except LookupError:
+    except visits.UnknownTreatment:
+        return _form_page(request, user, start, client_id,
+                          "visit_treatment_missing", status_code=400)
+    except visits.UnknownClient:
         return _form_page(request, user, start, client_id,
                           "visit_client_missing", status_code=400)
+    except ValueError:
+        return _form_page(request, user, start, client_id,
+                          "visit_time_invalid", status_code=400)
     return RedirectResponse(f"/calendar?day={starts.date()}", status_code=303)

@@ -43,7 +43,8 @@ S = {
     "slot_taken": "Ez az idősáv már foglalt.",
     "visit_needs_treatment": "Válassz legalább egy kezelést.",
     "visit_time_invalid": "A megadott időpont nem értelmezhető.",
-    "visit_client_missing": "Ez a kliens már nem létezik.",
+    "visit_client_missing": "Ez a kliens már nem foglalható.",
+    "visit_treatment_missing": "A választott kezelés már nem létezik.",
 
     "search": "Keresés",
     "new_client": "Új kliens",

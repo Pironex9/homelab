@@ -71,7 +71,7 @@ def test_a_client_that_is_gone_says_so(booked):
         "client_id": "999", "start": "2026-09-10T10:00", "end": "",
         "treatment_ids": ["1"]})
     assert r.status_code == 400
-    assert "Ez a kliens már nem létezik" in r.text
+    assert "Ez a kliens már nem foglalható" in r.text
 
     from app.models import Visit
     with booked.app.state.db.session() as s:

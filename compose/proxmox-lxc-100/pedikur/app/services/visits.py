@@ -24,6 +24,14 @@ class SlotTaken(Exception):
     """Another Visit already occupies the requested window."""
 
 
+class UnknownClient(LookupError):
+    """The client id does not exist, or the client is archived or erased."""
+
+
+class UnknownTreatment(LookupError):
+    """One of the treatment ids does not exist."""
+
+
 def overlapping(session: Session, start_utc: str, end_utc: str,
                 exclude_id: int | None = None) -> list[Visit]:
     """Half open intervals: 10:00-10:45 and 10:45-11:15 do not overlap, or
@@ -43,7 +51,7 @@ def _treatments(session: Session, treatment_ids: list[int]) -> list[Treatment]:
         select(Treatment).where(Treatment.id.in_(treatment_ids)))}
     missing = [i for i in treatment_ids if i not in found]
     if missing:
-        raise LookupError(f"unknown treatment ids: {missing}")
+        raise UnknownTreatment(f"unknown treatment ids: {missing}")
     return [found[i] for i in treatment_ids]
 
 
@@ -60,15 +68,23 @@ def book(session: Session, client_id: int, starts_at_local: datetime,
         raise ValueError("a Visit needs at least one Treatment")
     # Checked here rather than left to the foreign key: an IntegrityError at
     # commit escapes the router as a 500, a LookupError becomes a message.
-    if session.get(Client, client_id) is None:
-        raise LookupError(f"no client {client_id}")
+    client = session.get(Client, client_id)
+    if client is None or client.erased_at or client.archived_at:
+        raise UnknownClient(f"no bookable client {client_id}")
     chosen = _treatments(session, treatment_ids)
     total_min = sum(t.duration_min for t in chosen)
-    computed_end = starts_at_local + timedelta(minutes=total_min)
-    end_local = max(ends_at_local, computed_end) if ends_at_local else computed_end
+    # UTC from here down. Comparing two local datetimes that share a tzinfo
+    # compares their wall clock fields, so on the autumn Sunday an end an hour
+    # later in real time reads as earlier than its own start.
+    start = timeutil.to_utc(starts_at_local)
+    end = timeutil.add_minutes(start, total_min)
+    if ends_at_local is not None:
+        end = max(timeutil.to_utc(ends_at_local), end)
+    if end <= start:
+        raise ValueError("a Visit has to end after it starts")
 
-    start_utc = timeutil.to_utc_iso(starts_at_local)
-    end_utc = timeutil.to_utc_iso(end_local)
+    start_utc = timeutil.to_utc_iso(start)
+    end_utc = timeutil.to_utc_iso(end)
     if overlapping(session, start_utc, end_utc):
         raise SlotTaken(f"{start_utc} .. {end_utc}")
 
@@ -108,11 +124,33 @@ def add_treatment(session: Session, visit_id: int, treatment_id: int) -> Visit:
 
     total_min = sum(i.treatment.duration_min for i in visit.items
                     if i.kind == "treatment" and i.treatment is not None)
-    needed_end = timeutil.from_utc_iso(visit.starts_at) + timedelta(minutes=total_min)
-    if needed_end > timeutil.from_utc_iso(visit.ends_at):
-        visit.ends_at = timeutil.to_utc_iso(needed_end)
+    starts = timeutil.to_utc(timeutil.from_utc_iso(visit.starts_at))
+    needed_end = timeutil.add_minutes(starts, total_min)
+    current_end = timeutil.to_utc(timeutil.from_utc_iso(visit.ends_at))
+    if needed_end > current_end:
+        # The work is recorded either way: she performed it and the money has
+        # to be right. What must not happen is the block silently swallowing
+        # the next client, so growth stops at whatever comes next.
+        limit = _next_start_after(session, visit, current_end)
+        visit.ends_at = timeutil.to_utc_iso(min(needed_end, limit) if limit
+                                            else needed_end)
     session.flush()
     return visit
+
+
+def _next_start_after(session: Session, visit: Visit,
+                      after: datetime) -> datetime | None:
+    """The start, in UTC, of the earliest active Visit that begins at or after
+    this one's current end. None when the rest of the day is free."""
+    row = session.scalars(
+        select(Visit)
+        .where(Visit.id != visit.id,
+               Visit.status.in_(ACTIVE_STATUSES),
+               Visit.deleted_at.is_(None),
+               Visit.starts_at >= timeutil.to_utc_iso(after))
+        .order_by(Visit.starts_at)
+        .limit(1)).first()
+    return timeutil.to_utc(timeutil.from_utc_iso(row.starts_at)) if row else None
 
 
 def reschedule(session: Session, visit_id: int, starts_at_local: datetime,
@@ -120,10 +158,12 @@ def reschedule(session: Session, visit_id: int, starts_at_local: datetime,
     visit = session.get(Visit, visit_id)
     if visit is None:
         raise LookupError(f"no visit {visit_id}")
-    if ends_at_local <= starts_at_local:
+    start = timeutil.to_utc(starts_at_local)
+    end = timeutil.to_utc(ends_at_local)
+    if end <= start:
         raise ValueError("a Visit has to end after it starts")
-    start_utc = timeutil.to_utc_iso(starts_at_local)
-    end_utc = timeutil.to_utc_iso(ends_at_local)
+    start_utc = timeutil.to_utc_iso(start)
+    end_utc = timeutil.to_utc_iso(end)
     if overlapping(session, start_utc, end_utc, exclude_id=visit_id):
         raise SlotTaken(f"{start_utc} .. {end_utc}")
     visit.starts_at, visit.ends_at = start_utc, end_utc
@@ -137,6 +177,13 @@ def set_status(session: Session, visit_id: int, status: str) -> Visit:
     visit = session.get(Visit, visit_id)
     if visit is None:
         raise LookupError(f"no visit {visit_id}")
+    # Cancelling frees the slot, so bringing a Visit back has to ask for it
+    # again. Otherwise a no_show corrected to done lands on top of whoever was
+    # booked into the freed window, permanently, with nothing to notice it.
+    if (status in ACTIVE_STATUSES and visit.status not in ACTIVE_STATUSES
+            and overlapping(session, visit.starts_at, visit.ends_at,
+                            exclude_id=visit.id)):
+        raise SlotTaken(f"{visit.starts_at} .. {visit.ends_at}")
     visit.status = status
     session.flush()
     return visit
