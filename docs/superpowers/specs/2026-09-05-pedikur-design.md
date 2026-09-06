@@ -201,9 +201,13 @@ is bounded by the path rather than by the permissions:
   the reverse proxy denies `/api/*`. The MCP server on LXC 109 reaches the app
   directly at `192.168.0.110` over the internal network. The machine path and
   the public path are not the same path.
-- **A bearer token is still required**, held in `setting`, rotatable by the
-  admin, never written to logs. Our own rule says we do not trust the proxy
-  config to be right, and that applies to our own deny rule too.
+- **A bearer token is still required**, held in the environment
+  (`PEDIKUR_API_TOKEN`, set in the Komodo Stack Environment), never written to
+  logs. Our own rule says we do not trust the proxy config to be right, and
+  that applies to our own deny rule too. Rotating it is a stack redeploy
+  rather than a settings screen: phase 1 ships no such screen, and a token
+  that is read once at startup cannot be changed by anything that reaches the
+  database, which is the point of keeping it out of `setting`.
 - **Erase is not exposed on the API.** It is the only irreversible operation
   in the system and no machine use case needs it. Everything else an API write
   can get wrong is either soft-deletable or settled by a correcting **Stock
@@ -267,9 +271,9 @@ working_hours       id, weekday, date, start, end, is_closed
                     start/end are local wall-clock times of day, not
                     timestamps: 09:00 stays 09:00 across a DST change
 busy_block          starts_at, ends_at, source, fetched_at   Google cache
-setting             key, value       OAuth refresh token, buffer_min, API
-                                     token, default_interval_days, calendar
-                                     allowlist, schema_version
+setting             key, value       OAuth refresh token, buffer_min,
+                                     default_interval_days, calendar allowlist
+schema_version      filename, applied_at   one row per migration applied
 ```
 
 Five decisions carry this model:
@@ -524,9 +528,13 @@ restore into a temp directory, run `PRAGMA integrity_check`, and count rows in
 
 ### Schema changes
 
-Numbered SQL files under `app/migrations/`, a `schema_version` row in
-`setting`, and a startup loop that applies anything newer inside a
-transaction. No Alembic: what it would give us is downgrade scripts we would
+Numbered SQL files under `app/migrations/`, a `schema_version` table holding
+one row per applied filename, and a startup loop that applies anything newer
+inside a transaction. A table rather than a single `setting` row because it
+answers which migrations ran, not just how far the highest number got. The
+transaction has to be written into the SQL script itself: `executescript()`
+commits whatever is open and starts nothing of its own, so a `with con:`
+around it protects nothing. No Alembic: what it would give us is downgrade scripts we would
 never run, and on SQLite its autogenerate needs `render_as_batch=True` or it
 emits migrations SQLite cannot execute. `SQLModel.metadata.create_all` is not
 an option either - it creates missing tables and never adds a column to an
