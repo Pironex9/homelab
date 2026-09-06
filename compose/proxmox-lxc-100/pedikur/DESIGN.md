@@ -51,3 +51,11 @@ carrying no more information than the four words.
 **Contrast measured, not assumed.** Every text pair on this palette:
 ink on bg 16.1, ink-muted on bg 5.1, accent on bg 5.4, white on accent 5.9,
 danger on surface 6.5, ok on surface 6.1. The floor is 4.5.
+
+**Every user-facing string is accented Hungarian, and lives in
+`app/strings/hu.py`.** Not "Uj idopont" but the properly accented form. The
+double acute on o and u is a different letter from the umlaut, and the type
+stack renders all nine accented vowels in both cases without clipping the line
+box, measured at every step of the scale. `tests/test_strings.py` fails on a
+non-ASCII character inside a template, which is what copy that skipped the
+strings file looks like.
