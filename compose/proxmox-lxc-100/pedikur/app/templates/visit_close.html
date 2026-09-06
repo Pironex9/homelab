@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ visit.client.name }}{% endblock %}
+{% block heading %}{{ visit.client.name }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if visit.client.alert %}
+<p class="alert-banner">
+  <span class="alert-dot"></span>
+  <span><strong>{{ S["alert_label"] }}:</strong> {{ visit.client.alert }}</span>
+</p>
+{% endif %}
+
+<p class="muted num">
+  {{ visit.starts_at | localtime }} - {{ visit.ends_at | localtime }}
+</p>
+
+{# the Done button comes first and alone; everything optional is below it #}
+<form method="post" action="/visits/{{ visit.id }}/close">
+  <ul class="list">
+    {% for item in visit.items if item.kind == 'treatment' %}
+    <li class="card row">
+      <span class="row__main">{{ item.treatment.name }}</span>
+      <strong class="price">{{ item.treatment.price_cents | eur }}</strong>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <button type="submit" class="primary-big">{{ S["done"] }}</button>
+
+  <details class="card">
+    <summary>{{ S["more_options"] }}</summary>
+    <label for="findings">{{ S["findings"] }}</label>
+    <textarea id="findings" name="findings" rows="2">{{ visit.findings or '' }}</textarea>
+    <label for="note">{{ S["note"] }}</label>
+    <textarea id="note" name="note" rows="2">{{ visit.note or '' }}</textarea>
+    {% for item in visit.items if item.kind == 'treatment' %}
+    <label for="price_{{ item.id }}">
+      {{ S["price_override"] }}: {{ item.treatment.name }}</label>
+    <input id="price_{{ item.id }}" name="price_{{ item.id }}"
+           inputmode="decimal"
+           placeholder="{{ item.treatment.price_cents | eur }}">
+    {% endfor %}
+  </details>
+</form>
+
+<details class="card stack-top">
+  <summary>{{ S["add_treatment"] }}</summary>
+  <form method="post" action="/visits/{{ visit.id }}/treatments">
+    <select name="treatment_id" required>
+      {% for t in treatments %}
+      <option value="{{ t.id }}">{{ t.name }} - {{ t.price_cents | eur }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="secondary">{{ S["add"] }}</button>
+  </form>
+</details>
+
+<form method="post" action="/visits/{{ visit.id }}/status" class="row stack-top">
+  <button name="value" value="cancelled" class="secondary">{{ S["cancelled"] }}</button>
+  <button name="value" value="no_show" class="secondary">{{ S["no_show"] }}</button>
+</form>
+{% endblock %}

@@ -189,6 +189,46 @@ def set_status(session: Session, visit_id: int, status: str) -> Visit:
     return visit
 
 
+def close(session: Session, visit_id: int,
+          price_overrides: dict[int, int] | None = None,
+          findings: str | None = None, note: str | None = None) -> Visit:
+    """Mark a Visit done and fix its prices.
+
+    Idempotent on purpose: a double tap on a phone, or a retried request, must
+    not post the line twice. The guard also stops a Visit closed months ago
+    from being re-priced if the route is hit again.
+
+    The price written is the Treatment's price at closing time, because nothing
+    was quoted to the client in writing; the closing screen can override it per
+    line.
+    """
+    visit = session.get(Visit, visit_id)
+    if visit is None:
+        raise LookupError(f"no visit {visit_id}")
+    if visit.status == "done":
+        return visit
+    # done is an active status, so closing a cancelled or no_show Visit puts it
+    # back on the calendar and cannot skip the check set_status makes.
+    if (visit.status not in ACTIVE_STATUSES
+            and overlapping(session, visit.starts_at, visit.ends_at,
+                            exclude_id=visit.id)):
+        raise SlotTaken(f"{visit.starts_at} .. {visit.ends_at}")
+
+    overrides = price_overrides or {}
+    for item in visit.items:
+        if item.kind != "treatment" or item.treatment is None:
+            continue
+        item.unit_price_cents = overrides.get(item.id, item.treatment.price_cents)
+
+    if findings is not None:
+        visit.findings = findings or None
+    if note is not None:
+        visit.note = note or None
+    visit.status = "done"
+    session.flush()
+    return visit
+
+
 def unclosed(session: Session) -> list[Visit]:
     """Visits whose window has passed but were never closed.
 

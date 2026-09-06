@@ -214,6 +214,15 @@ label {
 
 .stack-top { margin-top: var(--gap-4); }
 
+/* the one action this screen exists for: full width, taller than every other
+   control, and nothing optional above it */
+.primary-big {
+  width: 100%;
+  min-height: calc(var(--tap) * 1.4);
+  font-size: var(--step-1);
+  margin: var(--gap-4) 0;
+}
+
 textarea { min-height: calc(var(--tap) * 2); resize: vertical; }
 /* the health alert is read in a hurry, so it gets the accent of the thing it
    warns about even in the form */

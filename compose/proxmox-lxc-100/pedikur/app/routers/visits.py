@@ -4,11 +4,14 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
 from app import security
-from app.models import User
+from app.models import User, Visit
 from app.services import clients, timeutil, treatments, visits
 from app.strings.hu import S
 
 router = APIRouter(prefix="/visits")
+
+_ERRORS = frozenset({"visit_slot_taken", "visit_gone",
+                     "treatment_price_invalid"})
 
 # One practitioner's whole client list fits in a select; search's default of
 # 20 would silently hide everyone she registered after the twentieth.
@@ -75,3 +78,72 @@ def create(request: Request,
         return _form_page(request, user, start, client_id,
                           "visit_time_invalid", status_code=400)
     return RedirectResponse(f"/calendar?day={starts.date()}", status_code=303)
+
+
+@router.get("/{visit_id}/close")
+def close_form(request: Request, visit_id: int, error: str | None = None,
+               user: User = Depends(security.require_user)):
+    with request.app.state.db.session() as s:
+        visit = s.get(Visit, visit_id)
+        if visit is None:
+            return RedirectResponse("/?error=visit_gone", status_code=303)
+        return request.app.state.templates.TemplateResponse(
+            request, "visit_close.html",
+            {"user": user, "tab": "today", "visit": visit,
+             "treatments": treatments.list_active(s),
+             "error": S[error] if error in _ERRORS else None})
+
+
+@router.post("/{visit_id}/close")
+async def close(request: Request, visit_id: int,
+                user: User = Depends(security.require_user)):
+    form = await request.form()
+    # price_<item id>, in EUR as typed, empty meaning "the price list price"
+    overrides: dict[int, int] = {}
+    for key, value in form.items():
+        if not key.startswith("price_") or not str(value).strip():
+            continue
+        try:
+            overrides[int(key.removeprefix("price_"))] = \
+                treatments.parse_price(str(value))
+        except ValueError:
+            return RedirectResponse(
+                f"/visits/{visit_id}/close?error=treatment_price_invalid",
+                status_code=303)
+    try:
+        with request.app.state.db.session() as s:
+            visits.close(s, visit_id, price_overrides=overrides,
+                         findings=str(form.get("findings", "")),
+                         note=str(form.get("note", "")))
+    except visits.SlotTaken:
+        return RedirectResponse(
+            f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
+    except LookupError:
+        return RedirectResponse("/?error=visit_gone", status_code=303)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/{visit_id}/status")
+def status(request: Request, visit_id: int, value: str = Form(...),
+           user: User = Depends(security.require_user)):
+    try:
+        with request.app.state.db.session() as s:
+            visits.set_status(s, visit_id, value)
+    except visits.SlotTaken:
+        return RedirectResponse(
+            f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
+    except (LookupError, ValueError):
+        return RedirectResponse("/?error=visit_gone", status_code=303)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/{visit_id}/treatments")
+def add_treatment(request: Request, visit_id: int,
+                  treatment_id: int = Form(...),
+                  user: User = Depends(security.require_user)):
+    try:
+        with request.app.state.db.session() as s:
+            visits.add_treatment(s, visit_id, treatment_id)
+    except LookupError:
+        return RedirectResponse("/?error=visit_gone", status_code=303)
+    return RedirectResponse(f"/visits/{visit_id}/close", status_code=303)

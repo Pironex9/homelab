@@ -331,3 +331,92 @@ def test_comparing_two_local_datetimes_is_wall_clock_not_elapsed(db, fixtures):
     assert end_local < autumn_start                     # wall clock says earlier
     assert (timeutil.to_utc(end_local)
             > timeutil.to_utc(autumn_start))            # real time says later
+
+
+# ---- closing ----
+
+def test_close_is_idempotent_under_a_double_tap(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+    with db.session() as s:
+        visits.close(s, vid)
+        visits.close(s, vid)          # the second tap must change nothing
+    with db.session() as s:
+        from app.models import Visit, VisitItem
+        v = s.get(Visit, vid)
+        items = s.query(VisitItem).filter_by(visit_id=vid).all()
+        assert v.status == "done"
+        assert len(items) == 1
+        assert items[0].unit_price_cents == 2500
+
+
+def test_close_snapshots_the_price_at_closing_time(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+    with db.session() as s:
+        treatments.update(s, fixtures["ped"], price_cents=2800)
+    with db.session() as s:
+        visits.close(s, vid)
+    with db.session() as s:
+        from app.models import VisitItem
+        item = s.query(VisitItem).filter_by(visit_id=vid).one()
+        assert item.unit_price_cents == 2800   # the price she charges today
+
+
+def test_a_later_price_rise_does_not_rewrite_a_closed_visit(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+    with db.session() as s:
+        visits.close(s, vid)
+    with db.session() as s:
+        treatments.update(s, fixtures["ped"], price_cents=9900)
+    with db.session() as s:
+        from app.models import VisitItem
+        assert s.query(VisitItem).filter_by(visit_id=vid).one().unit_price_cents == 2500
+
+
+def test_close_takes_a_price_override_per_line(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid, item_id = visit.id, visit.items[0].id
+    with db.session() as s:
+        visits.close(s, vid, price_overrides={item_id: 2000})
+    with db.session() as s:
+        from app.models import VisitItem
+        assert s.query(VisitItem).filter_by(visit_id=vid).one().unit_price_cents == 2000
+
+
+def test_closing_a_cancelled_visit_asks_for_its_slot_again(db, fixtures):
+    """close writes an active status, so it cannot skip the check set_status
+    makes: the freed window may already belong to someone else."""
+    with db.session() as s:
+        first = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        visits.set_status(s, first.id, "cancelled")
+        visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                    [fixtures["gel"]], created_by="1")
+        vid = first.id
+    with db.session() as s:
+        with pytest.raises(visits.SlotTaken):
+            visits.close(s, vid)
+
+
+def test_close_records_the_findings_and_the_note(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+    with db.session() as s:
+        visits.close(s, vid, findings="benőtt köröm", note="reszelés")
+    with db.session() as s:
+        from app.models import Visit
+        v = s.get(Visit, vid)
+        assert v.findings == "benőtt köröm"
+        assert v.note == "reszelés"

@@ -96,3 +96,84 @@ def test_the_client_select_starts_on_nothing(booked):
     # and it does preselect when the grid handed it one
     page = booked.get("/visits/new?start=2026-09-10T10:00&client_id=1").text
     assert 'value="1" selected' in page
+
+
+@pytest.fixture
+def to_close(booked):
+    booked.post("/visits/new", data={
+        "client_id": "1", "start": "2026-09-10T10:00", "end": "",
+        "treatment_ids": ["1"]})
+    return booked
+
+
+def test_the_closing_screen_puts_done_before_everything_optional(to_close):
+    page = to_close.get("/visits/1/close").text
+    assert page.index("primary-big") < page.index("more_options"
+                                                  if "more_options" in page
+                                                  else "Továbbiak")
+    assert page.index("primary-big") < page.index("Kezelés hozzáadása")
+    assert page.index("primary-big") < page.index("Nem jött el")
+
+
+def test_closing_marks_it_done_and_stamps_the_price(to_close):
+    r = to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    assert r.status_code == 303
+    from app.models import Visit
+    with to_close.app.state.db.session() as s:
+        visit = s.get(Visit, 1)
+        assert visit.status == "done"
+        assert visit.items[0].unit_price_cents == 2500
+
+
+def test_a_double_tap_on_done_does_not_post_the_line_twice(to_close):
+    for _ in range(2):
+        to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    from app.models import VisitItem
+    with to_close.app.state.db.session() as s:
+        assert s.query(VisitItem).filter_by(visit_id=1).count() == 1
+
+
+def test_a_price_override_is_taken_from_the_form(to_close):
+    item_id = 1
+    to_close.post("/visits/1/close",
+                  data={"findings": "", "note": "", f"price_{item_id}": "20,00"})
+    from app.models import VisitItem
+    with to_close.app.state.db.session() as s:
+        assert s.get(VisitItem, item_id).unit_price_cents == 2000
+
+
+def test_a_mistyped_override_says_so_and_closes_nothing(to_close):
+    r = to_close.post("/visits/1/close",
+                      data={"findings": "", "note": "", "price_1": "húsz"})
+    assert r.headers["location"].endswith("error=treatment_price_invalid")
+    from app.models import Visit
+    with to_close.app.state.db.session() as s:
+        assert s.get(Visit, 1).status == "planned"
+
+
+def test_adding_a_treatment_returns_to_the_same_screen(to_close):
+    to_close.post("/settings/treatments",
+                  data={"name": "Géllakk", "duration_min": "30",
+                        "price_eur": "18,00"})
+    r = to_close.post("/visits/1/treatments", data={"treatment_id": "2"})
+    assert r.headers["location"] == "/visits/1/close"
+    assert "Géllakk" in to_close.get("/visits/1/close").text
+
+
+def test_marking_a_no_show_does_not_500(to_close):
+    r = to_close.post("/visits/1/status", data={"value": "no_show"})
+    assert r.status_code == 303
+    from app.models import Visit
+    with to_close.app.state.db.session() as s:
+        assert s.get(Visit, 1).status == "no_show"
+
+
+def test_a_bad_status_value_redirects_instead_of_500ing(to_close):
+    assert to_close.post("/visits/1/status",
+                         data={"value": "elfelejtette"}).status_code == 303
+
+
+def test_a_visit_that_is_gone_redirects(to_close):
+    assert to_close.get("/visits/999/close").status_code == 303
+    assert to_close.post("/visits/999/close",
+                         data={"findings": "", "note": ""}).status_code == 303

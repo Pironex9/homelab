@@ -46,6 +46,18 @@ S = {
     "visit_client_missing": "Ez a kliens már nem foglalható.",
     "visit_treatment_missing": "A választott kezelés már nem létezik.",
 
+    "done": "Kész",
+    "more_options": "Továbbiak",
+    "findings": "Amit talált",
+    "note": "Amit csinált",
+    "add_treatment": "Kezelés hozzáadása",
+    "add": "Hozzáad",
+    "cancelled": "Lemondta",
+    "no_show": "Nem jött el",
+    "price_override": "Ár, ha eltér",
+    "visit_gone": "Ez a látogatás már nem létezik.",
+    "visit_slot_taken": "Az idősávot közben elfoglalta valaki más.",
+
     "search": "Keresés",
     "new_client": "Új kliens",
     "client_name": "Név",
