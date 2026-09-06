@@ -14,6 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import backup, config, migrate
 from app.db import Database
 from app.routers import auth
+from app.strings.hu import S
 
 BASE_DIR = Path(__file__).parent
 
@@ -26,7 +27,9 @@ async def lifespan(app: FastAPI):
     migrate.run(settings.db_path, backup_dir=settings.backup_dir)
     app.state.settings = settings
     app.state.db = Database(settings.db_path)
-    app.state.templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    templates.env.globals["S"] = S   # every template needs it; none should be handed it
+    app.state.templates = templates
     task = asyncio.create_task(
         backup.nightly_task(settings.db_path, settings.backup_dir))
     yield

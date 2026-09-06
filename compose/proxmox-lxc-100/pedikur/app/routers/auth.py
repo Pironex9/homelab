@@ -11,7 +11,7 @@ router = APIRouter()
 def login_form(request: Request):
     templates = request.app.state.templates
     return templates.TemplateResponse(
-        request, "login.html", {"S": S, "error": None})
+        request, "login.html", {"error": None})
 
 
 @router.post("/login")
@@ -23,7 +23,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
         if user is None:
             return templates.TemplateResponse(
                 request, "login.html",
-                {"S": S, "error": S[error]}, status_code=401)
+                {"error": S[error]}, status_code=401)
         request.session["user_id"] = user.id
     return RedirectResponse("/", status_code=303)
 

@@ -1,0 +1,9 @@
+{
+  "name": "Pedikur",
+  "short_name": "Pedikur",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f6f4",
+  "theme_color": "#f7f6f4",
+  "lang": "hu"
+}

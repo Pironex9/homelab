@@ -1,0 +1,48 @@
+/* The vocabulary every template uses. Templates reference colour and spacing
+   through these custom properties only, never as literals.
+   Rationale for the values is in DESIGN.md. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f7f6f4;
+  --surface: #ffffff;
+  --surface-2: #efedea;
+  --ink: #1b1a19;
+  --ink-muted: #6b6862;
+  --line: #ddd9d3;
+  --line-strong: #c4beb6;
+  --accent: #2f6f62;
+  --accent-ink: #ffffff;
+  --accent-soft: #e6efec;
+  --danger: #b3261e;
+  --danger-soft: #fbeceb;
+  --ok: #2f6f3f;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 16px;
+  --gap-4: 24px;
+  --gap-5: 40px;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --step--1: 0.875rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.5rem;
+  --step-3: 2rem;
+
+  --tap: 44px;   /* minimum touch target */
+
+  /* Real offset and blur. A zero-offset halo is decoration, not depth. */
+  --shadow-1: 0 1px 2px rgb(27 26 25 / 0.06),
+              0 2px 8px rgb(27 26 25 / 0.05);
+  --shadow-2: 0 2px 4px rgb(27 26 25 / 0.07),
+              0 8px 24px rgb(27 26 25 / 0.08);
+
+  --focus: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

@@ -1,16 +1,16 @@
 """Every user-facing string. One language ships; a second is translation."""
 
 S = {
-    "app_name": "Pedikur",
-    "login_title": "Bejelentkezes",
-    "login_user": "Felhasznalonev",
-    "login_password": "Jelszo",
-    "login_submit": "Belepes",
-    "login_failed": "Hibas felhasznalonev vagy jelszo.",
-    "login_locked": "A fiok ideiglenesen zarolva. Probald ujra 15 perc mulva.",
-    "logout": "Kilepes",
+    "app_name": "Pedikűr",
+    "login_title": "Bejelentkezés",
+    "login_user": "Felhasználónév",
+    "login_password": "Jelszó",
+    "login_submit": "Belépés",
+    "login_failed": "Hibás felhasználónév vagy jelszó.",
+    "login_locked": "A fiók ideiglenesen zárolva. Próbáld újra 15 perc múlva.",
+    "logout": "Kilépés",
     "nav_today": "Ma",
-    "nav_calendar": "Naptar",
+    "nav_calendar": "Naptár",
     "nav_clients": "Kliensek",
-    "nav_more": "Tobb",
+    "nav_more": "Több",
 }

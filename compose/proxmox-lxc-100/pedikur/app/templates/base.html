@@ -2,13 +2,35 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f6f4">
   <title>{% block title %}{{ S["app_name"] }}{% endblock %}</title>
+  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="/static/tokens.css">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
 </head>
-<body>
-  {% block body %}{% endblock %}
+<body class="{% block body_class %}{% endblock %}">
+  {% if user %}
+  <header class="topbar">
+    <span class="topbar__title">{% block heading %}{% endblock %}</span>
+    {% block topbar_actions %}{% endblock %}
+  </header>
+  {% endif %}
+
+  <main class="content">{% block body %}{% endblock %}</main>
+
+  {% if user %}
+  <nav class="tabbar" aria-label="{{ S['app_name'] }}">
+    <a href="/" class="tab {% if tab == 'today' %}is-active{% endif %}"
+       {% if tab == 'today' %}aria-current="page"{% endif %}>{{ S["nav_today"] }}</a>
+    <a href="/calendar" class="tab {% if tab == 'calendar' %}is-active{% endif %}"
+       {% if tab == 'calendar' %}aria-current="page"{% endif %}>{{ S["nav_calendar"] }}</a>
+    <a href="/clients" class="tab {% if tab == 'clients' %}is-active{% endif %}"
+       {% if tab == 'clients' %}aria-current="page"{% endif %}>{{ S["nav_clients"] }}</a>
+    <a href="/settings" class="tab {% if tab == 'more' %}is-active{% endif %}"
+       {% if tab == 'more' %}aria-current="page"{% endif %}>{{ S["nav_more"] }}</a>
+  </nav>
+  {% endif %}
 </body>
 </html>
