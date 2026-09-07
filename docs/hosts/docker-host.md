@@ -84,6 +84,7 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `syncthing` | `lscr.io/linuxserver/syncthing` | 8384, 22000 | File synchronization |
 | `notifiarr` | `golift/notifiarr` | - | Notification hub |
 | `docuseal` | `docuseal/docuseal` | 3003 | Self-hosted e-signature platform |
+| `pedikur` | built from `python:3.13-slim` | 3010 | Appointment book for a pedicure practice, written here rather than deployed (see [Pedicure Practice App](../proxmox/46_Pedicure_Practice_App.md)) |
 
 ### Static Sites
 
@@ -142,6 +143,7 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 3009 | TCP | Topology map static site |
 | 3003 | TCP | DocuSeal |
 | 3005 | TCP | Dawarich |
+| 3010 | TCP | Pedicure appointment book |
 | 3300 | TCP | Rails learning lab |
 | 8001 | TCP | Homelable MCP server |
 | 9696 | TCP | Prowlarr |
