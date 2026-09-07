@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import backup, config, display, migrate
 from app.db import Database
 from app.services import timeutil
-from app.routers import auth, calendar, clients, today, visits
+from app.routers import api, auth, calendar, clients, today, visits
 from app.routers import settings as settings_router
 from app.strings.hu import S
 
@@ -74,6 +74,7 @@ app.include_router(calendar.router)
 app.include_router(clients.router)
 app.include_router(visits.router)
 app.include_router(settings_router.router)
+app.include_router(api.router)
 
 
 @app.get("/health")
