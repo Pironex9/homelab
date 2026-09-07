@@ -64,7 +64,7 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 |-----------|-------|------|-------------|
 | `calibre-web-automated` | `ghcr.io/new-usemame/calibre-web-nextgen` (digest-pinned) | 8085 | Calibre library with auto-import; migrated off `crocodilestick/calibre-web-automated` 2026-08-21 after upstream stopped releasing |
 | `shelfmark` | `ghcr.io/calibrain/shelfmark` | 8084 | Book search and download manager, drops results into the Calibre ingest folder; added 2026-08-21 (formerly `calibre-web-automated-book-downloader`) |
-| `bentopdf` | `bentopdfteam/bentopdf` | 3000 | PDF reader |
+| `bentopdf` | `ghcr.io/alam00000/bentopdf` | 3000 | PDF reader |
 
 ### Location Tracking
 
@@ -84,6 +84,10 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `syncthing` | `lscr.io/linuxserver/syncthing` | 8384, 22000 | File synchronization |
 | `notifiarr` | `golift/notifiarr` | - | Notification hub |
 | `docuseal` | `docuseal/docuseal` | 3003 | Self-hosted e-signature platform |
+| `form` | `caddy:alpine` | 3004 | Static intake form; `/api/submit` is proxied to the n8n webhook on 192.168.0.112:5678 |
+| `kan` | `ghcr.io/kanbn/kan` | 3006 | Kanban board, driven from Claude Code through the `kan-mcp` server |
+| `kan-db` | `postgres:15` | - | PostgreSQL for Kan |
+| `garage` | `dxflrs/garage:v2.3.0` | 3900 | S3 server; the backup target for the K3s Longhorn volumes (see [Longhorn Storage](../k3s/03_Longhorn_Storage.md)) |
 | `pedikur` | built from `python:3.13-slim` | 3010 | Appointment book for a pedicure practice, written here rather than deployed (see [Pedicure Practice App](../proxmox/46_Pedicure_Practice_App.md)) |
 
 ### Static Sites
@@ -98,11 +102,13 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | Container | Image | Port | Description |
 |-----------|-------|------|-------------|
 | `homepage` | `ghcr.io/gethomepage/homepage` | 3002 | Self-hosted dashboard |
-| `uptime-kuma` | `louislam/uptime-kuma` | - | Service uptime monitoring |
 | `scrutiny` | `ghcr.io/starosdev/scrutiny` | 8082 | Hard drive S.M.A.R.T. monitoring |
 | `homelable-backend` | `ghcr.io/pouzor/homelable-backend` | - | Network topology backend (internal) |
 | `homelable-frontend` | `ghcr.io/pouzor/homelable-frontend` | 3001 | Network diagram and live status UI |
 | `homelable-mcp` | built from `/opt/homelable/mcp` | 8001 | MCP server - Claude Code integration |
+
+Uptime Kuma is **not** on this host. It runs on the Hetzner VPS
+(`compose/vps/uptime-kuma/`) so that an outage of this host still gets alerted on.
 
 ### Development
 
@@ -126,6 +132,9 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 2283 | TCP | Immich |
 | 3000 | TCP | BentoPDF |
 | 3002 | TCP | Homepage |
+| 3004 | TCP | Intake form |
+| 3006 | TCP | Kan |
+| 3900 | TCP | Garage S3 (Longhorn backup target) |
 | 5000 | TCP | Suggestarr |
 | 5055 | TCP | Seerr |
 | 6881 | TCP/UDP | qBittorrent torrent |
@@ -133,10 +142,10 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 8080 | TCP | qBittorrent web UI |
 | 8082 | TCP | Scrutiny |
 | 8083 | TCP | FreshRSS |
+| 8084 | TCP | Shelfmark |
 | 8085 | TCP | Calibre-Web |
 | 8096 | TCP | Jellyfin |
 | 8384 | TCP | Syncthing web UI |
-| 8888 | TCP | Dozzle |
 | 8989 | TCP | Sonarr |
 | 3001 | TCP | Homelable web UI |
 | 3008 | TCP | Portfolio static site |
