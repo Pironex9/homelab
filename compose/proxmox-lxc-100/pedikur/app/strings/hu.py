@@ -41,6 +41,7 @@ S = {
     "starts_at": "Kezdés",
     "ends_at_optional": "Vége (ha hosszabb a szokásosnál)",
     "slot_taken": "Ez az idősáv már foglalt.",
+    "walk_in_no_room": "Ma már nincs szabad idő ehhez a kezeléshez.",
     "visit_needs_treatment": "Válassz legalább egy kezelést.",
     "visit_time_invalid": "A megadott időpont nem értelmezhető.",
     "visit_client_missing": "Ez a kliens már nem foglalható.",
