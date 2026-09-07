@@ -74,7 +74,17 @@ A password is at least 10 characters, asked for twice.
 The app snapshots itself into `/data/backup` using SQLite's online backup,
 once at start and then daily, keeping seven copies, and again before every
 schema migration, keeping five of those. A live WAL database must never be
-copied with `cp`. Restic then carries `/data`.
+copied with `cp`.
+
+Off the container, the whole of LXC 100 is in the nightly Proxmox vzdump at
+02:00 to `/mnt/storage/backup/proxmox`, snapshot mode, keeping 7 daily,
+4 weekly and 3 monthly. That is what actually carries `/srv/docker-data/pedikur`.
+The pve restic job does **not**: it backs up the Proxmox host's own `/`, and
+the container's rootfs is an LVM thin volume that is not mounted underneath it.
+Checked on 2026-09-07, after this README first claimed otherwise.
+
+Both copies live on the same machine. There is no offsite copy of the client
+records.
 
 ## Restore
 
