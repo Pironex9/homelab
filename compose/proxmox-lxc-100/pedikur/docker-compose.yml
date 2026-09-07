@@ -1,6 +1,12 @@
 services:
   pedikur:
     build: .
+    # Load-bearing. "docker compose up -d" does not rebuild a build: service
+    # whose image already exists, so Komodo pulled the new code and then
+    # recreated the container from the image built at task 1: the app was five
+    # modules old and died on "Could not import module app.main". pull_policy
+    # build rebuilds on every deploy.
+    pull_policy: build
     container_name: pedikur
     environment:
       - TZ=${TZ:-Europe/Bratislava}
