@@ -48,6 +48,7 @@ Storage: MergerFS 8.1TB + SnapRAID (4 USB HDDs). Remote: Tailscale (private) + P
 - Everything committed is English: commit messages (subject and body), code comments, YAML comments. The conversation language follows the user; the repo does not.
 - `.env` and `private/` are gitignored - never commit them; keep `.env.example` updated.
 - Docs/commits: redact API keys with placeholders; private LAN IPs (192.168.0.x) are NEVER redacted.
+- A compose stack that builds its own image (`build:`) needs `pull_policy: build` on the service. Komodo deploys with `docker compose up -d`, which does not rebuild a service whose image already exists, so the stack pulls the new code and then recreates the container from the old image. Found on the first pedikur deploy: seventeen commits pulled, container running the image built at the first one.
 
 ## Codex Workflow
 
