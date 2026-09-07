@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ S["nav_today"] }}{% endblock %}
+{% block heading %}{{ S["nav_today"] }} - {{ today.strftime("%m. %d.") }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if unclosed %}
+{# straight to the oldest one: the banner is only useful if it is the fix #}
+<a class="banner-warning" href="/visits/{{ unclosed[0].id }}/close">
+  {{ unclosed | length }} {{ S["unclosed_visits"] }}
+</a>
+{% endif %}
+
+<ul class="list">
+  {% for v in visits %}
+  <li>
+    <a class="card row row--link is-{{ v.status }}" href="/visits/{{ v.id }}/close">
+      <span class="row__main">
+        <strong class="num">{{ v.starts_at | localtime }}</strong>
+        {% if v.client.alert %}<span class="alert-dot"
+              role="img" aria-label="{{ S['has_alert'] }}"></span>{% endif %}
+        <span>{{ v.client.name }}</span>
+      </span>
+      <span class="muted">
+        {%- for i in v.items if i.kind == 'treatment' -%}
+          {{ i.treatment.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+      </span>
+    </a>
+  </li>
+  {% else %}
+  <li class="muted">{{ S["no_visits_today"] }}</li>
+  {% endfor %}
+</ul>
+
+<details class="card stack-top">
+  <summary>{{ S["walk_in"] }}</summary>
+  <form method="post" action="/walk-in">
+    <label for="wc">{{ S["client"] }}</label>
+    <select id="wc" name="client_id" required>
+      <option value="" selected disabled>{{ S["choose_client"] }}</option>
+      {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+    </select>
+    <fieldset class="checks">
+      <legend>{{ S["treatments_title"] }}</legend>
+      {% for t in treatments %}
+      <label class="check">
+        <input type="checkbox" name="treatment_ids" value="{{ t.id }}">
+        <span>{{ t.name }}
+          <span class="muted num">{{ t.duration_min }} {{ S["minutes_short"] }}
+            &middot; {{ t.price_cents | eur }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    <button type="submit">{{ S["start"] }}</button>
+  </form>
+</details>
+{% endblock %}

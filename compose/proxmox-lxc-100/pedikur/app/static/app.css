@@ -294,6 +294,28 @@ form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
   accent-color: var(--accent);
 }
 
+.banner-warning {
+  display: block;
+  padding: var(--gap-3);
+  margin-bottom: var(--gap-3);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  border: 1px solid var(--danger);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  min-height: var(--tap);
+}
+
+/* a Visit that did not happen must not read like one that did */
+.row.is-cancelled, .row.is-no_show { background: var(--surface-2); }
+.row.is-cancelled .row__main, .row.is-no_show .row__main { color: var(--ink-muted); }
+.row.is-cancelled strong, .row.is-no_show strong { text-decoration: line-through; }
+/* a closed Visit reads as closed by its own colour, not by a stripe down the
+   side of the card */
+.row.is-done { background: color-mix(in srgb, var(--ok) 5%, var(--surface)); }
+.row.is-done .row__main strong { color: var(--ok); }
+
 /* ---------- week grid ---------- */
 
 .weeknav { display: flex; gap: var(--gap-2); }

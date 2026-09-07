@@ -16,4 +16,8 @@
     <button type="submit">{{ S["login_submit"] }}</button>
   </form>
 </div>
+{# a logged out device keeps no copy of the day's client names #}
+<script>
+  if ('caches' in window) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))); }
+</script>
 {% endblock %}

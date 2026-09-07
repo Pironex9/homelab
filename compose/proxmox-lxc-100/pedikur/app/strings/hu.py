@@ -58,6 +58,11 @@ S = {
     "visit_gone": "Ez a látogatás már nem létezik.",
     "visit_slot_taken": "Az idősávot közben elfoglalta valaki más.",
 
+    "unclosed_visits": "lezáratlan látogatás",
+    "no_visits_today": "Ma nincs bejegyzett látogatás",
+    "walk_in": "Beeső kliens",
+    "start": "Indítás",
+
     "search": "Keresés",
     "new_client": "Új kliens",
     "client_name": "Név",

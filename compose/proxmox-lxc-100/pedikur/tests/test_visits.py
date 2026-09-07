@@ -420,3 +420,35 @@ def test_close_records_the_findings_and_the_note(db, fixtures):
         v = s.get(Visit, vid)
         assert v.findings == "benőtt köröm"
         assert v.note == "reszelés"
+
+
+def test_two_concurrent_closes_post_the_line_once(db, fixtures):
+    """A double tap is one thing, two requests in flight is another: the guard
+    is a read followed by a write, so it is only safe because every
+    transaction begins IMMEDIATE."""
+    import threading
+
+    from app.models import Visit, VisitItem
+
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+
+    go = threading.Event()
+
+    def attempt():
+        go.wait()
+        with db.session() as s:
+            visits.close(s, vid)
+
+    threads = [threading.Thread(target=attempt) for _ in range(4)]
+    for t in threads:
+        t.start()
+    go.set()
+    for t in threads:
+        t.join()
+
+    with db.session() as s:
+        assert s.get(Visit, vid).status == "done"
+        assert s.query(VisitItem).filter_by(visit_id=vid).count() == 1

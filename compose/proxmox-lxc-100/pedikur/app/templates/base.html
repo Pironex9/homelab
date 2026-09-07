@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#f7f6f4">
   <title>{% block title %}{{ S["app_name"] }}{% endblock %}</title>
   <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
   <link rel="stylesheet" href="/static/tokens.css">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
@@ -32,5 +34,10 @@
        {% if tab == 'more' %}aria-current="page"{% endif %}>{{ S["nav_more"] }}</a>
   </nav>
   {% endif %}
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js');
+    }
+  </script>
 </body>
 </html>
