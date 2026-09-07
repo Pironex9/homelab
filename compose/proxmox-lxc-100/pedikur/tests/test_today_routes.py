@@ -190,3 +190,17 @@ def test_a_soft_deleted_visit_is_not_on_today(practice):
     with practice.app.state.db.session() as s:
         s.get(Visit, 1).deleted_at = "2026-09-06T10:00:00Z"
     assert "Ma nincs bejegyzett látogatás" in practice.get("/").text
+
+
+def test_the_service_worker_is_served_from_the_root(practice):
+    """Its scope defaults to the directory it is served from, and it cannot
+    intercept anything outside it. At /static/sw.js the scope was /static/, so
+    the fetch handler never fired for "/" and the day's list was never cached.
+    Only a real HTTPS deploy showed it: a service worker needs a secure
+    context, so it does not register over http at all."""
+    r = practice.get("/sw.js")
+    assert r.status_code == 200
+    assert "javascript" in r.headers["content-type"]
+    assert "pedikur-v1" in r.text
+    assert "/sw.js" in practice.get("/").text
+    assert "/static/sw.js" not in practice.get("/").text

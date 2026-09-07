@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -75,6 +75,19 @@ app.include_router(clients.router)
 app.include_router(visits.router)
 app.include_router(settings_router.router)
 app.include_router(api.router)
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker() -> FileResponse:
+    """Served from the root, not from /static/.
+
+    A service worker's scope defaults to the directory it is served from, and
+    it cannot intercept anything outside it. At /static/sw.js the scope was
+    /static/, so the fetch handler's whole reason for existing, keeping the
+    day's list readable on a dead connection, never fired for "/".
+    """
+    return FileResponse(BASE_DIR / "static" / "sw.js",
+                        media_type="application/javascript")
 
 
 @app.get("/health")
