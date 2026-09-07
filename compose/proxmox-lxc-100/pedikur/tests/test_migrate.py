@@ -6,7 +6,8 @@ from app import migrate
 def test_migrate_creates_schema_and_is_idempotent(db_path, tmp_path):
     first = migrate.run(db_path, backup_dir=tmp_path / "backup")
     # equality, not membership: order is the whole point of numbered files
-    assert first == ["001_schema.sql", "002_seed.sql"]
+    assert first == ["001_schema.sql", "002_seed.sql",
+                     "003_visit_closed_at.sql"]
 
     con = sqlite3.connect(db_path)
     tables = {r[0] for r in con.execute(
@@ -34,7 +35,7 @@ def test_migrate_snapshots_before_applying(db_path, tmp_path):
     # first run has nothing to snapshot: the file does not exist yet
     assert not list(backup_dir.glob("*.sqlite"))
 
-    (db_path.parent / "003_noop.sql").write_text("SELECT 1;")
+    (db_path.parent / "900_noop.sql").write_text("SELECT 1;")
     migrate.run(db_path, backup_dir=backup_dir,
                 migrations_dir=db_path.parent)
     snaps = list(backup_dir.glob("pre-migration-*.sqlite"))
@@ -55,7 +56,7 @@ def test_a_failing_migration_leaves_the_database_untouched(db_path, tmp_path):
     migrate.run(db_path, backup_dir=backup_dir)
 
     pending = db_path.parent
-    (pending / "003_broken.sql").write_text(
+    (pending / "900_broken.sql").write_text(
         "CREATE TABLE half_built (x);\n"
         "ALTER TABLE client ADD COLUMN nickname TEXT;\n"
         "CREATE TABLE THIS IS NOT SQL;\n"
@@ -70,11 +71,11 @@ def test_a_failing_migration_leaves_the_database_untouched(db_path, tmp_path):
     columns = {r[1] for r in con.execute("PRAGMA table_info(client)")}
     assert "nickname" not in columns
     assert {r[0] for r in con.execute("SELECT filename FROM schema_version")} == {
-        "001_schema.sql", "002_seed.sql"}
+        "001_schema.sql", "002_seed.sql", "003_visit_closed_at.sql"}
     con.close()
 
     # and the fixed migration then applies cleanly, without manual surgery
-    (pending / "003_broken.sql").write_text(
+    (pending / "900_broken.sql").write_text(
         "ALTER TABLE client ADD COLUMN nickname TEXT;\n")
     assert migrate.run(db_path, backup_dir=backup_dir,
-                       migrations_dir=pending) == ["003_broken.sql"]
+                       migrations_dir=pending) == ["900_broken.sql"]

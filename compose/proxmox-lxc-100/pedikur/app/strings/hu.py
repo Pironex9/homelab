@@ -57,6 +57,8 @@ S = {
     "price_override": "Ár, ha eltér",
     "visit_gone": "Ez a látogatás már nem létezik.",
     "visit_slot_taken": "Az idősávot közben elfoglalta valaki más.",
+    "visit_bad_status": "Ismeretlen állapot.",
+    "remove": "Törlés",
 
     "unclosed_visits": "lezáratlan látogatás",
     "no_visits_today": "Ma nincs bejegyzett látogatás",

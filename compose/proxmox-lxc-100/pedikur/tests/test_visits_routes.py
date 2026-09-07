@@ -177,3 +177,55 @@ def test_a_visit_that_is_gone_redirects(to_close):
     assert to_close.get("/visits/999/close").status_code == 303
     assert to_close.post("/visits/999/close",
                          data={"findings": "", "note": ""}).status_code == 303
+
+
+def test_omitting_findings_does_not_wipe_them(to_close):
+    """close() reads None as "leave it alone" and "" as "clear it". A caller
+    that never sends the field, the API or a partial htmx post, must not wipe
+    the column."""
+    to_close.post("/visits/1/close", data={"findings": "benőtt köröm",
+                                           "note": "reszelés"})
+    to_close.post("/visits/1/close", data={"price_1": "20,00"})
+    from app.models import Visit
+    with to_close.app.state.db.session() as s:
+        visit = s.get(Visit, 1)
+        assert visit.findings == "benőtt köröm"
+        assert visit.items[0].unit_price_cents == 2000
+
+
+def test_every_error_screen_actually_renders(to_close):
+    """Each of these stops at the Location header in the other tests, so the
+    page they redirect to has never been drawn."""
+    for key, text in [
+        ("treatment_price_invalid", "Az ár nem értelmezhető"),
+        ("visit_slot_taken", "Az idősávot közben elfoglalta"),
+        ("visit_bad_status", "Ismeretlen állapot"),
+    ]:
+        page = to_close.get(f"/visits/1/close?error={key}")
+        assert page.status_code == 200
+        assert text in page.text, key
+    # and an unknown key renders no banner at all
+    assert 'class="error"' not in to_close.get("/visits/1/close?error=S").text
+
+
+def test_a_bad_status_value_says_so_rather_than_visit_gone(to_close):
+    r = to_close.post("/visits/1/status", data={"value": "elfelejtette"})
+    assert r.headers["location"] == "/visits/1/close?error=visit_bad_status"
+
+
+def test_removing_a_treatment_from_the_screen(to_close):
+    to_close.post("/settings/treatments",
+                  data={"name": "Géllakk", "duration_min": "30",
+                        "price_eur": "18,00"})
+    to_close.post("/visits/1/treatments", data={"treatment_id": "2"})
+    r = to_close.post("/visits/1/treatments/2/remove")
+    assert r.headers["location"] == "/visits/1/close"
+    # the name still appears in the add-a-treatment select, so assert on the
+    # line's own remove form rather than on the word
+    page = to_close.get("/visits/1/close").text
+    assert "/visits/1/treatments/2/remove" not in page
+    assert "/visits/1/treatments/1/remove" in page
+
+    # and the last one stays put
+    r = to_close.post("/visits/1/treatments/1/remove")
+    assert r.headers["location"].endswith("error=visit_needs_treatment")

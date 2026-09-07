@@ -21,7 +21,9 @@
     {% for item in visit.items if item.kind == 'treatment' %}
     <li class="card row">
       <span class="row__main">{{ item.treatment.name }}</span>
-      <strong class="price">{{ item.treatment.price_cents | eur }}</strong>
+      <strong class="price">
+        {{ (item.unit_price_cents if visit.closed_at
+            else item.treatment.price_cents) | eur }}</strong>
     </li>
     {% endfor %}
   </ul>
@@ -43,6 +45,19 @@
     {% endfor %}
   </details>
 </form>
+
+<ul class="list stack-top">
+  {% for item in visit.items if item.kind == 'treatment' %}
+  <li>
+    <form method="post"
+          action="/visits/{{ visit.id }}/treatments/{{ item.id }}/remove"
+          class="row">
+      <span class="row__main muted">{{ item.treatment.name }}</span>
+      <button class="secondary" type="submit">{{ S["remove"] }}</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
 
 <details class="card stack-top">
   <summary>{{ S["add_treatment"] }}</summary>

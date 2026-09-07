@@ -58,6 +58,7 @@ class Visit(Base):
     findings: Mapped[str | None] = mapped_column(Text, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     deleted_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    closed_at: Mapped[str | None] = mapped_column(String, nullable=True)
     created_by: Mapped[str] = mapped_column(String)
     created_at: Mapped[str] = mapped_column(String)
 

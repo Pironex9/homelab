@@ -10,8 +10,8 @@ from app.strings.hu import S
 
 router = APIRouter(prefix="/visits")
 
-_ERRORS = frozenset({"visit_slot_taken", "visit_gone",
-                     "treatment_price_invalid"})
+_ERRORS = frozenset({"visit_slot_taken", "visit_gone", "visit_bad_status",
+                     "visit_needs_treatment", "treatment_price_invalid"})
 
 # One practitioner's whole client list fits in a select; search's default of
 # 20 would silently hide everyone she registered after the twentieth.
@@ -110,11 +110,15 @@ async def close(request: Request, visit_id: int,
             return RedirectResponse(
                 f"/visits/{visit_id}/close?error=treatment_price_invalid",
                 status_code=303)
+    # get without a default: close() reads None as "leave it alone" and "" as
+    # "clear it", and a caller that omits the field must not wipe the column.
+    findings = form.get("findings")
+    note = form.get("note")
     try:
         with request.app.state.db.session() as s:
             visits.close(s, visit_id, price_overrides=overrides,
-                         findings=str(form.get("findings", "")),
-                         note=str(form.get("note", "")))
+                         findings=None if findings is None else str(findings),
+                         note=None if note is None else str(note))
     except visits.SlotTaken:
         return RedirectResponse(
             f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
@@ -132,7 +136,12 @@ def status(request: Request, visit_id: int, value: str = Form(...),
     except visits.SlotTaken:
         return RedirectResponse(
             f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
-    except (LookupError, ValueError):
+    except ValueError:
+        # a status the CHECK constraint would refuse is a broken client, not a
+        # Visit that is gone: saying "gone" sends her looking for the wrong thing
+        return RedirectResponse(
+            f"/visits/{visit_id}/close?error=visit_bad_status", status_code=303)
+    except LookupError:
         return RedirectResponse("/?error=visit_gone", status_code=303)
     return RedirectResponse("/", status_code=303)
 
@@ -141,9 +150,33 @@ def status(request: Request, visit_id: int, value: str = Form(...),
 def add_treatment(request: Request, visit_id: int,
                   treatment_id: int = Form(...),
                   user: User = Depends(security.require_user)):
+    # Deliberately not idempotent: two of the same Treatment on one Visit is a
+    # real thing. A mis-tap is undone with the remove button below.
     try:
         with request.app.state.db.session() as s:
             visits.add_treatment(s, visit_id, treatment_id)
+    except visits.SlotTaken:
+        return RedirectResponse(
+            f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
     except LookupError:
         return RedirectResponse("/?error=visit_gone", status_code=303)
+    except ValueError:
+        return RedirectResponse(
+            f"/visits/{visit_id}/close?error=visit_needs_treatment",
+            status_code=303)
+    return RedirectResponse(f"/visits/{visit_id}/close", status_code=303)
+
+
+@router.post("/{visit_id}/treatments/{item_id}/remove")
+def remove_treatment(request: Request, visit_id: int, item_id: int,
+                     user: User = Depends(security.require_user)):
+    try:
+        with request.app.state.db.session() as s:
+            visits.remove_treatment(s, visit_id, item_id)
+    except LookupError:
+        return RedirectResponse("/?error=visit_gone", status_code=303)
+    except ValueError:
+        return RedirectResponse(
+            f"/visits/{visit_id}/close?error=visit_needs_treatment",
+            status_code=303)
     return RedirectResponse(f"/visits/{visit_id}/close", status_code=303)

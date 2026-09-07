@@ -153,6 +153,24 @@ def _next_start_after(session: Session, visit: Visit,
     return timeutil.to_utc(timeutil.from_utc_iso(row.starts_at)) if row else None
 
 
+def remove_treatment(session: Session, visit_id: int, item_id: int) -> Visit:
+    """Undo a mis-ticked Treatment. ends_at is left where it is: it only ever
+    grows, and shrinking it could hand a slot to someone while the client is
+    still in the chair."""
+    visit = session.get(Visit, visit_id)
+    if visit is None:
+        raise LookupError(f"no visit {visit_id}")
+    item = next((i for i in visit.items if i.id == item_id), None)
+    if item is None:
+        raise LookupError(f"no item {item_id} on visit {visit_id}")
+    if len([i for i in visit.items if i.kind == "treatment"]) <= 1:
+        raise ValueError("a Visit needs at least one Treatment")
+    visit.items.remove(item)
+    session.delete(item)
+    session.flush()
+    return visit
+
+
 def reschedule(session: Session, visit_id: int, starts_at_local: datetime,
                ends_at_local: datetime) -> Visit:
     visit = session.get(Visit, visit_id)
@@ -171,19 +189,27 @@ def reschedule(session: Session, visit_id: int, starts_at_local: datetime,
     return visit
 
 
+def _claim_slot_again(session: Session, visit: Visit, new_status: str) -> None:
+    """Cancelling frees the slot, so bringing a Visit back has to ask for it
+    again. Otherwise a no_show corrected to done lands on top of whoever was
+    booked into the freed window, permanently, with nothing to notice it.
+
+    One implementation, called from both set_status and close: two copies of
+    an invariant drift, and the second copy is always the narrower one.
+    """
+    if new_status not in ACTIVE_STATUSES or visit.status in ACTIVE_STATUSES:
+        return
+    if overlapping(session, visit.starts_at, visit.ends_at, exclude_id=visit.id):
+        raise SlotTaken(f"{visit.starts_at} .. {visit.ends_at}")
+
+
 def set_status(session: Session, visit_id: int, status: str) -> Visit:
     if status not in STATUSES:
         raise ValueError(f"bad status: {status}")
     visit = session.get(Visit, visit_id)
     if visit is None:
         raise LookupError(f"no visit {visit_id}")
-    # Cancelling frees the slot, so bringing a Visit back has to ask for it
-    # again. Otherwise a no_show corrected to done lands on top of whoever was
-    # booked into the freed window, permanently, with nothing to notice it.
-    if (status in ACTIVE_STATUSES and visit.status not in ACTIVE_STATUSES
-            and overlapping(session, visit.starts_at, visit.ends_at,
-                            exclude_id=visit.id)):
-        raise SlotTaken(f"{visit.starts_at} .. {visit.ends_at}")
+    _claim_slot_again(session, visit, status)
     visit.status = status
     session.flush()
     return visit
@@ -195,36 +221,43 @@ def close(session: Session, visit_id: int,
     """Mark a Visit done and fix its prices.
 
     Idempotent on purpose: a double tap on a phone, or a retried request, must
-    not post the line twice. The guard also stops a Visit closed months ago
-    from being re-priced if the route is hit again.
+    not post the line twice, and a Visit closed months ago must not be
+    re-priced. Idempotent is not the same as frozen, though: an override or a
+    note given on a later close is applied, so a price typed a minute too late
+    is still a correction rather than a silent no-op. closed_at is what tells
+    the two apart, because status cannot: it bounces.
 
     The price written is the Treatment's price at closing time, because nothing
     was quoted to the client in writing; the closing screen can override it per
     line.
     """
     visit = session.get(Visit, visit_id)
-    if visit is None:
+    if visit is None or visit.deleted_at:
         raise LookupError(f"no visit {visit_id}")
-    if visit.status == "done":
-        return visit
     # done is an active status, so closing a cancelled or no_show Visit puts it
     # back on the calendar and cannot skip the check set_status makes.
-    if (visit.status not in ACTIVE_STATUSES
-            and overlapping(session, visit.starts_at, visit.ends_at,
-                            exclude_id=visit.id)):
-        raise SlotTaken(f"{visit.starts_at} .. {visit.ends_at}")
+    _claim_slot_again(session, visit, "done")
 
     overrides = price_overrides or {}
+    first_close = visit.closed_at is None
     for item in visit.items:
         if item.kind != "treatment" or item.treatment is None:
             continue
-        item.unit_price_cents = overrides.get(item.id, item.treatment.price_cents)
+        if item.id in overrides:
+            item.unit_price_cents = overrides[item.id]
+        elif first_close:
+            # The price list is read once, at the first close. Reading it again
+            # would restamp a Visit performed months ago at today's price the
+            # moment its status bounced through no_show and back.
+            item.unit_price_cents = item.treatment.price_cents
 
     if findings is not None:
         visit.findings = findings or None
     if note is not None:
         visit.note = note or None
     visit.status = "done"
+    if first_close:
+        visit.closed_at = timeutil.to_utc_iso(timeutil.local_now())
     session.flush()
     return visit
 

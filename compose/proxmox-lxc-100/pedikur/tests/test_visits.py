@@ -452,3 +452,118 @@ def test_two_concurrent_closes_post_the_line_once(db, fixtures):
     with db.session() as s:
         assert s.get(Visit, vid).status == "done"
         assert s.query(VisitItem).filter_by(visit_id=vid).count() == 1
+
+
+def test_a_correction_typed_after_the_close_is_applied(db, fixtures):
+    """The second Kész was a silent no-op: she taps Done, remembers the
+    regular's price, reopens, types it, taps Done, and lands back on Today as
+    if it had worked while the row still says the list price. There is no
+    other way to correct a Visit's money in phase 1."""
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid, item_id = visit.id, visit.items[0].id
+    with db.session() as s:
+        visits.close(s, vid)
+    with db.session() as s:
+        visits.close(s, vid, price_overrides={item_id: 2000},
+                     findings="benőtt köröm")
+    with db.session() as s:
+        from app.models import Visit, VisitItem
+        assert s.get(VisitItem, item_id).unit_price_cents == 2000
+        assert s.get(Visit, vid).findings == "benőtt köröm"
+
+
+def test_a_status_bounce_does_not_reprice_at_todays_price(db, fixtures):
+    """done -> no_show -> done on a Visit performed months ago. status cannot
+    tell a retry from a first close, because status bounces; closed_at can."""
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+    with db.session() as s:
+        visits.close(s, vid)
+        treatments.update(s, fixtures["ped"], price_cents=9900)
+        visits.set_status(s, vid, "no_show")
+    with db.session() as s:
+        visits.close(s, vid)
+    with db.session() as s:
+        from app.models import VisitItem
+        assert s.query(VisitItem).filter_by(visit_id=vid).one().unit_price_cents \
+            == 2500
+
+
+def test_closed_at_is_stamped_once(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+    with db.session() as s:
+        first = visits.close(s, vid).closed_at
+    with db.session() as s:
+        visits.set_status(s, vid, "no_show")
+    with db.session() as s:
+        assert visits.close(s, vid).closed_at == first
+
+
+def test_a_soft_deleted_visit_cannot_be_closed(db, fixtures):
+    """It keeps status planned, so the slot guard never runs for it, and its
+    freed window may already belong to someone else."""
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid = visit.id
+        visit.deleted_at = "2026-09-09T10:00:00Z"
+    with db.session() as s:
+        with pytest.raises(LookupError):
+            visits.close(s, vid)
+
+
+def test_an_override_for_another_visits_item_is_ignored(db, fixtures):
+    with db.session() as s:
+        one = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                          [fixtures["ped"]], created_by="1")
+        two = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 14),
+                          [fixtures["gel"]], created_by="1")
+        one_id, foreign_item = one.id, two.items[0].id
+    with db.session() as s:
+        visits.close(s, one_id, price_overrides={foreign_item: 1})
+    with db.session() as s:
+        from app.models import VisitItem
+        assert s.get(VisitItem, foreign_item).unit_price_cents == 1800
+
+
+def test_overrides_are_per_line(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"], fixtures["gel"]], created_by="1")
+        vid = visit.id
+        first, second = visit.items[0].id, visit.items[1].id
+    with db.session() as s:
+        visits.close(s, vid, price_overrides={first: 2000})
+    with db.session() as s:
+        from app.models import VisitItem
+        assert s.get(VisitItem, first).unit_price_cents == 2000
+        assert s.get(VisitItem, second).unit_price_cents == 1800
+
+
+def test_a_mis_ticked_treatment_can_be_removed(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"], fixtures["gel"]], created_by="1")
+        vid, item_id = visit.id, visit.items[1].id
+    with db.session() as s:
+        visits.remove_treatment(s, vid, item_id)
+    with db.session() as s:
+        from app.models import Visit
+        assert len(s.get(Visit, vid).items) == 1
+
+
+def test_the_last_treatment_cannot_be_removed(db, fixtures):
+    with db.session() as s:
+        visit = visits.book(s, fixtures["client_id"], _local(2026, 9, 10, 10),
+                            [fixtures["ped"]], created_by="1")
+        vid, item_id = visit.id, visit.items[0].id
+    with db.session() as s:
+        with pytest.raises(ValueError):
+            visits.remove_treatment(s, vid, item_id)
