@@ -203,7 +203,7 @@
             type: jellyfin
             url: http://192.168.0.110:8096
             key: {{HOMEPAGE_VAR_JELLYFIN_KEY}}
-            version: 1
+            version: 2
             enableBlocks: true
             enableNowPlaying: true
     - Radarr:
