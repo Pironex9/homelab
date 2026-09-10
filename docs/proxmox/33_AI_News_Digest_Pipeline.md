@@ -1,6 +1,6 @@
 # 33 - Daily AI News Digest Pipeline
 
-**Date:** 2026-08-13
+**Date:** 2026-08-13 (updated 2026-09-10)
 **Hostname:** claude-mgmt (LXC 109), karakeep (LXC 106), docker-host (LXC 100)
 **IP address:** 192.168.0.204, 192.168.0.128, 192.168.0.110
 
@@ -116,8 +116,12 @@ a 400. And any preamble before the first `<b>` is cut, because the model writes
 three lines of Python than to fight in the prompt.
 
 **A state file, not a fixed 24-hour window.** `.last-run` holds the previous run
-timestamp with a 36-hour cap. A failed run therefore causes no gap, and a
-successful one causes no duplicates.
+timestamp with a 36-hour cap, and is only written after a successful run. A
+successful run therefore causes no duplicates, and a single failed run causes no
+gap - provided it is re-run the same day. The cap is not free: skip a day
+entirely and the next run clamps its window to 36 hours back, which silently
+drops roughly twelve hours of items. The state file protects against a failure,
+not against ignoring one.
 
 ## The part that actually determines quality
 
@@ -141,6 +145,41 @@ so a single daily call of roughly 30-40k tokens costs nothing extra. The failure
 mode to know about: if the stored credential expires, cron fails **silently** - no
 Telegram message arrives, and the reason is in the log file next to the digests.
 
+## When a run fails
+
+A push monitor is what makes a missed run visible at all - the cron line pings
+Uptime Kuma only on success, so a failure shows up as a dead man's switch alert
+rather than as nothing (doc 35).
+
+Two failure classes have actually occurred, and they need different reflexes.
+
+**The model refuses the request.** On 2026-09-10 the run exited after six seconds
+instead of the usual seventy. The provider's cyber safeguard had rejected the
+batch: that morning's feed carried a writeup of a zero-click messaging worm and
+the RCE exploit behind it, which is ordinary AI-security news and entirely
+routine for these sources. The refusal is a property of the request, not of the
+content - the identical item set was accepted eleven hours later without a single
+change. So the response is to re-run, not to start filtering what the feed is
+allowed to contain.
+
+**The error message can be empty.** The same incident logged `claude hiba: ` with
+nothing after it, because the CLI writes API errors to stdout while the error path
+only kept stderr. Both streams are now included. The full refusal, with its
+category and request ID, is also in the session transcript under
+`~/.claude/projects/<cwd-slug>/<uuid>.jsonl`, in the `stop_details` field of the
+assistant record - worth knowing, because that is where the answer lives on any
+day the log line comes back blank.
+
+Recovering by hand is one command, but two things go with it. Re-run the script
+the same day, or the 36-hour cap eats the window described above. And ping the
+push monitor afterwards with a distinct message
+(`...?status=up&msg=manual-rerun`), otherwise the alert stays open and the
+heartbeat history cannot tell a manual rescue from a scheduled run.
+
+A single automatic retry on a non-zero exit would have absorbed this particular
+failure. It has not been added: one missed digest a month is cheap, and a retry
+that hides a genuinely broken credential behind a second attempt is not.
+
 ## Lessons Learned
 
 - **The aggregation pipeline is not the hard part.** Four mature open-source
@@ -161,6 +200,11 @@ Telegram message arrives, and the reason is in the log file next to the digests.
 - **Deliver where the reading already happens.** A generated file nobody opens is
   the same as no digest. Telegram was chosen over a static page for exactly this
   reason, and over Discord for its 4096-character limit and simpler delivery.
+- **An unattended job needs its errors to be readable, not just caught.** The
+  script correctly detected the failure, alerted through the push monitor, and
+  refused to advance its state file - and still logged a blank reason, because
+  the tool it calls reports API errors on stdout rather than stderr. Catching an
+  error and recording a useful one are separate pieces of work.
 - **A feed-less blog is not necessarily unreachable.** FreshRSS ships two
   scrapers beyond RSS/Atom: HTML+XPath for sites with no feed at all (the XPath
   has to be built from the live DOM one site at a time - no general recipe
