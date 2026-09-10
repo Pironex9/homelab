@@ -194,7 +194,11 @@ def main():
         [CLAUDE, "-p", "--model", "sonnet", prompt],
         input=render_input(items), capture_output=True, text=True, timeout=900)
     if result.returncode != 0:
-        raise SystemExit(f"claude hiba: {result.stderr[:500]}")
+        # claude prints API errors (safeguard refusals, rate limits) to stdout,
+        # not stderr - stderr alone leaves the log line empty.
+        raise SystemExit(
+            f"claude hiba (rc={result.returncode}): "
+            f"{result.stderr[:300]} {result.stdout[:500]}".strip())
 
     digest = sanitize_html(result.stdout.strip())
     day = datetime.now().strftime("%Y-%m-%d")
