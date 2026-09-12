@@ -16,10 +16,18 @@ services:
       - TZ=Europe/Budapest
     # Upstream requires this in LXC/Proxmox; the headless browser dies without it.
     shm_size: 512mb
-    # No published port: only Prowlarr calls it, over prowlarr_default by name.
+    # No published port on purpose. The only page it serves is FastAPI's Swagger
+    # UI at /docs, and the API behind it fetches arbitrary URLs with a real
+    # browser - an open fetch proxy is not worth exposing on the LAN for API
+    # docs. Both consumers reach it by name over a shared network instead.
     restart: unless-stopped
     networks:
+      # prowlarr_default: Prowlarr calls POST /v1 through it.
       - prowlarr_default
+      # arr_stack: homepage sits here and polls /health for the status dot.
+      - arr_stack
 networks:
   prowlarr_default:
+    external: true
+  arr_stack:
     external: true

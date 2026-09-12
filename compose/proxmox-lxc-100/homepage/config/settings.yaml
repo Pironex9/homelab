@@ -73,7 +73,7 @@ layout:
     Media Links:
       header: false
       style: row
-      columns: 5
+      columns: 6
 
   Utilities:
     icon: mdi-tools

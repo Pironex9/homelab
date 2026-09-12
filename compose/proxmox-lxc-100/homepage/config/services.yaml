@@ -268,6 +268,23 @@
             description: Indexer manager
             siteMonitor: http://192.168.0.110:9696
             statusStyle: dot
+        - Byparr:
+            # Sits next to Prowlarr because that is its only consumer.
+            #
+            # No `href`, unlike every other entry here: the only page Byparr
+            # serves is FastAPI's Swagger UI, and making that clickable would
+            # mean publishing an unauthenticated API that fetches arbitrary URLs
+            # with a real browser. Not worth a LAN-exposed fetch proxy for API
+            # docs, so the tile is the status dot and nothing else.
+            #
+            # `siteMonitor` is the container name rather than an IP:port like
+            # its neighbours, precisely because no port is published. The
+            # homepage container resolves it over arr_stack, which byparr joins
+            # for this one reason (see the byparr compose file).
+            icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/byparr.png
+            description: Cloudflare solver for EZTV and 1337x
+            siteMonitor: http://byparr:8191/health
+            statusStyle: dot
         - Suggestarr:
             icon: /images/suggestarr.png
             href: http://suggestarr.lan
