@@ -62,7 +62,7 @@ def walk_in(request: Request, client_id: int = Form(...),
             # there. Leaving it planned means one interruption puts her on the
             # unclosed banner and, because the interval counts done Visits
             # only, on the Recall List weeks early.
-            visits.close(s, visit.id)
+            visits.close(s, visit.id, created_by=str(user.id))
             visit_id = visit.id
     except visits.SlotTaken:
         return RedirectResponse("/?error=slot_taken", status_code=303)

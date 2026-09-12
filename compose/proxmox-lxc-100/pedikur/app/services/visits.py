@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Client, Treatment, Visit, VisitItem
-from app.services import timeutil
+from app.services import stock, timeutil
 
 ACTIVE_STATUSES = ("planned", "done")
 STATUSES = ("planned", "done", "cancelled", "no_show")
@@ -153,17 +153,23 @@ def _next_start_after(session: Session, visit: Visit,
     return timeutil.to_utc(timeutil.from_utc_iso(row.starts_at)) if row else None
 
 
-def remove_treatment(session: Session, visit_id: int, item_id: int) -> Visit:
-    """Undo a mis-ticked Treatment. ends_at is left where it is: it only ever
-    grows, and shrinking it could hand a slot to someone while the client is
-    still in the chair."""
+def remove_item(session: Session, visit_id: int, item_id: int) -> Visit:
+    """Undo a mis-ticked line, Treatment or Product.
+
+    ends_at is left where it is: it only ever grows, and shrinking it could
+    hand a slot to someone while the client is still in the chair.
+
+    The "at least one Treatment" guard applies to Treatments only. A Visit
+    with no Product on it is the normal case.
+    """
     visit = session.get(Visit, visit_id)
     if visit is None:
         raise LookupError(f"no visit {visit_id}")
     item = next((i for i in visit.items if i.id == item_id), None)
     if item is None:
         raise LookupError(f"no item {item_id} on visit {visit_id}")
-    if len([i for i in visit.items if i.kind == "treatment"]) <= 1:
+    if (item.kind == "treatment"
+            and len([i for i in visit.items if i.kind == "treatment"]) <= 1):
         raise ValueError("a Visit needs at least one Treatment")
     visit.items.remove(item)
     session.delete(item)
@@ -203,7 +209,8 @@ def _claim_slot_again(session: Session, visit: Visit, new_status: str) -> None:
         raise SlotTaken(f"{visit.starts_at} .. {visit.ends_at}")
 
 
-def set_status(session: Session, visit_id: int, status: str) -> Visit:
+def set_status(session: Session, visit_id: int, status: str,
+               created_by: str = "api") -> Visit:
     if status not in STATUSES:
         raise ValueError(f"bad status: {status}")
     visit = session.get(Visit, visit_id)
@@ -212,12 +219,18 @@ def set_status(session: Session, visit_id: int, status: str) -> Visit:
     _claim_slot_again(session, visit, status)
     visit.status = status
     session.flush()
+    # Cancelling a closed Visit gives back what it consumed. Same function as
+    # the close path, because a Visit that is not done has a desired
+    # consumption of zero.
+    stock.reconcile_visit(session, visit, created_by)
+    session.flush()
     return visit
 
 
 def close(session: Session, visit_id: int,
           price_overrides: dict[int, int] | None = None,
-          findings: str | None = None, note: str | None = None) -> Visit:
+          findings: str | None = None, note: str | None = None,
+          created_by: str = "api") -> Visit:
     """Mark a Visit done and fix its prices.
 
     Idempotent on purpose: a double tap on a phone, or a retried request, must
@@ -258,6 +271,10 @@ def close(session: Session, visit_id: int,
     visit.status = "done"
     if first_close:
         visit.closed_at = timeutil.to_utc_iso(timeutil.local_now())
+    session.flush()
+    # After the status is set, never before: the reconcile reads visit.status
+    # to decide whether this Visit consumed anything at all.
+    stock.reconcile_visit(session, visit, created_by)
     session.flush()
     return visit
 

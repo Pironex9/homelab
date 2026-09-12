@@ -118,7 +118,8 @@ async def close(request: Request, visit_id: int,
         with request.app.state.db.session() as s:
             visits.close(s, visit_id, price_overrides=overrides,
                          findings=None if findings is None else str(findings),
-                         note=None if note is None else str(note))
+                         note=None if note is None else str(note),
+                         created_by=str(user.id))
     except visits.SlotTaken:
         return RedirectResponse(
             f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
@@ -132,7 +133,7 @@ def status(request: Request, visit_id: int, value: str = Form(...),
            user: User = Depends(security.require_user)):
     try:
         with request.app.state.db.session() as s:
-            visits.set_status(s, visit_id, value)
+            visits.set_status(s, visit_id, value, created_by=str(user.id))
     except visits.SlotTaken:
         return RedirectResponse(
             f"/visits/{visit_id}/close?error=visit_slot_taken", status_code=303)
@@ -167,12 +168,12 @@ def add_treatment(request: Request, visit_id: int,
     return RedirectResponse(f"/visits/{visit_id}/close", status_code=303)
 
 
-@router.post("/{visit_id}/treatments/{item_id}/remove")
-def remove_treatment(request: Request, visit_id: int, item_id: int,
+@router.post("/{visit_id}/items/{item_id}/remove")
+def remove_item(request: Request, visit_id: int, item_id: int,
                      user: User = Depends(security.require_user)):
     try:
         with request.app.state.db.session() as s:
-            visits.remove_treatment(s, visit_id, item_id)
+            visits.remove_item(s, visit_id, item_id)
     except LookupError:
         return RedirectResponse("/?error=visit_gone", status_code=303)
     except ValueError:

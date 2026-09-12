@@ -553,7 +553,7 @@ def test_a_mis_ticked_treatment_can_be_removed(db, fixtures):
                             [fixtures["ped"], fixtures["gel"]], created_by="1")
         vid, item_id = visit.id, visit.items[1].id
     with db.session() as s:
-        visits.remove_treatment(s, vid, item_id)
+        visits.remove_item(s, vid, item_id)
     with db.session() as s:
         from app.models import Visit
         assert len(s.get(Visit, vid).items) == 1
@@ -566,4 +566,158 @@ def test_the_last_treatment_cannot_be_removed(db, fixtures):
         vid, item_id = visit.id, visit.items[0].id
     with db.session() as s:
         with pytest.raises(ValueError):
-            visits.remove_treatment(s, vid, item_id)
+            visits.remove_item(s, vid, item_id)
+
+
+# ---------- phase 2: consumption posted by reconciling ----------
+
+@pytest.fixture
+def recipe_setup(db, fixtures):
+    """Pedikur uses a third of a bottle of lacquer; Gellakk has no recipe."""
+    from app.services import products, recipes, stock
+    with db.session() as s:
+        lakk = products.create(s, "Lakk", "flakon", created_by="1")
+        stock.record(s, lakk.id, 5, "purchase", created_by="1",
+                     unit_cost_cents=1200)
+        recipes.set_for(s, fixtures["ped"], lakk.id, 3)
+        return dict(fixtures, lakk=lakk.id)
+
+
+def _booked(db, setup, treatment_ids, hour=10):
+    with db.session() as s:
+        return visits.book(s, setup["client_id"], _local(2026, 9, 14, hour),
+                           treatment_ids, created_by="1").id
+
+
+def _consumption_rows(session, product_id):
+    from sqlalchemy import select
+    from app.models import StockMovement
+    return list(session.scalars(
+        select(StockMovement)
+        .where(StockMovement.product_id == product_id,
+               StockMovement.reason == "consumption")))
+
+
+def test_closing_posts_the_consumption_from_the_recipe(db, recipe_setup):
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(5 - 1 / 3)
+
+
+def test_the_consumption_is_charged_at_the_last_purchase_price(db, recipe_setup):
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    with db.session() as s:
+        rows = _consumption_rows(s, recipe_setup["lakk"])
+        assert len(rows) == 1
+        assert rows[0].unit_cost_cents == 1200
+        assert rows[0].visit_id == visit_id
+
+
+def test_a_treatment_with_no_recipe_posts_nothing(db, recipe_setup):
+    visit_id = _booked(db, recipe_setup, [recipe_setup["gel"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == 5.0
+
+
+def test_closing_twice_posts_the_consumption_once(db, recipe_setup):
+    """The reason the reconcile exists. A double tap on a phone, or a retried
+    request, must not take two thirds of a bottle off the shelf."""
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(5 - 1 / 3)
+        assert len(_consumption_rows(s, recipe_setup["lakk"])) == 1
+
+
+def test_a_treatment_added_after_the_close_still_posts_its_consumption(db, recipe_setup):
+    """The hole the rejected first-close guard would have left: the price of
+    the added treatment would be right and its stock would not."""
+    visit_id = _booked(db, recipe_setup, [recipe_setup["gel"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    with db.session() as s:
+        visits.add_treatment(s, visit_id, recipe_setup["ped"])
+        visits.close(s, visit_id, created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(5 - 1 / 3)
+
+
+def test_a_treatment_removed_after_the_close_gives_the_stock_back(db, recipe_setup):
+    visit_id = _booked(db, recipe_setup,
+                       [recipe_setup["ped"], recipe_setup["gel"]])
+    with db.session() as s:
+        visit = visits.close(s, visit_id, created_by="1")
+        item = next(i for i in visit.items
+                    if i.treatment_id == recipe_setup["ped"])
+        item_id = item.id
+    with db.session() as s:
+        visits.remove_item(s, visit_id, item_id)
+        visits.close(s, visit_id, created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(5.0)
+
+
+def test_cancelling_a_closed_visit_returns_everything_it_consumed(db, recipe_setup):
+    """Work that did not happen consumed nothing. Falls out of the reconcile
+    for free: a Visit that is not done has a desired consumption of zero."""
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    with db.session() as s:
+        visits.set_status(s, visit_id, "cancelled", created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(5.0)
+
+
+def test_reclosing_after_a_cancellation_posts_it_again(db, recipe_setup):
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    with db.session() as s:
+        visits.set_status(s, visit_id, "cancelled", created_by="1")
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    from app.services import stock
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(5 - 1 / 3)
+
+
+def test_consumption_is_posted_even_with_nothing_on_the_shelf(db, recipe_setup):
+    """Refusing here would mean a "nincs eleg lakk" error in the middle of a
+    close, with the client in the chair. The ledger records the truth and the
+    stock screen shows it as negative."""
+    from app.services import stock
+    with db.session() as s:
+        stock.record(s, recipe_setup["lakk"], -5, "correction", created_by="1")
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    with db.session() as s:
+        visits.close(s, visit_id, created_by="1")
+    with db.session() as s:
+        assert stock.quantity(s, recipe_setup["lakk"]) == pytest.approx(-1 / 3)
+
+
+def test_removing_the_only_treatment_is_still_refused(db, recipe_setup):
+    """The rename from remove_treatment to remove_item must not lose the
+    guard: a Visit with no Treatment on it has no price and no duration."""
+    visit_id = _booked(db, recipe_setup, [recipe_setup["ped"]])
+    from app.models import Visit
+    with db.session() as s:
+        item_id = s.get(Visit, visit_id).items[0].id
+    with db.session() as s:
+        with pytest.raises(ValueError):
+            visits.remove_item(s, visit_id, item_id)

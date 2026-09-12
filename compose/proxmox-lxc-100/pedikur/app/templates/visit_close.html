@@ -50,7 +50,7 @@
   {% for item in visit.items if item.kind == 'treatment' %}
   <li>
     <form method="post"
-          action="/visits/{{ visit.id }}/treatments/{{ item.id }}/remove"
+          action="/visits/{{ visit.id }}/items/{{ item.id }}/remove"
           class="row">
       <span class="row__main muted">{{ item.treatment.name }}</span>
       <button class="secondary" type="submit">{{ S["remove"] }}</button>

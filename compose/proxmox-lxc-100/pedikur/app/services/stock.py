@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Product, StockMovement
-from app.services import products, timeutil
+from app.models import Product, StockMovement, Visit
+from app.services import products, recipes, timeutil
 
 REASONS = ("purchase", "opening", "consumption", "sale", "correction", "waste")
 # What a human may pick on the stock screen. purchase belongs to the expense
@@ -119,3 +119,71 @@ def levels(session: Session, include_archived: bool = False) -> list[Level]:
         .group_by(StockMovement.product_id)).all())
     return [Level(product=p, qty=float(sums.get(p.id) or 0.0))
             for p in products.list_all(session, include_archived)]
+
+
+# The two reasons a Visit owns. Everything else on a product's ledger belongs
+# to a purchase, an opening balance or a correction, and the reconcile must
+# never touch those: they are not its to compute.
+VISIT_REASONS = ("consumption", "sale")
+
+
+def reconcile_visit(session: Session, visit: Visit,
+                    created_by: str) -> list[StockMovement]:
+    """Make this Visit's stock ledger agree with what the Visit now says.
+
+    Computes what should have gone off the shelf for this Visit, subtracts
+    what already has, and appends the difference. Nothing is edited and
+    nothing is deleted, so the append-only rule holds.
+
+    Three properties come out of doing it this way rather than posting once on
+    the first close:
+
+    - Idempotent by arithmetic. Closing twice computes a difference of zero
+      and writes no row, without consulting closed_at or any other flag.
+    - Self-healing. A Treatment added or removed after the close moves the
+      difference, and the next close writes exactly the correction.
+    - Symmetric. A Visit that is not done consumed nothing, so cancelling a
+      closed Visit returns its stock through this same function with no second
+      code path.
+    """
+    desired: dict[tuple[int, str], float] = {}
+    # Only a done Visit consumes anything. Work that was cancelled or not
+    # shown up for used no lacquer, and this one condition is what makes
+    # set_status correct without a second implementation.
+    if visit.status == "done":
+        for item in visit.items:
+            if item.kind == "treatment" and item.treatment_id is not None:
+                for row in recipes.for_treatment(session, item.treatment_id):
+                    key = (row.product_id, "consumption")
+                    desired[key] = (desired.get(key, 0.0)
+                                    + item.qty / row.treatments_per_unit)
+            elif item.kind == "product" and item.product_id is not None:
+                key = (item.product_id, "sale")
+                desired[key] = desired.get(key, 0.0) + item.qty
+
+    # Stored negative because stock left the shelf; flipped here so both sides
+    # of the comparison mean "how much went out".
+    posted: dict[tuple[int, str], float] = {
+        (product_id, reason): -float(total)
+        for product_id, reason, total in session.execute(
+            select(StockMovement.product_id, StockMovement.reason,
+                   func.sum(StockMovement.qty))
+            .where(StockMovement.visit_id == visit.id,
+                   StockMovement.reason.in_(VISIT_REASONS))
+            .group_by(StockMovement.product_id, StockMovement.reason))}
+
+    written: list[StockMovement] = []
+    for key in sorted(set(desired) | set(posted)):
+        product_id, reason = key
+        delta = desired.get(key, 0.0) - posted.get(key, 0.0)
+        # Compared against an epsilon, not against zero: one third of a bottle
+        # summed by SQLite over two rows and the same third summed by Python
+        # can differ in the last bit, and that difference must not become a
+        # movement of 1e-17 on every single close.
+        if abs(delta) < QTY_EPSILON:
+            continue
+        written.append(record(
+            session, product_id=product_id, qty=-delta, reason=reason,
+            created_by=created_by, visit_id=visit.id,
+            unit_cost_cents=last_cost_cents(session, product_id)))
+    return written

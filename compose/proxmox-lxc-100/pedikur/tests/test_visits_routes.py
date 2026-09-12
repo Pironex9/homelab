@@ -218,14 +218,14 @@ def test_removing_a_treatment_from_the_screen(to_close):
                   data={"name": "Géllakk", "duration_min": "30",
                         "price_eur": "18,00"})
     to_close.post("/visits/1/treatments", data={"treatment_id": "2"})
-    r = to_close.post("/visits/1/treatments/2/remove")
+    r = to_close.post("/visits/1/items/2/remove")
     assert r.headers["location"] == "/visits/1/close"
     # the name still appears in the add-a-treatment select, so assert on the
     # line's own remove form rather than on the word
     page = to_close.get("/visits/1/close").text
-    assert "/visits/1/treatments/2/remove" not in page
-    assert "/visits/1/treatments/1/remove" in page
+    assert "/visits/1/items/2/remove" not in page
+    assert "/visits/1/items/1/remove" in page
 
     # and the last one stays put
-    r = to_close.post("/visits/1/treatments/1/remove")
+    r = to_close.post("/visits/1/items/1/remove")
     assert r.headers["location"].endswith("error=visit_needs_treatment")
