@@ -142,7 +142,7 @@ def test_the_archived_toggle_brings_a_hidden_client_back(logged_in):
 
 def test_the_history_shows_what_was_done_not_only_what_was_found(logged_in):
     """visit.note had a textarea on the close screen and no reader anywhere,
-    so everything typed into "Amit csinált" was write-only."""
+    so everything typed into "Amit csináltam" was write-only."""
     from app.models import Client, Treatment, Visit, VisitItem
     with logged_in.app.state.db.session() as s:
         s.add(Client(name="Kovács Anna", created_by="1",
@@ -161,4 +161,4 @@ def test_the_history_shows_what_was_done_not_only_what_was_found(logged_in):
     page = logged_in.get("/clients/1").text
     assert "benőtt köröm" in page
     assert "levágva, fertőtlenítve" in page
-    assert "Amit talált" in page and "Amit csinált" in page
+    assert "Amit találtam" in page and "Amit csináltam" in page

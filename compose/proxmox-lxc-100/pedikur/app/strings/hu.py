@@ -49,8 +49,8 @@ S = {
 
     "done": "Kész",
     "more_options": "Továbbiak",
-    "findings": "Amit talált",
-    "note": "Amit csinált",
+    "findings": "Amit találtam",
+    "note": "Amit csináltam",
     "add_treatment": "Kezelés hozzáadása",
     "add": "Hozzáad",
     "cancelled": "Lemondta",
