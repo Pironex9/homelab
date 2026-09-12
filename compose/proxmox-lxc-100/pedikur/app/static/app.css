@@ -235,8 +235,14 @@ details > summary {
 }
 details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: var(--gap-2); }
 details > summary::marker { color: var(--accent); }
-/* thumb reach: the primary action of a form fills the card */
-form.card > button[type="submit"] { width: 100%; margin-top: var(--gap-4); }
+/* thumb reach: the primary action of a form fills the card.
+   `details.card > form` is here too because a form inside a collapsible card
+   carries no class of its own, so `form.card >` alone missed it and left the
+   walk-in and new-client buttons flush against the field above them. */
+form.card > button[type="submit"],
+details.card > form > button[type="submit"] {
+  width: 100%; margin-top: var(--gap-4);
+}
 .card h2:first-child { margin-top: 0; }
 
 /* ---------- checkbox groups ---------- */
