@@ -34,8 +34,8 @@ from code that exists rather than from a guess about the phase before it:
 
 | Phase | Plan | Status |
 |---|---|---|
-| 1. Auth, clients, treatments, week calendar, booking, closing a Visit | `docs/superpowers/plans/2026-09-05-pedikur-phase1.md` | written 2026-09-05, not started |
-| 2. Products, Treatment Recipes, stock, expenses | not written | |
+| 1. Auth, clients, treatments, week calendar, booking, closing a Visit | `docs/superpowers/plans/2026-09-05-pedikur-phase1.md` | deployed 2026-09-07 |
+| 2. Products, Treatment Recipes, stock, expenses | `docs/superpowers/plans/2026-09-12-pedikur-phase2.md` | written 2026-09-12, not started |
 | 3. Google sync, buffers, free slot highlighting | not written | |
 | 4. Dashboard, Recall List, MCP server | not written | |
 
