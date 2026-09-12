@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ S["stock_title"] }}{% endblock %}
+{% block heading %}{{ S["stock_title"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if not levels %}
+<p class="muted">{{ S["stock_none"] }}</p>
+{% endif %}
+
+<ul class="list">
+  {% for lv in levels %}
+  <li class="card stock-item {% if lv.product.archived_at %}is-muted{% endif %}">
+    {# name and quantity on one line, the quantity right aligned and large:
+       this screen exists to answer "how much is left", and in the previous
+       layout that number was the smallest, greyest, most wrapped thing on it #}
+    <div class="stock-item__head">
+      <strong>{{ lv.product.name }}</strong>
+      <span class="stock-item__qty num">
+        {{ lv.qty | qty }} <span class="stock-item__unit">{{ lv.product.unit }}</span>
+      </span>
+    </div>
+    <div class="muted stock-item__meta">
+      {# an archived product carries the archived pill and nothing else:
+         "running low" on something she has stopped buying is noise, and it
+         would compete with the real warnings in the same list #}
+      {% if lv.product.archived_at %}
+      <span class="pill">{{ S["archived"] }}</span>
+      {% else %}
+      {% if lv.below_min %}<span class="pill pill--warn">{{ S["stock_low"] }}</span>{% endif %}
+      {% if lv.product.id in no_price %}
+      <span class="pill">{{ S["stock_no_price"] }}</span>
+      {% endif %}
+      {% if lv.product.min_stock %}
+      min <span class="num">{{ lv.product.min_stock | qty }}</span> {{ lv.product.unit }}
+      {% endif %}
+      {% endif %}
+    </div>
+
+    {# An archived product gets its one action straight away. Behind a
+       summary reading "Mozgas" it would be both hidden and mislabelled:
+       there is no movement form to open, only the way back. #}
+    {% if lv.product.archived_at %}
+    <form method="post" action="/stock/{{ lv.product.id }}/unarchive"
+          class="stack-top">
+      <button class="secondary" type="submit">{{ S["unarchive"] }}</button>
+    </form>
+    {% else %}
+    {# Archiving lives in here rather than on the row above. It happens once
+       a product, a movement happens every month, and a button on every row
+       for the rarer action pushed the quantity into a two-line wrap. #}
+    <details>
+      <summary>{{ S["stock_movement"] }}</summary>
+      <form method="post" action="/stock/{{ lv.product.id }}/movement">
+        <label for="qty_{{ lv.product.id }}">{{ S["stock_qty"] }}</label>
+        <input id="qty_{{ lv.product.id }}" name="qty" inputmode="decimal" required>
+        <label for="reason_{{ lv.product.id }}">{{ S["stock_reason"] }}</label>
+        <select id="reason_{{ lv.product.id }}" name="reason" required>
+          {% for value, label in reasons %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <label for="cost_{{ lv.product.id }}">{{ S["opening_cost"] }}</label>
+        <input id="cost_{{ lv.product.id }}" name="cost_eur" inputmode="decimal">
+        <button type="submit">{{ S["save"] }}</button>
+      </form>
+      <form method="post" action="/stock/{{ lv.product.id }}/archive"
+            class="stack-top">
+        <button class="secondary" type="submit">{{ S["archive"] }}</button>
+      </form>
+    </details>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+{# the label has to flip with the link, or on the archived view it reads
+   "Archivaltak is" while it actually means the opposite #}
+<p class="stack-top">
+  {% if archived %}
+  <a href="/stock">{{ S["hide_archived_products"] }}</a>
+  {% else %}
+  <a href="/stock?archived=true">{{ S["show_archived_products"] }}</a>
+  {% endif %}
+</p>
+
+<details class="card stack-top">
+  <summary>{{ S["stock_new"] }}</summary>
+  <form method="post" action="/stock/products">
+    <label for="name">{{ S["product_name"] }}</label>
+    <input id="name" name="name" required>
+    <label for="unit">{{ S["product_unit"] }}</label>
+    <input id="unit" name="unit" placeholder="{{ S['product_unit_hint'] }}" required>
+    <label for="min_stock">{{ S["product_min_stock"] }}</label>
+    <input id="min_stock" name="min_stock" inputmode="decimal" value="0">
+    <label for="sale_price_eur">{{ S["product_sale_price"] }}</label>
+    <input id="sale_price_eur" name="sale_price_eur" inputmode="decimal">
+    <label for="opening_qty">{{ S["opening_qty"] }}</label>
+    <input id="opening_qty" name="opening_qty" inputmode="decimal">
+    <label for="opening_cost_eur">{{ S["opening_cost"] }}</label>
+    <input id="opening_cost_eur" name="opening_cost_eur" inputmode="decimal">
+    <button type="submit">{{ S["save"] }}</button>
+  </form>
+</details>
+{% endblock %}

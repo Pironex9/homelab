@@ -26,3 +26,15 @@ def eur(cents: int) -> str:
     sign = "-" if cents < 0 else ""
     cents = abs(cents)
     return f"{sign}{cents // 100},{cents % 100:02d} EUR"
+
+
+def qty(value: float | None) -> str:
+    """A stock quantity, at most two decimals, comma as the separator.
+
+    Trailing zeros come off, so three whole bottles read "3" and not "3,00",
+    while a part used one reads "3,4". Rounded for display only: the stored
+    value keeps its full precision, because rounding every consumption to two
+    places would drift the shelf figure by a bottle a year.
+    """
+    text = f"{round(float(value or 0.0), 2):.2f}".rstrip("0").rstrip(".")
+    return (text or "0").replace(".", ",")

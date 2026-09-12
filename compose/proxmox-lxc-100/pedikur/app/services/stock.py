@@ -24,7 +24,12 @@ REASONS = ("purchase", "opening", "consumption", "sale", "correction", "waste")
 # form, where it is typed once together with the money; consumption and sale
 # are posted by the close path and must never be typed by hand, or the ledger
 # would carry two entries for one bottle.
-MANUAL_REASONS = ("opening", "correction", "waste")
+#
+# correction leads because the select renders its first entry as the default,
+# and on a product that already exists opening is the one wrong answer: its
+# opening balance was recorded when it was created, and a second one would
+# quietly double the shelf.
+MANUAL_REASONS = ("correction", "waste", "opening")
 # Anything that puts stock on the shelf, and therefore carries a real price.
 INBOUND = ("purchase", "opening")
 

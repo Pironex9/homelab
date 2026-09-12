@@ -46,3 +46,13 @@ def test_eur_survives_what_sqlite_actually_returns(cents, text):
 ])
 def test_localdate_converts_out_of_utc(iso, text):
     assert localdate(iso) == text
+
+
+def test_qty_drops_trailing_zeros_and_uses_a_comma():
+    from app.display import qty
+    assert qty(3) == "3"
+    assert qty(3.4) == "3,4"
+    assert qty(1 / 3) == "0,33"
+    assert qty(None) == "0"
+    assert qty(-1.5) == "-1,5"
+    assert qty(0.001) == "0"

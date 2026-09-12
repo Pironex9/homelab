@@ -212,6 +212,45 @@ label {
   color: var(--ink-muted);
 }
 
+/* ---------- stock ---------- */
+
+/* The quantity is what this screen is for, so it is the largest thing on the
+   card and sits on the name's line rather than inside a grey sub-line that
+   wrapped to two rows on a 390px phone. Baseline alignment, not centre: a
+   step-1 number next to a step-0 name reads crooked when centred. */
+.stock-item__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--gap-3);
+}
+.stock-item__head > strong { min-width: 0; }
+.stock-item__qty {
+  flex: none;
+  font-size: var(--step-1); font-weight: 600;
+  white-space: nowrap;
+}
+.stock-item__unit { font-size: var(--step--1); color: var(--ink-muted); }
+.stock-item__meta { margin-top: var(--gap-1); font-size: var(--step--1); }
+.stock-item > details { margin-top: var(--gap-2); }
+/* The movement form is why this block opens, so its save fills the card like
+   every other primary action inside a details. The archive button below it
+   stays narrow: it is not what she opened the block for, and matching widths
+   would read as two equally likely actions. */
+.stock-item details > form > button[type="submit"] {
+  width: 100%; margin-top: var(--gap-4);
+}
+.stock-item details > form > button.secondary { width: auto; margin-top: 0; }
+
+/* "running low", and deliberately not a colour. DESIGN.md reserves red for
+   the client alert and the accent for the primary action and today's column,
+   and a third signal colour would cost both of them their meaning. Weight and
+   contrast carry it instead: this pill is filled where the others are
+   outlined, so it is the one that reads first in a list of them. */
+.pill--warn {
+  border-color: var(--ink);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
 .stack-top { margin-top: var(--gap-4); }
 
 /* the one action this screen exists for: full width, taller than every other

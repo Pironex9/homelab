@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import backup, config, display, migrate
 from app.db import Database
 from app.services import timeutil
-from app.routers import api, auth, calendar, clients, today, visits
+from app.routers import api, auth, calendar, clients, stock, today, visits
 from app.routers import settings as settings_router
 from app.strings.hu import S
 
@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
     # Integer math, not cents / 100: the column is integer cents precisely so
     # no float ever touches money, and this is the last place to reintroduce one.
     templates.env.filters["eur"] = display.eur
+    templates.env.filters["qty"] = display.qty
     templates.env.filters["localdate"] = timeutil.localdate
     templates.env.filters["localtime"] = timeutil.localtime
     app.state.templates = templates
@@ -74,6 +75,7 @@ app.include_router(calendar.router)
 app.include_router(clients.router)
 app.include_router(visits.router)
 app.include_router(settings_router.router)
+app.include_router(stock.router)
 app.include_router(api.router)
 
 
