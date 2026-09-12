@@ -7,13 +7,14 @@ def test_migrate_creates_schema_and_is_idempotent(db_path, tmp_path):
     first = migrate.run(db_path, backup_dir=tmp_path / "backup")
     # equality, not membership: order is the whole point of numbered files
     assert first == ["001_schema.sql", "002_seed.sql",
-                     "003_visit_closed_at.sql"]
+                     "003_visit_closed_at.sql", "004_phase2.sql"]
 
     con = sqlite3.connect(db_path)
     tables = {r[0] for r in con.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"user", "client", "treatment", "visit", "visit_item",
-            "working_hours", "setting"} <= tables
+            "working_hours", "setting",
+            "product", "treatment_recipe", "expense", "stock_movement"} <= tables
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 
     # seeded defaults
@@ -71,7 +72,8 @@ def test_a_failing_migration_leaves_the_database_untouched(db_path, tmp_path):
     columns = {r[1] for r in con.execute("PRAGMA table_info(client)")}
     assert "nickname" not in columns
     assert {r[0] for r in con.execute("SELECT filename FROM schema_version")} == {
-        "001_schema.sql", "002_seed.sql", "003_visit_closed_at.sql"}
+        "001_schema.sql", "002_seed.sql", "003_visit_closed_at.sql",
+        "004_phase2.sql"}
     con.close()
 
     # and the fixed migration then applies cleanly, without manual surgery

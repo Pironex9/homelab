@@ -1,5 +1,5 @@
-"""Phase 1 tables. The schema of record is app/migrations/001_schema.sql;
-these classes mirror it and must be changed together with a new migration.
+"""The tables. The schema of record is app/migrations/*.sql; these classes
+mirror it and must be changed together with a new migration.
 """
 from __future__ import annotations
 
@@ -96,3 +96,60 @@ class Setting(Base):
     __tablename__ = "setting"
     key: Mapped[str] = mapped_column(String, primary_key=True)
     value: Mapped[str] = mapped_column(String)
+
+
+class Product(Base):
+    __tablename__ = "product"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    unit: Mapped[str] = mapped_column(String)
+    min_stock: Mapped[float] = mapped_column(Float, default=0)
+    sale_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    archived_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by: Mapped[str] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String)
+
+
+class TreatmentRecipe(Base):
+    __tablename__ = "treatment_recipe"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    treatment_id: Mapped[int] = mapped_column(ForeignKey("treatment.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    treatments_per_unit: Mapped[float] = mapped_column(Float)
+
+    product: Mapped[Product] = relationship(lazy="joined")
+    treatment: Mapped[Treatment] = relationship(lazy="joined")
+
+
+class Expense(Base):
+    __tablename__ = "expense"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[str] = mapped_column(String)
+    vendor: Mapped[str | None] = mapped_column(String, nullable=True)
+    category: Mapped[str] = mapped_column(String)
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deleted_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by: Mapped[str] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String)
+
+
+class StockMovement(Base):
+    """Append-only. Nothing in the codebase may edit or delete one of these
+    rows: a correction is another row, and that is the whole point of holding
+    the quantity as a sum rather than a column."""
+    __tablename__ = "stock_movement"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    qty: Mapped[float] = mapped_column(Float)
+    unit_cost_cents: Mapped[int] = mapped_column(Integer, default=0)
+    reason: Mapped[str] = mapped_column(String)
+    visit_id: Mapped[int | None] = mapped_column(
+        ForeignKey("visit.id"), nullable=True)
+    expense_id: Mapped[int | None] = mapped_column(
+        ForeignKey("expense.id"), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String)
+
+    product: Mapped[Product] = relationship(lazy="joined")
