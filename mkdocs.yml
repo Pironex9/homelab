@@ -158,6 +158,7 @@ nav:
           - 45 - Fleet-Wide Package Updates: proxmox/45_Fleet_Wide_Package_Updates.md
           - 46 - Pedicure Practice App: proxmox/46_Pedicure_Practice_App.md
           - 47 - When One File Is Two Episodes: proxmox/47_When_One_File_Is_Two_Episodes.md
+          - 48 - When an Episode Is an Executable: proxmox/48_When_An_Episode_Is_An_Executable.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
