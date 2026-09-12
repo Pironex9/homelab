@@ -1,0 +1,25 @@
+# Cloudflare challenge solver for Prowlarr (EZTV, 1337x).
+#
+# Not FlareSolverr: TRaSH Guides records it as "currently non-functional ...
+# unlikely to ever be fixed" against current Cloudflare. Byparr serves the same
+# POST /v1 API on the same port 8191, so Prowlarr's built-in FlareSolverr proxy
+# type talks to it unchanged.
+#
+# ponytail: joins prowlarr's own compose network rather than arr_stack, because
+# prowlarr is the only consumer and is not itself on arr_stack. Move both to
+# arr_stack if a second service ever needs the solver.
+services:
+  byparr:
+    image: ghcr.io/thephaseless/byparr:latest
+    container_name: byparr
+    environment:
+      - TZ=Europe/Budapest
+    # Upstream requires this in LXC/Proxmox; the headless browser dies without it.
+    shm_size: 512mb
+    # No published port: only Prowlarr calls it, over prowlarr_default by name.
+    restart: unless-stopped
+    networks:
+      - prowlarr_default
+networks:
+  prowlarr_default:
+    external: true
