@@ -5,8 +5,8 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
 from app import security
-from app.models import User, WorkingHours
-from app.services import treatments
+from app.models import Treatment, User, WorkingHours
+from app.services import products, recipes, treatments
 from app.strings.hu import S
 
 router = APIRouter(prefix="/settings")
@@ -18,6 +18,7 @@ _ERRORS = frozenset({
     "treatment_price_invalid", "treatment_duration_invalid",
     "treatment_name_required", "treatment_name_taken",
     "hours_end_before_start", "hours_time_invalid",
+    "recipe_yield_invalid",
 })
 
 HHMM = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -156,3 +157,49 @@ async def hours_save(request: Request,
             else:
                 row.start, row.end, row.is_closed = start, end, int(closed)
     return RedirectResponse("/settings/hours?saved=1", status_code=303)
+
+
+@router.get("/treatments/{treatment_id}/recipe")
+def recipe_form(request: Request, treatment_id: int, error: str | None = None,
+                user: User = Depends(security.require_user)):
+    with request.app.state.db.session() as s:
+        treatment = s.get(Treatment, treatment_id)
+        if treatment is None:
+            return RedirectResponse("/settings/treatments", status_code=303)
+        return _render(request, "settings_recipe.html",
+                       {"user": user, "tab": "more", "treatment": treatment,
+                        "rows": recipes.for_treatment(s, treatment_id),
+                        "products": products.list_all(s),
+                        "error": _error(error)})
+
+
+@router.post("/treatments/{treatment_id}/recipe")
+def recipe_save(request: Request, treatment_id: int,
+                product_id: int = Form(...),
+                treatments_per_unit: str = Form(...),
+                user: User = Depends(security.require_user)):
+    try:
+        with request.app.state.db.session() as s:
+            recipes.set_for(s, treatment_id, product_id,
+                            float(treatments_per_unit.strip().replace(",", ".")))
+    except (ValueError, TypeError):
+        return RedirectResponse(
+            f"/settings/treatments/{treatment_id}/recipe"
+            f"?error=recipe_yield_invalid", status_code=303)
+    return RedirectResponse(f"/settings/treatments/{treatment_id}/recipe",
+                            status_code=303)
+
+
+@router.post("/recipes/{recipe_id}/remove")
+def recipe_remove(request: Request, recipe_id: int,
+                  treatment_id: int = Form(...),
+                  user: User = Depends(security.require_user)):
+    """A missing id is a stale page, not a server fault: the list simply
+    reloads without it."""
+    try:
+        with request.app.state.db.session() as s:
+            recipes.remove(s, recipe_id)
+    except LookupError:
+        pass
+    return RedirectResponse(f"/settings/treatments/{treatment_id}/recipe",
+                            status_code=303)

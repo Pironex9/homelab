@@ -11,13 +11,17 @@
 <ul class="list">
   {% for t in treatments %}
   <li class="card row {% if not t.active %}is-muted{% endif %}">
-    <div class="row__main">
+    <div class="row__main row__main--stack">
       <strong>{{ t.name }}</strong>
       <div class="muted">
         {% if not t.active %}<span class="pill">{{ S["inactive"] }}</span>{% endif %}
         <span class="num">{{ t.duration_min }}</span> {{ S["minutes_short"] }}
         &middot; <span class="price">{{ t.price_cents | eur }}</span>
       </div>
+      {# its own line, not appended to the meta line: next to the Kivezetes
+         button the meta line wraps, and a trailing middot left hanging at the
+         break reads as a rendering fault #}
+      <a href="/settings/treatments/{{ t.id }}/recipe">{{ S["recipe"] }}</a>
     </div>
     <form method="post"
           action="/settings/treatments/{{ t.id }}/{{ 'deactivate' if t.active else 'activate' }}">

@@ -185,6 +185,14 @@ label {
   gap: var(--gap-3);
 }
 .row__main { min-width: 0; display: flex; align-items: center; gap: var(--gap-2); }
+/* Name above its details rather than beside them. The default .row__main is
+   a horizontal flex, which is right when the details are two words; a
+   treatment carrying a duration, a price and a link to its recipe wrapped to
+   three lines next to a "Kivezetes" button on a 390px phone. */
+.row__main--stack {
+  flex-direction: column; align-items: flex-start; gap: var(--gap-1);
+}
+
 .row--link { color: var(--ink); text-decoration: none; }
 .row--link:hover { background: var(--surface-2); }
 .row--link .alert-dot { flex: none; }

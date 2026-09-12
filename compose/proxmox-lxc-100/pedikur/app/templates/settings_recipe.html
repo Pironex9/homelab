@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ S["recipe_title"] }}{% endblock %}
+{% block heading %}{{ treatment.name }} - {{ S["recipe_title"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<p class="muted">{{ S["recipe_partial_hint"] }}</p>
+
+{% if not rows %}
+<p class="muted">{{ S["recipe_none"] }}</p>
+{% endif %}
+
+<ul class="list">
+  {% for r in rows %}
+  <li class="card row">
+    <div class="row__main row__main--stack">
+      <strong>{{ r.product.name }}</strong>
+      {# spelled out as a sentence. "30 / 1 flakon" is a ratio the reader has
+         to decode, and half of them will decode it the wrong way round #}
+      <div class="muted">
+        1 {{ r.product.unit }} =
+        <span class="num">{{ r.treatments_per_unit | qty }}</span>
+        {{ S["recipe_treatments"] }}
+      </div>
+    </div>
+    <form method="post" action="/settings/recipes/{{ r.id }}/remove">
+      <input type="hidden" name="treatment_id" value="{{ treatment.id }}">
+      <button class="secondary" type="submit">{{ S["remove"] }}</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if products %}
+<form method="post" action="/settings/treatments/{{ treatment.id }}/recipe"
+      class="card stack-top">
+  <label for="product_id">{{ S["recipe_product"] }}</label>
+  <select id="product_id" name="product_id" required>
+    {% for p in products %}
+    <option value="{{ p.id }}">{{ p.name }} ({{ p.unit }})</option>
+    {% endfor %}
+  </select>
+  <label for="treatments_per_unit">{{ S["recipe_yield"] }}</label>
+  <input id="treatments_per_unit" name="treatments_per_unit" inputmode="decimal"
+         placeholder="{{ S['recipe_yield_hint'] }}" required>
+  <button type="submit">{{ S["save"] }}</button>
+</form>
+{% else %}
+<p class="muted stack-top">{{ S["recipe_no_products"] }}</p>
+{% endif %}
+{% endblock %}

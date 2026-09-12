@@ -117,6 +117,17 @@ S = {
     "show_archived_products": "Archiváltak is",
     "hide_archived_products": "Csak az aktívak",
 
+    "recipe_title": "Recept",
+    "recipe": "Recept",
+    "recipe_none": "Nincs hozzá anyag",
+    "recipe_product": "Anyag",
+    "recipe_yield": "Hány kezelésre elég egy egység",
+    "recipe_treatments": "kezelés",
+    "recipe_yield_hint": "egy flakon kb. 30 töltés",
+    "recipe_yield_invalid": "A szám nem jó: egy egységnek legalább egy töredék kezelésre elegendőnek kell lennie.",
+    "recipe_no_products": "Előbb vegyél fel terméket a Készlet alatt.",
+    "recipe_partial_hint": "Csak a drága anyagokhoz kell. Ami nincs itt, arra nem számol fedezetet.",
+
     "hours_title": "Munkaidő",
     "closed": "Zárva",
     "hours_open": "Nyitás",
