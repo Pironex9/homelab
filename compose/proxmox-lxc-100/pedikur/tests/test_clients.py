@@ -107,3 +107,33 @@ def test_erased_clients_are_hidden_like_archived_ones(db):
         clients.update(s, 1, erased_at="2026-09-06T10:00:00Z")
     with db.session() as s:
         assert clients.search(s, "") == []
+
+
+def test_archived_clients_come_back_when_asked_for(db):
+    """Archiving was a one-way door from any screen: search hid the client and
+    nothing listed the hidden ones, so the row id was the only way back."""
+    with db.session() as s:
+        c = clients.create(s, "Kovács Anna", None, created_by="1")
+        clients.archive(s, c.id)
+    with db.session() as s:
+        assert clients.search(s, "kovács") == []
+        rows = clients.search(s, "kovács", include_archived=True)
+        assert [r.name for r in rows] == ["Kovács Anna"]
+        assert rows[0].archived is True
+
+
+def test_include_archived_still_refuses_to_return_an_erased_client(db):
+    """Erase is the GDPR action and has no undo screen. The archived toggle
+    must not quietly become a way to list erased records."""
+    with db.session() as s:
+        clients.create(s, "Kovács Anna", None, created_by="1")
+        clients.update(s, 1, erased_at="2026-09-06T10:00:00Z")
+    with db.session() as s:
+        assert clients.search(s, "", include_archived=True) == []
+
+
+def test_a_live_client_is_not_flagged_as_archived(db):
+    with db.session() as s:
+        clients.create(s, "Kovács Anna", None, created_by="1")
+    with db.session() as s:
+        assert clients.search(s, "")[0].archived is False

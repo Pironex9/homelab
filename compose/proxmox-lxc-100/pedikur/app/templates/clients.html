@@ -4,10 +4,22 @@
 {% block body %}
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
-<input type="search" name="q" value="{{ q }}" placeholder="{{ S['search'] }}"
-       aria-label="{{ S['search'] }}" autocomplete="off"
-       hx-get="/clients/search" hx-trigger="input changed delay:200ms"
-       hx-target="#results">
+{# a real GET form, so Enter still searches if htmx never loads. Both
+   controls post the whole form, otherwise toggling the checkbox would drop
+   the query and typing would drop the checkbox. #}
+<form method="get" action="/clients">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ S['search'] }}"
+         aria-label="{{ S['search'] }}" autocomplete="off"
+         hx-get="/clients/search" hx-trigger="input changed delay:200ms"
+         hx-target="#results" hx-include="closest form">
+  <label class="check">
+    <input type="checkbox" name="archived" value="true"
+           {% if archived %}checked{% endif %}
+           hx-get="/clients/search" hx-trigger="change"
+           hx-target="#results" hx-include="closest form">
+    <span>{{ S["show_archived"] }}</span>
+  </label>
+</form>
 <div id="results" class="stack-top">{% include "partials/client_search.html" %}</div>
 
 <details class="card stack-top">

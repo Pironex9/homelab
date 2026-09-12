@@ -84,6 +84,7 @@ S = {
     "unarchive": "Visszahozás",
     "archived": "Archiválva",
     "archive_hint": "Eltűnik a listákból, minden adata megmarad.",
+    "show_archived": "Archiváltak is",
 
     "hours_title": "Munkaidő",
     "closed": "Zárva",

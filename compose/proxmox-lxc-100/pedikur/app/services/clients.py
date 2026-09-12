@@ -22,6 +22,7 @@ class ClientRow:
     name: str
     phone: str | None
     has_alert: bool
+    archived: bool
 
 
 def _now() -> str:
@@ -36,16 +37,21 @@ def _like_needle(query: str) -> str:
     return f"%{escaped}%"
 
 
-def search(session: Session, query: str, limit: int = 20) -> list[ClientRow]:
-    stmt = select(Client).where(Client.archived_at.is_(None),
-                                Client.erased_at.is_(None))
+def search(session: Session, query: str, limit: int = 20,
+           include_archived: bool = False) -> list[ClientRow]:
+    """Archived clients are out unless asked for. Erased ones are out always:
+    Erase is the GDPR action, and there is no screen that un-erases."""
+    stmt = select(Client).where(Client.erased_at.is_(None))
+    if not include_archived:
+        stmt = stmt.where(Client.archived_at.is_(None))
     if query.strip():
         stmt = stmt.where(
             func.fold(Client.name).like(_like_needle(query.strip()), escape="\\"))
     stmt = stmt.order_by(func.fold(Client.name)).limit(limit)
     return [
         ClientRow(id=c.id, name=c.name, phone=c.phone,
-                  has_alert=bool(c.alert and c.alert.strip()))
+                  has_alert=bool(c.alert and c.alert.strip()),
+                  archived=c.archived_at is not None)
         for c in session.scalars(stmt)
     ]
 

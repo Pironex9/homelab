@@ -122,3 +122,43 @@ def test_editing_a_client_that_is_gone_redirects_to_the_list(logged_in):
         "name": "X", "phone": "", "email": "", "address": "",
         "alert": "", "notes": ""})
     assert r.headers["location"] == "/clients"
+
+
+def test_the_archived_toggle_brings_a_hidden_client_back(logged_in):
+    """Both entry points take the flag: the full page for a no-htmx reload and
+    the fragment the checkbox actually fires."""
+    logged_in.post("/clients", data={"name": "Kovács Anna", "phone": ""})
+    logged_in.post("/clients/1/archive")
+    assert "Kovács Anna" not in logged_in.get("/clients").text
+
+    page = logged_in.get("/clients?archived=true").text
+    assert "Kovács Anna" in page
+    assert "Archiválva" in page          # the pill, so the row reads as retired
+
+    assert "Kovács Anna" in logged_in.get(
+        "/clients/search?q=&archived=true").text
+    assert "Kovács Anna" not in logged_in.get("/clients/search?q=").text
+
+
+def test_the_history_shows_what_was_done_not_only_what_was_found(logged_in):
+    """visit.note had a textarea on the close screen and no reader anywhere,
+    so everything typed into "Amit csinált" was write-only."""
+    from app.models import Client, Treatment, Visit, VisitItem
+    with logged_in.app.state.db.session() as s:
+        s.add(Client(name="Kovács Anna", created_by="1",
+                     created_at="2026-09-06T10:00:00Z"))
+        s.add(Treatment(name="Pedikűr", duration_min=45, price_cents=2500,
+                        created_by="1"))
+        s.flush()
+        s.add(Visit(client_id=1, starts_at="2026-09-01T07:00:00Z",
+                    ends_at="2026-09-01T08:00:00Z", status="done",
+                    findings="benőtt köröm", note="levágva, fertőtlenítve",
+                    created_by="1", created_at="2026-09-01T06:00:00Z"))
+        s.flush()
+        s.add(VisitItem(visit_id=1, kind="treatment", treatment_id=1, qty=1,
+                        unit_price_cents=2500))
+
+    page = logged_in.get("/clients/1").text
+    assert "benőtt köröm" in page
+    assert "levágva, fertőtlenítve" in page
+    assert "Amit talált" in page and "Amit csinált" in page

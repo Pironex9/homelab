@@ -50,7 +50,14 @@
     {% for item in v.items if item.kind == 'treatment' %}
       <span>{{ item.treatment.name }}</span>
     {% endfor %}
-    {% if v.findings %}<p class="muted">{{ v.findings }}</p>{% endif %}
+    {# both are labelled: two unlabelled grey paragraphs under a date do not
+       say which one is the state of the foot and which one is the work done #}
+    {% if v.findings %}
+    <p class="muted"><strong>{{ S["findings"] }}:</strong> {{ v.findings }}</p>
+    {% endif %}
+    {% if v.note %}
+    <p class="muted"><strong>{{ S["note"] }}:</strong> {{ v.note }}</p>
+    {% endif %}
   </li>
   {% else %}
   <li class="muted">{{ S["no_history"] }}</li>

@@ -22,22 +22,23 @@ def _error(key: str | None) -> str | None:
 
 
 @router.get("")
-def index(request: Request, q: str = "", error: str | None = None,
+def index(request: Request, q: str = "", archived: bool = False,
+          error: str | None = None,
           user: User = Depends(security.require_user)):
     with request.app.state.db.session() as s:
-        rows = clients.search(s, q, limit=LIST_LIMIT)
+        rows = clients.search(s, q, limit=LIST_LIMIT, include_archived=archived)
         return request.app.state.templates.TemplateResponse(
             request, "clients.html",
             {"user": user, "tab": "clients", "rows": rows, "q": q,
-             "error": _error(error)})
+             "archived": archived, "error": _error(error)})
 
 
 @router.get("/search")
-def search_partial(request: Request, q: str = "",
+def search_partial(request: Request, q: str = "", archived: bool = False,
                    user: User = Depends(security.require_user)):
     """htmx target: returns only the result list."""
     with request.app.state.db.session() as s:
-        rows = clients.search(s, q)
+        rows = clients.search(s, q, include_archived=archived)
         return request.app.state.templates.TemplateResponse(
             request, "partials/client_search.html", {"rows": rows})
 
