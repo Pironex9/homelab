@@ -159,6 +159,7 @@ nav:
           - 46 - Pedicure Practice App: proxmox/46_Pedicure_Practice_App.md
           - 47 - When One File Is Two Episodes: proxmox/47_When_One_File_Is_Two_Episodes.md
           - 48 - When an Episode Is an Executable: proxmox/48_When_An_Episode_Is_An_Executable.md
+          - 49 - Six Hours of "No Internet": proxmox/49_Six_Hour_NIC_Hang.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
