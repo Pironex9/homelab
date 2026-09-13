@@ -109,11 +109,26 @@ _Avoid_: BOM, bill of materials, consumables list
 
 **Product**:
 Anything held in stock: professional supplies consumed during a Visit, and
-later also goods sold to a client. One catalogue, two ways of leaving the
-shelf. Counted in the unit it is bought in - a bottle, a roll, a box - never
+goods sold to a client. One catalogue, two ways of leaving the shelf; a
+Product with no sale price is one she only uses. Counted in the unit it is bought in - a bottle, a roll, a box - never
 in a unit that would have to be converted, so a part-used bottle simply leaves
 the stock figure fractional.
 _Avoid_: Item, stock item, material
+
+**Stock Movement**:
+One recorded change to what is on the shelf, signed: a purchase, an opening
+balance, consumption, a sale, a correction or waste. A Product's quantity is
+the sum of its Movements, never a stored number, and a Movement is never
+edited or deleted - a mistake is corrected by another Movement, which is what
+makes the sum something that can be audited.
+_Avoid_: Transaction, adjustment, stock entry
+
+**Expense**:
+Money out, dated, with a category from a fixed list. Optionally carries line
+items, which also bring the goods onto the shelf as inbound Stock Movements,
+so a purchase is typed once rather than twice. An Expense with no line items
+is just money out.
+_Avoid_: Cost, purchase, bill, invoice (nothing here is issued or owed)
 
 **Visit Interval**:
 How often a client tends to come back, taken as the median gap between their

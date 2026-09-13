@@ -111,3 +111,30 @@ release, so the older code tolerates the newer schema.
 
 Run inside the image, not on the host: the host has neither the dependencies
 nor the Python version the container ships.
+
+## Stock and expenses
+
+Stock is not stored. A product's quantity is `SUM(qty)` over `stock_movement`,
+which is append-only: a correction is another row, never an edit. That is what
+removes the class of bug where a stored figure and the movements that produced
+it drift apart with nothing to notice.
+
+Consumption is posted when a Visit is closed, by reconciling what the Visit's
+Treatments should have used against what is already posted for that Visit.
+Closing twice therefore posts once, a Treatment added after the close still
+posts its share, and cancelling a closed Visit gives the stock back through the
+same function.
+
+Only Treatments with a Recipe consume anything, and only the expensive
+materials have one. That is deliberate, and it is why the margin figure will be
+partial when the dashboard arrives.
+
+Stock is allowed to go negative. Refusing a consumption mid-close, with a
+client in the chair, is the day the app gets put down; the ledger records the
+truth and the screen shows it.
+
+A product's ledger by hand:
+
+    sqlite3 /srv/docker-data/pedikur/db.sqlite \
+      "SELECT created_at, reason, qty, unit_cost_cents, visit_id, expense_id
+         FROM stock_movement WHERE product_id = 1 ORDER BY id;"

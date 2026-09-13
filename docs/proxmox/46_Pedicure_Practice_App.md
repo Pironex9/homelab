@@ -1,4 +1,4 @@
-**Date:** 2026-09-07
+**Date:** 2026-09-07, phase 2 added 2026-09-13
 **Host:** LXC 100 docker-host (192.168.0.110), port 3010
 **Public route:** `https://your-pedikur.yourdomain.com` via Pangolin (Hetzner VPS)
 
@@ -327,6 +327,92 @@ secure context.
 
 ---
 
+## Phase 2: the stock ledger, and one decision worth the argument
+
+The second phase added what the practice buys: **Products**, **Treatment
+Recipes**, stock, and expenses. Four tables, one migration, no new dependency.
+Two of its decisions are worth writing down.
+
+### Stock is a sum, not a column
+
+There is no `current_stock` anywhere. A product's quantity is
+`SUM(qty)` over an append-only movement table, and a correction is another row
+rather than an edit. That costs one aggregate per product on one screen, and it
+removes an entire bug class: a stored figure and the movements that produced it
+can never drift apart, because there is no stored figure to drift.
+
+The same reasoning applies to cost. Every inbound movement carries the price
+actually paid, and every outbound one carries the last known purchase price at
+that moment. Margin is therefore a sum of stored numbers, not a figure
+recomputed against today's prices. Without that, buying the same lacquer dearer
+in June would silently rewrite January's margin, which is exactly the defect the
+revenue side had already been designed to avoid.
+
+### Posting consumption: a flag, or arithmetic
+
+Closing a visit has to take the recipe's share off the shelf. The obvious
+implementation posts it on the first close, guarded by the same
+`closed_at` timestamp that already freezes prices.
+
+That guard has a hole. Tap Done by mistake, notice the forgotten treatment, add
+it, tap Done again: the price comes out right, because a price override is
+applied on any close, and the stock does not, because the second treatment's
+consumption never posts. Nobody counts bottles against a database, so the error
+is permanent and silent. Those are the expensive ones.
+
+The implementation shipped instead computes, at every close, how much
+consumption *should* exist for that visit, subtracts how much already does, and
+appends the difference:
+
+```python
+desired = {}                      # per (product, reason), from the recipes
+if visit.status == "done":
+    ...                           # nothing consumed unless the work happened
+posted = {...}                    # per (product, reason), SUM over this visit
+for key in set(desired) | set(posted):
+    delta = desired.get(key, 0.0) - posted.get(key, 0.0)
+    if abs(delta) < QTY_EPSILON:
+        continue                  # nothing changed: write no row
+    record(..., qty=-delta, visit_id=visit.id)
+```
+
+It is idempotent by arithmetic rather than by a flag, so a double tap computes
+a difference of zero and writes nothing. It self-heals when a treatment is
+added or removed after the fact. It never edits or deletes, so the ledger stays
+auditable. And because "desired" is empty unless the visit is `done`,
+cancelling a closed visit returns everything it consumed through the same
+function, with no second code path to get wrong.
+
+It is also shorter than the guarded version, which is the part that took an
+argument to believe.
+
+### What the screenshots caught this time
+
+Same lesson as phase 1, five more instances. The movement dropdown defaulted to
+"opening balance" because a `<select>` renders its first option as the default,
+and on a product that already exists an opening balance is the one wrong
+answer: it was recorded when the product was created, and a second one quietly
+doubles the shelf. A recipe row read "30 / 1 bottle", a ratio half of readers
+decode backwards, and became "1 bottle = 30 treatments". A delete button on
+every expense card, at tap height on its own line, made a once-a-year action
+the loudest thing in a list meant to be scanned. None of those are visible in a
+diff.
+
+### One thing the tests caught before deployment could
+
+The expense form writes money and stock together. Its first implementation
+added the expense row, then validated each line while writing the movements,
+and relied on the exception rolling the session back. That happens to be true
+for the one caller that existed. It is false for any caller that catches the
+error inside its own session block: the money lands, the stock does not, and
+nothing on any screen says so. The lines are validated before the expense row
+exists now. Correctness that holds by accident is worth finding while there is
+still only one caller.
+
+**340 tests.**
+
+---
+
 ## Known and not fixed
 
 - **No offsite copy.** The container backup and the app's own snapshots both live on the
@@ -334,5 +420,13 @@ secure context.
   down rather than assumed.
 - **The geo-fence locks the practitioner out abroad.** The public route only accepts two countries, and
   a request from anywhere else is refused with a message that does not explain why.
+- **Only the expensive materials get a Recipe**, by decision, so the margin the
+  dashboard will show is partial: gloves and wipes are in the cash result and
+  not in the margin. That has to be said on the screen, or the number is read
+  as though everything consumed were counted.
+- **No receipt photos.** The expense form takes date, vendor, amount, category
+  and a note, but no document image. That would be the first file upload in the
+  app, bringing storage, resizing, serving, authorisation and backup with it,
+  and a missing receipt changes none of the numbers.
 - **A visit can be booked outside working hours.** The calendar widens to show it rather
   than hiding it, which is the honest behaviour, but nothing warns at booking time.

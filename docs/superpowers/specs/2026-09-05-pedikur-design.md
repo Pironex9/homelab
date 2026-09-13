@@ -252,7 +252,7 @@ treatment_recipe    treatment_id, product_id, treatments_per_unit
                     how many Treatments one unit of the Product lasts for;
                     consumption is stored as 1/treatments_per_unit
 
-product             id, name, unit, min_stock, active,
+product             id, name, unit, min_stock, sale_price_cents,
                     archived_at, created_by
                     unit is free text and is whatever she buys and counts:
                     bottle, roll, box, pair, piece. Never a unit that would
@@ -321,6 +321,17 @@ breaks the **Visit Interval**: two Visits one day apart contribute a zero-day
 gap, and a few of those drag the median to zero, after which everyone is
 permanently overdue.
 
+**Three things changed during phase 2**, recorded here rather than left to be
+found in a diff. `product.active` was dropped in favour of `archived_at`
+alone: two flags for one idea drift, and archive/unarchive is the pair the
+client screen already uses. `product.sale_price_cents` was added, because she
+resells a product occasionally and a consumable with no sale price must not be
+addable to a Visit at zero. And `visit_item.product_id` deliberately carries no
+foreign key: adding one to a live SQLite database needs the twelve-step table
+rebuild, and `PRAGMA foreign_keys` cannot be changed inside a transaction,
+which is exactly where the migration runner works. The column is written by one
+service that looks the product up first, and a Product is never deleted.
+
 **Money is never a float.** All amounts are integer cents, EUR.
 
 **All timestamps are stored UTC and rendered in `Europe/Bratislava`**, except
@@ -383,7 +394,11 @@ One number drives the design: closing a **Visit** must be one tap.
   agree: a EUR 400 restock lands entirely in January's cash result while the
   same month's margins stay healthy, because only what was consumed counts
   against them. Both are correct, they answer different questions, and the
-  labels exist so she does not expect them to reconcile.
+  labels exist so she does not expect them to reconcile. The margin is also
+  partial by design: only Treatments that carry a Recipe contribute to it, and
+  by decision on 2026-09-12 only the expensive materials get one. Gloves and
+  wipes are in the cash result and not in the margin. Label it so, or it will
+  be read as though everything consumed were counted.
 - **Settings.** Working hours, Treatments and their Recipes, `buffer_min`,
   Google connection and calendar allowlist (admin), users (admin).
 
