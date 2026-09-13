@@ -229,3 +229,112 @@ def test_removing_a_treatment_from_the_screen(to_close):
     # and the last one stays put
     r = to_close.post("/visits/1/items/1/remove")
     assert r.headers["location"].endswith("error=visit_needs_treatment")
+
+
+# ---------- phase 2: selling a product on a visit ----------
+
+def _sellable(client, name="Krém", price_cents=850, stock_qty=4):
+    from app.services import products, stock
+    with client.app.state.db.session() as s:
+        p = products.create(s, name, "tubus", created_by="1",
+                            sale_price_cents=price_cents)
+        if stock_qty:
+            stock.record(s, p.id, stock_qty, "purchase", created_by="1",
+                         unit_cost_cents=500)
+        return p.id
+
+
+def test_a_product_can_be_sold_at_the_close(to_close):
+    from app.services import stock
+    krem_id = _sellable(to_close)
+    to_close.post("/visits/1/products", data={"product_id": krem_id, "qty": "1"})
+    to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    with to_close.app.state.db.session() as s:
+        assert stock.quantity(s, krem_id) == 3.0
+
+
+def test_the_sale_price_is_frozen_on_the_line(to_close):
+    """Same rule as a Treatment, and frozen earlier: the price is snapshotted
+    when the product is added, not at the close, because close() skips every
+    item whose kind is not treatment. Raising the shelf price next month must
+    not rewrite what this client paid today."""
+    from app.models import Visit
+    from app.services import products
+    krem_id = _sellable(to_close)
+    to_close.post("/visits/1/products", data={"product_id": krem_id, "qty": "2"})
+    to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    with to_close.app.state.db.session() as s:
+        products.update(s, krem_id, sale_price_cents=1200)
+    with to_close.app.state.db.session() as s:
+        item = next(i for i in s.get(Visit, 1).items if i.kind == "product")
+        assert item.unit_price_cents == 850
+        assert item.qty == 2.0
+
+
+def test_a_product_with_no_sale_price_cannot_be_sold(to_close):
+    """Not for sale is not the same as free. Without the guard a consumable
+    would land on the bill at zero and the client pay nothing for it."""
+    from app.models import Visit
+    from app.services import products
+    with to_close.app.state.db.session() as s:
+        lakk_id = products.create(s, "Lakk", "flakon", created_by="1").id
+    r = to_close.post("/visits/1/products",
+                      data={"product_id": lakk_id, "qty": "1"})
+    assert "error=" in r.headers["location"]
+    with to_close.app.state.db.session() as s:
+        assert [i for i in s.get(Visit, 1).items if i.kind == "product"] == []
+
+
+def test_a_sold_product_can_be_taken_off_again(to_close):
+    from app.models import Visit
+    from app.services import stock
+    krem_id = _sellable(to_close)
+    to_close.post("/visits/1/products", data={"product_id": krem_id, "qty": "1"})
+    to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    with to_close.app.state.db.session() as s:
+        item_id = next(i.id for i in s.get(Visit, 1).items
+                       if i.kind == "product")
+    to_close.post(f"/visits/1/items/{item_id}/remove")
+    to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    with to_close.app.state.db.session() as s:
+        assert stock.quantity(s, krem_id) == 4.0
+
+
+def test_the_total_covers_treatments_and_products(to_close):
+    from app.models import Visit
+    from app.services import visits
+    krem_id = _sellable(to_close)
+    to_close.post("/visits/1/products", data={"product_id": krem_id, "qty": "2"})
+    to_close.post("/visits/1/close", data={"findings": "", "note": ""})
+    with to_close.app.state.db.session() as s:
+        visit = s.get(Visit, 1)
+        # one 25,00 EUR treatment plus two tubes at 8,50
+        assert visits.total_cents(visit) == 2500 + 1700
+    assert "42,00 EUR" in to_close.get("/visits/1/close").text
+
+
+def test_an_archived_product_is_not_offered_and_not_addable(to_close):
+    from app.services import products
+    krem_id = _sellable(to_close)
+    with to_close.app.state.db.session() as s:
+        products.archive(s, krem_id)
+    assert "Krém" not in to_close.get("/visits/1/close").text
+    r = to_close.post("/visits/1/products",
+                      data={"product_id": krem_id, "qty": "1"})
+    assert "error=" in r.headers["location"]
+
+
+def test_a_mistyped_quantity_says_so_instead_of_500ing(to_close):
+    krem_id = _sellable(to_close)
+    r = to_close.post("/visits/1/products",
+                      data={"product_id": krem_id, "qty": "kettő"})
+    assert "error=" in r.headers["location"]
+
+
+def test_selling_a_negative_quantity_is_refused(to_close):
+    """A negative sale would put stock back on the shelf and take money off
+    the bill, which is a refund the app has no concept of."""
+    krem_id = _sellable(to_close)
+    r = to_close.post("/visits/1/products",
+                      data={"product_id": krem_id, "qty": "-1"})
+    assert "error=" in r.headers["location"]

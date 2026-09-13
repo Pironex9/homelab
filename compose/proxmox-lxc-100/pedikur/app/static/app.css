@@ -220,6 +220,15 @@ label {
   color: var(--ink-muted);
 }
 
+/* The sum of the lines above it, so it is not one more line: no card, a rule
+   across the top instead, and the figure at full ink weight. */
+.row--total {
+  padding: var(--gap-3) var(--gap-3) 0;
+  border-top: 1px solid var(--line-strong);
+  font-weight: 600;
+}
+.row--total .price { font-size: var(--step-1); }
+
 /* ---------- stock ---------- */
 
 /* The quantity is what this screen is for, so it is the largest thing on the

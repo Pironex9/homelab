@@ -5,12 +5,14 @@ from fastapi.responses import RedirectResponse
 
 from app import security
 from app.models import User, Visit
-from app.services import clients, timeutil, treatments, visits
+from app.routers import stock as stock_routes
+from app.services import clients, products, timeutil, treatments, visits
 from app.strings.hu import S
 
 router = APIRouter(prefix="/visits")
 
 _ERRORS = frozenset({"visit_slot_taken", "visit_gone", "visit_bad_status",
+                     "visit_product_invalid",
                      "visit_needs_treatment", "treatment_price_invalid"})
 
 # One practitioner's whole client list fits in a select; search's default of
@@ -91,6 +93,8 @@ def close_form(request: Request, visit_id: int, error: str | None = None,
             request, "visit_close.html",
             {"user": user, "tab": "today", "visit": visit,
              "treatments": treatments.list_active(s),
+             "sellable": products.for_sale(s),
+             "total_cents": visits.total_cents(visit),
              "error": S[error] if error in _ERRORS else None})
 
 
@@ -126,6 +130,34 @@ async def close(request: Request, visit_id: int,
     except LookupError:
         return RedirectResponse("/?error=visit_gone", status_code=303)
     return RedirectResponse("/", status_code=303)
+
+
+@router.post("/{visit_id}/products")
+def add_product(request: Request, visit_id: int,
+                product_id: int = Form(...), qty: str = Form("1"),
+                user: User = Depends(security.require_user)):
+    try:
+        amount = stock_routes.parse_qty(qty)
+    except ValueError:
+        return _product_error(visit_id)
+    try:
+        with request.app.state.db.session() as s:
+            visits.add_product(s, visit_id, product_id, amount)
+    except ValueError:
+        return _product_error(visit_id)
+    except LookupError:
+        # add_product raises LookupError for a missing visit and for a missing
+        # product alike. A missing product is a stale page; a missing visit is
+        # not, but sending her back to the close screen of a visit that is
+        # gone would loop, so both land on the same message.
+        return _product_error(visit_id)
+    return RedirectResponse(f"/visits/{visit_id}/close", status_code=303)
+
+
+def _product_error(visit_id: int) -> RedirectResponse:
+    return RedirectResponse(
+        f"/visits/{visit_id}/close?error=visit_product_invalid",
+        status_code=303)
 
 
 @router.post("/{visit_id}/status")

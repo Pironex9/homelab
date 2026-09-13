@@ -117,6 +117,11 @@ S = {
     "show_archived_products": "Archiváltak is",
     "hide_archived_products": "Csak az aktívak",
 
+    "add_product": "Termék hozzáadása",
+    "product_qty": "Mennyiség",
+    "visit_product_invalid": "Ezt a terméket nem lehet hozzáadni.",
+    "visit_total": "Összesen",
+
     "recipe_title": "Recept",
     "recipe": "Recept",
     "recipe_none": "Nincs hozzá anyag",

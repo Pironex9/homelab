@@ -80,6 +80,14 @@ class VisitItem(Base):
 
     visit: Mapped[Visit] = relationship(back_populates="items")
     treatment: Mapped[Treatment | None] = relationship(lazy="joined")
+    # product_id carries no ForeignKey in its column definition (004_phase2.sql
+    # explains why), so the join has to be spelled out. viewonly because
+    # nothing assigns through it: visits.add_product sets product_id directly,
+    # and a writable relationship over a foreign() annotation with no
+    # constraint behind it is a trap for whoever tries.
+    product: Mapped["Product | None"] = relationship(
+        lazy="joined", viewonly=True,
+        primaryjoin="foreign(VisitItem.product_id) == Product.id")
 
 
 class WorkingHours(Base):

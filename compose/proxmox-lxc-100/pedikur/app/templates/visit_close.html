@@ -26,6 +26,24 @@
             else item.treatment.price_cents) | eur }}</strong>
     </li>
     {% endfor %}
+    {% for item in visit.items if item.kind == 'product' %}
+    <li class="card row">
+      {# name and quantity as one string, not a nested span: .row__main is a
+         flex row and a span child picks up its 8px gap, printing "Labkrem x
+         2" with a hole after the multiplication sign #}
+      <span class="row__main">{{ item.product.name }}{% if item.qty != 1 %} &times; {{ item.qty | qty }}{% endif %}</span>
+      <strong class="price">
+        {{ (item.unit_price_cents * item.qty) | round | int | eur }}</strong>
+    </li>
+    {% endfor %}
+    {# a total, because with a product on the bill she would otherwise add it
+       up in her head at the moment she is taking the money #}
+    {% if visit.items | length > 1 %}
+    <li class="row row--total">
+      <span class="row__main">{{ S["visit_total"] }}</span>
+      <strong class="price">{{ total_cents | eur }}</strong>
+    </li>
+    {% endif %}
   </ul>
 
   <button type="submit" class="primary-big">{{ S["done"] }}</button>
@@ -47,12 +65,15 @@
 </form>
 
 <ul class="list stack-top">
-  {% for item in visit.items if item.kind == 'treatment' %}
+  {% for item in visit.items %}
   <li>
     <form method="post"
           action="/visits/{{ visit.id }}/items/{{ item.id }}/remove"
           class="row">
-      <span class="row__main muted">{{ item.treatment.name }}</span>
+      <span class="row__main muted">
+        {% if item.kind == 'treatment' %}{{ item.treatment.name }}
+        {% else %}{{ item.product.name }}{% endif %}
+      </span>
       <button class="secondary" type="submit">{{ S["remove"] }}</button>
     </form>
   </li>
@@ -70,6 +91,22 @@
     <button type="submit" class="secondary">{{ S["add"] }}</button>
   </form>
 </details>
+
+{% if sellable %}
+<details class="card stack-top">
+  <summary>{{ S["add_product"] }}</summary>
+  <form method="post" action="/visits/{{ visit.id }}/products">
+    <select name="product_id" required>
+      {% for p in sellable %}
+      <option value="{{ p.id }}">{{ p.name }} - {{ p.sale_price_cents | eur }}</option>
+      {% endfor %}
+    </select>
+    <label for="qty">{{ S["product_qty"] }}</label>
+    <input id="qty" name="qty" inputmode="decimal" value="1">
+    <button type="submit" class="secondary">{{ S["add"] }}</button>
+  </form>
+</details>
+{% endif %}
 
 <form method="post" action="/visits/{{ visit.id }}/status" class="row stack-top">
   <button name="value" value="cancelled" class="secondary">{{ S["cancelled"] }}</button>

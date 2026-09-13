@@ -9,12 +9,13 @@ everyone permanently overdue.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Client, Treatment, Visit, VisitItem
-from app.services import stock, timeutil
+from app.services import products, stock, timeutil
 
 ACTIVE_STATUSES = ("planned", "done")
 STATUSES = ("planned", "done", "cancelled", "no_show")
@@ -175,6 +176,55 @@ def remove_item(session: Session, visit_id: int, item_id: int) -> Visit:
     session.delete(item)
     session.flush()
     return visit
+
+
+def add_product(session: Session, visit_id: int, product_id: int,
+                qty: float = 1.0) -> Visit:
+    """Sell a Product on this Visit.
+
+    The price is snapshotted onto the Visit Item exactly the way a Treatment's
+    is, and earlier: close() only re-reads the price list for treatment items,
+    so a product's price is fixed the moment it is added. Raising the shelf
+    price next month must not rewrite what this client paid today.
+
+    ends_at is untouched. Handing over a tube of cream does not lengthen the
+    appointment, and growing the window here would push into the next client's
+    slot for nothing.
+    """
+    visit = session.get(Visit, visit_id)
+    if visit is None:
+        raise LookupError(f"no visit {visit_id}")
+    product = products.get(session, product_id)
+    if product.archived_at is not None:
+        raise ValueError(f"product {product_id} is archived")
+    if product.sale_price_cents is None:
+        # Not for sale is not the same as free. Without this a consumable
+        # would land on the bill at zero and the client would be charged
+        # nothing for it, quietly.
+        raise ValueError(f"product {product_id} has no sale price")
+    amount = float(qty)
+    if amount <= 0:
+        # A negative sale would put stock back on the shelf and take money off
+        # the bill, which is a refund this app has no concept of.
+        raise ValueError("a sold quantity has to be positive")
+    visit.items.append(VisitItem(kind="product", product_id=product.id,
+                                 qty=amount,
+                                 unit_price_cents=product.sale_price_cents))
+    session.flush()
+    return visit
+
+
+def total_cents(visit: Visit) -> int:
+    """What the client owes: every line, quantity included.
+
+    Decimal rather than float, and rounded per line: the column is integer
+    cents precisely so no float touches money, and two half-price halves must
+    not sum to a fraction of a cent.
+    """
+    total = Decimal(0)
+    for item in visit.items:
+        total += Decimal(item.unit_price_cents) * Decimal(str(item.qty))
+    return int(total.to_integral_value(rounding="ROUND_HALF_UP"))
 
 
 def reschedule(session: Session, visit_id: int, starts_at_local: datetime,

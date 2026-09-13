@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime
-from decimal import Decimal
 
 from fastapi import (APIRouter, Depends, Header, HTTPException, Query,
                      Request, status)
@@ -118,20 +117,13 @@ def api_visits(request: Request,
             "starts_at": v.starts_at,
             "ends_at": v.ends_at,
             "status": v.status,
-            # qty is REAL, so the product is a float and money would leave
-            # the app as 2500.0. Half up, like parse_price: round() is banker's
-            # rounding, so two visits of identical value could differ by a cent.
-            "total_cents": _total_cents(v),
+            # not sum(i.unit_price_cents for i in v.items): qty is REAL, so
+            # the product is a float and money would leave the app as 2500.0.
+            # visits.total_cents does it in Decimal, half up.
+            "total_cents": visits.total_cents(v),
             "treatments": [i.treatment.name for i in v.items
                            if i.kind == "treatment" and i.treatment],
         } for v in rows]
-
-
-def _total_cents(visit: Visit) -> int:
-    total = Decimal(0)
-    for item in visit.items:
-        total += Decimal(item.unit_price_cents) * Decimal(str(item.qty))
-    return int(total.to_integral_value(rounding="ROUND_HALF_UP"))
 
 
 async def _json_body(request: Request) -> dict:
