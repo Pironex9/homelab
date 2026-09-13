@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ S["expenses_title"] }}{% endblock %}
+{% block heading %}{{ S["expenses_title"] }}{% endblock %}
+{% block body %}
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if not expenses %}
+<p class="muted">{{ S["expense_none"] }}</p>
+{% endif %}
+
+<ul class="list">
+  {% for e in expenses %}
+  <li class="card">
+    <div class="stock-item__head">
+      <strong>{{ e.vendor or S["category_" ~ e.category] }}</strong>
+      <span class="stock-item__qty price">{{ e.amount_cents | eur }}</span>
+    </div>
+    {# Torles sits beside the date rather than on a line of its own. An
+       expense is deleted a few times a year; on its own line, at tap height,
+       it was the loudest thing on every card in a list meant to be scanned. #}
+    <div class="row stock-item__meta">
+      <div class="row__text muted">
+        <span class="num">{{ e.date }}</span>
+        &middot; {{ S["category_" ~ e.category] }}
+        {# shown, never enforced: a receipt may carry a coffee alongside the
+           lacquer, and refusing the real receipt is how a form stops being
+           filled in #}
+        {% if line_totals[e.id] and line_totals[e.id] != e.amount_cents %}
+        <span class="pill">{{ S["expense_line_diff"] }}</span>
+        {% endif %}
+      </div>
+      <form method="post" action="/expenses/{{ e.id }}/delete">
+        <button class="secondary" type="submit">{{ S["remove"] }}</button>
+      </form>
+    </div>
+    {% if e.note %}<div class="muted stock-item__meta">{{ e.note }}</div>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+<details class="card stack-top">
+  <summary>{{ S["expense_new"] }}</summary>
+  <form method="post" action="/expenses">
+    <label for="date">{{ S["expense_date"] }}</label>
+    <input id="date" name="date" type="date" value="{{ today }}" required>
+    <label for="vendor">{{ S["expense_vendor"] }}</label>
+    <input id="vendor" name="vendor">
+    <label for="amount_eur">{{ S["expense_amount"] }}</label>
+    <input id="amount_eur" name="amount_eur" inputmode="decimal" required>
+    <label for="category">{{ S["expense_category"] }}</label>
+    <select id="category" name="category" required>
+      {% for value, label in categories %}
+      <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    <label for="note">{{ S["expense_note"] }}</label>
+    <input id="note" name="note">
+
+    <fieldset class="stack-top">
+      <legend>{{ S["expense_line"] }}</legend>
+      <p class="muted">{{ S["expense_line_hint"] }}</p>
+      <label for="line_product_id">{{ S["expense_line_product"] }}</label>
+      <select id="line_product_id" name="line_product_id">
+        <option value=""></option>
+        {% for p in products %}
+        <option value="{{ p.id }}">{{ p.name }} ({{ p.unit }})</option>
+        {% endfor %}
+      </select>
+      <label for="line_qty">{{ S["expense_line_qty"] }}</label>
+      <input id="line_qty" name="line_qty" inputmode="decimal">
+      <label for="line_cost_eur">{{ S["expense_line_cost"] }}</label>
+      <input id="line_cost_eur" name="line_cost_eur" inputmode="decimal">
+    </fieldset>
+
+    <button type="submit">{{ S["save"] }}</button>
+  </form>
+</details>
+{% endblock %}

@@ -193,6 +193,11 @@ label {
   flex-direction: column; align-items: flex-start; gap: var(--gap-1);
 }
 
+/* The left side of a row whose content is a sentence rather than a stack of
+   elements. Laid out as ordinary text, so a pill wraps with the words instead
+   of becoming a flex item that squeezes the date onto two lines. */
+.row__text { flex: 1; min-width: 0; }
+
 .row--link { color: var(--ink); text-decoration: none; }
 .row--link:hover { background: var(--surface-2); }
 .row--link .alert-dot { flex: none; }
