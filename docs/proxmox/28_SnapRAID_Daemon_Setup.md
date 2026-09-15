@@ -267,6 +267,79 @@ That heartbeat is the thing the endpoint test could not show: the daemon really 
 the hook. `notify_result` correctly stayed quiet - a clean run reports at info level, below
 the `warning` threshold - so the absence of an ntfy message is also a result, not a gap.
 
+## Tuning pass 2026-09-15: the delete threshold was guarding the wrong directory
+
+The `cron: snapraid maintenance (pve)` monitor went down. The daemon had done its job -
+the nightly sync aborted before writing anything:
+
+```
+msg:fatal: Too many files were removed (3533, limit is 2000). Sync aborted.
+```
+
+`snapraid status` reported `No error detected`, so nothing was damaged. The interesting part
+is where the deletions came from:
+
+```
+$ grep '^scan:remove:' /var/log/snapraid/20260915-030011-sync.log | cut -d: -f4- | cut -d/ -f1-2 | sort | uniq -c | sort -rn | head -3
+   3501 backup/garage
+     30 backup/proxmox
+      1 immich/pgdump
+```
+
+3501 of 3533 were Garage S3 chunks - the bucket that receives the Longhorn volume backups
+from the K3s cluster. Garage garbage-collects old chunks, so a large add/remove count every
+night is the normal steady state, not an incident.
+
+### Why the threshold was not raised a fourth time
+
+This was the fourth abort, and each previous one had been answered with a higher limit:
+
+| Date | Removed | Limit at the time |
+|---|---|---|
+| 2026-07-26 | 941 | 50 |
+| 2026-08-09 | 324 | 50 |
+| 2026-09-13 | 793 | 300 |
+| 2026-09-15 | 3533 | 2000 |
+
+The directory holds 57018 files and churns roughly 3200 added / 3500 removed per day, so any
+limit that survives the churn is far above the number that would catch what
+`sync_threshold_deletes` exists for: a mass deletion in the media library. Raising it again
+would have kept the monitor quiet and the guard useless.
+
+The fix is one line in `/etc/snapraid.conf`, and `sync_threshold_deletes` stays at 2000:
+
+```
+exclude /backup/garage/
+```
+
+Trade-off, accepted deliberately: the Longhorn backups in Garage no longer have parity. They
+are themselves the secondary copy - the live data sits on the Longhorn replicas across the
+three OptiPlex nodes - so losing `/mnt/disk1` costs the backup copy, not the data.
+
+### The first sync after the exclude has to run from the CLI
+
+Excluding a directory does not quietly drop it from the content file: the next sync sees all
+57018 files as removed and trips the very threshold the change was meant to stop tripping.
+`sync_threshold_deletes` is a daemon setting, so the one-off catch-up run goes through the
+CLI instead, where no threshold applies:
+
+```bash
+systemd-run --unit=snapraid-manual-sync --collect \
+    --property=StandardOutput=append:/var/log/snapraid/manual-20260915-sync.log \
+    --property=StandardError=append:/var/log/snapraid/manual-20260915-sync.log \
+    /usr/bin/snapraid --conf /etc/snapraid.conf sync
+```
+
+`systemd-run` rather than a bare command because the run outlives the SSH session: it took
+7 min 28 s (22:30:52 to 22:38:20), ended `Everything OK` with exit 0, and `snapraid status`
+came back `No error detected` with the newest block scrubbed 0 days ago. The monitor needed
+one manual push to go green again, since a CLI sync does not call the daemon's
+`notify_heartbeat`:
+
+```bash
+curl -fsS -m 10 -o /dev/null "http://100.118.239.117:3001/api/push/<token>?status=up"
+```
+
 ## Removed: old manual cron
 
 The old weekly sync cron (`0 3 * * 0 /usr/local/bin/snapraid sync` in root's crontab) was removed - the daemon's `maintenance_schedule = Sun 03:00` now covers sync + scrub + report at the same time slot. Backup of the old crontab: `/tmp/crontab.bak` on `pve`.
