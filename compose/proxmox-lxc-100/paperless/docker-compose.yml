@@ -84,6 +84,7 @@ services:
       SANE_CONFIG_DIR: "/etc/sane-extra:"
     volumes:
       - ./sane:/etc/sane-extra:ro
+      - ./scanservjs/config.local.js:/etc/scanservjs/config.local.js:ro
       - ${DOCKER_DATA}/paperless/consume:/var/lib/scanservjs/output
     networks:
       - arr_stack
