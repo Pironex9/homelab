@@ -63,12 +63,24 @@ Renewing the server cert therefore touches nothing on the clients. Use the thumb
 pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   -cert-file /etc/caddy/certs/lan.pem \
   -key-file /etc/caddy/certs/lan-key.pem \
-  proxmox.lan adguard.lan komodo.lan karakeep.lan n8n.lan \
+  proxmox.lan adguard.lan komodo.lan karakeep.lan n8n.lan ollama.lan \
   jellyfin.lan homepage.lan portfolio.lan topology.lan immich.lan bentopdf.lan docuseal.lan \
   qbit.lan sonarr.lan form.lan syncthing.lan \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
   scrutiny.lan prowlarr.lan freshrss.lan \
-  netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan homelable.lan agentos.lan hermes.lan ntfy.lan'
+  netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan homelable.lan agentos.lan hermes.lan ntfy.lan \
+  paperless.lan scan.lan'
+```
+
+The list above had drifted from the live cert once: `ollama.lan` was in the cert but not
+here, so running the command as written would have silently dropped it. The live cert is the
+source of truth - read its SANs before regenerating:
+
+```bash
+pct exec 110 -- openssl x509 -in /etc/caddy/certs/lan.pem -noout -ext subjectAltName
+```
+
+```bash
 pct exec 110 -- chown root:caddy /etc/caddy/certs/lan-key.pem
 pct exec 110 -- chmod 640 /etc/caddy/certs/lan-key.pem
 pct exec 110 -- rc-service caddy restart
@@ -162,6 +174,8 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | immich.lan | http://192.168.0.110:2283 |
 | bentopdf.lan | http://192.168.0.110:3000 |
 | docuseal.lan | http://192.168.0.110:3003 |
+| paperless.lan | http://192.168.0.110:8000 |
+| scan.lan | http://192.168.0.110:8086 |
 | qbit.lan | http://192.168.0.110:8080 (X-Forwarded-Proto: https) |
 | sonarr.lan | http://192.168.0.110:8989 |
 | form.lan | http://192.168.0.110:3004 |

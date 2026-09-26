@@ -89,6 +89,9 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `kan-db` | `postgres:15` | - | PostgreSQL for Kan |
 | `garage` | `dxflrs/garage:v2.3.0` | 3900 | S3 server; the backup target for the K3s Longhorn volumes (see [Longhorn Storage](../k3s/03_Longhorn_Storage.md)) |
 | `pedikur` | built from `python:3.13-slim` | 3010 | Appointment book for a pedicure practice, written here rather than deployed (see [Pedicure Practice App](../proxmox/46_Pedicure_Practice_App.md)) |
+| `paperless` | `ghcr.io/paperless-ngx/paperless-ngx:3.2` | 8000 | Document archive with OCR (Hungarian + Slovak); SQLite (see [Paperless and the HP Smart Tank](../proxmox/50_Paperless_And_The_HP_Smart_Tank.md)) |
+| `paperless-broker` | `valkey/valkey:9-alpine` | - | Task broker for Paperless |
+| `scanservjs` | `sbs20/scanservjs:v3.3.0` | 8086 | Web scan UI; pulls from the HP Smart Tank 750 over eSCL into the Paperless consume folder |
 
 ### Static Sites
 
@@ -153,6 +156,8 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 3003 | TCP | DocuSeal |
 | 3005 | TCP | Dawarich |
 | 3010 | TCP | Pedicure appointment book |
+| 8000 | TCP | Paperless-ngx |
+| 8086 | TCP | scanservjs |
 | 3300 | TCP | Rails learning lab |
 | 8001 | TCP | Homelable MCP server |
 | 9696 | TCP | Prowlarr |
