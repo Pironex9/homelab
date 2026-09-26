@@ -1,0 +1,71 @@
+# Paperless-ngx plus the scan side for the HP Smart Tank 750 (192.168.0.53).
+#
+# The printer has no scan-to-folder: its web interface exposes eSCL but no
+# network-folder or FTP destination, so a scan cannot be pushed from the
+# device. scanservjs pulls it over eSCL instead and writes the PDF straight
+# into the Paperless consume directory.
+#
+# The ADF is single-sided (eSCL advertises AdfSimplexInputCaps only), so
+# double-sided paper uses scanservjs's "auto collate" batch mode: fronts,
+# flip the stack, backs, merged into one PDF.
+#
+# Printing needs no service here: the printer accepts no PDF over IPP
+# (pdf-versions-supported = none), but the Paperless print button hands the
+# document to the browser, and the client OS rasterises it for the printer.
+services:
+  paperless-broker:
+    image: docker.io/valkey/valkey:9-alpine
+    container_name: paperless-broker
+    restart: unless-stopped
+    volumes:
+      - ${DOCKER_DATA}/paperless/redis:/data
+    networks:
+      - arr_stack
+
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.2
+    container_name: paperless
+    restart: unless-stopped
+    depends_on:
+      - paperless-broker
+    ports:
+      - 8000:8000
+    # ponytail: SQLite, the documented default; Postgres when several people
+    # write at once or the archive reaches tens of thousands of documents.
+    volumes:
+      - ${DOCKER_DATA}/paperless/data:/usr/src/paperless/data
+      - ${DOCKER_DATA}/paperless/media:/usr/src/paperless/media
+      - ${DOCKER_DATA}/paperless/export:/usr/src/paperless/export
+      - ${DOCKER_DATA}/paperless/consume:/usr/src/paperless/consume
+    environment:
+      PAPERLESS_REDIS: redis://paperless-broker:6379
+      PAPERLESS_DBENGINE: sqlite
+      PAPERLESS_TIME_ZONE: ${TZ}
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY}
+      # Creates the superuser on first start only; ignored once it exists.
+      PAPERLESS_ADMIN_USER: admin
+      PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD}
+      # hun and slk are not in the image, the container installs them at start.
+      PAPERLESS_OCR_LANGUAGES: hun slk
+      PAPERLESS_OCR_LANGUAGE: hun+slk
+    networks:
+      - arr_stack
+
+  scanservjs:
+    image: sbs20/scanservjs:v3.3.0
+    container_name: scanservjs
+    restart: unless-stopped
+    ports:
+      - 8086:8080
+    environment:
+      AIRSCAN_DEVICES: '"HP Smart Tank 750" = "http://192.168.0.53/eSCL"'
+      # The device is named above; skip the slow network discovery.
+      SCANIMAGE_LIST_IGNORE: "true"
+    volumes:
+      - ${DOCKER_DATA}/paperless/consume:/var/lib/scanservjs/output
+    networks:
+      - arr_stack
+
+networks:
+  arr_stack:
+    external: true
