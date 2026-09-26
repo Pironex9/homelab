@@ -179,8 +179,9 @@ cause is `PAPERLESS_DATE_ORDER`, default `DMY`. Tested with `dateparser` inside 
 | `15.09.26` (Slovak, 2-digit year) | 2026-09-15 | **2015-09-26** |
 
 `YMD` fixes every 4-digit-year form in both languages and breaks only two-digit-year
-day-first dates, which mostly appear on shop receipts. Not changed yet; it is a call on the
-document mix.
+day-first dates, which mostly appear on shop receipts. **Switched to `YMD` the same day**;
+verified after the redeploy with a document containing `Kelt: 2026.08.01.`, which now gets
+the created date 2026-08-01.
 
 ## LAN names
 
