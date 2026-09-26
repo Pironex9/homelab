@@ -371,6 +371,20 @@
             description: Appointment book
             siteMonitor: http://192.168.0.110:3010/health
             statusStyle: dot
+        - Paperless:
+            icon: paperless-ngx.png
+            href: https://paperless.lan
+            description: Documents
+            siteMonitor: http://192.168.0.110:8000
+            statusStyle: dot
+        - Scan:
+            # scanservjs pulls from the HP Smart Tank 750 over eSCL into the
+            # Paperless consume folder - the printer cannot push a scan itself.
+            icon: mdi-scanner
+            href: https://scan.lan
+            description: HP Smart Tank 750
+            siteMonitor: http://192.168.0.110:8086
+            statusStyle: dot
         - Wake on LAN:
             icon: https://play-lh.googleusercontent.com/KfSXnrNMIUgbTq4t1X4zwipG8f252SF4OtJY8TIPsy1fLAX791z75ydRlZcBGDrjr6c=w240-h480
             href: http://100.120.73.44:5000
