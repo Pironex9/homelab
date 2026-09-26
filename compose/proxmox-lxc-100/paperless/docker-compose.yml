@@ -52,6 +52,19 @@ services:
       # hun and slk are not in the image, the container installs them at start.
       PAPERLESS_OCR_LANGUAGES: hun slk
       PAPERLESS_OCR_LANGUAGE: hun+slk
+      # AI features on the Nobara desktop's Ollama (RTX 2060 SUPER, 8 GB).
+      # Manual use only (Suggest button, chat): no "Apply AI Suggestions"
+      # workflow, because that desktop is off or booted to Windows part of
+      # the day, and its VRAM is shared with Immich ML and games. OCR, search
+      # and the classic suggestions never touch it and keep working without it.
+      PAPERLESS_AI_ENABLED: "true"
+      PAPERLESS_AI_LLM_BACKEND: ollama
+      PAPERLESS_AI_LLM_ENDPOINT: http://192.168.0.100:11434
+      PAPERLESS_AI_LLM_MODEL: qwen3:8b-nothink
+      PAPERLESS_AI_LLM_EMBEDDING_BACKEND: ollama
+      PAPERLESS_AI_LLM_EMBEDDING_MODEL: nomic-embed-text
+      # The index refresh defaults to 02:10, when the desktop is usually off.
+      PAPERLESS_LLM_INDEX_TASK_CRON: "30 20 * * *"
     networks:
       - arr_stack
 
