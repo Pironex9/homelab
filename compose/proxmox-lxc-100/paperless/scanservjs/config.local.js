@@ -1,4 +1,6 @@
-// Read by scanservjs at start-up (restart the container after a change).
+// Read by scanservjs at start-up only. After a change here a Komodo deploy
+// does not recreate the container (the compose file is unchanged), so run
+// `docker restart scanservjs` on LXC 100.
 module.exports = {
   afterConfig(config) {
     // Upstream offers only the standard collate order; the reverse one exists
