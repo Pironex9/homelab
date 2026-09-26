@@ -62,10 +62,11 @@ services:
     ports:
       - 8086:8080
     environment:
-      AIRSCAN_DEVICES: '"HP Smart Tank 750" = "http://192.168.0.53/eSCL"'
-      # The device is named above; skip the slow network discovery.
-      SCANIMAGE_LIST_IGNORE: "true"
+      # Trailing colon: search sane/ first, then the image's /etc/sane.d.
+      # Why the device is not in AIRSCAN_DEVICES: see sane/airscan.conf.
+      SANE_CONFIG_DIR: "/etc/sane-extra:"
     volumes:
+      - ./sane:/etc/sane-extra:ro
       - ${DOCKER_DATA}/paperless/consume:/var/lib/scanservjs/output
     networks:
       - arr_stack
