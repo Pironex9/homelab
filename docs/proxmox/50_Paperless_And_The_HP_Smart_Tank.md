@@ -135,6 +135,53 @@ The documented alternative, `PAPERLESS_URL`, was deliberately not used: it also 
 `ALLOWED_HOSTS` to that one name, which would lock out the direct `192.168.0.110:8000`
 address that the Homepage status dot checks.
 
+## AI suggestions on the desktop's Ollama
+
+Added the same day. OCR stays Tesseract 5.5.0 under OCRmyPDF 17.12.1, local to the container;
+the LLM only powers the optional features: the **Suggest** button (title, date, tags,
+correspondent, type), the document chat, and the LLM index behind both.
+
+| Setting | Value |
+|---|---|
+| Backend | `ollama` at `http://192.168.0.100:11434` (the Nobara desktop, RTX 2060 SUPER, 8 GB) |
+| Model | `qwen3:8b-nothink` (5.2 GB) |
+| Embeddings | `nomic-embed-text` via the same Ollama |
+| Index refresh | `30 20 * * *` instead of the 02:10 default |
+
+**Manual use only, no "Apply AI Suggestions" workflow.** The Ollama host is a desktop that is
+off or booted into Windows part of the day, and its 8 GB of VRAM is shared with Immich ML and
+games. Consumption, OCR, search and the classic (non-LLM) suggestions never touch it. The
+index refresh moved to the evening for the same reason: at 02:10 the desktop is usually off.
+
+**Measured on a fictional Hungarian electricity invoice** (uploaded as text, deleted after):
+
+- consumption 0.4 s, the per-document embedding into the LLM index 4.1 s
+- `ai_suggestions` answered in **33 s**, cold model load included
+- issue date `2026-09-15` and due date `2026-10-01` correct; correspondent correct, plus one
+  junk candidate (the service address); tags and title came back in English, because the
+  output language follows the user's UI language unless `PAPERLESS_AI_LLM_OUTPUT_LANGUAGE`
+  is set
+- afterwards Ollama held **5.6 GB** of VRAM until its keep-alive expired - that is the window
+  in which Immich ML or a game can be starved
+
+### The classic date parser gets Hungarian numeric dates wrong
+
+The same invoice got the created date **2026-01-08** from the built-in (non-AI) parser. The
+cause is `PAPERLESS_DATE_ORDER`, default `DMY`. Tested with `dateparser` inside the container:
+
+| Input | `DMY` (default) | `YMD` |
+|---|---|---|
+| `2026.08.01` (Hungarian numeric) | **2026-01-08** | 2026-08-01 |
+| `2026-08-01` (ISO) | **2026-01-08** | 2026-08-01 |
+| `2026. szeptember 15.` | 2026-09-15 | 2026-09-15 |
+| `15.09.2026` (Slovak, 4-digit year) | 2026-09-15 | 2026-09-15 |
+| `15. septembra 2026` | 2026-09-15 | 2026-09-15 |
+| `15.09.26` (Slovak, 2-digit year) | 2026-09-15 | **2015-09-26** |
+
+`YMD` fixes every 4-digit-year form in both languages and breaks only two-digit-year
+day-first dates, which mostly appear on shop receipts. Not changed yet; it is a call on the
+document mix.
+
 ## LAN names
 
 `paperless.lan` and `scan.lan` follow the usual pattern: AdGuard rewrite to Caddy
