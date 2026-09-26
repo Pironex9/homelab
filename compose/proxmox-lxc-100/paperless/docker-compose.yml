@@ -42,6 +42,10 @@ services:
       PAPERLESS_DBENGINE: sqlite
       PAPERLESS_TIME_ZONE: ${TZ}
       PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY}
+      # Behind Caddy on https the login POST is rejected as cross-origin
+      # (measured: 403) until the https origin is trusted. Not PAPERLESS_URL:
+      # that also narrows ALLOWED_HOSTS and would lock out 192.168.0.110:8000.
+      PAPERLESS_CSRF_TRUSTED_ORIGINS: https://paperless.lan
       # Creates the superuser on first start only; ignored once it exists.
       PAPERLESS_ADMIN_USER: admin
       PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD}
