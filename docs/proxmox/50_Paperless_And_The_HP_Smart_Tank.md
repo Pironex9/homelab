@@ -228,6 +228,19 @@ single page), 300 dpi is plenty for OCR, pick a PDF pipeline, Scan. For double-s
 set Batch to **auto collate**: scan the stack, flip it, scan again. The PDF disappears from
 scanservjs's file list a few seconds later - that is Paperless taking it, not an error.
 
+Two things the first real contract taught (2026-09-26):
+
+- **Wait for the printer before pressing Next.** Pressing it straight after putting the
+  flipped stack back failed with `sane_start: Document feeder out of documents`
+  (`scanimage` exit code 7, `SANE_STATUS_NO_DOCS`): the feeder had not registered the paper
+  yet. The batch is lost and has to be started again from the fronts.
+- **Never delete the PDF in scanservjs's file list.** It is the same file Paperless is
+  consuming; a six-page scan takes about 18 s to OCR. Deleting one mid-way failed the
+  consumption with `[Errno 2] No such file or directory` *after* the original and archive
+  copies had already been written to `media/`, leaving two orphans that only
+  `manage.py document_sanity_checker` reported. The file disappears from the list by itself
+  once Paperless has it.
+
 **Print from Paperless:** open the document, **Print**. The client device needs the printer
 installed once; Windows and Android find it on their own over IPP Everywhere / Mopria, iOS
 over AirPrint.
