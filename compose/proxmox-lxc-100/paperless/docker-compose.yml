@@ -52,6 +52,10 @@ services:
       # hun and slk are not in the image, the container installs them at start.
       PAPERLESS_OCR_LANGUAGES: hun slk
       PAPERLESS_OCR_LANGUAGE: hun+slk
+      # Default DMY turns Hungarian 2026.08.01 and ISO dates into 2026-01-08.
+      # YMD reads every 4-digit-year form in both languages correctly and only
+      # misreads 2-digit-year day-first dates (15.09.26 -> 2015-09-26).
+      PAPERLESS_DATE_ORDER: YMD
       # AI features on the Nobara desktop's Ollama (RTX 2060 SUPER, 8 GB).
       # Manual use only (Suggest button, chat): no "Apply AI Suggestions"
       # workflow, because that desktop is off or booted to Windows part of
