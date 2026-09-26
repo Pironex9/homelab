@@ -135,6 +135,32 @@ The documented alternative, `PAPERLESS_URL`, was deliberately not used: it also 
 `ALLOWED_HOSTS` to that one name, which would lock out the direct `192.168.0.110:8000`
 address that the Homepage status dot checks.
 
+### 3. The first real scan arrived as a zip
+
+The first double-sided contract produced `scan_2026-09-26 19.12.31.zip` in the consume folder
+after the first pass, and Paperless left it there. Two UI settings had stayed at their
+defaults: the output format was an image pipeline (the scanservjs default is
+`JPG | High quality`), and the batch mode was not collate, so the scan finished after the
+fronts. scanservjs zips any result that is more than one file, and Paperless does not
+consume zips.
+
+Fixed on the server rather than by remembering the right dropdowns:
+`scanservjs/config.local.js` keeps only the three `PDF (JPG | ...)` pipelines (medium
+first, which makes it the default) and defaults the device to ADF, 300 dpi, grey, ADF batch.
+A browser that still has the old JPG choice stored now gets
+`Invalid pipeline: 'JPG | ...' not in ...` instead of a zip.
+
+Two more traps turned up while doing it:
+
+- **The reverse collate order is not offered upstream.** `config.batchModes` lists only
+  `auto-collate-standard`, although the code handles `auto-collate-reverse` too. The config
+  adds it back as the fallback for a feeder that returns the flipped stack the other way.
+- **A single-file bind mount did not pick up the change.** The repo on LXC 100 had the new
+  `config.local.js`, the container still had the old one: `git pull` writes a new file, and
+  a file bind mount stays on the old inode. The whole `scanservjs/` directory is mounted
+  instead. scanservjs reads the config only at start-up and an unchanged compose file is
+  not recreated by a Komodo deploy, so a config change needs `docker restart scanservjs`.
+
 ## AI suggestions on the desktop's Ollama
 
 Added the same day. OCR stays Tesseract 5.5.0 under OCRmyPDF 17.12.1, local to the container;
