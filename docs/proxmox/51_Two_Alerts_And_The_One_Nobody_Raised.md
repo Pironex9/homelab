@@ -58,6 +58,46 @@ Result: **94% -> 89%, 3.3 GB -> 5.5 GB free.** That is a reprieve, not a fix. 33
 Docker images on a 51 GB root is the actual shape of the problem, and the answer to it is
 the second NVMe that `docs/proxmox` has been deferring, not another prune.
 
+### Closing the gap it exposed
+
+`scripts/homelab-digest.sh` now reads every running container's root filesystem and warns
+past 85%, because the reason this went unnoticed was not that the number was hard to get.
+The loop runs on the host in a single ssh call, since a `pct exec` per container from LXC
+109 is a round trip each:
+
+```bash
+for id in $(pct list | awk "NR>1 && \$2==\"running\"{print \$1}"); do
+    u=$(pct exec $id -- df -P / 2>/dev/null | awk "NR==2{print \$5}")
+    [ -n "$u" ] && echo "$id ${u%\%}"
+done
+```
+
+**`df -P` is load-bearing, not tidiness.** busybox wraps a long device name onto its own
+line, so with a plain `df /` row 2 has no fifth field and the two Alpine containers vanish
+from the output without an error:
+
+```
+$ pct exec 103 -- df /
+Filesystem           1K-blocks      Used Available Use% Mounted on
+/dev/mapper/pve-vm--103--disk--0
+                        996780    233980    693988  25% /
+```
+
+A monitor that silently reports on 7 of 9 containers is worse than none, because it reports
+OK for machines it never read. `-P` forces one line per filesystem and both containers come
+back. An empty result from the whole loop is treated as a failure rather than a clean pass,
+the same rule `lxc-fstrim` already follows.
+
+First run flagged the container this page is about:
+
+```
+⚠️ LXC rootfs 85% felett: 100(89%)
+```
+
+It will keep flagging it every morning, correctly, until the images move off that 51 GB
+root. VMs are outside this check - there is no `pct exec` for them, and 101 is Home
+Assistant OS.
+
 ## Two numbers that look like the same number
 
 The filesystem being 89% full and the thin volume being 92.76% allocated are different

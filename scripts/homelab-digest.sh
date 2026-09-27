@@ -110,6 +110,36 @@ if [[ -n "$fail_prob" && "$fail_prob" -ge 50 ]]; then
     warn=1
 fi
 
+# --- Guest root filesystem usage ---
+# Nothing else watches this. The thin pool monitor above sees allocation on the host,
+# which is a different number from usage inside the guest: LXC 100 sat at 94% full
+# while the pool read 68% (proxmox doc 51). One ssh call with the loop on the host,
+# because a pct exec per container from here would be a round trip each.
+#
+# df -P is required, not cosmetic. busybox df wraps a long device name onto its own
+# line, so plain `df /` has no field 5 on row 2 and the Alpine containers (103, 105)
+# drop out of the report silently - a monitor that reports OK for hosts it never read.
+# VMs are not covered; there is no pct equivalent, and 101 is Home Assistant OS.
+guest_fs=$(pve 'for id in $(/usr/sbin/pct list | awk "NR>1 && \$2==\"running\"{print \$1}"); do
+    u=$(/usr/sbin/pct exec $id -- df -P / 2>/dev/null | awk "NR==2{print \$5}")
+    [ -n "$u" ] && echo "$id ${u%\%}"
+done' 2>/dev/null)
+if [[ -z "$guest_fs" ]]; then
+    # Empty is a failure, not a clean result - the same trap as lxc-fstrim's empty list.
+    lines+=("⚠️ LXC rootfs: nem sikerult lekerdezni egyetlen kontenert sem")
+    warn=1
+else
+    full=$(echo "$guest_fs" | awk '$2>=85{printf "%s(%s%%) ", $1, $2}')
+    worst=$(echo "$guest_fs" | sort -k2 -n | tail -1 | awk '{print $1"="$2"%"}')
+    checked=$(echo "$guest_fs" | wc -l)
+    if [[ -n "$full" ]]; then
+        lines+=("⚠️ LXC rootfs 85% felett: $full")
+        warn=1
+    else
+        lines+=("LXC rootfs: ${checked} kontener mind 85% alatt (legtelibb: ${worst})")
+    fi
+fi
+
 # --- Docker health (LXC 100) ---
 bad=$(dock "docker ps -a --format '{{.Names}}|{{.Status}}'" 2>/dev/null | awk -F'|' '$2 !~ /^Up/ && $2 !~ /^Exited \(0\)/')
 if [[ -n "$bad" ]]; then
