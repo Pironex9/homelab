@@ -195,6 +195,70 @@ pct restore 103 /mnt/storage/backup/proxmox/dump/vzdump-lxc-103-<timestamp>.tar.
 pct start 103
 ```
 
+### 2026-09-27: a patch-level upgrade, and a cheaper rollback point
+
+The opposite case to the release jump above, and it needs a different reflex. The digest
+had been reporting `alpine-release-3.24.1-r0 < 3.24.2-r0` for ten days: 45 packages inside
+the 3.24 branch, no `vaultwarden` among them. The server stayed at 1.37.2-r0 before and
+after. What moved was the base system - `apk-tools` 3.0.7 -> 3.0.8, `util-linux` 2.42.1 ->
+2.42.3, `libcurl` 8.21.0 -> 8.22.0, `ca-certificates-bundle` 20260611 -> 20260909.
+
+**The rollback point was a snapshot, not a fresh `vzdump`.** Step 1 of the procedure above
+exists because the nightly job can be up to 24 hours old, and re-running `vzdump` fixes
+that at the cost of several minutes and a write into the backup pool. A thin-LVM snapshot
+buys the same guarantee in under a second:
+
+```bash
+pct snapshot 103 pre-apk-20260927 --description "before Alpine 3.24.1 -> 3.24.2 apk upgrade"
+pct exec 103 -- apk upgrade
+pct exec 103 -- rc-service vaultwarden restart
+# verify, then:
+pct delsnapshot 103 pre-apk-20260927
+```
+
+It cost 0.08 percentage points of the thin pool while it existed (66.89% -> 66.97%), and
+`pct rollback 103 pre-apk-20260927` returns the vault to the exact pre-upgrade state -
+including credentials added since the last nightly, which a `pct restore` of the 02:07
+tarball would silently drop.
+
+Two limits keep this from replacing the backup. A snapshot lives in the same thin pool as
+the origin, so it survives a bad upgrade and not a bad disk; and it grows as the origin
+diverges, which is why it gets deleted as soon as a real login has been verified rather
+than left lying around. It replaces the *extra* pre-upgrade `vzdump`, never the nightly one.
+
+`apk` reported `OK: 207.4 MiB in 114 packages`, the restart was clean, and afterwards:
+
+```
+$ pct exec 103 -- /usr/bin/vaultwarden --version
+Vaultwarden 1.37.2-r0
+$ pct exec 103 -- apk list -u | wc -l
+0
+```
+
+The restart is still mandatory even when the server package itself did not change, because
+`libcurl` was replaced underneath a running process.
+
+**Do not verify this container over HTTPS on its own address.** It answers nothing there:
+
+```
+$ curl -sk -o /dev/null -w '%{http_code}\n' https://192.168.0.219/
+000
+```
+
+That is the documented `no ROCKET_TLS` design, not a broken upgrade - TLS terminates at
+Caddy on LXC 110. The two checks that mean something are the backend directly and the
+proxied hostname:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://192.168.0.219:8000/          # 200
+curl -sk --resolve vaultwarden.lan:443:192.168.0.208 https://vaultwarden.lan/api/config
+```
+
+One inconsistency found while checking versions: `vaultwarden --version` prints `Web-Vault
+Version file missing` even though `/usr/share/webapps/vaultwarden-web/vw-version.json`
+exists and reads `2026.7.0`. The binary looks for it somewhere else than Alpine puts it, so
+read the file, not the binary, for the web vault version.
+
 ### Do not automate the upgrade; automate the noticing
 
 The failure on 2026-08-28 was not that the server was out of date. It was that

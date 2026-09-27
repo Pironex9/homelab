@@ -161,6 +161,7 @@ nav:
           - 48 - When an Episode Is an Executable: proxmox/48_When_An_Episode_Is_An_Executable.md
           - 49 - Six Hours of "No Internet": proxmox/49_Six_Hour_NIC_Hang.md
           - 50 - Paperless and the HP Smart Tank: proxmox/50_Paperless_And_The_HP_Smart_Tank.md
+          - 51 - Two Alerts, and the One Nobody Raised: proxmox/51_Two_Alerts_And_The_One_Nobody_Raised.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md

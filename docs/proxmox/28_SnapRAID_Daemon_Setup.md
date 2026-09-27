@@ -340,6 +340,60 @@ one manual push to go green again, since a CLI sync does not call the daemon's
 curl -fsS -m 10 -o /dev/null "http://100.118.239.117:3001/api/push/<token>?status=up"
 ```
 
+## Tuning pass 2026-09-27: 1% a night was never going to satisfy a 30-day threshold
+
+The 2026-08-29 table above set `scrub_percentage = 1` on the reasoning that it keeps the
+annual volume flat: a full pass every 100 days instead of every 140. Both numbers are
+correct and both are far outside what the digest asks for, which is that no block go
+unscrubbed for more than 30 days. The oldest-block age therefore climbed all year -
+42 days by 2026-09-27 - and a one-off catch-up on 09-14 only reset it to 34 before it
+drifted back at roughly two-thirds of a day per day.
+
+A rate problem needs the rate changed, not another catch-up. Sizing from the threshold
+instead of from last year's volume, with 4711 GB of data in the array:
+
+| | Full pass | Nightly volume |
+|---|---|---|
+| `scrub_percentage = 1` | 100 nights | 47 GB |
+| `scrub_percentage = 4` | 25 nights | 188 GB |
+
+```
+# /etc/snapraidd.conf
+scrub_percentage = 4
+scrub_older_than = 6
+```
+
+`scrub_older_than` stays at `6` for the same reason as before. The daemon reloads this
+without a restart and confirms it in the log rather than leaving you to infer it:
+
+```console
+root@pve:~# systemctl reload snapraidd
+root@pve:~# journalctl -u snapraidd -n3 --no-pager
+snapraidd[1985]: reload requested
+snapraidd[1985]: config loaded successfully from /etc/snapraidd.conf
+```
+
+The 42-day tail still needs one full pass to clear at 4%, so a bounded catch-up ran the
+same evening. Bounded matters: a manual scrub still holding `/var/snapraid.content.lock`
+at 03:00 collides with the daemon's own maintenance run, so the unit is given a deadline
+that expires first.
+
+```bash
+systemd-run --unit=snapraid-catchup-scrub --collect \
+    --property=RuntimeMaxSec=22800 \
+    --property=StandardOutput=append:/var/log/snapraid/manual-20260927-scrub.log \
+    --property=StandardError=append:/var/log/snapraid/manual-20260927-scrub.log \
+    /usr/bin/snapraid --conf /etc/snapraid.conf scrub -p 25 -o 30
+```
+
+Interrupting a scrub is safe - it only reads, and `autosave 500` has already committed
+progress to the content file. While it runs, every other `snapraid` invocation on the host
+including `snapraid status` fails with `The lock file '/var/snapraid.content.lock' is
+already in use!`, so watch the unit's log instead of the status command.
+
+Full context, and the three unrelated fixes from the same evening, in
+[51 - Two Alerts, and the One Nobody Raised](51_Two_Alerts_And_The_One_Nobody_Raised.md).
+
 ## Removed: old manual cron
 
 The old weekly sync cron (`0 3 * * 0 /usr/local/bin/snapraid sync` in root's crontab) was removed - the daemon's `maintenance_schedule = Sun 03:00` now covers sync + scrub + report at the same time slot. Backup of the old crontab: `/tmp/crontab.bak` on `pve`.
