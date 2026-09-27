@@ -220,9 +220,14 @@ other `snapraid` command on the host fails with `The lock file
 usual way of checking on things is unavailable exactly while the long job is running. Read
 the unit's log instead.
 
-Whether 4% actually holds is a measurement for the following mornings, not a claim for
-this page: the number to watch is the oldest-block age in the digest, which has to fall
-below 30 and stay there without another manual run.
+That catch-up finished in 1 hour 42 minutes, 914 GB read, `Everything OK`, and moved the
+oldest block **42 days -> 29**, with the unscrubbed share 39% -> 33%. Its wait-time
+breakdown names the slow tail: d1 58%, d3 30%, d4 4% - the drag is on the disk already
+flagged by SMART, where throughput fell from 240 MB/s to 13 MB/s over the last two percent.
+
+29 days is one day under the threshold, so the catch-up alone proves nothing about the
+rate. Whether 4% holds is a measurement for the following mornings: the oldest-block age in
+the digest has to keep falling without another manual run.
 
 ## Vaultwarden
 
@@ -242,6 +247,7 @@ including why the rollback point was a snapshot rather than a fresh `vzdump`.
 | vm-100-disk-0 allocation | 92.76% | 86.49% | same trim |
 | LXC 100 memory | 10 GB cap, 2.2 GB available | 12 GB cap, 4.2 GB available | live `pct set` |
 | SnapRAID scrub pass | 100 nights | 25 nights | `scrub_percentage` 1 -> 4 |
+| SnapRAID oldest block | 42 days | 29 days | bounded catch-up scrub |
 | LXC 103 | Alpine 3.24.1, 47 packages behind | Alpine 3.24.2, 0 behind | `apk upgrade` |
 
 The one that mattered most had no alert attached to it. The two that did fire were both

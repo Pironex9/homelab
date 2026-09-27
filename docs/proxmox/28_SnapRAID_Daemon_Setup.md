@@ -391,6 +391,11 @@ progress to the content file. While it runs, every other `snapraid` invocation o
 including `snapraid status` fails with `The lock file '/var/snapraid.content.lock' is
 already in use!`, so watch the unit's log instead of the status command.
 
+The catch-up ran 1 hour 42 minutes for 914 GB, ended `Everything OK`, and brought the
+oldest block from 42 days to 29 with the unscrubbed share down from 39% to 33%. One day
+under the threshold is not proof the rate is right - that shows up in the following
+mornings' digests, not in the catch-up.
+
 Full context, and the three unrelated fixes from the same evening, in
 [51 - Two Alerts, and the One Nobody Raised](51_Two_Alerts_And_The_One_Nobody_Raised.md).
 
