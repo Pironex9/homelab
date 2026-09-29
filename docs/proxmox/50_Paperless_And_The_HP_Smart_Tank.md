@@ -76,7 +76,7 @@ Paperless creates the superuser.
 makes the container install them at start (visible in the log as `init-tesseract-langs`),
 and `PAPERLESS_OCR_LANGUAGE: hun+slk` uses both.
 
-## Two things that broke, and why
+## What broke, and why
 
 ### 1. scanservjs showed no scanner at all
 
@@ -160,6 +160,33 @@ Two more traps turned up while doing it:
   a file bind mount stays on the old inode. The whole `scanservjs/` directory is mounted
   instead. scanservjs reads the config only at start-up and an unchanged compose file is
   not recreated by a Komodo deploy, so a config change needs `docker restart scanservjs`.
+
+### 4. The printer did not rejoin Wi-Fi after a power cycle
+
+On Wi-Fi (192.168.0.53) the printer did not come back onto the network after being switched
+off and on. A sweep of the whole /24 after one such power cycle found no host with its MAC
+(`74:da:78:28:d2:12`), and its last DNS query in AdGuard was hours earlier. The HP Support
+Community has several threads on the same symptom for the Smart Tank 7xx range, with no
+single cause.
+
+The AdGuard query log also showed the printer's own cloud traffic
+(`*.avatar.ext.hp.com`, `ccc.hpeprint.com`) from a second address, 192.168.0.43, for eleven
+minutes during the first setup. That looked like a clue - a range extender translating MACs,
+say - but it was simply the Ethernet port used during setup.
+
+The root cause was never found, because it did not need to be: **the printer is wired now,
+with a DHCP reservation for 192.168.0.43**. Two places depend on that address and were
+updated with it:
+
+- `sane/airscan.conf` - scanservjs reaches the scanner by IP. The sane config is read on each
+  `scanimage` call, but scanservjs builds its device list at start-up, so the container was
+  restarted; `scanimage -L` then reported `ip=192.168.0.43`.
+- nothing on the clients: laptops and phones find the printer by name over DNS-SD, not by
+  address.
+
+If it ever has to go back to Wi-Fi, the first thing to capture on the next drop-out is the
+printer's own network configuration report (SSID, BSSID, band, channel, status) - without it
+every Wi-Fi explanation is a guess.
 
 ## AI suggestions on the desktop's Ollama
 
