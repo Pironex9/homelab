@@ -1,7 +1,7 @@
 **Date:** 2026-09-26
 **Host:** LXC 100 docker-host (192.168.0.110), ports 8000 (Paperless) and 8086 (scanservjs)
 **LAN names:** `https://paperless.lan`, `https://scan.lan` via Caddy (LXC 110)
-**Printer:** HP Smart Tank 750, 192.168.0.53
+**Printer:** HP Smart Tank 750, 192.168.0.43 (Ethernet, DHCP reservation; was 192.168.0.53 on Wi-Fi until 2026-09-29)
 
 ---
 
@@ -25,7 +25,7 @@ Everything below was read from the device itself, not from a spec sheet.
 | Question | Answer | Where it came from |
 |---|---|---|
 | Can it push a scan to a network folder, FTP or email? | **No** | `/DevMgmt/DiscoveryTree.xml` lists no scan-destination or walk-up-scan manifest, only `eSCL:eSclManifest` and `ledm:hpLedmScanJobManifest` |
-| Can something else pull a scan from it? | Yes, over eSCL | `https://192.168.0.53/eSCL/ScannerCapabilities` answers, Mopria-certified scan 1.5 |
+| Can something else pull a scan from it? | Yes, over eSCL | `https://192.168.0.43/eSCL/ScannerCapabilities` answers, Mopria-certified scan 1.5 |
 | Does the feeder scan both sides? | **No** | eSCL advertises `AdfSimplexInputCaps` only, no duplex caps; 35-sheet feeder |
 | Does it accept a PDF to print? | **No** | IPP `pdf-versions-supported = none`; `document-format-supported` is PCL, JPEG, URF, PWG raster and PCLm |
 | Can it print both sides? | Yes | IPP `sides-supported` includes `two-sided-long-edge` |
@@ -95,7 +95,7 @@ list, **including the manually configured device**. With `discovery = disable` i
 `[options]` the same config listed it immediately:
 
 ```
-device `airscan:e0:HP Smart Tank 750' is a eSCL HP Smart Tank 750 ip=192.168.0.53
+device `airscan:e0:HP Smart Tank 750' is a eSCL HP Smart Tank 750 ip=192.168.0.43
 ```
 
 The image cannot set that option from the environment: its entrypoint only does
