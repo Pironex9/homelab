@@ -30,6 +30,8 @@ TG_TAGS = "b|strong|i|em|u|s|strike|del|a|code|pre|blockquote|tg-spoiler"
 # Absolute path: the cron PATH does not contain ~/.local/bin. This symlink is stable,
 # the versioned directory behind it is swapped on every update.
 CLAUDE = "/root/.local/bin/claude"
+# Clone of the private GitHub repo Pironex9/ai-digest; the work Claude Code pulls it.
+FEED_REPO = "/root/ai-digest-feed"
 
 
 def secret(name):
@@ -173,6 +175,21 @@ def archive(items, day):
     return saved
 
 
+def publish(path):
+    """Mirror the day's file to the feed repo. A failure never stops the run;
+    the next day's push carries any commit left behind."""
+    git = ["git", "-C", FEED_REPO]
+    try:
+        subprocess.run(["cp", path, FEED_REPO], check=True)
+        subprocess.run(git + ["add", "-A"], check=True)
+        # Nothing to commit (manual re-run, same content) is not an error.
+        if subprocess.run(git + ["diff", "--cached", "--quiet"]).returncode:
+            subprocess.run(git + ["commit", "-qm", f"Digest {os.path.basename(path)[:-3]}"], check=True)
+        subprocess.run(git + ["push", "-q", "origin", "HEAD:main"], check=True, timeout=60)
+    except (subprocess.SubprocessError, OSError) as e:
+        print(f"! feed repo push: {e}", file=sys.stderr)
+
+
 def main():
     now = int(time.time())
     try:
@@ -209,6 +226,7 @@ def main():
 
     telegram(digest)
     saved = archive(kept_urls(digest, items), day)
+    publish(path)
     with open(STATE_FILE, "w") as f:
         f.write(str(now))
     print(f"{len(items)} tétel -> {path}, {saved} a Karakeepbe")
