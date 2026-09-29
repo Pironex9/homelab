@@ -1,4 +1,4 @@
-# Paperless-ngx plus the scan side for the HP Smart Tank 750 (192.168.0.53).
+# Paperless-ngx plus the scan side for the HP Smart Tank 750 (192.168.0.43).
 #
 # The printer has no scan-to-folder: its web interface exposes eSCL but no
 # network-folder or FTP destination, so a scan cannot be pushed from the
