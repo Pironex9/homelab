@@ -1,6 +1,6 @@
 # 33 - Daily AI News Digest Pipeline
 
-**Date:** 2026-08-13 (updated 2026-09-10)
+**Date:** 2026-08-13 (updated 2026-09-29)
 **Hostname:** claude-mgmt (LXC 109), karakeep (LXC 106), docker-host (LXC 100)
 **IP address:** 192.168.0.204, 192.168.0.128, 192.168.0.110
 
@@ -33,7 +33,8 @@ cron 07:30 (LXC 109)
        ├─ claude -p --model sonnet  +  the profile prompt
        ├─ markdown file            (working copy, gitignored)
        ├─ Telegram Bot API         (the thing actually read each morning)
-       └─ Karakeep REST API        (permanent, searchable archive)
+       ├─ Karakeep REST API        (permanent, searchable archive)
+       └─ git push                 (private GitHub mirror, read by a second machine)
 ```
 
 Nothing new was deployed for this. FreshRSS already ran on LXC 100, Karakeep on
@@ -58,6 +59,42 @@ Only the items the model actually linked in the digest get archived. Rather than
 asking the model for a second, separate list of what it kept, the script regexes
 the `href` attributes out of the finished digest. Whatever it linked to is, by
 definition, what it decided mattered.
+
+### Sharing the digest with a second Claude Code
+
+Since 2026-09-29 the digest also feeds a Claude Code instance on a work machine,
+which uses it as a source of ideas. That machine is outside the LAN and the
+tailnet, so it cannot reach any homelab service directly.
+
+The options considered, and why only one survived:
+
+| Option | Why it was rejected |
+|---|---|
+| Karakeep MCP server | stdio only, and the API key it needs has full write access: it can delete every bookmark. Karakeep would also have to be exposed to the internet. Far too much reach for a read-only use. |
+| Karakeep list RSS feed | Read-only and revocable, which is right. But it contains only links, titles and descriptions, and text notes are explicitly excluded. The digest's actual value, the filtering and the summary, would not be in it. |
+| FreshRSS GReader API | The raw, unfiltered feeds. The second Claude would have to redo what the profile prompt already does. |
+| Static file behind Pangolin | Works, but needs a public endpoint with SSO turned off for it, and a secret in a URL. |
+| **Private git repo** | Chosen. The work machine clones it over SSH with a **read-only deploy key** scoped to that one repo, no account credentials, and no homelab port is exposed. |
+
+The key realisation: the digest text lives only in the daily markdown file and in
+Telegram. Karakeep stores the links the model kept, FreshRSS stores everything
+before filtering. Neither is the digest.
+
+How it runs:
+
+- A local clone of the mirror repo sits next to the script. After the Karakeep
+  step, `publish()` copies the day's file into it, commits and pushes. The whole
+  function is wrapped so a push failure only logs a line; Telegram and Karakeep
+  are already done by then, and the next day's push carries any commit left
+  behind. A manual re-run with identical content creates no empty commit.
+- The history was backfilled once, from the first digest (2026-08-13) onwards.
+- On the work machine, a `SessionStart` hook in the global Claude Code settings
+  runs `git pull --ff-only` quietly, and the clone is listed in
+  `permissions.additionalDirectories`. Every new session starts with the latest
+  digests readable, including sessions started from a GUI wrapper around Claude
+  Code. On Windows both entries use absolute paths, because `~` is not expanded
+  there.
+- Revoking access is one command: delete the deploy key.
 
 ### Source selection
 
@@ -214,3 +251,8 @@ that hides a genuinely broken credential behind a second attempt is not.
   been deleted by its maintainer (Cloudflare plus fragile parsing), and RSSHub
   explicitly closed a `claude.com/blog` feature request as "not planned" - extra
   moving parts for something the tool already in use could do natively.
+- **Before sharing data, check which system actually holds it.** The first
+  instinct was "the digest is in Karakeep and FreshRSS", so connect those. It is
+  not: one has the kept links, the other the unfiltered input. The product only
+  existed as a gitignored markdown file, and a read-only git mirror of that file
+  was both the smallest exposure and the only option that carried the content.
