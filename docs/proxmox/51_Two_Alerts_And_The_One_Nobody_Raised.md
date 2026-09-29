@@ -255,6 +255,93 @@ true and neither was an emergency.
 
 ---
 
+## Two days later: 96%, and the prune was never the fix
+
+The new digest check earned itself on its second morning. 2026-09-28 it flagged LXC 100 at
+94%, 2026-09-29 at 96% - 2.4 GB free, up seven points from the 89% the prune had left. The
+first instinct, that something had started writing, was wrong. No runaway file exists:
+
+```
+$ du -xh --max-depth=1 /var/lib | sort -hr | head -3
+34G  /var/lib
+33G  /var/lib/containerd     <- Docker's image store, not /var/lib/docker
+517M /var/lib/docker
+
+$ docker system df
+Images  42  39 active  34.28GB  3.271GB reclaimable (9%)
+```
+
+Forty images two days ago, forty-two now, and the reclaimable share up from 2.018 GB to
+3.271 GB. The image timestamps name the mechanism:
+
+```
+$ docker images --format '{{.CreatedSince}}\t{{.Repository}}'
+16 hours ago  ghcr.io/hotio/qbittorrent
+24 hours ago  ghcr.io/immich-app/immich-server
+29 hours ago  docuseal/docuseal
+41 hours ago  ghcr.io/seerr-team/seerr
+```
+
+Komodo deploys `:latest` tags, so three to four pulls land every day and each one leaves the
+image it replaced dangling. Measured: **~1.6 GB a day**, which is why 5.5 GB of headroom
+lasted exactly two days and why a weekly cleanup could never work - seven days of churn is
+11 GB against 5.4 GB of free space.
+
+### Only dangling images, and one day of them kept
+
+```bash
+# /etc/cron.d/docker-image-prune on LXC 100
+0 23 * * * root /usr/bin/docker image prune -f --filter "until=24h" >> /var/log/docker-prune.log 2>&1
+```
+
+Three decisions in that one line:
+
+**No `-a`.** Comparing `docker image ls` against `docker ps --format '{{.Image}}'` produces a
+tempting list of "unused but tagged" images - `caddy:alpine`, `jellyfin/jellyfin:latest` and
+others that are demonstrably in use. The two commands render an image reference differently,
+so the difference between them is not an unused set, and `prune -a` acting on that reasoning
+would delete images running containers depend on. Plain `prune` removes only dangling images
+and never one a container still references.
+
+**`until=24h`.** Without it, the previous image version is gone the same night, and the
+easiest rollback from a bad `:latest` update - restart onto the local previous image - goes
+with it. Keeping one day costs about 1.6 GB of the 5.4 GB reclaimed and buys back a day of
+rollback.
+
+**23:00 UTC, not 01:00.** This container runs `Etc/UTC` while pve runs CEST, which
+`/etc/cron.d/immich-pgdump` already warns about in its header. 23:00 UTC is 01:00 CEST, half
+an hour ahead of the pve `lxc-fstrim` at 01:30 CEST, so the blocks the prune frees are
+discarded back to the thin pool the same night instead of waiting a day.
+
+Verified rather than assumed, given three cron jobs in this homelab have died silently
+before. `env -i` first, to prove the command does not depend on an interactive environment:
+
+```console
+root@docker-host:~# env -i /usr/bin/docker image prune -f --filter "until=24h"
+Total reclaimed space: 0B
+```
+
+Then the same line installed as a temporary every-minute job, waited out, and removed once
+`/var/log/docker-prune.log` had a real entry written by cron itself. A parse error in
+`/etc/cron.d` is silent, and `systemctl restart cron` reports success either way.
+
+### What this does not fix
+
+33 GB of images and 8.9 GB of live data in `/srv/docker-data` on a 51 GB root leaves the
+container permanently in the 85-90% band - right at the digest threshold, with every new
+stack pushing closer. The cron stops the churn accumulating; it does not create headroom.
+The two real exits, neither taken yet:
+
+* **Grow the rootfs by ~15 GB.** Takes the thin pool from 67% to about 76%, under the 80%
+  digest threshold but not by much, and postpones rather than solves.
+* **The second NVMe**, open since the thin pool's first capacity crisis. Moving Docker's data
+  root there removes the pool's largest writer outright.
+
+Moving the containerd store onto the mergerfs pool is not a third option: USB HDDs under
+overlay snapshots would be both slow and fragile.
+
+---
+
 ## Further Documentation
 
 - [28 - SnapRAID Daemon Setup](28_SnapRAID_Daemon_Setup.md) - the daemon config, the delete threshold, and the earlier scrub tuning passes
