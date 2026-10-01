@@ -330,15 +330,108 @@ Then the same line installed as a temporary every-minute job, waited out, and re
 33 GB of images and 8.9 GB of live data in `/srv/docker-data` on a 51 GB root leaves the
 container permanently in the 85-90% band - right at the digest threshold, with every new
 stack pushing closer. The cron stops the churn accumulating; it does not create headroom.
-The two real exits, neither taken yet:
+The two real exits:
 
-* **Grow the rootfs by ~15 GB.** Takes the thin pool from 67% to about 76%, under the 80%
-  digest threshold but not by much, and postpones rather than solves.
+* **Grow the rootfs.** Taken on 2026-10-01, by 5 GB rather than the 15 first proposed - see
+  below.
 * **The second NVMe**, open since the thin pool's first capacity crisis. Moving Docker's data
-  root there removes the pool's largest writer outright.
+  root there removes the pool's largest writer outright. Still the actual fix.
 
 Moving the containerd store onto the mergerfs pool is not a third option: USB HDDs under
 overlay snapshots would be both slow and fragile.
+
+### 2026-10-01: the filter that made the cron a no-op, and +5 GB
+
+Two days of the cron produced nothing. The disk went 90% -> 94% -> 96% -> **99%, 986 MB
+free**, and `/var/log/docker-prune.log` held three lines, all `Total reclaimed space: 0B`,
+while `docker images -f dangling=true` listed images 40 hours to 8 days old. Cron was not the
+problem - it had fired exactly on time all three nights:
+
+```
+Sep 29 23:00:01 docker-host CRON[3823921]: (root) CMD (/usr/bin/docker image prune -f --filter "until=24h" ...)
+Sep 30 23:00:01 docker-host CRON[1651067]: (root) CMD (/usr/bin/docker image prune -f --filter "until=24h" ...)
+```
+
+The `until=24h` filter was. Reproduced deliberately rather than assumed, by making one
+dangling image with an old creation date - pull `alpine:3.17`, tag it, then move the tag to
+`alpine:3.18` so the first image loses its only tag:
+
+```console
+root@docker-host:~# docker images -f dangling=true --format '{{.ID}}	{{.CreatedSince}}'
+8fc3dacfb6d6    2 years ago
+
+root@docker-host:~# docker image prune -f --filter "until=24h"
+Total reclaimed space: 0B          # 8fc3dacfb6d6 still there
+
+root@docker-host:~# docker image prune -f
+deleted: sha256:7e870915308b...
+Total reclaimed space: 11.23MB     # same image, seconds later
+```
+
+Same image, same host, one flag apart. On Docker 29.7.2 with the containerd image store
+(`io.containerd.snapshotter.v1`, which is why the images live in `/var/lib/containerd` and
+not `/var/lib/docker`), `until` silently neutralises `image prune`. The filter is not broken
+everywhere - on `docker image ls` it behaves exactly as documented on the same host:
+
+```console
+root@docker-host:~# docker image ls -q | wc -l
+36
+root@docker-host:~# docker image ls -q --filter "until=720h" | wc -l
+31
+```
+
+So the useful conclusion is narrower than "the filter is broken": it works for listing and
+does nothing for pruning here, which is the worst combination, because a filter that
+silently matches nothing leaves a job that looks scheduled, runs on time, logs success, and
+achieves nothing.
+
+**What the first verification actually proved.** The every-minute test on 09-29 confirmed
+cron executed the line. It could not confirm the line did anything, because nothing was
+dangling at that moment, and `prune` reports `0B` identically whether there was nothing to
+remove or everything was filtered out. Proving a job runs and proving it works are two
+tests, and only the first one was done.
+
+The corrected line drops the filter and timestamps the log, which is what would have made
+three identical `0B` lines attributable to three nights instead of invisible:
+
+```bash
+0 23 * * * root sh -c "date -Is; /usr/bin/docker image prune -f" >> /var/log/docker-prune.log 2>&1
+```
+
+The filter's purpose - keeping one day of rollback images - is simply gone. There was never
+such a safety net anyway, since the filtered command removed nothing at all.
+
+**`prune -a` would gain nothing here**, which is worth measuring before reaching for the
+digest's suggestion of `docker system prune -a --volumes`:
+
+```console
+root@docker-host:~# docker system df
+TYPE      TOTAL  ACTIVE  SIZE      RECLAIMABLE
+Images    39     39      31.23GB   0B (0%)
+```
+
+Every remaining image belongs to a running container. 31.23 GB is the irreducible floor for
+39 containers, so `-a` buys no space and only forces re-pulls.
+
+**The 5 GB.** 31.23 GB of images plus 9 GB of data left 5.4 GB of headroom against 2.5 GB of
+daily churn - one busy day from the wall. `pct resize` grows the volume and the ext4
+filesystem online, with the containers running:
+
+```console
+root@pve:~# pct resize 100 rootfs +5G
+Filesystem at /dev/pve/vm-100-disk-0 is mounted on /tmp; on-line resizing required
+The filesystem on /dev/pve/vm-100-disk-0 is now 14942208 (4k) blocks long.
+```
+
+56 GB, 82% used, 11 GB free, all 39 containers still up. It is not reversible: an LVM-thin
+rootfs cannot be safely shrunk afterwards, so the space is committed to this container until
+it is rebuilt.
+
+**The thin pool did not move.** It read 66.56% before and after, and the volume's own
+allocation figure *fell*, 86.32% -> 78.75% - the same written bytes measured against a
+larger volume. A thin volume consumes pool space when it writes, not when it is resized, so
+the pool cost of this change arrives later, as the 5 GB is actually used. Worth knowing
+before sizing such a change around a pool percentage: the number does not react on the day.
 
 ---
 
