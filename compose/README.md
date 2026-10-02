@@ -12,7 +12,7 @@ stack added here moves that figure on the next build.
 Services on LXC 100 (docker-host), the main Docker host:
 - Media: Jellyfin, Radarr, Sonarr, Prowlarr, qBittorrent, Seerr, SuggestArr
 - Books & photos: Immich, Calibre-Web-Automated, Shelfmark
-- Productivity: FreshRSS, Syncthing, BentoPDF, DocuSeal, Form, Kan, Dawarich
+- Productivity: FreshRSS, Syncthing, BentoPDF, DocuSeal, Form, Dawarich
 - Sites: Homepage, Portfolio, Homelable, Topology
 - Storage & monitoring: Garage (S3, the Longhorn backup target), Scrutiny
 - Notifications: Notifiarr

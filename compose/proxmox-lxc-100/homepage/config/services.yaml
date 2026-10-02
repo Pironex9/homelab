@@ -341,12 +341,6 @@
         description: Browser IDE (LXC 109, Tailscale-only)
         siteMonitor: http://100.98.146.14:8443
         statusStyle: dot
-    - Kan:
-        icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/kan.png
-        href: https://kanban.homelabor.net
-        description: Kanban board (Trello alternative)
-        siteMonitor: http://192.168.0.110:3006
-        statusStyle: dot
     - Utilities Links:
         - Syncthing (PVE):
             icon: syncthing.png

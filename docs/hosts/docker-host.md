@@ -85,8 +85,6 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `notifiarr` | `golift/notifiarr` | - | Notification hub |
 | `docuseal` | `docuseal/docuseal` | 3003 | Self-hosted e-signature platform |
 | `form` | `caddy:alpine` | 3004 | Static intake form; `/api/submit` is proxied to the n8n webhook on 192.168.0.112:5678 |
-| `kan` | `ghcr.io/kanbn/kan` | 3006 | Kanban board, driven from Claude Code through the `kan-mcp` server |
-| `kan-db` | `postgres:15` | - | PostgreSQL for Kan |
 | `garage` | `dxflrs/garage:v2.3.0` | 3900 | S3 server; the backup target for the K3s Longhorn volumes (see [Longhorn Storage](../k3s/03_Longhorn_Storage.md)) |
 | `pedikur` | built from `python:3.13-slim` | 3010 | Appointment book for a pedicure practice, written here rather than deployed (see [Pedicure Practice App](../proxmox/46_Pedicure_Practice_App.md)) |
 | `paperless` | `ghcr.io/paperless-ngx/paperless-ngx:3.2` | 8000 | Document archive with OCR (Hungarian + Slovak); SQLite (see [Paperless and the HP Smart Tank](../proxmox/50_Paperless_And_The_HP_Smart_Tank.md)) |
@@ -136,7 +134,6 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 3000 | TCP | BentoPDF |
 | 3002 | TCP | Homepage |
 | 3004 | TCP | Intake form |
-| 3006 | TCP | Kan |
 | 3900 | TCP | Garage S3 (Longhorn backup target) |
 | 5000 | TCP | Suggestarr |
 | 5055 | TCP | Seerr |

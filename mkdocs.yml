@@ -97,7 +97,6 @@ nav:
           - n8n (LXC 107): hosts/n8n.md
           - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
           - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
-          - Kan Kanban (on LXC 100): hosts/kan.md
           - Agentos (LXC 113): hosts/agentos.md
       - Nobara PC: hosts/nobara.md
       - Windows 11 (nobara dual-boot): hosts/winpc.md

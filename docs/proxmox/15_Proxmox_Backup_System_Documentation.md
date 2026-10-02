@@ -266,8 +266,8 @@ things:
 (`garage` also writes to `/mnt/storage/backup/garage`, but that is the Longhorn S3 target
 for the K3s cluster, not homelab state - see `scripts/README.md`.)
 
-The databases that *are* on the rootfs - `kan-db` (postgres:15), `rails-lab-db`
-(postgres:17-alpine), `dawarich_db` (postgis:17-3.5) - need no separate dump. vzdump runs
+The databases that *are* on the rootfs - `rails-lab-db` (postgres:17-alpine),
+`dawarich_db` (postgis:17-3.5) - need no separate dump. vzdump runs
 in snapshot mode, the LVM snapshot is atomic across the whole filesystem, and Postgres
 treats that as a power cut and replays WAL on start. Immich was different only because its
 data directory was on the bind mount and therefore in **no** archive at all.

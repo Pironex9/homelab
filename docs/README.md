@@ -15,7 +15,6 @@ Per-host reference documentation - current configuration, running services, and 
 - [nobara](./hosts/nobara.md) - Desktop PC - NVIDIA RTX 2060, Ollama GPU node, NFS/SSHFS client
 - [winpc](./hosts/winpc.md) - Windows 11 side of the Nobara dual-boot - in-box OpenSSH, key distribution, the traps that fail silently
 - [caddy](./hosts/caddy.md) - Caddy reverse proxy (LXC 110) - HTTPS for all .lan services, mkcert local CA
-- [kan](./hosts/kan.md) - Kan kanban board (Docker stack on LXC 100) - self-hosted Trello alternative, PostgreSQL
 - [agentos](./hosts/agentos.md) - Hermes + Odysseus agentic OS layer (LXC 113) - local Ollama primary, DeepSeek fallback, restricted Claude Code delegation
 - [k3s-cluster](./hosts/k3s-cluster.md) - K3s cluster (3x Dell OptiPlex) - the machine reference: hardware, addressing, live state, Tailscale access, node clock sync. The work done on the cluster is under `k3s/`
 - [vps](./hosts/vps.md) - Hetzner VPS (CX23) - Pangolin reverse proxy, Komodo managed via Tailscale

@@ -361,7 +361,6 @@ restart into a SIGKILL, so `stop_grace_period: 60s` went on all five:
 |---|---|---|
 | `immich_postgres` | LXC 100 | `compose/proxmox-lxc-100/immich/docker-compose.yml` |
 | `dawarich_db` | LXC 100 | `compose/proxmox-lxc-100/dawarich/docker-compose.yml` |
-| `kan-db` | LXC 100 | `compose/proxmox-lxc-100/kan/docker-compose.yml` |
 | `rails-lab-db` | LXC 100 | `/opt/rails-lab/compose.yaml` - deliberately not in this repo |
 | `komodo-mongo-1` | LXC 105 | `/opt/komodo/mongo.compose.yaml` - not in this repo |
 
