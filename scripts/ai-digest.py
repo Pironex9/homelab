@@ -79,6 +79,8 @@ def fetch(auth, since):
                 "title": clean(it["title"], 200),
                 "url": it.get("canonical", [{}])[0].get("href", ""),
                 "text": clean(it.get("summary", {}).get("content", ""), 200 if video else 700),
+                # the feed's own <category> tags; FreshRSS mixes them with its user/... states
+                "tags": [c for c in it.get("categories", []) if not c.startswith("user/")],
             })
     items.sort(key=lambda i: i["ts"], reverse=True)
     return items
@@ -89,7 +91,8 @@ def render_input(items):
     for i in items:
         kind = "VIDEÓ" if i["video"] else "CIKK"
         when = datetime.fromtimestamp(i["ts"], timezone.utc).strftime("%m-%d %H:%M")
-        lines.append(f"[{kind}] [{i['source']}] [{when}] {i['title']}\n{i['url']}\n{i['text']}\n")
+        tags = f" [{', '.join(i['tags'])}]" if i.get("tags") else ""
+        lines.append(f"[{kind}] [{i['source']}] [{when}]{tags} {i['title']}\n{i['url']}\n{i['text']}\n")
     return "\n".join(lines)
 
 
