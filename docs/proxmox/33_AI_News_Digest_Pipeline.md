@@ -1,6 +1,6 @@
 # 33 - Daily AI News Digest Pipeline
 
-**Date:** 2026-08-13 (updated 2026-09-29)
+**Date:** 2026-08-13 (updated 2026-10-04)
 **Hostname:** claude-mgmt (LXC 109), karakeep (LXC 106), docker-host (LXC 100)
 **IP address:** 192.168.0.204, 192.168.0.128, 192.168.0.110
 
@@ -98,7 +98,7 @@ How it runs:
 
 ### Source selection
 
-Nineteen text feeds and eight YouTube channels as of 2026-08-25 (started at
+Thirty text feeds and nine YouTube channels as of 2026-10-04 (started at
 twelve). Every candidate feed was checked for a live HTTP 200 and a non-empty
 item list before being subscribed, which caught three dead ones immediately:
 
@@ -128,6 +128,31 @@ regardless of content ("A feed could not be found"). FreshRSS's other scraper
 mode, XML+XPath, parses the raw response with DOMDocument and never checks
 Content-Type - a trivial XPath (`item` / `title` / `link` / `pubDate`) reads it
 fine since the payload underneath is already standard RSS.
+
+**2026-10-04 refocus, from news to working methods.** Over the first 53
+digests, 51 of the 85 items in the "techniques" block came from r/LocalLLaMA and
+were local-inference tuning: llama.cpp flags, quantisation, speculative decoding.
+Named working methods such as loop engineering or agentic engineering appeared
+once, as a video. The filter was doing what the profile asked; the profile and
+the sources were both wrong for a digest now read for work.
+
+Eleven feeds were added, chosen from where these methods are actually being
+written up rather than from "best AI newsletter" lists: Addy Osmani's Elevate,
+Hamel Husain (evals), Armin Ronacher, Geoffrey Huntley (the Ralph loop), Kent
+Beck's Tidy First, Ethan Mollick's One Useful Thing, the n8n blog, AI Coding
+Daily, DiamantAI, Andrej Karpathy's blog, and the Anthropic Engineering blog. The
+last one has no feed and is scraped with HTML+XPath; its "Featured" card carries
+no `<time>` element, so that one item gets the fetch time. Matt Pocock's YouTube
+channel was added as the ninth video source. Four candidates were dropped after
+the same HTTP check: one mostly paywalled, one silent since February, one with
+an empty feed, one with no feed at all. Matt Pocock's AI Hero RSS was rejected
+for a different reason: it publishes course lessons and dictionary entries into
+the same feed, dozens on a single day, which would flood one morning's input.
+
+The profile now ranks working methods first and evals second, and caps
+local-inference tuning at one item a day that fits in 8 GB of VRAM. A dry run
+over seven days (148 items) produced five method items and pushed about 55
+inference posts into the noise line.
 
 YouTube channels are subscribed through their per-channel feed
 (`youtube.com/feeds/videos.xml?channel_id=UC...`), which needs the channel ID, not
@@ -166,6 +191,14 @@ A single gitignored prompt file holds both the reader profile and the filtering
 rules. It scores items for relevance to one person's actual work and drops
 everything below the bar, then writes six fixed blocks in Hungarian with English
 technical terms preserved.
+
+Since 2026-10-04 each item header also carries the feed's own `<category>`
+tags. FreshRSS returns them in the GReader `categories` list mixed with its own
+`user/...` states, and the script keeps only the non-`user/` entries. This exists
+for the n8n blog, which publishes product announcements, AI agent patterns and
+generic ITOps/API guides into one feed. The titles alone are ambiguous; the tags
+are not, so the rule "ITOps or Integrations & APIs without an AI tag is noise" is
+written against the tags.
 
 The last block is a one-line noise report: how many items were dropped and roughly
 why. That line exists purely as a feedback signal - it is the only way to notice
@@ -251,6 +284,10 @@ that hides a genuinely broken credential behind a second attempt is not.
   been deleted by its maintainer (Cloudflare plus fragile parsing), and RSSHub
   explicitly closed a `claude.com/blog` feature request as "not planned" - extra
   moving parts for something the tool already in use could do natively.
+- **Audit the output before adding sources.** Counting what the digest had
+  actually delivered (60% inference tuning) showed the gap was in the profile
+  and the source list together. Adding feeds alone would have been filtered by
+  the same old priorities.
 - **Before sharing data, check which system actually holds it.** The first
   instinct was "the digest is in Karakeep and FreshRSS", so connect those. It is
   not: one has the kept links, the other the unfiltered input. The product only
