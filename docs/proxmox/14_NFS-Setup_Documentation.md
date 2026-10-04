@@ -122,6 +122,53 @@ findmnt -o OPTIONS /mnt/pve/nobara-backup                         # still the ol
 Only an unmount and remount switches the running mount over, which means waiting
 for any sync in flight to finish.
 
+### Outcome: the first `rc=0` in four weeks
+
+The sync running when the fstab was edited finished at 15:00:30 on 2026-10-04,
+four hours after its 11:00 start, with `rc=0` - the first success since
+2026-09-13. It still ran on the old 3-second mount from end to end, so it proves
+the backlog cleared, not that `timeo=600` works; the first real test of that is
+the next run.
+
+**`rc=0` on its own does not prove a complete mirror.** It says rsync did not
+error. What says the backup exists is comparing both ends:
+
+| | Source | Destination |
+|---|---|---|
+| proxmox dumps | 870G | 870G |
+| proxmox-host | 26G | 26G |
+| files in `dump/` | 732 | 732 |
+
+The deficit that produced the 230 GB estimate is gone, and the live mount now
+reports `soft,timeo=600,retrans=3`.
+
+Two things worth copying from how this was done, and one worth not copying.
+
+**Swapping the mount needs a unit, not a shell.** The remount could only happen
+after the sync finished, which turned out to be 82 minutes away - longer than an
+interactive wait. A transient unit on the host does it without depending on any
+session staying open:
+
+```bash
+systemd-run --unit=nobara-remount-after-sync --collect bash -c '
+while kill -0 <sync-pid> 2>/dev/null; do sleep 30; done
+umount /mnt/pve/nobara-backup && ls /mnt/pve/nobara-backup >/dev/null
+findmnt -o OPTIONS -n /mnt/pve/nobara-backup' 
+```
+
+The same pattern, with the lock file instead of the mount, bridges the one run
+that predates the `flock`: a holder tied to the running script's PID keeps the
+lock until that PID exits, so the next slot is skipped rather than starting a
+second rsync against a destination the first is still writing.
+
+**What not to copy: an unescaped `$(date)` inside the unit's command.** It is
+expanded by the shell that builds the `systemd-run` line, not by the unit when it
+eventually runs, so the log opened with the timestamp of unit creation - 82
+minutes before the work it was labelling. The ordering had to be re-established
+from a different line in the same log, the one quoting `Sync done (rc=0)`, which
+could only have been read after the sync wrote it. A log line that timestamps
+itself wrong is worse than one with no timestamp, because it is believed.
+
 ---
 
 ## Nobara as NFS Client (mounts Proxmox storage)
