@@ -70,11 +70,57 @@ sudo exportfs -ra
 
 ### Proxmox mounts it in `/etc/fstab`
 ```
-192.168.0.100:/mnt/hdd/Backup /mnt/pve/nobara-backup nfs soft,timeo=30,retrans=3,_netdev,x-systemd.automount 0 0
+192.168.0.100:/mnt/hdd/Backup /mnt/pve/nobara-backup nfs soft,timeo=600,retrans=3,_netdev,x-systemd.automount 0 0
 ```
 
-- `soft` + `timeo=30` + `retrans=3` - times out gracefully if Nobara is offline, does not freeze Proxmox
+- `soft` - an unreachable server returns an I/O error to the application instead of blocking it forever. `hard` would make rsync wait indefinitely, and a wedged NFS mount on pve can take the backup jobs with it
+- `timeo=600` + `retrans=3` - about six minutes of tolerance before that I/O error
 - `x-systemd.automount` - mounts on first access, not at boot
+
+### `timeo` is in deciseconds, which cost four weekly syncs
+
+This line read `timeo=30` until 2026-10-04, written in the belief that it meant 30
+seconds. From `man 5 nfs` on the host itself:
+
+```
+timeo=n   The time in deciseconds (tenths of a second) the NFS client waits for a
+          response before it retries an NFS request.
+
+          For NFS over TCP the default timeo value is 600 (60 seconds).
+```
+
+So the value was **3 seconds**, a twentieth of the TCP default, and with
+`retrans=3` and linear backoff the mount handed rsync an `Input/output error (5)`
+after roughly 18 seconds of server silence. Against a 3.5-hour rsync onto a USB
+HDD on a KDE desktop that is nowhere near enough: 2026-09-07, 09-14, 09-20 and
+09-27 all ended `rc=1`, each with the same signature in
+`/var/log/nobara-sync.log`:
+
+```
+rsync: [Receiver] ERROR: cannot stat destination "/mnt/pve/nobara-backup/proxmox-host/": Input/output error (5)
+rsync: [receiver] close failed on ".../vzdump-lxc-109-2026_09_11-02_11_01.tar.zst.WWYvZe": Input/output error (5)
+rsync error: error in socket IO (code 10) at io.c(849) [sender=3.4.1]
+```
+
+Two things that look like the cause and are not. The kernel logs
+`nfs: server 192.168.0.100 not responding, timed out` in bursts, which reads like
+a network fault - on 2026-10-04 those bursts fell between 08:06 and 08:07 and the
+desktop's own uptime showed it booted at 08:07, so they were the machine starting,
+not dropping. And the desktop has a known SSH freeze issue, which makes "it froze
+again" the easy answer - but its journal held no suspend, hibernate or resume event
+on any of the failure days.
+
+**Changing this does not affect the live mount.** The options come from the
+systemd-generated unit, so after editing `/etc/fstab`:
+
+```bash
+systemctl daemon-reload
+systemctl cat 'mnt-pve-nobara\x2dbackup.mount' | grep ^Options   # the new value
+findmnt -o OPTIONS /mnt/pve/nobara-backup                         # still the old one
+```
+
+Only an unmount and remount switches the running mount over, which means waiting
+for any sync in flight to finish.
 
 ---
 
@@ -146,7 +192,16 @@ The first `ls` triggers the automount. All 5 shares should appear in `df -h`.
 - The `.automount` unit watches the directory
 - First access triggers the mount automatically
 - After 600 seconds (10 min) of inactivity it unmounts
-- If Proxmox is offline: `soft` + `timeo=30` + `retrans=3` means mount attempt times out after ~90 seconds - Nobara does not freeze
+- If Proxmox is offline: `soft` + `timeo=30` + `retrans=3` gives up after roughly
+  18 seconds, not the ~90 this document claimed until 2026-10-04 - `timeo` counts
+  deciseconds, so 30 is 3 seconds (see [the correction above](#timeo-is-in-deciseconds-which-cost-four-weekly-syncs))
+
+**This direction keeps the short timeout on purpose.** The opposite mount, pve
+writing to the desktop, was raised to `timeo=600` because an unattended rsync
+should wait out a busy server rather than abort after 18 seconds. Here a human is
+waiting on a file manager, so failing fast beats a window frozen for six minutes.
+Same option, opposite correct value, because the client is a person in one case
+and a batch job in the other.
 
 ---
 

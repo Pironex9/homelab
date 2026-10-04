@@ -1,8 +1,9 @@
 # Scripts
 
-`k3s-backup.sh` is the one backup script here, and it exists because the K3s
-cluster had no backup at all. Everything else that runs lives on pve, not in this
-repo - see the table below.
+`k3s-backup.sh` is here because the K3s cluster had no backup at all, and
+`sync-to-nobara.sh` because four of its weekly runs failed in a row and the fix
+belonged in writing. Both are deployed onto their hosts and run from there, not
+from this repo; the rest of the layers below have no script in here at all.
 
 An earlier `backup.sh` used to sit in this directory,
 describing one restic repository per Docker service under `$BACKUP_DEST_NFS`,
@@ -14,7 +15,7 @@ reader who went looking for where Immich was covered. What actually runs:
 |---|---|---|
 | vzdump of every guest (LXC 100's rootfs carries all of `/srv/docker-data`) | `/mnt/storage/backup/proxmox` | daily 02:00 |
 | restic of the pve host root | `/mnt/disk1/backup/proxmox-host` | Sunday 04:00 |
-| rsync of both to the Nobara NFS share | `/mnt/pve/nobara-backup` | Sunday 11:00 and 19:00 |
+| `sync-to-nobara.sh` - rsync of both to the Nobara NFS share | `/mnt/pve/nobara-backup` | Sunday 11:00 and 19:00 |
 | `pg_dumpall` of Immich into the SnapRAID-protected pool | `/mnt/storage/immich/pgdump` | daily 02:30 CEST, on LXC 100 |
 | `k3s-backup.sh` - K3s control plane, gpg-encrypted | `/mnt/storage/backup/k3s` | daily 01:30, from LXC 109 |
 | Longhorn volume backups to Garage S3 (`RecurringJob`, not a script here) | `longhorn` bucket on LXC 100 | daily 01:00 UTC |
@@ -521,6 +522,55 @@ kubectl -n apps delete pvc restore-test-data --ignore-not-found
 kubectl delete sc longhorn-restore-test --ignore-not-found
 kubectl -n longhorn-system delete backup,snapshot -l restore-test=true
 ```
+
+## sync-to-nobara.sh
+
+Mirrors the Proxmox backup dumps onto the Nobara desktop's backup HDD over NFS, so
+`/mnt/storage/backup/proxmox/` exists on a second physical machine. Deployed to
+`/root/sync-to-nobara.sh` on pve and run from root's crontab there, not from this
+repo:
+
+```
+0 11,19 * * 0 /root/sync-to-nobara.sh
+```
+
+Twice on Sunday because the desktop is not always on, and the second slot catches
+the weeks it was off at 11:00. Two destinations, both with `--delete`:
+`/mnt/storage/backup/proxmox/` -> `proxmox-vms/` and
+`/mnt/disk1/backup/proxmox-host/` -> `proxmox-host/`.
+
+The Kuma push URL, token included, is read from `/etc/nobara-sync.env` (mode 600,
+not in this repo). The ping cannot move into the crontab line the way
+`restore-test.sh` does, because this script pushes from two paths with two
+different messages:
+
+| Path | Push | Why |
+|---|---|---|
+| Both rsyncs returned 0 | `status=up&msg=synced` | The backup is mirrored |
+| Mount absent | `status=up&msg=nobara-offline-skipped` | The desktop being off is a legitimate outcome; without this Kuma would alert on every week it stayed off |
+| Either rsync failed | nothing | There was no successful mirror, so the monitor should go down |
+| Another run holds the lock | nothing | The run still going will ping for itself if it succeeds |
+
+### The `flock` is not decoration
+
+A single run can outlast the gap between the two slots. On 2026-09-13 the 19:00 run
+finished at 17:33 the next day - 22.5 hours - and a second rsync against the same
+destination with `--delete` removes the files the first one is still placing.
+
+```bash
+exec 9>/var/lock/nobara-sync.lock
+flock -n 9 || { echo "$(date) - another sync is running, skipped" >> /var/log/nobara-sync.log; exit 0; }
+```
+
+`exit 0` on the skip, so cron does not treat a correct skip as a failure.
+
+### When it reports failure, read the mount options first
+
+Four consecutive Sundays ended `rc=1` with `Input/output error (5)` from the NFS
+destination, and the cause was not the desktop and not the network: `timeo=30` in
+pve's `/etc/fstab` is 3 seconds, not 30. The full measurement, including the two
+signals that look like evidence and are not, is in
+[14 - NFS Setup](../docs/proxmox/14_NFS-Setup_Documentation.md#timeo-is-in-deciseconds-which-cost-four-weekly-syncs).
 
 ## install-lan-ca-windows.ps1
 
