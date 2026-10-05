@@ -143,7 +143,7 @@ nav:
           - 31 - Tailscale Port Collision + DNS Audit: proxmox/31_Tailscale_Port_Collision_DNS_Audit.md
           - 32 - Nobara SSH Freeze (open): proxmox/32_Nobara_SSH_Freeze_Investigation.md
           - 33 - Daily AI News Digest Pipeline: proxmox/33_AI_News_Digest_Pipeline.md
-          - 34 - Transcode-Free Re-encode (AV1 to H.264): proxmox/34_Transcode_Free_Re-encode_AV1_to_H264.md
+          - 34 - Transcode-Free Re-encode (AV1/Hi10P to H.264): proxmox/34_Transcode_Free_Re-encode_AV1_to_H264.md
           - 35 - Cron Job Monitoring (Uptime Kuma): proxmox/35_Cron_Job_Monitoring_Uptime_Kuma.md
           - 36 - Immich Bulk Import and ML Pipeline: proxmox/36_Immich_Bulk_Import_ML_Pipeline.md
           - 37 - Calibre-Web Bulk Ebook Import: proxmox/37_Calibre_Web_Automated_Bulk_Import.md

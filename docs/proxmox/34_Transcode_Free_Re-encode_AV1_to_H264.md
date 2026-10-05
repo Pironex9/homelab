@@ -1,6 +1,6 @@
-# Transcode-Free Re-encode: AV1 to H.264
+# Transcode-Free Re-encode: AV1 and Hi10P to H.264
 
-**Date:** 2026-08-12
+**Date:** 2026-08-12 (Hi10P case and Jellyfin 12 re-probe added 2026-10-05)
 **Hostname:** pve, docker-host (LXC 100), nobara
 **IP address:** 192.168.0.109, 192.168.0.110, 192.168.0.100
 
@@ -99,14 +99,53 @@ Probe the codec instead:
 
 ### Jellyfin keeps deciding from stale stream info
 
-After the files change on disk, Jellyfin's database still holds the old codec, and it keeps making transcode decisions from that record - so the TV can still transcode a file that is now H.264. A full library scan across 4 TB is not needed for this. A targeted re-probe of the one series takes seconds:
+After the files change on disk, Jellyfin's database still holds the old codec, and it keeps making transcode decisions from that record - so the TV can still transcode a file that is now H.264.
+
+The recipe used in August (a series-level `Refresh` with `metadataRefreshMode=None`) **no longer works on Jellyfin 12**. Measured on 2026-10-05 after the Hellsing re-encode, all of these returned 204 and none updated the streams:
+
+| Call | Result |
+|---|---|
+| `POST /Items/{seriesId}/Refresh?metadataRefreshMode=None` | logs "File changed, pruning extracted data", updates the file Size, streams still `h264/10 flac` |
+| same with `metadataRefreshMode=Default` | same |
+| `POST /Library/Refresh` (full library scan) | same |
+
+What works is a **per-episode FullRefresh that keeps the existing metadata**:
 
 ```bash
-curl -X POST -H "X-Emby-Token: $KEY" \
-  "http://192.168.0.110:8096/Items/$SERIES_ID/Refresh?metadataRefreshMode=None&imageRefreshMode=None&replaceAllMetadata=false&replaceAllImages=false"
+H='Authorization: MediaBrowser Token="your_jellyfin_api_key_here"'
+J=http://192.168.0.110:8096
+for e in $(curl -s -H "$H" "$J/Shows/$SERIES_ID/Episodes" | jq -r '.Items[].Id'); do
+  curl -s -X POST -H "$H" "$J/Items/$e/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=None&replaceAllMetadata=false&replaceAllImages=false"
+done
 ```
 
-`metadataRefreshMode=None` re-reads the files without touching metadata or artwork. Returns 204. Library and series IDs come from `GET /Library/VirtualFolders` and `GET /Items?Recursive=true&IncludeItemTypes=Series&SearchTerm=...`.
+Streams updated within 10 seconds for all 10 episodes, and titles and overviews stayed in place, because `replaceAllMetadata=false` keeps the existing values. Verify with `GET /Shows/$SERIES_ID/Episodes?Fields=MediaStreams`. Since Jellyfin 12 the only accepted auth is the `Authorization: MediaBrowser Token="..."` header; `X-Emby-Token` and `?api_key=` return 401.
+
+## Second case: Hi10P (H.264 10-bit)
+
+AV1 is not the only source the TCL TVs refuse. **H.264 High 10 (Hi10P, `yuv420p10le`)** is common in anime BD releases, and Android TV hardware decoders generally only handle 8-bit H.264, so Jellyfin transcodes it in the same way. Same codec name as the target, different profile - `codec_name=h264` alone does not tell the two apart, `pix_fmt` does.
+
+Hellsing Ultimate (10 OVAs, `[SCY] ... (BD 1080p Hi10 FLAC)`, 2026-10-05) went through the same pipeline with three changes:
+
+- **No subtitle burn-in.** Watched with the English dub, so the subtitle tracks are dropped (`-sn`) instead of burned in, and the filter chain is just `format=yuv420p`. No symlink needed either: without the `subtitles=` filter, the filename is only an `-i` argument.
+- **One audio track by index, not by language.** These files carry English 5.1 FLAC, Japanese 5.1 FLAC and an English commentary 2.0 FLAC. `-map 0:a:m:language:eng` would take the commentary too, so the script maps `0:a:0`.
+- **FLAC 5.1 becomes AAC stereo** (`-c:a aac -b:a 192k -ac 2`). Copying FLAC would leave an audio track the TV may also not direct play.
+
+The skip check probes `pix_fmt` instead of the codec, for the same filename reason as above (`Hi10` stays in the name):
+
+```bash
+[ "$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt \
+     -of csv=p=0 "$f")" != "yuv420p10le" ] && continue
+```
+
+| | Value |
+|---|---|
+| Speed | ~10x realtime on 1080p Hi10P, 6-9 min per episode including the copy back |
+| Episodes | 10, 2558-4064 s each |
+| Size | 60 GB -> 29 GB (FLAC 5.1 was most of the bulk) |
+| Checks | all 10 passed the last-packet length check |
+
+ffmpeg prints `Invalid value of WAVEFORMATEXTENSIBLE_CHANNEL_MASK` while reading these FLAC tracks. It is about the source's channel header and harmless here, since the output is downmixed to stereo.
 
 ## Verifying the result
 
@@ -124,7 +163,7 @@ Then on the TV, during playback, the Jellyfin info panel must read **Direct Play
 
 ## Script
 
-`private/mia_s2_av1_reencode.sh` (gitignored - it hardcodes a series path). Run it from LXC 109; `DRY=1` processes only the first file.
+`private/mia_s2_av1_reencode.sh` (AV1) and `private/hellsing_ultimate_reencode.sh` (Hi10P), both gitignored because they hardcode a series path. Run them from LXC 109; `DRY=1` processes only the first file.
 
 ## Related
 
