@@ -231,11 +231,12 @@ docker logs pangolin 2>&1 | grep -E "(offline|unhealthy|healthcheck)"
 | Stekker_Furdo | Furdo | Smart plug (power monitoring) | Tuya | Törölközőszárítóhoz |
 | Stekker_Kert | Kert | Smart plug (power monitoring) | Tuya | Zigbee mesh router (jelerősítő) |
 | Stekker_Konyha | Kitchen | Smart plug (power monitoring) | SONOFF | |
+| Stekker_Balkon | Balkon | Smart plug | SONOFF | Az Ajto_Szenzor_Bejarati szülő routere - maradjon áram alatt |
 | Szenzor_Bejarati | Kert | PIR mozgásérzékelő | SONOFF | |
 | Szenzor_Folyoso_Fent | Folyoso | PIR mozgásérzékelő | Tuya | |
 | Szenzor_Folyoso_Kozep | Folyoso | PIR mozgásérzékelő | Tuya | |
 | Szenzor_Folyoso_Lent | Folyoso | PIR mozgásérzékelő | Tuya | |
-| Ajto_Szenzor_Bejarati | Folyoso | Ajtószenzor | Aqara | |
+| Ajto_Szenzor_Bejarati | Folyoso | Ajtószenzor | Aqara | Szülő: Stekker_Balkon (rögzítve 2026-10-11, lásd doc 52) |
 | Ajto_Szenzor_Fent | Folyoso | Ajtószenzor | Aqara | |
 | Leak sensor | Technikai | Vízszivárgás szenzor | Moes | |
 
@@ -285,3 +286,4 @@ A nappali TV három integráción keresztül volt regisztrálva - 2026-05-31-én
 - **Alpine Linux inside, HAOS outside** - the SSH session runs in an Alpine 3.23 container sandbox, not on the HAOS host. Some host-level commands are unavailable or proxied.
 - **Newt health check vs. actual downtime** - `context deadline exceeded` in `journalctl -u newt` means HAOS was slow (>timeout), not unreachable. `connection refused` means HAOS is actually down. Brief periodic 503s on the public URL almost always mean Newt's health check timed out, not a real outage.
 - **Pangolin hcUnhealthyThreshold should be 2 for HAOS** - with threshold=1, a single slow health check response (e.g. during a recorder flush) immediately causes 503. Set to 2 so two consecutive failures are required. HAOS recovers within 30 seconds so the second check always succeeds. Current config: `hcTimeout=10, hcUnhealthyThreshold=2` (set 2026-05-31).
+- **A Z2M a `state.json`-t minden induláskor újraküldi** - egy halott elemes eszköz ettől hónapokig élőnek látszik HA-ban. 2026-10-11 óta `availability: enabled: true`, így 25 óra csend után `unavailable` lesz. Gyors ellenőrzés: ha egy eszköz hiányzik a `zigbee2mqtt/bridge/health` `devices` listájából, Z2M indulás óta egy üzenetet sem küldött (doc 52).
