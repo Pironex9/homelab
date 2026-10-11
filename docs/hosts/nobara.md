@@ -24,8 +24,8 @@
 | Property | Value |
 |----------|-------|
 | OS | Nobara Linux 44 (KDE Plasma Desktop Edition) |
-| Kernel | 7.1.8-201.nobara.fc44.x86_64 |
-| NVIDIA driver | 595.91.07 |
+| Kernel | 7.2.9-200.nobara.fc44.x86_64 (since 2026-10-11) |
+| NVIDIA driver | 595.104.02 (since 2026-10-11) |
 | Desktop | KDE Plasma / Wayland |
 
 Not always on. GPU inference node for the homelab.
@@ -279,7 +279,7 @@ Firefox was a Flatpak until 2026-08-21. It is now the RPM from Mozilla's own rep
 
 A Flatpak app does not use the host's NVIDIA userspace driver. It gets a containerised copy from a runtime extension named after the exact driver version - `org.freedesktop.Platform.GL.nvidia-595-91-07` for host driver 595.91.07. When the two do not match, Flatpak mounts **nothing** into `/usr/lib/x86_64-linux-gnu/GL/`, the app silently falls back to llvmpipe, and everything GPU-accelerated turns to jank. No error, no warning - just a dashboard that scrolls badly.
 
-This bit twice: 2026-05 (host 595.71.05 vs runtime 595.58.03) and 2026-08-20 (host 595.91.07 vs runtime 595-84).
+This bit twice: 2026-05 (host 595.71.05 vs runtime 595.58.03) and 2026-08-20 (host 595.91.07 vs runtime 595-84). A third time on 2026-10-11, to Betterbird, after the Firefox switch - and this time the updater itself caused the ordering trap below, see [the incident](#2026-10-11-first-offline-update-betterbird-gui-breaks-vs-code-drops-off-the-panel).
 
 Two traps made it hard to see:
 
@@ -580,6 +580,23 @@ Restart-Computer
 Verify after reboot: `Get-Service vmcompute, hns` should both show `Running`.
 
 ## Incidents
+
+### 2026-10-11 - First offline update: Betterbird GUI breaks, VS Code drops off the panel
+
+**What ran.** Not a release upgrade - the machine stayed on Nobara 44. It was one ordinary update, the first since 2026-08-20, so it was large: 1010 packages, including kernel 7.1.8 → 7.2.9, NVIDIA 595.91.07 → 595.104.02, Plasma/KWin 6.7.5, Qt 6.11.2, Mesa 26.2.4, glibc 2.43 and VS Code 1.141.0. What was new was *how* it ran. The first step upgraded `nobara-updater` 2.0.1-34 → 2.0.1-72, and the new version installs the RPM set offline: it stages the transaction, reboots into `system-update.target` and replays it before the desktop starts (`dnf5 ... replay /var/lib/nobara-updater/jobs/<id>`, dnf history 81, 09:45-10:02 CEST, 17 minutes). That is the "updating" screen that stayed up for long minutes after the reboot. `dnf5 history list` shows it; its times are UTC.
+
+**Betterbird: the Flatpak NVIDIA mismatch again, now built into the updater.** Betterbird is a user-installation Flatpak. After the update its GUI went wrong some time after start. The host now ran 595.104.02, but the only GL extension installed was `org.freedesktop.Platform.GL.nvidia-595-91-07` - the mismatch described in [Why the Flatpak kept breaking](#why-the-flatpak-kept-breaking). `flatpak history` shows why: the updater updated the Flatpaks *online, before the reboot* (09:36-09:39, 115 changes across system and user), while the new driver only arrived in the offline RPM step after it (09:45). At 09:36 the only matching runtime was the old 91-07 one. The new updater now does the "`flatpak update` before the driver" ordering mistake by design, so **every NVIDIA driver update through it leaves Flatpak apps without GPU acceleration until a second, manual `flatpak update`**.
+
+Fix, after the reboot that finished the update:
+
+```bash
+flatpak update --user -y    # pulled GL.nvidia-595-104-02 and GL32.nvidia-595-104-02 from flathub
+sudo flatpak update -y      # the system installation has its own copy (Anki, Rnote, PrismLauncher, Telegram)
+```
+
+then fully quit and restart each Flatpak app. Verified on the restarted Betterbird (started 17:46): its sandbox processes have `nvidia-595-104-02` in `/proc/<pid>/mountinfo`, where before the fix nothing NVIDIA could be mounted. The `sudo` half needs the password, so it was left to be run by hand.
+
+**VS Code dropped off the panel.** The Microsoft RPM (1.141.0) no longer ships `code.desktop`; the launcher is now `/usr/share/applications/com.microsoft.VSCode.desktop`. Plasma silently removes a pinned launcher whose `.desktop` file has disappeared - the old `applications:code.desktop` entry survives only in `~/.config/plasma-org.kde.plasma.desktop-appletsrc.bak`. Fix: start VS Code from the menu and pin it again. Editing the `launchers=` line by hand is pointless while plasmashell is running, because it writes its own copy back.
 
 ### 2026-07-23 - Network outage during `@virtualization` install (firewalld state corruption)
 
