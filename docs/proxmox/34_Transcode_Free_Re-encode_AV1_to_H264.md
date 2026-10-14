@@ -1,6 +1,6 @@
 # Transcode-Free Re-encode: AV1 and Hi10P to H.264
 
-**Date:** 2026-08-12 (Hi10P case and Jellyfin 12 re-probe added 2026-10-05)
+**Date:** 2026-08-12 (Hi10P case and Jellyfin 12 re-probe added 2026-10-05, soft-subtitle case 2026-10-14)
 **Hostname:** pve, docker-host (LXC 100), nobara
 **IP address:** 192.168.0.109, 192.168.0.110, 192.168.0.100
 
@@ -147,6 +147,44 @@ The skip check probes `pix_fmt` instead of the codec, for the same filename reas
 
 ffmpeg prints `Invalid value of WAVEFORMATEXTENSIBLE_CHANNEL_MASK` while reading these FLAC tracks. It is about the source's channel header and harmless here, since the output is downmixed to stereo.
 
+## Third case: keep the subtitles, but as SRT (Jujutsu Kaisen)
+
+Jujutsu Kaisen S1-S2 (47 episodes, `[Sokudo] ... [1080p BD AV1]`, 2026-10-13/14) was the Made in Abyss problem again: AV1 10-bit plus an ASS subtitle. The Jellyfin transcode log showed what the viewer actually used, which settled the track choice without guessing: `-map 0:2` (English audio) and `subtitles=f='.../4.ass'` (the "English [Kaizoku]" full track), encoded with `hevc_qsv` at about 3x realtime.
+
+This time the subtitle had to stay, but burning it in would make it permanent and impossible to switch off. The alternative is a **text subtitle the TV client draws itself**: SRT in the MKV direct plays, so the server never touches the video. Converting ASS to SRT is one ffmpeg flag (`-c:s srt`), and the naive version produced this:
+
+```
+00:01:04,981 --> 00:01:12,031
+<font face="Barthowheel"><font size="66">...{\an7}...m 784.49 142.1 b 784.49 119.24 784.43 96.37 ...
+```
+
+The "full" ASS track in fansub releases is not just dialogue. Counting events per style in S01E01:
+
+| Style | Events | What it is |
+|---|---|---|
+| Default | 382 | dialogue |
+| Signs, Sign2 | 470 text + 76 drawings | on-screen text translations, positioned |
+| OP1 | 40 text + 48 drawings | opening song lyrics / karaoke |
+| Cursed, Alt | 4 | dialogue variants |
+
+The drawings are vector shapes (`\p1` mode); converted to SRT they become the coordinate strings above. Signs lose their positioning and pile up at the bottom as hundreds of extra lines. So the script filters the ASS before converting:
+
+```bash
+ffmpeg -v error -i "$src" -map 0:s:"$si" -f ass -y sub.ass
+awk -F, '!/^Dialogue:/ {print; next}
+         $4 ~ /^(Signs?|Sign[0-9]*|OP[0-9]*|ED[0-9]*|<<folder>>)$/ {next}
+         /\\p[1-9]/ {next}
+         {print}' sub.ass > sub.f.ass
+ffmpeg -v error -i sub.f.ass -c:s srt -y sub.srt
+sed -i -E 's#</?font[^>]*>##g; s#\{\\[^}]*\}##g' sub.srt
+```
+
+Field 4 of a `Dialogue:` line is the style name. Result: 386 cues, all dialogue, no coordinates, no font tags. The style names are release-specific (S2 adds `OP3`, `ED3`, `<<folder>>`), so count them per series before trusting the filter. For a viewer watching the English dub, losing signs and lyrics costs little; for subbed viewing it would be a real loss, and burning in only the Signs track would be the better trade.
+
+The two seasons also had **different track layouts** (S1: three Opus audio tracks jpn/eng/ger and four subtitles; S2: Opus jpn + AAC eng and three subtitles), so the script maps audio by language (`0:a:m:language:eng`, then `jpn`) and finds the subtitle by its title, not by index. Output per episode: H.264 8-bit, English AAC (default), Japanese AAC, one SRT. ~3-4 min per 24-minute episode; sizes grew from ~0.3 GB to ~1.4 GB.
+
+Not everything that stutters needs this. The same evening a 1958 film was also reported as stuttering; its file was already H.264 High 8-bit, 720p, AAC stereo at 2.8 Mbps, and the Jellyfin activity log showed it had never been played. **Probe the file and read the activity log before converting anything** - the stutter that evening was the AV1 series on another TV.
+
 ## Verifying the result
 
 The originals are renamed to `.av1.bak` rather than deleted, and removed only after the TV confirms Direct Play. Confirm the conversion itself from outside Jellyfin:
@@ -163,7 +201,7 @@ Then on the TV, during playback, the Jellyfin info panel must read **Direct Play
 
 ## Script
 
-`private/mia_s2_av1_reencode.sh` (AV1) and `private/hellsing_ultimate_reencode.sh` (Hi10P), both gitignored because they hardcode a series path. Run them from LXC 109; `DRY=1` processes only the first file.
+`private/mia_s2_av1_reencode.sh` (AV1, burned-in signs), `private/hellsing_ultimate_reencode.sh` (Hi10P, no subtitles) and `private/jjk_av1_reencode.sh` + `private/jjk_enc_nobara.sh` (AV1, filtered SRT), all gitignored because they hardcode a series path. Run them from LXC 109; `DRY=1` processes only the first file. All of them skip files already converted, so an interrupted run resumes with the same command - stop it between episodes, never during the copy back.
 
 ## Related
 
