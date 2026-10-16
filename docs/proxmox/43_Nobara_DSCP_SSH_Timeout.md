@@ -10,6 +10,8 @@ Every SSH connection from the Nobara desktop to every host on the LAN failed wit
 
 The report that started it was "Proxmox is not reachable over SSH from Nobara, audit Tailscale". Tailscale turned out to be healthy in every respect and was not involved in either of the two faults found.
 
+A second case, on the server side, followed on 2026-10-16: a Debian 13 sshd marks its own banner DSCP EF, and those packets never reach the pve host's physical NIC. See [53](./53_Autodarts_Thin_Client_For_A_Friend.md).
+
 ## The measurement that isolates it
 
 The whole diagnosis rests on one asymmetry. Same host, same port, same source, back to back:
