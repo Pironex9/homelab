@@ -167,12 +167,13 @@ sudo systemd-run --unit=darts-upgrade --collect bash -c "export DEBIAN_FRONTEND=
 
 ## WiFi for the friend's place
 
-The box will use WiFi there. The card is an Intel Gemini Lake CNVi (`8086:31dc`, `iwlwifi`), dual-band, and with the antennas fitted it saw 2.4 and 5 GHz networks at home at 80-100% signal. Two system-wide NetworkManager profiles were created:
+The box will use WiFi there. The card is an Intel Gemini Lake CNVi (`8086:31dc`, `iwlwifi`), dual-band, and with the antennas fitted it saw 2.4 and 5 GHz networks at home at 80-100% signal. Three system-wide NetworkManager profiles were created:
 
 | Profile | SSID | Priority | Notes |
 |---|---|---|---|
 | `darts-wifi` | `<extender_5ghz_ssid>` | 10 | range extender, 3 m away, no wall |
 | `darts-wifi-fallback` | `<main_router_ssid>` | 5 | main router, 2-3 walls away |
+| `darts-hotspot` | `<phone_hotspot_ssid>` | 1 | my phone's 2.4 GHz hotspot, the rescue path |
 
 ```bash
 sudo nmcli con add type wifi ifname wlp0s12f0 con-name darts-wifi ssid "<extender_5ghz_ssid>" \
@@ -214,6 +215,10 @@ The choices that matter:
 
 The `ethtool` offload change reverted at boot, as expected. It made no difference, so it was not made permanent.
 
+### The phone hotspot as a rescue path
+
+If the friend's WiFi password changes or the router is replaced, the box has no network and nobody there can fix it. The third profile covers that: I turn on my phone's hotspot next to the box, it joins on its own, comes up on the tailnet, and I can add the new WiFi profile over SSH. Priority 1 means it never beats the two home networks. It was tested at home: connected, got a `192.168.45.x` address, pinged `1.1.1.1` with 0% loss, then brought down again. With Ethernet plugged in, the WiFi default route has metric 600 against 100, so it never takes over the wired path.
+
 ## Still to verify on site
 
 1. **WiFi actually connects.** Neither SSID is in range at home. Success looks like `3darterde` showing online on the tailnet within a minute or two of power-on.
@@ -228,7 +233,7 @@ The `ethtool` offload change reverted at boot, as expected. It made no differenc
 | SSH key-only | `sudo rm /etc/ssh/sshd_config.d/20-no-password.conf && sudo systemctl restart ssh` (from the console) |
 | Sleep masked | `sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target` |
 | Autostart | `rm ~/.config/autostart/autodarts-desktop.desktop` |
-| WiFi profiles | `sudo nmcli con delete darts-wifi darts-wifi-fallback` |
+| WiFi profiles | `sudo nmcli con delete darts-wifi darts-wifi-fallback darts-hotspot` |
 | Unattended upgrades | set `APT::Periodic::Unattended-Upgrade "0"` in `/etc/apt/apt.conf.d/20auto-upgrades` |
 | Tailnet tag | remove `tag:darts` in the admin console (the box then gets full owner access again) |
 
