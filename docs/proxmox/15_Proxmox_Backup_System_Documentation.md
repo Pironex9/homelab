@@ -403,7 +403,7 @@ With a 164.94GB pool, the gap between "backups fine" and "no backups at all" is 
 
 ### Status
 
-fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md`.
+fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md` (drive ordered 2026-10-17, see the last subsection).
 
 The trim job was moved off `run-parts` entirely on 2026-08-10, because both `cron.weekly` (Sundays 06:47) and `cron.daily` (06:25) fire *after* the 02:00 vzdump. If the pool crossed 80% overnight the backup would still fail once before the trim cleaned up. It now runs daily at 01:30, half an hour before the backup:
 
@@ -491,6 +491,49 @@ Everything else in root's crontab (`restic`, `sync-to-nobara.sh`, `restore-test.
 ```bash
 env -i PATH=/usr/bin:/bin bash -c 'command -v restic arping pct qm vzdump'
 ```
+
+### 2026-10-17: the second NVMe, chosen and ordered
+
+The fix the Status section keeps pointing at is now ordered: a Kingston KC3000 1TB (`SKC3000S/1024G`). It is not installed yet.
+
+**The free slot was confirmed from the OS before anyone opened the case.** `dmidecode -t 9` lists both M.2 storage slots and their state:
+
+```
+Designation: Slot6 / M2 SSD     Type: PCI Express 3 x4   Current Usage: In Use
+Designation: Slot7 / M2 SSD     Type: PCI Express 3 x4   Current Usage: Available
+Designation: Slot5 / M2 WLAN/BT Type: PCI Express 3 x1   Current Usage: Available
+```
+
+HP's QuickSpecs (c06040430) say the same for the SFF: "(2) M.2 PCIe x4 2280/2230 Combo (for storage)". The service guide (c06472102) shows them as SSD1 and SSD2. Slot5 is the x1 WLAN slot and is not meant for a drive.
+
+**The screw was the only open question, and only the open case could answer it.** HP lists no M.2 screw as a spare part, and forum reports disagree: some owners had no standoff, one quotes an unconfirmed special part number (L54548-001). Photos of the open board settled it:
+
+- SSD2 is connector **J40**, right next to SSD1 (J39), where the existing Samsung sits.
+- The 2280 mounting point for SSD2 (**NUT7**) has a **standoff already pressed in**, in line with NUT10, which holds the Samsung. A flat pad halfway along is the shorter, roughly 2242 position.
+- So only the screw is missing, a standard M2 (about M2x3 or M2x4, Phillips). K24.sk does not sell M.2 screws, so it comes from another shop.
+- The SATA data cable for the two HGST drives runs diagonally across the SSD2 area. It has to be moved aside on install, not unplugged.
+
+**Why this drive, at this size.** Requirements were TLC NAND with an onboard DRAM cache, M.2 2280 and NVMe. QLC and DRAM-less drives are the usual warning for thin-pool VM storage, which sees small writes all day. Speed did not matter: the slot is PCIe 3.0, so any Gen4 drive is capped at about 3.5 GB/s. Endurance was measured rather than guessed. The current Samsung shows 14.0 TB written in 2,373 power-on hours, about 50 TB a year. At that rate even a 400 TBW drive would outlast a five-year warranty, so TBW was not the deciding factor.
+
+The 1TB, not the 512GB: everything currently provisioned adds up to 188 GB across 11 guests, with 117 GB actually used, so 512GB would be enough today. The 1TB cost about 60 EUR more for twice the space and twice the TBW (800 vs 400), so I bought the bigger one. Prices compared on heureka.sk on 2026-10-17:
+
+| 1TB drive | Lowest price | DRAM | TBW |
+|---|---|---|---|
+| **Kingston KC3000** | 191.76-199.90 EUR | yes (Phison E18) | 800 |
+| Samsung 990 PRO | 187.13 EUR | yes | 600 |
+| Samsung 990 EVO Plus | 183.84 EUR | no (HMB) | 600 |
+| WD Black SN850X | ~250 EUR | yes | 600 |
+| Crucial T500 | 320 EUR | yes | 600 |
+
+The 990 PRO was a few euro cheaper, but the KC3000 has a third more TBW for practically the same money. Used drives were ruled out: a used PM9A1 at 135 EUR saved about 60 EUR and came with no warranty, for the disk every guest would live on. I also skipped the Allegro marketplace offer: its buyer protection covers non-delivery and wrong items, but a warranty claim goes to whichever seller listed it. It was 8 EUR cheaper than K24.sk, a Slovak shop.
+
+**Plan for install day:**
+
+1. Shut down outside the 01:30 trim and 02:00 vzdump window.
+2. Fit the drive into J40 and screw it to NUT7.
+3. Check `nvme list` and `smartctl -a`. `Data Units Written` should be close to zero, and the link should be Gen3 x4.
+4. Create a **separate** LVM-thin storage on the new disk, rather than adding it to VG `pve`. A VG that spans two disks dies with either one, and with it every guest.
+5. Move the largest guests across with `pct move-volume`: CT 100 (57 GB), CT 109 (25 GB), CT 113 (20 GB).
 
 ---
 
