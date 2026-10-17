@@ -433,6 +433,8 @@ Managed by `mnt-claudemgmt.service` (not automount). See [NFS Setup Documentatio
 
 **Why service and not automount:** The automount approach caused KDE desktop freezes when LXC 109 was offline - every directory access blocked D-Bus via systemd-hostnamed for 15+ seconds. The service mounts once at boot and uses `reconnect` to re-establish automatically without blocking the desktop.
 
+**Since 2026-10-17:** the service's ssh runs as root, so it needs the system-wide `/etc/ssh/ssh_config.d/10-ipqos-none.conf`; nex's `~/.ssh/config` does not cover it. A drop-in (`mnt-claudemgmt.service.d/20-connecttimeout.conf`) adds `-o ConnectTimeout=5`, so while LXC 109 is down the mount returns an error after 5 s instead of hanging for 2 min 15 s. Details in [43 - Nobara DSCP SSH Timeout](../proxmox/43_Nobara_DSCP_SSH_Timeout.md#third-case-the-sshfs-service-runs-as-root-2026-10-17).
+
 ---
 
 ## Known Issues

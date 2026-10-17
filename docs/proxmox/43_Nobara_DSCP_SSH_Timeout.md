@@ -12,6 +12,8 @@ The report that started it was "Proxmox is not reachable over SSH from Nobara, a
 
 A second case, on the server side, followed on 2026-10-16: a Debian 13 sshd marks its own banner DSCP EF, and those packets never reach the pve host's physical NIC. See [53](./53_Autodarts_Thin_Client_For_A_Friend.md).
 
+A third case followed on 2026-10-17: the fix below lived in nex's `~/.ssh/config`, so ssh started by root (the systemd SSHFS service) still marked its packets. See [Third case: the SSHFS service runs as root](#third-case-the-sshfs-service-runs-as-root-2026-10-17).
+
 ## The measurement that isolates it
 
 The whole diagnosis rests on one asymmetry. Same host, same port, same source, back to back:
@@ -110,6 +112,56 @@ Fixed with `ssh-copy-id -f -i <key> root@192.168.0.109`, backup at `/root/.ssh/a
 ## Open, not chased
 
 Nobara is dual-homed on the same subnet: `enp39s0` at 192.168.0.100 and `wlp41s0` at 192.168.0.90, each with its own default route (metric 100 and 600). `arping -c3 -I enp39s0 192.168.0.109` returns 6 replies to 3 probes, all from the same MAC. The `arp_ignore`/`arp_announce` sysctls from [32](./32_Nobara_SSH_Freeze_Investigation.md) are meant to contain this, and it is not what caused the timeout - `-b 192.168.0.90` and `-b 192.168.0.100` behaved identically in both directions of the `IPQoS` test. It stays on the list for the still-open freeze investigation.
+
+## Third case: the SSHFS service runs as root (2026-10-17)
+
+**Symptom:** Dolphin stopped opening on Nobara right after a pve reboot. Every launch added another hung process; seven were stuck at once, all in `request_wait_answer` (a FUSE wait). The NFS shares were not involved: `showmount -e 192.168.0.109` listed all five exports and `ls /mnt/storage` answered.
+
+**Cause:** the hang was on `/mnt/claudemgmt`, the SSHFS mount from LXC 109, which rebooted with pve at 13:00:44. `mnt-claudemgmt.service` has no `User=`, so its ssh runs as root, and the `Host * / IPQoS none` block from the fix above only applies to nex. Every reconnect attempt failed:
+
+```
+sshfs[46453]: ssh: connect to host 192.168.0.204 port 22: Connection timed out
+sshfs[8378]: read: Connection reset by peer
+```
+
+Measured at the same moment, from the same machine:
+
+| Probe | Result |
+|---|---|
+| raw TCP to 192.168.0.204:22 (as nex) | open |
+| `ssh root@192.168.0.204` (as nex, `IPQoS none` from `~/.ssh/config`) | connects instantly |
+| sshfs reconnect ssh (as root) | `SYN-SENT` for 2 min 15 s, `tcpdump` on LXC 109 sees no SYN from .100 at all |
+
+The same raw-TCP-vs-SSH asymmetry as in the first case, now split by user instead of by host. Unlike 2026-08-27, the SYN itself never arrived. Unverified on the wire, but the likely reason is that `openssh-clients-10.2p1` (installed 2026-10-11) sets the DSCP marking before `connect()`, so the SYN carries it too.
+
+**Fix, part 1 - system-wide `IPQoS none`:**
+
+```bash
+echo 'IPQoS none' | sudo tee /etc/ssh/ssh_config.d/10-ipqos-none.conf
+```
+
+The file is in `ssh_config.d`, so it applies to every user, root and systemd services included. A package update does not overwrite it. That the file was the cause was proven by timing: sshfs reconnected on its own the moment the file existed, before the service was restarted, and the seven queued Dolphin windows opened at once.
+
+**Fix, part 2 - fail fast during a real outage.** With reconnect working, one problem remained: while LXC 109 or pve is actually down, every access to the mount waits for the TCP connect timeout. Measured with throwaway mounts and an `iptables -j DROP` for Nobara's ssh traffic on pve (removed automatically after 300 s):
+
+| Mount options | 1st `ls` during outage | 2nd `ls` | Recovery after the outage |
+|---|---|---|---|
+| current (`reconnect`, `ServerAliveInterval=5`) | 133 s | 135 s | automatic, 0 s |
+| plus `ConnectTimeout=5` | 5 s | 5 s | automatic, 0 s |
+
+Applied as a drop-in, `/etc/systemd/system/mnt-claudemgmt.service.d/20-connecttimeout.conf`:
+
+```ini
+[Service]
+ExecStart=
+ExecStart=/usr/bin/sshfs root@192.168.0.204:/root /mnt/claudemgmt -f -o allow_other -o IdentityFile=/home/nex/.ssh/id_ed25519 -o reconnect -o ServerAliveInterval=5 -o ServerAliveCountMax=2 -o ConnectTimeout=5
+```
+
+The empty `ExecStart=` clears the original line; without it systemd rejects a second `ExecStart` on a `Type=simple` unit. Now, when LXC 109 is down, `/mnt/claudemgmt` returns an error after 5 seconds and the rest of Dolphin stays usable.
+
+**Trap when verifying:** `systemctl restart` returns before sshfs has mounted, so an `ls` right after it lists the empty local directory underneath (which holds a stray `homelab` folder) and looks like a broken mount. Check with `findmnt /mnt/claudemgmt` instead.
+
+**Lesson:** a fix in `~/.ssh/config` covers one user. Anything that runs ssh as another user (systemd services, root cron jobs, sshfs mounts) needs the setting in `/etc/ssh/ssh_config.d/`.
 
 ## Diagnostic reference
 
