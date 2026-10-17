@@ -533,7 +533,55 @@ The 990 PRO was a few euro cheaper, but the KC3000 has a third more TBW for prac
 2. Fit the drive into J40 and screw it to NUT7.
 3. Check `nvme list` and `smartctl -a`. `Data Units Written` should be close to zero, and the link should be Gen3 x4.
 4. Create a **separate** LVM-thin storage on the new disk, rather than adding it to VG `pve`. A VG that spans two disks dies with either one, and with it every guest.
-5. Move the largest guests across with `pct move-volume`: CT 100 (57 GB), CT 109 (25 GB), CT 113 (20 GB).
+5. Move CT 100 across with `pct move-volume`, and VM 101 with it. The next subsection explains why these two, and not simply the largest. CT 109 (25 GB) and CT 113 (20 GB) follow only if space gets tight.
+
+### How long the current NVMe lasts, and what actually needs to move
+
+The question before install day was whether the Samsung PM991a has to be retired and everything migrated off it. It does not. Wear is not the problem. Capacity is the problem, and so is where the writes come from.
+
+**Health, from `smartctl -a /dev/nvme0` on 2026-10-17:**
+
+| Field | Value |
+|---|---|
+| Percentage Used | 11% |
+| Available Spare | 100% (threshold 10%) |
+| Media and Data Integrity Errors | 0 |
+| Data Units Written | 14.0 TB |
+| Unsafe Shutdowns | 49 |
+| Thermal Temp. 1 / 2 Total Time | 37,257 s / 23 s |
+
+Thermal throttling adds up to about ten hours of light throttling and 23 seconds of heavy throttling over the drive's whole life, which is negligible.
+
+**The write rate comes from Prometheus, not from SMART.** `Power On Hours` reads 2,373, which is far less than the ten months the host has been running. Samsung drives report low power-on counts with APST enabled. That is my guess at the cause, and it is unconfirmed. Either way, the per-hour rate the counter implies is wrong. The host metrics in the K3s Prometheus give the real figure:
+
+```promql
+increase(node_disk_written_bytes_total{instance="pve",device="nvme0n1"}[7d]) / 1e9 / 7
+```
+
+That gives **45.8 GB/day, about 16.7 TB a year.** It matches the drive's lifetime figure: 14.0 TB in the 302 days since Proxmox was installed on 2025-12-19 is about 46 GB/day. So the drive was new when it went in.
+
+One trap here: a `[30d]` window returned 24.7 GB/day. Prometheus only has data since 2026-10-01, so `increase()` spread about 16 days of writes over a 30-day divisor. Check `prometheus_tsdb_lowest_timestamp_seconds` before trusting any long window.
+
+**Remaining life.** Samsung publishes no TBW for this OEM part. Retailers quote 150 TB, one quotes 300. The drive's own meter is more useful: 11% for 14.0 TB implies about 127 TB to 100%. At 16.7 TB a year, the remaining 89% lasts about 6.8 years.
+
+**Who writes.** The same Prometheus metric per device-mapper device, averaged over 7 days and mapped to LV names through `/sys/block/dm-*/dm/name`:
+
+| LV | GB/day |
+|---|---|
+| thin pool total (`pve-data-tpool`) | 38.3 |
+| **CT 100 docker-host** | **25.4** (66% of the pool) |
+| pve-root (host, outside the pool) | 5.7 |
+| VM 101 haos | 3.4 |
+| CT 110 caddy | 2.0 |
+| CT 103 vaultwarden | 1.6 |
+| CT 109 claude-mgmt | 1.4 |
+| everything else | under 1.2 each |
+
+The `dm-N` names were read after a reboot that falls inside the 7-day window. If that reboot renumbered them, part of the window could be attributed to the wrong LV. The picture is consistent with CT 100 running 26 Compose stacks, so I do not think it did.
+
+**What this changes in the plan.** Moving CT 100 alone takes about two thirds of the pool's writes off the old drive, from about 46 to roughly 17-20 GB/day. The remaining 89% would then last 15-18 years instead of 7. VM 101 is the next largest writer and is small, so it moves too. CT 109 and CT 113 are large but barely write, so they only move if space requires it. The Proxmox root stays where it is: reinstalling onto the new drive would add risk for no benefit.
+
+**The real exposure is the 49 unsafe shutdowns, not the wear.** The PM991a is DRAM-less with no power-loss protection, and neither is the KC3000. A power cut mid-write can corrupt whatever is in flight. The new drive does not change that. A UPS would.
 
 ---
 
