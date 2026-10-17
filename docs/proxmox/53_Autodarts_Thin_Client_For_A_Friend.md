@@ -167,7 +167,9 @@ sudo systemd-run --unit=darts-upgrade --collect bash -c "export DEBIAN_FRONTEND=
 
 ## WiFi for the friend's place
 
-The box will use WiFi there. The card is an Intel Gemini Lake CNVi (`8086:31dc`, `iwlwifi`), dual-band, and with the antennas fitted it saw 2.4 and 5 GHz networks at home at 80-100% signal. Three system-wide NetworkManager profiles were created:
+**Update: the primary link is Ethernet, WiFi is the fallback.** The range extender bought for them earlier, a TP-Link RE315, stands next to the dartboard, so the Wyse plugs into its Ethernet port with a short patch cable. Nothing on the box had to change: the wired profile is plain DHCP (it got 192.168.0.32 at home as `proto dhcp`), so it takes an address from whatever is upstream of the extender. The RE315 port is 10/100 only, which is plenty: Autodarts sends detected throws to the cloud, the camera video never leaves the box. With the cable in, the wired default route wins (metric 100 against 600) even if WiFi connects too. If the cable drops out, the box falls back to the WiFi profiles below. Unverified: I think `<extender_5ghz_ssid>` is broadcast by this same RE315 (TP-Link extenders append `_EXT` / `_5GEXT` to the router SSID by default), in which case the cable and the first WiFi fallback depend on the same device.
+
+The card is an Intel Gemini Lake CNVi (`8086:31dc`, `iwlwifi`), dual-band, and with the antennas fitted it saw 2.4 and 5 GHz networks at home at 80-100% signal. Three system-wide NetworkManager profiles were created:
 
 | Profile | SSID | Priority | Notes |
 |---|---|---|---|
@@ -227,7 +229,9 @@ The `ethtool` offload change reverted at boot, as expected. It made no differenc
 | Winmau Plasma LED ring | lighting, and the mount for the cameras | own power supply to mains |
 | Vantage, 3 camera arms | dart detection | replace the ring's feet |
 | 3-in-1 USB cable (in the box) | power and data for all three cameras | one rear USB 3.0 port on the Wyse, no hub |
-| Wyse 5070 | runs Autodarts Desktop, the detection | own power supply, internet over WiFi |
+| Wyse 5070 | runs Autodarts Desktop, the detection | own power supply, Ethernet to the RE315 extender, WiFi as fallback |
+| TP-Link RE315 | range extender next to the board | mains; its 10/100 Ethernet port feeds the Wyse |
+| Patch cable | RE315 to Wyse | short, any Cat5e or better |
 | Tablet | the scoreboard | WiFi, browser on play.autodarts.io |
 | Power strip | ring, Wyse, tablet charger | |
 | Monitor, mouse, keyboard | first-run wizard only | VGA or DisplayPort straight into the Wyse; an HDMI-only screen needs a DP-to-HDMI cable |
@@ -238,7 +242,7 @@ The Winmau "Lens" / dual-device feature (Plus subscription) that search results 
 
 ## Still to verify on site
 
-1. **WiFi actually connects.** Neither SSID is in range at home. Success looks like `3darterde` showing online on the tailnet within a minute or two of power-on.
+1. **The network comes up**, over the RE315 cable first; then unplug the cable once to see the WiFi fallback take over. Neither SSID is in range at home. Success looks like `3darterde` showing online on the tailnet within a minute or two of power-on.
 2. **AC Recovery.** Pull the plug while it runs, plug it back in: it must boot with no button press.
 3. **Autodarts first-run wizard** with the Vantage connected to a rear USB 3.0 port: sign-in, board, cameras, calibration, test throw.
 
