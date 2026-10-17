@@ -192,6 +192,10 @@ The choices that matter:
 
 **Known limitation:** NetworkManager chooses by priority only when it activates a connection. It does not switch back to a better SSID while a worse one is up. After a power cut, the box boots in about 30 seconds. If the extender is slower, the box can land on the 2-3-walls router and stay there. Autodarts traffic is small, so this should degrade the connection rather than break it. A timer that moves back to the extender when it is visible is a five-line addition, not built yet.
 
+### The phone hotspot as a rescue path
+
+If the friend's WiFi password changes or the router is replaced, the box has no network and nobody there can fix it. The third profile covers that: I turn on my phone's hotspot next to the box, it joins on its own, comes up on the tailnet, and I can add the new WiFi profile over SSH. Priority 1 means it never beats the two home networks. It was tested at home: connected, got a `192.168.45.x` address, pinged `1.1.1.1` with 0% loss, then brought down again. With Ethernet plugged in, the WiFi default route has metric 600 against 100, so it never takes over the wired path.
+
 ## BIOS
 
 - **AC Recovery = Power On:** after a power cut, the box starts without anyone touching it.
@@ -215,9 +219,22 @@ The choices that matter:
 
 The `ethtool` offload change reverted at boot, as expected. It made no difference, so it was not made permanent.
 
-### The phone hotspot as a rescue path
+## How it all connects at the friend's place
 
-If the friend's WiFi password changes or the router is replaced, the box has no network and nobody there can fix it. The third profile covers that: I turn on my phone's hotspot next to the box, it joins on its own, comes up on the tailnet, and I can add the new WiFi profile over SSH. Priority 1 means it never beats the two home networks. It was tested at home: connected, got a `192.168.45.x` address, pinged `1.1.1.1` with 0% loss, then brought down again. With Ethernet plugged in, the WiFi default route has metric 600 against 100, so it never takes over the wired path.
+| Device | Job | Connection |
+|---|---|---|
+| Dartboard | | wall, bullseye at 173 cm |
+| Winmau Plasma LED ring | lighting, and the mount for the cameras | own power supply to mains |
+| Vantage, 3 camera arms | dart detection | replace the ring's feet |
+| 3-in-1 USB cable (in the box) | power and data for all three cameras | one rear USB 3.0 port on the Wyse, no hub |
+| Wyse 5070 | runs Autodarts Desktop, the detection | own power supply, internet over WiFi |
+| Tablet | the scoreboard | WiFi, browser on play.autodarts.io |
+| Power strip | ring, Wyse, tablet charger | |
+| Monitor, mouse, keyboard | first-run wizard only | VGA or DisplayPort straight into the Wyse; an HDMI-only screen needs a DP-to-HDMI cable |
+
+The tablet and the Wyse are never connected to each other, by cable or pairing. Both talk to the Autodarts cloud on their own: the Wyse sends detected throws to play.autodarts.io, the tablet shows the match in a browser. The account ties them together, so the tablet must be signed in with the same account as the desktop app. Two consequences: no internet means no game even with both devices in the same room, and a tablet signed in with another account will not see the board. The exact menu for picking the board on the tablet was not checked yet.
+
+The Winmau "Lens" / dual-device feature (Plus subscription) that search results keep surfacing is a different setup, where a phone or tablet is the camera. Not needed here.
 
 ## Still to verify on site
 
