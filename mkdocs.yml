@@ -163,6 +163,7 @@ nav:
           - 51 - Two Alerts, and the One Nobody Raised: proxmox/51_Two_Alerts_And_The_One_Nobody_Raised.md
           - 52 - The Door Sensor That Looked Alive: proxmox/52_The_Door_Sensor_That_Looked_Alive.md
           - 53 - Autodarts Thin Client for a Friend: proxmox/53_Autodarts_Thin_Client_For_A_Friend.md
+          - 54 - The Reboot That Looked Like a Hang: proxmox/54_The_Reboot_That_Looked_Like_A_Hang.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
