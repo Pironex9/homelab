@@ -1,5 +1,5 @@
 **Date:** 2026-02-11
-**Updated:** 2026-08-10
+**Updated:** 2026-10-21
 **Hostname:** pve
 **IP address:** 192.168.0.109
 
@@ -283,10 +283,13 @@ Immich was covered.
 
 ### Proxmox
 ```
-nvme0n1p3 (237GB LVM)
+nvme1n1 Samsung PM991a 256GB, p3 = VG pve (237GB LVM)
 ├─ pve-root (60GB) -> /
 ├─ pve-swap (8GB)
-└─ pve-data (150GB) -> VM/LXC disk storage
+└─ pve-data (164.94GB thin pool) -> storage local-lvm, every guest except CT 100
+
+nvme0n1 Kingston KC3000 1TB = VG nvmethin (since 2026-10-21)
+└─ nvmethin (934.67GB thin pool) -> storage nvmethin, CT 100
 
 sda1 (5.5TB) -> /mnt/disk1
 sdb1 (5.5TB) -> /mnt/disk2
@@ -403,7 +406,7 @@ With a 164.94GB pool, the gap between "backups fine" and "no backups at all" is 
 
 ### Status
 
-fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. Second NVMe purchase/install is the actual fix and remains open in `private/todo.md` (drive ordered 2026-10-17, see the last subsection).
+fstrim is a recurring stopgap, not a fix - the pool will fill again within days/weeks under normal guest disk growth. The second NVMe was the actual fix. It went in on 2026-10-21 and CT 100 moved onto it, which took the pool from 71.33% to 41.66% (see the last subsection). The trim job stays: the remaining guests still need it.
 
 The trim job was moved off `run-parts` entirely on 2026-08-10, because both `cron.weekly` (Sundays 06:47) and `cron.daily` (06:25) fire *after* the 02:00 vzdump. If the pool crossed 80% overnight the backup would still fail once before the trim cleaned up. It now runs daily at 01:30, half an hour before the backup:
 
@@ -494,7 +497,7 @@ env -i PATH=/usr/bin:/bin bash -c 'command -v restic arping pct qm vzdump'
 
 ### 2026-10-17: the second NVMe, chosen and ordered
 
-The fix the Status section keeps pointing at is now ordered: a Kingston KC3000 1TB (`SKC3000S/1024G`). It is not installed yet.
+The fix the Status section keeps pointing at is now ordered: a Kingston KC3000 1TB (`SKC3000S/1024G`). It was installed on 2026-10-21, see the last subsection.
 
 **The free slot was confirmed from the OS before anyone opened the case.** `dmidecode -t 9` lists both M.2 storage slots and their state:
 
@@ -582,6 +585,56 @@ The `dm-N` names were read after a reboot that falls inside the 7-day window. If
 **What this changes in the plan.** Moving CT 100 alone takes about two thirds of the pool's writes off the old drive, from about 46 to roughly 17-20 GB/day. The remaining 89% would then last 15-18 years instead of 7. VM 101 is the next largest writer and is small, so it moves too. CT 109 and CT 113 are large but barely write, so they only move if space requires it. The Proxmox root stays where it is: reinstalling onto the new drive would add risk for no benefit.
 
 **The real exposure is the 49 unsafe shutdowns, not the wear.** The PM991a is DRAM-less with no power-loss protection, and neither is the KC3000. A power cut mid-write can corrupt whatever is in flight. The new drive does not change that. A UPS would.
+
+
+### 2026-10-21: installed, CT 100 moved, old pool at 41.66%
+
+The install-day plan above ran as written, except step 5: only CT 100 moved.
+
+**The device names swapped.** After the install the Kingston enumerates as `nvme0n1` and the Samsung as `nvme1n1`. Everything above that says `nvme0` from before 2026-10-21 means the Samsung. The PromQL write-rate query in the previous subsection now needs `device="nvme1n1"` to keep measuring the old drive.
+
+**Step 3, the drive check:**
+
+| Field | Value |
+|---|---|
+| Firmware | EIFK51.2 |
+| Data Units Written | 0 |
+| Media and Data Integrity Errors | 0 |
+| Percentage Used | 0% |
+| Link (`lspci -vv`) | `LnkSta: Speed 8GT/s (downgraded), Width x4` |
+
+"Downgraded" is expected: the drive is Gen4 (16GT/s), the J40 slot is Gen3 x4.
+
+**Step 4, the storage.** One call through the Proxmox API creates the PV, the VG, the thin pool and the storage entry, the same thing the GUI's Disks > LVM-Thin does:
+
+```bash
+pvesh create /nodes/pve/disks/lvmthin --device /dev/nvme0n1 --name nvmethin --add_storage 1
+```
+
+That gave VG `nvmethin` with a 934.67GB thin pool, and an `lvmthin: nvmethin` entry in `/etc/pve/storage.cfg` with `content images,rootdir`.
+
+**Step 5, CT 100 only.** `pct move-volume` needs the container stopped:
+
+```bash
+pct shutdown 100 --timeout 180 && pct move-volume 100 rootfs nvmethin; pct start 100
+```
+
+Downtime was 4.5 minutes, 4m15s of it the copy. Between two thin pools on different VGs it is a file copy (mkfs + rsync, 47.2 GB, about 190 MB/s), not a block copy. Without `--delete` the old volume stays behind as `unused0`, which keeps a one-line rollback: put `rootfs: local-lvm:vm-100-disk-0,size=57G` back in the config.
+
+The old volume was deleted only after checking:
+
+- the same 37 containers running before and after (`diff` of `docker ps` names), none unhealthy
+- all 23 Caddy backends on 192.168.0.110 answering 200/302/307
+- no ext4 or I/O errors in the pve kernel log since the move
+- a manual snapshot `vzdump` of CT 100 from the new storage: 5m53s, 23.86GB, finished successfully. This is what the 02:00 job does, so there was no reason to wait a night for it.
+
+Then `pct set 100 --delete unused0`, and `pve/data` dropped from 71.33% to 41.66%.
+
+**VM 101 stayed on the old pool.** It holds 8.7 GB, about 5 points of the pool, so moving it buys little space. It can move online with `qm disk move 101 scsi0 nvmethin` and `qm disk move 101 efidisk0 nvmethin` if `local-lvm` passes 60% again.
+
+**CT 100 rootfs grown to 77G.** It was 86% full inside (46G of 56G), unrelated to the move. `pct resize 100 rootfs +20G` runs online (resize2fs on the mounted filesystem) and took it to 63%. LXC rootfs cannot be shrunk, so this is one-way.
+
+**Two failed units in CT 100 disabled.** `nvmf-autoconnect` (from `nvme-cli`) and `openipmi` fail on every boot. They came in on 2026-08-30 as Recommends of `prometheus-node-exporter-collectors` (`ipmitool`, `nvme-cli`, and `ipmitool` in turn recommends `openipmi`). An LXC has no NVMe-oF targets and cannot load the IPMI kernel modules. They failed the same way on the boot before the move, so they were not caused by it. `systemctl disable` both, packages left installed.
 
 ---
 
