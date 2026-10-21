@@ -718,23 +718,37 @@ docker compose logs -f
 
 ### **Update Collector Binary**
 
+The collector must come from the same repo as the server image (Starosdev, see the 2026-08-02 note in Collector Setup), and ideally the same version. Do not take `releases/latest` blindly: on 2026-10-21 the newest tag, v1.76.9, had been published with only `SHA256SUMS.txt` attached and no binaries yet. Match the server instead:
+
 ```bash
+# LXC 100: which version the server runs
+docker image inspect ghcr.io/starosdev/scrutiny:latest -f '{{index .Config.Labels "org.opencontainers.image.version"}}'
+# -> 1.76.8-omnibus
+
 # Proxmox host
+V=v1.76.8
+B=https://github.com/Starosdev/scrutiny/releases/download/$V
+cd /tmp
+curl -fsSL -o scrutiny-collector-metrics-linux-amd64 $B/scrutiny-collector-metrics-linux-amd64
+curl -fsSL -o SHA256SUMS.txt $B/SHA256SUMS.txt
+grep " scrutiny-collector-metrics-linux-amd64$" SHA256SUMS.txt | sha256sum -c -
+chmod +x scrutiny-collector-metrics-linux-amd64
 
-# Get latest version
-SCRUTINY_VERSION=$(curl -s https://api.github.com/repos/AnalogJ/scrutiny/releases/latest | grep "tag_name" | cut -d '"' -f 4)
-
-# Download new version
-wget https://github.com/AnalogJ/scrutiny/releases/download/${SCRUTINY_VERSION}/scrutiny-collector-metrics-linux-amd64 -O /usr/local/bin/scrutiny-collector-metrics.new
-
-# Replace old binary
-mv /usr/local/bin/scrutiny-collector-metrics /usr/local/bin/scrutiny-collector-metrics.old
-mv /usr/local/bin/scrutiny-collector-metrics.new /usr/local/bin/scrutiny-collector-metrics
-chmod +x /usr/local/bin/scrutiny-collector-metrics
-
-# Verify
+# Keep the old one for rollback, then replace
+cp -p /usr/local/bin/scrutiny-collector-metrics /usr/local/bin/scrutiny-collector-metrics.<old-version>
+mv scrutiny-collector-metrics-linux-amd64 /usr/local/bin/scrutiny-collector-metrics
 /usr/local/bin/scrutiny-collector-metrics --version
+
+# One run, then check it ended with Result=success
+systemctl start scrutiny-collector.service
+systemctl show scrutiny-collector.service -p Result
 ```
+
+Last done 2026-10-21: 1.68.0 -> 1.76.8, old binary kept as `scrutiny-collector-metrics.1.68.0`.
+
+**The `devices:` list in `collector.yaml` is commented out on purpose.** The Starosdev collector expects a list of maps there, and the original list of plain strings (`- /dev/sda`) logged `Could not parse the 'devices' section of the collector config` on every run and was ignored. Collection worked anyway because the collector auto-scans every disk, which is also how the Kingston NVMe showed up on 2026-10-21 without a config change. The list was stale besides: `nvme0n1` stopped being the system disk that day.
+
+**A failed run right after a pve boot is expected.** The collector fires before CT 100 is up and gets `connect: connection refused` on `/api/devices/register`. The next hourly run succeeds.
 
 ---
 
