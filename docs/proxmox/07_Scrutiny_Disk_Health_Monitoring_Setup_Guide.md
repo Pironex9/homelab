@@ -6,6 +6,8 @@
 
 > **Update (2026-08-02):** switched the server image from `ghcr.io/analogj/scrutiny` to the actively maintained fork `ghcr.io/starosdev/scrutiny` - upstream AnalogJ development had slowed, the fork is a drop-in replacement (same SQLite/InfluxDB schema, no config changes). The host-side collector binary (below) had to be upgraded too - see the note in the Collector Setup section. Also added Home Assistant MQTT discovery (`SCRUTINY_WEB_MQTT_*` env vars) - disk temperature/status/power-on-hours/power-cycle-count now show up as HA entities.
 
+> **Update (2026-10-21):** `sdc` (disk3) showed Failed on one old, frozen SMART counter. Acknowledged rather than ignored, see "Problem: Failed on a counter that no longer moves" under Troubleshooting.
+
 > **Update (2026-08-20):** three fixes after a removed USB disk turned out to be the visible end of two silent problems.
 >
 > **Removing a disconnected disk.** `Delete device` in the WebUI is enough, and it is a complete cleanup. The fork's `DeleteDevice` handler removes the SQLite row, deletes the InfluxDB measurements from all four buckets (`metrics`, `metrics_weekly`, `metrics_monthly`, `metrics_yearly`, matched on the `device_wwn` tag, 10 years back), and calls `removeMqttDevice` to clear the Home Assistant discovery topics. It is irreversible - the SMART history is gone with it. If the disk might come back, press `Archive` instead: it hides the device and clears the same HA entities, but keeps the history and can be undone with `unarchive`.
@@ -895,6 +897,30 @@ smartctl -a /dev/sdX
 # - Controller problems
 # - Disk firmware bugs
 ```
+
+---
+
+### **Problem: Failed on a counter that no longer moves**
+
+`sdc` (ST1000LM048, disk3, on USB) showed **Failed** while `smartctl -H` said PASSED. The reason is in the device details API, not the dashboard:
+
+```bash
+curl -s http://192.168.0.110:8082/api/device/<device_id>/details
+# attr 188 status 4: "Observed Failure Rate for Critical Attribute is greater than 10%" (0.1004)
+```
+
+Attribute 188 `Command_Timeout` is a Seagate packed raw value: three 16-bit counters, here `2048730661348` = 477 / 477 / 484. Scrutiny scores any non-zero 188 with Backblaze failure rates, so it stays Failed for good. The value was identical in all 15 stored results back to 2026-09-01, so these are old timeouts (likely the USB enclosure), not an ongoing problem.
+
+Fix, since the fork's 1.72.0 (running 1.76.8): an **acknowledge** override, not `ignore` and not a global `status_threshold: smart`. Acknowledge pins the current raw value. The attribute passes only while it stays exactly that, and the first new timeout brings Failed back. `ignore` would hide new ones too, and `status_threshold: smart` would drop the Backblaze checks on all six disks.
+
+```bash
+curl -s -X POST http://192.168.0.110:8082/api/settings/overrides \
+  -H 'Content-Type: application/json' \
+  -d '{"protocol":"ATA","attribute_id":"188","device_id":"443d1a6c-cd71-589c-813a-f1486099f43b","action":"acknowledge"}'
+# server sets pinned_value from the latest submission: 2048730661348
+```
+
+The same is in the UI: device page, the three-dot menu on the attribute, "Acknowledge current value". The override lives in `scrutiny.db` under `/srv/docker-data/scrutiny/config`, not in this repo. List with `GET /api/settings/overrides`, remove with `DELETE /api/settings/overrides/<id>`.
 
 ---
 
