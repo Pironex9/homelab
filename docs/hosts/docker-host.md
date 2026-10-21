@@ -11,8 +11,8 @@
 | Kernel | 6.17.4-1-pve |
 | CPU | 4 cores |
 | RAM | 8 GB |
-| Disk | 48 GB (local-lvm, LVM thin) |
-| Storage mount | `/mnt/storage` → ZFS pool (8.1 TB) |
+| Disk | 77 GB (`nvmethin`, LVM thin on the Kingston KC3000, since 2026-10-21) |
+| Storage mount | `/mnt/storage` → the pve MergerFS pool (8.1 TB) |
 | Purpose | Primary Docker host - all self-hosted services |
 
 ## Features
@@ -164,11 +164,13 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 ## Storage Layout
 
 ```
-/                    → local-lvm (52 GB LVM thin volume, ~86% used)
+/                    → nvmethin (77 GB LVM thin volume, 63% used on 2026-10-21)
 /mnt/storage         → the pve MergerFS pool, passed in as mp0 (8.1 TB)
 ```
 
 Most Docker container data (media, photos, books) lives on `/mnt/storage` to avoid filling the root disk.
+
+The rootfs moved off `local-lvm` (the 256 GB system NVMe) onto its own 1 TB drive on 2026-10-21 and was grown from 57G to 77G, because this container alone did 66% of the old thin pool's writes. The move and its checks are in [Backup System, section 7](../proxmox/15_Proxmox_Backup_System_Documentation.md).
 
 **`/mnt/storage` is the only storage path that exists here.** The four member disks of the pool - `/mnt/disk1` through `/mnt/disk4` - are mounts on **pve**, not in this container; `mp0: /mnt/storage,mp=/mnt/storage` passes in the merged view alone. Writing to a `/mnt/diskN` path from inside LXC 100 therefore does not fail. It silently creates an ordinary directory on the 52 GB root filesystem, which is the trap described in Lessons Learned below.
 
