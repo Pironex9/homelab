@@ -4,7 +4,7 @@
 **Hostname:** pve (HP EliteDesk 800 G4), adguard (LXC 102), claude-mgmt (LXC 109), docker-host (LXC 100), nex-pc (Nobara desktop)
 **IP address:** 192.168.0.109, 192.168.0.111, 192.168.0.204, 192.168.0.110, 192.168.0.100
 
-## Status: root cause identified, workaround deliberately not applied
+## Status: recurred on 2026-10-24, TSO/GSO workaround now applied
 
 Overnight the TV could not reach Jellyfin, and the Nobara desktop reported no internet connection. Power-cycling the router restored everything. The router was never at fault. The Intel I219-LM on the Proxmox host wedged its transmit ring at 02:58:53 and stayed wedged for 6 hours 15 minutes; the router's power cycle happened to drop the link, and the link event was what freed it.
 
@@ -125,7 +125,7 @@ generic-segmentation-offload: on
 
 The I219 family has a long-standing transmit-path defect that Intel has acknowledged as a hardware bug and never fixed in silicon. Disabling TSO is the documented workaround; there is no driver-side cure.
 
-This is the first occurrence on this host. The retained journal reaches back to 2025-12-19 and contains no `Hardware Unit Hang` line before today.
+This was the first occurrence on this host. The retained journal reaches back to 2025-12-19 and contains no `Hardware Unit Hang` line before 2026-09-13. The second one came six weeks later, below.
 
 ## Two things that look like evidence and are not
 
@@ -149,7 +149,7 @@ ssh root@192.168.0.111 'journalctl --since "2026-09-12 20:00" \
 
 Nothing was handed a bad lease, and the fault is fully explained on the hypervisor. Leaving the extender's DHCP off is harmless and one less thing that can serve a lease, so it stays off.
 
-## The workaround, and why it is not applied
+## The workaround, and why it was not applied at first
 
 ```
 iface nic0 inet manual
@@ -164,7 +164,41 @@ ethtool -K nic0 tso off gso off
 
 The cost is host CPU: with TSO off, segmentation of large outbound frames moves from the NIC to the kernel. On a box that mostly serves media over the LAN that is measurable under sustained transfer.
 
-**Not applied, by decision.** One occurrence in nine months of retained logs does not justify permanently giving up an offload on the hypervisor's only uplink. The trade is worth revisiting on the second occurrence, and the monitor below is what will make a second occurrence visible on the day it happens rather than in the morning.
+**Not applied, by decision, after the first occurrence.** One occurrence in nine months of retained logs did not justify permanently giving up an offload on the hypervisor's only uplink. The rule was to apply it on the second occurrence.
+
+## Second occurrence: 2026-10-24
+
+The same hang returned at 22:41:47 CEST, after three days of uptime, with the same signature: `TDH` stuck (`<3>` against a `TDT` of `<b1>`), one detection every two seconds, 389 in total, and again no adapter reset. Nothing in the journal before the onset looks like a trigger - the preceding minutes hold only the `arping-keepalive.sh` cron run and routine smartd temperature lines.
+
+This time it was noticed within minutes because the host itself was unreachable. At 22:54:45 a short press of the power button started a clean shutdown (`systemd-logind: Power key pressed short`); the journal ends in that same second, and the host was then cold-restarted. Total outage about 13 minutes plus boot. After the restart all ten LXCs came back and the mergerfs pool mounted on all three data branches.
+
+The workaround went in the same evening:
+
+```
+# /etc/network/interfaces on pve
+iface nic0 inet manual
+	# I219-LM TX hang workaround, see docs/proxmox/49
+	post-up /sbin/ethtool -K nic0 tso off gso off
+```
+
+Applied over SSH on the very link it reconfigures, so it went in behind a dead man's switch: a transient systemd timer that restores the backup and re-enables the offloads after two minutes unless cancelled.
+
+```bash
+cp -a /etc/network/interfaces /etc/network/interfaces.bak
+# edit, then:
+systemd-run --unit=net-rollback --on-active=120 /bin/sh -c \
+  "cp -a /etc/network/interfaces.bak /etc/network/interfaces && ifreload -a && ethtool -K nic0 tso on gso on"
+ifreload -a
+ethtool -k nic0 | grep -E "^(tcp|generic)-segmentation-offload"   # both off
+ping -c2 1.1.1.1; pct exec 100 -- ping -c2 1.1.1.1                # host and LXC out
+systemctl stop net-rollback.timer
+```
+
+`ifreload -a -s` prints `vmbr0: bridge-fd: value of out range "0"` for the stock Proxmox `bridge-fd 0`; that warning predates this change and is harmless.
+
+The post-up line has been exercised by `ifreload -a`, not yet by a reboot. The next boot confirms it: `ethtool -k nic0` should show both offloads `off` without anyone touching it.
+
+Whether it actually prevents the hang can only be judged by absence over time. A third `Hardware Unit Hang` with the offloads off would mean the workaround does not cover this failure and the next step is a separate NIC.
 
 ## What this exposed
 
