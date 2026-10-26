@@ -10,6 +10,14 @@
 | OS | Debian GNU/Linux 12 (bookworm) |
 | Timezone | Europe/Budapest (was `Etc/UTC` until 2026-08-26) |
 | Purpose | Claude Code homelab management container |
+| Resources | 2 cores, 10 GB RAM, 30 GB rootfs on `local-lvm` (was 25 GB until 2026-10-26) |
+
+The rootfs was at 85% (20 of 25 GB, 3.7 GB free) while RAM sat at 803 MB of 10 GB used and
+the load average at 0.3, so disk was the only resource worth growing. `pct resize 109
+rootfs +5G` from pve extends the LV and runs `resize2fs` online, no restart; it left
+8.4 GB free (71%). The thin pool is a separate number and only fills as the guest
+writes. `pct` does not exist inside this container, so the command goes through
+`ssh root@192.168.0.109`. A volume cannot be shrunk afterwards.
 
 The timezone move was deliberate: every scheduled job on this host delivers to a
 human (the two morning Telegram digests), and on UTC a crontab line reading `0 7`
