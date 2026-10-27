@@ -44,14 +44,14 @@ Generated with mkcert using a local CA (CAROOT=/etc/caddy/certs):
 | `lan.pem` | Server cert (all .lan domains as explicit SANs) |
 | `lan-key.pem` | Server cert private key (owner: root:caddy, mode: 640) |
 
-**Cert expiry:** 2028-10-19
+**Cert expiry:** 2029-01-27
 
 The CA and the server cert expire on different dates, and only one of them is a client-side job:
 
 | | Subject / expiry | Where it lives |
 |---|---|---|
 | CA root | `CN=mkcert root@alpine-caddy, O=mkcert development CA`, expires **2036-03-30**, SHA-1 `B9AD08DF8742CF1049CFAF33A31D3EE2B7D726F0` | every client's trust store |
-| Server cert | expires **2028-10-19** | LXC 110 only |
+| Server cert | expires **2029-01-27** | LXC 110 only |
 
 Renewing the server cert therefore touches nothing on the clients. Use the thumbprint to confirm a device received the right root - `Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq ...` on Windows, `openssl x509 -in rootCA.pem -noout -fingerprint -sha1` anywhere else.
 
@@ -69,7 +69,7 @@ pct exec 110 -- sh -c 'CAROOT=/etc/caddy/certs /usr/local/bin/mkcert \
   suggestarr.lan notifiarr.lan calibre.lan seerr.lan radarr.lan \
   scrutiny.lan prowlarr.lan freshrss.lan \
   netdata.lan haos.lan vaultwarden.lan syncthing-nex.lan homelable.lan agentos.lan hermes.lan ntfy.lan \
-  paperless.lan scan.lan'
+  paperless.lan scan.lan pocketid.lan'
 ```
 
 The list above had drifted from the live cert once: `ollama.lan` was in the cert but not
@@ -176,6 +176,7 @@ All .lan domains resolve to 192.168.0.208 (Caddy) via AdGuard DNS rewrites.
 | docuseal.lan | http://192.168.0.110:3003 |
 | paperless.lan | http://192.168.0.110:8000 |
 | scan.lan | http://192.168.0.110:8086 |
+| pocketid.lan | http://192.168.0.114:1411 |
 | qbit.lan | http://192.168.0.110:8080 (X-Forwarded-Proto: https) |
 | sonarr.lan | http://192.168.0.110:8989 |
 | form.lan | http://192.168.0.110:3004 |

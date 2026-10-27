@@ -96,6 +96,7 @@ nav:
           - Karakeep (LXC 106): hosts/karakeep.md
           - n8n (LXC 107): hosts/n8n.md
           - Claude Code Mgmt (LXC 109): hosts/claude-mgmt.md
+          - Pocket ID (LXC 114): hosts/pocket-id.md
           - Caddy Reverse Proxy (LXC 110): hosts/caddy.md
           - Agentos (LXC 113): hosts/agentos.md
       - Nobara PC: hosts/nobara.md
