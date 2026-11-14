@@ -197,7 +197,13 @@ else
     # A separate line, and shown even if vaultwarden happens to be up to date: the
     # release jump makes the next apk upgrade dangerous regardless of whether there is
     # anything to upgrade right now.
-    if [[ -n "$vw_rel" ]]; then
+    # "alpine-release-3.24.2-r0 < 3.24.4-r0": same major.minor is a point release inside
+    # the branch, not a release jump. An unparseable line falls through to the loud branch.
+    rel_re='-([0-9]+\.[0-9]+)\.[0-9]+-r[0-9]+ < ([0-9]+\.[0-9]+)\.'
+    if [[ -n "$vw_rel" && "$vw_rel" =~ $rel_re && "${BASH_REMATCH[1]}" == "${BASH_REMATCH[2]}" ]]; then
+        lines+=("⚠️ LXC 103: Alpine pont-kiadás vár ($vw_rel), patch-szintű, snapshot elég")
+        warn=1
+    elif [[ -n "$vw_rel" ]]; then
         lines+=("⚠️ LXC 103: az Alpine latest-stable átbillent ($vw_rel)")
         lines+=("    a következő apk upgrade KIADÁSUGRÁS - mentés + ablak kell")
         lines+=("    eljárás: docs/proxmox/09_Vaultwarden.md, Updating")
