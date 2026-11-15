@@ -12,7 +12,7 @@ argues from code that exists.
 
 | Phase | Plan | Status |
 |---|---|---|
-| 1. Accounts, manual entry, categories and budgets, income, hidden entries, pocket money, monthly view, installable PWA with offline capture of the manual form | not written | |
+| 1. Accounts, manual entry, categories and budgets, income, hidden entries, pocket money, monthly view, installable PWA with offline capture of the manual form | `docs/superpowers/plans/2026-11-15-haztartas-phase1.md` | written, not started |
 | 2. Receipt photo (eKasa QR, then Gemini), voice entry (Gemini audio), offline queuing of photo and audio, attachments, Drafts screen | not written | |
 | 3. Budget push notifications, month-over-month trends, Pedikur income draft | not written | |
 | Later | Hungarian price lookup (GVH Arfigyelo), AI questions over the ledger | not planned | |
