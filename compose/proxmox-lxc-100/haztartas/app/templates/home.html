@@ -19,7 +19,7 @@
     <a href="/pocket">{{ S["nav_pocket"] }}</a>
     {% if view == "adult" %}<a href="/settings">{{ S["nav_settings"] }}</a>{% endif %}
     <hr>
-    <form method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false">{{ S["logout"] }}</a></form>
+    <form method="post" action="/logout"><button type="submit">{{ S["logout"] }}</button></form>
   </nav>
 
   <main>

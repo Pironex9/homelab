@@ -31,7 +31,7 @@ a { color: inherit; }
   font-size: var(--fs-s); font-weight: 600;
 }
 .month-step a {
-  display: grid; place-items: center; width: 36px; height: 36px;
+  display: grid; place-items: center; width: var(--tap); height: var(--tap);
   border-radius: 50%; text-decoration: none;
 }
 .month-step a:hover { background: var(--ground-2); }
@@ -50,12 +50,12 @@ a { color: inherit; }
   border-radius: var(--r-ctl); background: #fff; color: var(--ink);
   box-shadow: 0 8px 24px rgb(28 27 25 / 0.14);
 }
-.menu a {
-  display: flex; justify-content: space-between; align-items: center;
+.menu a, .menu button {
+  display: flex; width: 100%; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; justify-content: space-between; align-items: center;
   min-height: var(--tap); padding: 0 var(--s-3); border-radius: 8px;
   text-decoration: none; font-weight: 500;
 }
-.menu a:hover { background: var(--ground); }
+.menu a:hover, .menu button:hover { background: var(--ground); }
 .menu .count {
   min-width: 22px; padding: 0 6px; border-radius: 11px; background: var(--ink);
   color: var(--ground); font-size: var(--fs-xs); font-weight: 700; text-align: center;
@@ -83,7 +83,10 @@ main { flex: 1; padding: var(--s-4) var(--s-4) 190px; }
   margin: var(--s-5) 0 var(--s-2);
 }
 .map-head h2 { margin: 0; font-size: var(--fs-m); font-weight: 700; }
-.map-head a { font-size: var(--fs-s); color: var(--ink-2); }
+.map-head a {
+  display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--s-2);
+  margin-right: calc(var(--s-2) * -1); font-size: var(--fs-s); color: var(--ink-2);
+}
 .map {
   position: relative; height: 340px; margin: 0 calc(var(--s-1) * -0.5);
 }
@@ -101,15 +104,24 @@ main { flex: 1; padding: var(--s-4) var(--s-4) 190px; }
   transition: transform 160ms var(--ease);
 }
 .tile > a:active { transform: scale(0.98); }
-.tile__name { font-size: var(--fs-s); font-weight: 600; line-height: 1.2; }
+.tile__name { flex-shrink: 0; font-size: var(--fs-s); font-weight: 600; line-height: 1.3;
+  overflow-wrap: anywhere; hyphens: auto; }
 .tile__note { display: block; font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
 .tile__amount { font-size: var(--fs-l); font-weight: 800; letter-spacing: -0.01em; }
+/* Narrow tiles step their type down before a word has to break. */
+.tile { container-type: inline-size; }
+@container (max-width: 124px) {
+  .tile__name { font-size: var(--fs-xs); }
+  .tile__amount { font-size: var(--fs-m); }
+}
 .tile--big .tile__amount { font-size: var(--fs-xl); }
 .tile--small .tile__name { font-size: var(--fs-xs); }
+/* A short tile drops its limit line before anything else: the hidden-entry
+   note is part of the truth of the number, the limit is also on the rail. */
+.tile--small .tile__limit { display: none; }
 .tile--small .tile__amount { font-size: var(--fs-m); }
 .tile__limit { display: block; font-size: var(--fs-xs); font-weight: 500; opacity: 0.9;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tile__name { overflow: hidden; text-overflow: ellipsis; }
 .tile__rail {
   position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--rail);
 }
@@ -128,8 +140,13 @@ main { flex: 1; padding: var(--s-4) var(--s-4) 190px; }
 .map--short { height: 240px; }
 .map-legend { margin: var(--s-3) 0 0; font-size: var(--fs-xs); color: var(--ink-2); }
 .map-legend i {
-  display: inline-block; width: 18px; height: 6px; margin-right: var(--s-1);
-  vertical-align: middle; background: linear-gradient(90deg, var(--ink) 60%, var(--line) 60%);
+  /* a miniature tile base: the hue, its dark track, the white used part */
+  position: relative; display: inline-block; width: 28px; height: 14px; margin-right: var(--s-2);
+  vertical-align: middle; border-radius: 3px; overflow: hidden; background: var(--tile-0);
+}
+.map-legend i::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+  background: linear-gradient(90deg, var(--on-tile) 60%, var(--rail) 60%);
 }
 
 /* ---------- who spent ---------- */
