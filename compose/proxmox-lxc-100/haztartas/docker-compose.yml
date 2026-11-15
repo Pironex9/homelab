@@ -1,0 +1,35 @@
+services:
+  haztartas:
+    build: .
+    # Load-bearing. "docker compose up -d" does not rebuild a build: service
+    # whose image already exists, so Komodo pulled the new code and then
+    # recreated the container from the image built at task 1: the app was five
+    # modules old and died on "Could not import module app.main". pull_policy
+    # build rebuilds on every deploy.
+    pull_policy: build
+    container_name: haztartas
+    environment:
+      - TZ=${TZ:-Europe/Bratislava}
+      - HAZTARTAS_DATA=/data
+      # :? so a missing Komodo Stack Environment fails the deploy loudly
+      # instead of signing every session with an empty key
+      - HAZTARTAS_SECRET_KEY=${HAZTARTAS_SECRET_KEY:?set it in the Komodo Stack Environment}
+      # 1 unless the app is reached over plain http; see .env.example
+      - HAZTARTAS_HTTPS_ONLY=${HAZTARTAS_HTTPS_ONLY:-1}
+    volumes:
+      # The container runs as uid 1000, but Docker creates a missing bind
+      # mount source as root:root and the image's chown does not apply to it.
+      # On a new host: mkdir -p and chown 1000:1000 this directory first.
+      - ${DOCKER_DATA:?set DOCKER_DATA, otherwise the volume lands in /}/haztartas:/data
+    ports:
+      - 3011:8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # migrations plus the pre-migration snapshot run before the first
+      # request is served, and three failed checks would kill the container
+      start_period: 30s
