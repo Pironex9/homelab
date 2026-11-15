@@ -295,6 +295,26 @@ a.btn { display: grid; place-items: center; text-decoration: none; }
 .facts dt { color: var(--ink-2); font-size: var(--fs-s); }
 .facts dd { margin: 0; font-weight: 600; }
 
+/* ---------- settings and other expandable rows ---------- */
+main h2 { margin: var(--s-6) 0 var(--s-2); font-size: var(--fs-m); font-weight: 700; }
+main h2:first-of-type { margin-top: var(--s-2); }
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { border-top: 1px solid var(--line); }
+.rows li:last-child .row { border-bottom: 1px solid var(--line); }
+.row summary {
+  display: grid; grid-template-columns: auto 1fr auto; gap: var(--s-3); align-items: center;
+  min-height: 56px; cursor: pointer; list-style: none;
+}
+.row summary::-webkit-details-marker { display: none; }
+.row summary .dot { width: 12px; height: 12px; border-radius: 3px; background: var(--hue); }
+.row__name { font-weight: 600; }
+.row__name small, .row__val small { font-weight: 500; color: var(--ink-2); font-size: var(--fs-xs); }
+.row__val { font-weight: 700; }
+.row[open] { padding-bottom: var(--s-4); }
+.row[open] summary { color: var(--ink); }
+.row--add { border: 0; }
+.row--add summary { grid-template-columns: 1fr; color: var(--ink-2); }
+
 @media (min-width: 640px) {
   main { max-width: 560px; margin: 0 auto; width: 100%; }
   .map { height: 420px; }

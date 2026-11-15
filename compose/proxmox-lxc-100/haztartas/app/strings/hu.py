@@ -51,6 +51,8 @@ S = {
     "filter_all": "Mind",
     "filter_apply": "Keresés",
     "filter_more": "Szűrők",
+    "s_no_limit": "nincs keret",
+    "s_day_short": "minden hónap {day}.",
     "entries_empty": "Nincs ilyen tétel.",
     "redacted_entry": "Rejtett tétel",
     "own_hidden": "rejtett",

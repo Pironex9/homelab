@@ -32,8 +32,9 @@
 
     {% if adult and wallets %}
     {% for action, title, button in (("topup", "pocket_topup", "pocket_give"), ("opening", "pocket_opening", "pocket_set")) %}
+    <details class="row row--add"{% if error_in == action or (loop.first and not error_in) %} open{% endif %}>
+    <summary><span class="row__name">{{ S[title] }}</span></summary>
     <form class="form" method="post" action="/pocket/{{ action }}">
-      <h2>{{ S[title] }}</h2>
       {% if error and error_in == action %}<p class="error" role="alert">{{ error }}</p>{% endif %}
       <label for="{{ action }}-child">{{ S["pocket_child"] }}</label>
       <select id="{{ action }}-child" name="wallet_id">
@@ -55,6 +56,7 @@
       <input id="{{ action }}-date" name="date" type="date" required value="{{ values.date }}">
       <button class="btn btn--wide" type="submit">{{ S[button] }}</button>
     </form>
+    </details>
     {% endfor %}
     {% endif %}
   </main>

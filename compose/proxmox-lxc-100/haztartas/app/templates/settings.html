@@ -11,7 +11,14 @@
     {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
     <h2>{{ S["settings_categories"] }}</h2>
+    <ul class="rows">
     {% for c in categories %}
+    <li><details class="row"{% if error_in == 'cat-' ~ c.id %} open{% endif %}>
+      <summary>
+        <span class="dot c{{ c.id % 8 }}"></span>
+        <span class="row__name">{{ c.name }}{% if c.kind == "income" %} <small>{{ S["kind_income"] }}</small>{% endif %}{% if c.archived %} <small>{{ S["s_archived"] }}</small>{% endif %}</span>
+        <span class="row__val num">{% if c.limit %}{{ c.limit }} €{% elif c.kind == "expense" %}<small>{{ S["s_no_limit"] }}</small>{% endif %}</span>
+      </summary>
     <form class="form" method="post" action="/settings/categories/{{ c.id }}">
       <label for="cn-{{ c.id }}">{{ S["s_name"] }} ({{ S["kind_" ~ c.kind] }}{% if c.archived %}, {{ S["s_archived"] }}{% endif %})</label>
       <input id="cn-{{ c.id }}" name="name" type="text" required value="{{ c.name }}">
@@ -22,10 +29,13 @@
       <button class="btn" type="submit">{{ S["save"] }}</button>
     </form>
     <form class="aside-action" method="post" action="/settings/categories/{{ c.id }}/archive"><button class="btn btn--quiet" type="submit">{{ S["s_unarchive"] if c.archived else S["s_archive"] }}</button></form>
+    </details></li>
     {% endfor %}
+    </ul>
 
+    <details class="row row--add"{% if error_in == 'cat-new' %} open{% endif %}>
+    <summary><span class="row__name">+ {{ S["s_add_category"] }}</span></summary>
     <form class="form" method="post" action="/settings/categories">
-      <h3>{{ S["s_add_category"] }}</h3>
       <label for="cn-new">{{ S["s_name"] }}</label>
       <input id="cn-new" name="name" type="text" required value="{{ values.name if error_in == 'cat-new' else '' }}">
       <fieldset class="seg">
@@ -36,6 +46,7 @@
       <input id="cs-new" name="sort" type="text" inputmode="numeric" value="{{ values.sort if error_in == 'cat-new' else '0' }}">
       <button class="btn btn--wide" type="submit">{{ S["s_add"] }}</button>
     </form>
+    </details>
 
     <h2>{{ S["settings_recurring"] }}</h2>
     {% macro rec_form(r, action, id, button) %}
@@ -74,15 +85,25 @@
       <button class="btn btn--wide" type="submit">{{ button }}</button>
     </form>
     {% endmacro %}
+    <ul class="rows">
     {% for r in recurring %}
+    <li><details class="row"{% if error_in == 'rec-' ~ r.id %} open{% endif %}>
+      <summary>
+        <span class="row__name">{{ r.name }} <small>{{ S["s_day_short"].format(day=r.day) }}</small></span>
+        <span class="row__val num">{% if r.kind == "income" %}+{% endif %}{{ r.amount }} {{ r.currency }}</span>
+      </summary>
     {{ rec_form(r, "/settings/recurring/" ~ r.id, r.id, S["save"]) }}
     <form class="aside-action" method="post" action="/settings/recurring/{{ r.id }}/archive"><button class="btn btn--quiet" type="submit">{{ S["s_archive"] }}</button></form>
+    </details></li>
     {% else %}
-    <p class="empty">{{ S["s_none"] }}</p>
+    <li class="empty">{{ S["s_none"] }}</li>
     {% endfor %}
-    <h3>{{ S["s_add_recurring"] }}</h3>
+    </ul>
+    <details class="row row--add"{% if error_in == 'rec-new' %} open{% endif %}>
+    <summary><span class="row__name">+ {{ S["s_add_recurring"] }}</span></summary>
     {% set blank = dict(name="", kind="expense", category_id="", amount="", currency="EUR", day="1", owner_user_id="") %}
     {{ rec_form(values if error_in == "rec-new" else blank, "/settings/recurring", "new", S["s_add"]) }}
+    </details>
   </main>
 </div>
 {% endblock %}
