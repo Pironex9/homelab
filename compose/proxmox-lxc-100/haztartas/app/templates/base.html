@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="/static/icon-180.png">
 <script src="/static/htmx.min.js" defer></script>
 <script src="/static/capture.js" defer></script>
-<script type="application/json" id="queue-strings">{{ {"pending": S["queue_pending"], "login": S["queue_login"], "other_user": S["queue_other_user"], "fix": S["queue_fix"], "saved": S["capture_saved"], "draft": S["capture_draft"]} | tojson }}</script>
+<script type="application/json" id="queue-strings">{{ {"pending": S["queue_pending"], "refused": S["queue_refused"], "refused_title": S["queue_refused_title"], "login": S["queue_login"], "other_user": S["queue_other_user"], "fix": S["queue_fix"], "discard": S["queue_discard"], "discard_confirm": S["queue_discard_confirm"], "saved": S["capture_saved"], "draft": S["capture_draft"], "no_storage": S["capture_no_storage"]} | tojson }}</script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
 <!--
@@ -31,5 +31,8 @@ FORM: Csempetérkép, chosen by the owner in round 2 of the companion; seed 6f4e
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
 -->
 {% block body %}{% endblock %}
+{# The offline queue's counter, on every page: capture.js fills it and adds
+   is-on while anything waits or was refused. #}
+<p class="pending pending--global" data-pending role="status"></p>
 </body>
 </html>

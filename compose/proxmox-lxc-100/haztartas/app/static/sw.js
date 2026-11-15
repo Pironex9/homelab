@@ -2,9 +2,10 @@
 // /capture and /static/* are ever cached: no household data at rest beyond
 // the categories and wallets the capture form lists.
 //
-// The cache name is also in capture.js (logout clears it, the warm-up fills
-// it). Change both together.
-const CACHE = 'haztartas-v1';
+// The cache name is also in capture.js (its warm-up fills it). Change both
+// together, and bump it whenever this file changes: activate then drops the
+// old cache, so a deploy cannot leave an installed phone on stale assets.
+const CACHE = 'haztartas-v2';
 const STATIC = ['/static/tokens.css', '/static/app.css', '/static/capture.js',
   '/static/htmx.min.js'];
 // Shops have bad signal: a connection that answers nothing for this long gets
@@ -19,9 +20,13 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(STATIC);
+    // cache: 'reload' skips the HTTP cache, which may still hold the
+    // previous deploy's files.
+    await cache.addAll(STATIC.map((u) => new Request(u, { cache: 'reload' })));
     try {
-      const res = await fetch('/capture', { redirect: 'manual', credentials: 'same-origin' });
+      const res = await fetch('/capture', {
+        redirect: 'manual', credentials: 'same-origin', cache: 'reload',
+      });
       if (cacheable(res)) await cache.put('/capture', res);
     } catch (err) { /* offline or logged out: the next online visit caches it */ }
   })());
@@ -37,10 +42,13 @@ self.addEventListener('activate', (e) => {
 
 function networkFirst(request, key, wait) {
   const fromCache = () => caches.match(key, { ignoreSearch: true });
-  const network = fetch(request).then(async (res) => {
+  // no-cache: revalidate with the server rather than take the HTTP cache's
+  // copy, or "network first" could still be last deploy's file.
+  const network = fetch(request, { cache: 'no-cache' }).then(async (res) => {
     if (cacheable(res)) {
-      const cache = await caches.open(CACHE);
-      await cache.put(key, res.clone());
+      try {
+        await (await caches.open(CACHE)).put(key, res.clone());
+      } catch (err) { /* storage full: the good network answer still stands */ }
     }
     return res;
   });

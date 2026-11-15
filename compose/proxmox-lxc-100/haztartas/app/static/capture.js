@@ -9,8 +9,9 @@
 (() => {
   const DB = 'haztartas';
   const STORE = 'queue';
-  const CACHE = 'haztartas-v1';   // same name as in sw.js
+  const CACHE = 'haztartas-v2';   // same name as in sw.js
   const RETRY_MS = 15000;
+  const FETCH_TIMEOUT_MS = 20000;
   const strings = document.getElementById('queue-strings');
   const S = strings ? JSON.parse(strings.textContent) : {};
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -28,11 +29,20 @@
     });
   }
 
+  // One transaction: everything fn asks for happens, or none of it does.
   async function tx(mode, fn) {
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const t = db.transaction(STORE, mode);
-      const req = fn(t.objectStore(STORE));
+      let req;
+      try {
+        req = fn(t.objectStore(STORE));
+      } catch (err) {
+        try { t.abort(); } catch (e) { /* already finished */ }
+        db.close();
+        reject(err);
+        return;
+      }
       t.oncomplete = () => { db.close(); resolve(req.result); };
       t.onerror = t.onabort = () => { db.close(); reject(t.error); };
     });
@@ -43,18 +53,72 @@
   const get = (key) => tx('readonly', (s) => s.get(key));
   const put = (item) => tx('readwrite', (s) => s.put(item));
   const remove = (key) => tx('readwrite', (s) => s.delete(key));
+  // The fixed copy in and the refused one out together, so a failure can
+  // never leave both queued (two entries) or neither (a lost one).
+  const putReplacing = (item, old) => tx('readwrite', (s) => {
+    if (old) s.delete(old);
+    return s.put(item);
+  });
+  // A stored refusal (403, 409, 422) means the server said no to this item
+  // as it is; everything else is simply waiting for a connection or a login.
+  const refused = (item) => !!item.status;
 
   // ------------------------------------------------------------ on screen
-  let pending = 0;
+  let waiting = 0;
 
   async function showCount() {
-    let n = 0;
-    try { n = (await all()).length; } catch (err) { return; }
-    pending = n;
+    let items;
+    try { items = await all(); } catch (err) { return; }
+    const no = items.filter(refused);
+    waiting = items.length - no.length;
+    const parts = [];
+    if (waiting) parts.push((S.pending || '{n}').replace('{n}', waiting));
+    if (no.length) parts.push((S.refused || '{n}').replace('{n}', no.length));
     $$('[data-pending]').forEach((el) => {
-      el.textContent = (S.pending || '{n}').replace('{n}', n);
-      el.classList.toggle('is-on', n > 0);
+      el.textContent = parts.join(' · ');
+      el.classList.toggle('is-on', items.length > 0);
     });
+    showRefused(no);
+  }
+
+  // On /capture: every refused item with its reason and a way off the phone.
+  // Built here rather than in the template: the cached page cannot know.
+  function showRefused(items) {
+    const form = document.querySelector('form[data-capture]');
+    if (!form) return;
+    let box = document.querySelector('[data-refused]');
+    if (!box) {
+      box = document.createElement('section');
+      box.className = 'refused';
+      box.dataset.refused = '';
+      const title = document.createElement('p');
+      title.className = 'hint';
+      title.textContent = S.refused_title || '';
+      box.append(title, document.createElement('ul'));
+      form.before(box);
+    }
+    const list = box.querySelector('ul');
+    list.replaceChildren(...items.map((item) => {
+      const p = item.payload || {};
+      const li = document.createElement('li');
+      const what = document.createElement('span');
+      const reason = item.status === 409 ? S.other_user : item.error;
+      what.textContent = [`${p.amount || ''} ${p.currency || ''}`.trim(), p.merchant, p.date]
+        .filter(Boolean).join(' · ') + (reason ? ` - ${reason}` : '');
+      const drop = document.createElement('button');
+      drop.type = 'button';
+      drop.className = 'btn btn--quiet';
+      drop.textContent = S.discard || '';
+      drop.addEventListener('click', async () => {
+        if (!window.confirm(S.discard_confirm || '')) return;
+        await remove(item.client_uuid);
+        if (item.client_uuid === editing) blank(form);
+        await showCount();
+      });
+      li.append(what, drop);
+      return li;
+    }));
+    box.hidden = items.length === 0;
   }
 
   const showLogin = (on) => $$('[data-login]').forEach((el) => { el.hidden = !on; });
@@ -66,13 +130,14 @@
   // ------------------------------------------------------------ upload
   let editing = null;   // the client_uuid of a failed item now back in the form
   let running = null;
-  let again = false;
+  let again = null;   // null, 'waiting' or 'all': what to run once more
 
   // One item at a time, oldest first. Resolves to {client_uuid: answer} for
   // the items the server answered.
-  async function upload() {
+  async function upload(waitingOnly) {
     const answers = {};
     for (const item of await all()) {
+      if (waitingOnly && refused(item)) continue;
       // Skip the one being fixed in the form, and one the form has replaced
       // since this run listed the queue.
       if (item.client_uuid === editing || !(await get(item.client_uuid))) continue;
@@ -84,9 +149,11 @@
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ ...item.payload, client_uuid: item.client_uuid }),
+          // A hung connection would otherwise hold the whole queue.
+          signal: AbortSignal.timeout ? AbortSignal.timeout(FETCH_TIMEOUT_MS) : undefined,
         });
       } catch (err) {
-        return answers;   // offline: keep everything, try again later
+        return answers;   // offline or timed out: keep everything, try again later
       }
       if (res.status === 401 || res.type === 'opaqueredirect') {
         showLogin(true);
@@ -119,15 +186,24 @@
   }
 
   // Calls during a run make it run once more, so an item queued mid-run is
-  // not left waiting for the next `online` event.
-  async function sync() {
-    if (running) { again = true; return running; }
+  // not left waiting for the next `online` event. waitingOnly skips items the
+  // server refused: the timer retries those for nothing every 15 s otherwise;
+  // a page load and the `online` event still retry them (a missing rate can
+  // arrive, the other user can log back in).
+  async function sync(waitingOnly = false) {
+    const want = waitingOnly ? 'waiting' : 'all';
+    if (running) {
+      if (again !== 'all') again = want;
+      return running;
+    }
     const merged = {};
     running = (async () => {
+      let mode = want;
       do {
-        again = false;
-        try { Object.assign(merged, await upload()); } catch (err) { /* no IndexedDB */ }
-      } while (again);
+        again = null;
+        try { Object.assign(merged, await upload(mode === 'waiting')); } catch (err) { /* no IndexedDB */ }
+        mode = again;
+      } while (mode);
       await showCount();
       return merged;
     })();
@@ -190,7 +266,7 @@
     let items = [];
     try { items = await all(); } catch (err) { return false; }
     // 409 is another user's item: theirs to upload, not this form's to edit.
-    const item = items.find((i) => i.status && i.status !== 409
+    const item = items.find((i) => refused(i) && i.status !== 409
       && i.payload.user_id === form.dataset.user);
     if (!item) return false;
     blank(form);
@@ -211,12 +287,15 @@
         created_at: new Date().toISOString(), blob: null,
       };
       try {
-        await put(item);   // the queue first; the network is optional
+        await putReplacing(item, editing);   // the queue first; the network is optional
       } catch (err) {
-        form.submit();     // no IndexedDB: the plain online form post
+        // No IndexedDB, or the phone is full. Online, the plain form post
+        // still saves it; offline that would only reach an error page and
+        // lose what was typed, so say so and keep the form as it is.
+        if (navigator.onLine === false) showError(form, S.no_storage);
+        else form.submit();
         return;
       }
-      if (editing) await remove(editing);
       blank(form);
       notice(S.saved);
       await showCount();
@@ -237,32 +316,22 @@
   }
 
   // ------------------------------------------------------------ the rest
-  // Logout clears the cached capture form (the next person on this phone gets
-  // their own), never the queue: an item not yet uploaded is not lost by it.
-  let leaving = false;
-  let warming = Promise.resolve();
-  document.addEventListener('submit', (e) => {
-    const f = e.target;
-    if (f.getAttribute('action') !== '/logout' || !('caches' in window)) return;
-    e.preventDefault();
-    // No warm-up may put the form back: none starts from here on, and one
-    // already running (its fetch goes through sw.js, which caches as well)
-    // finishes before the cache is emptied.
-    leaving = true;
-    warming
-      .then(() => caches.keys())
-      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
-      .catch(() => {})
-      .finally(() => f.submit());
-  }, true);
+  // Whoever reaches /login is logged out (a logout, an expired session): the
+  // cached capture form was the previous user's, so it goes. The queue stays.
+  // Done on arrival rather than on the logout click, so a logout that never
+  // reached the server keeps the form, and an expiry clears it too.
+  async function clearCache() {
+    if (!('caches' in window)) return;
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  }
 
-  // A logged-in page puts /capture into the cache if a logout emptied it, so
-  // the form is there offline without first visiting it online.
+  // A logged-in page puts /capture into the cache if it is not there (after
+  // a login), so the form is there offline without first visiting it online.
   async function warmCache() {
-    if (!('caches' in window) || window.location.pathname === '/login') return;
-    if (leaving || await caches.match('/capture')) return;
+    if (!('caches' in window) || await caches.match('/capture')) return;
     const res = await fetch('/capture', { redirect: 'manual', credentials: 'same-origin' });
-    if (res.ok && res.type === 'basic' && !res.redirected && !leaving) {
+    if (res.ok && res.type === 'basic' && !res.redirected) {
       await (await caches.open(CACHE)).put('/capture', res);
     }
   }
@@ -276,22 +345,24 @@
         .then((yes) => yes || navigator.storage.persist())
         .catch(() => {});
     }
+    const onLogin = window.location.pathname === '/login';
+    if (onLogin) clearCache().catch(() => {});
     const form = document.querySelector('form[data-capture]');
     if (form) {
       wireForm(form);
       if (!(await restoreFailed(form))) form.elements.date.value = today();
     }
     await showCount();
-    window.addEventListener('online', sync);
+    window.addEventListener('online', () => sync());
     // navigator.onLine only says a network interface is up: shop wifi with no
     // uplink, or a signal that comes back, fires no `online` event at all.
     // So while something waits, try again every so often as well.
-    setInterval(() => { if (pending > 0) sync(); }, RETRY_MS);
+    setInterval(() => { if (waiting > 0) sync(true); }, RETRY_MS);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') sync();
     });
     await sync();
-    warming = warmCache().catch(() => {});
+    if (!onLogin) warmCache().catch(() => {});
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

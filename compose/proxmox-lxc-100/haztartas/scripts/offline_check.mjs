@@ -17,8 +17,15 @@
 //   2. session gone (cookie cleared, as when it expires): the cached form
 //      still opens offline and queues; back online the login prompt shows and
 //      the counter stays 1; after logging in it uploads.
-//   3. logout: the Cache Storage is emptied, the queue is not; an item that
-//      could not upload before the logout uploads after the next login.
+//   3. logout: the Cache Storage is emptied when /login loads, the queue is
+//      not, and /login shows the counter; an item that could not upload
+//      before the logout uploads after the next login.
+//   4. Pangolin in front, abroad: a 302 to an external login and a 200 HTML
+//      login page both keep the item queued and show the login prompt.
+//   5. the phone's storage is full while offline: the form says so and keeps
+//      what was typed instead of navigating to an error page.
+//   6. a refused item (409, another user's) is listed with its reason and can
+//      be removed from the phone.
 const PW = process.env.PLAYWRIGHT_CORE
   || '/usr/lib/node_modules/@playwright/cli/node_modules/playwright-core/index.mjs';
 const { chromium } = await import(PW);
@@ -63,6 +70,17 @@ const queueSize = () => page.evaluate(() => new Promise((resolve, reject) => {
   req.onerror = () => reject(req.error);
 }));
 const cachedCapture = () => page.evaluate(async () => !!(await caches.match('/capture')));
+// page.waitForFunction treats a returned Promise as truthy and never awaits
+// it, so an async condition (Cache Storage, IndexedDB) is polled from here.
+async function until(cond, what, ms = 10000) {
+  const end = Date.now() + ms;
+  while (!(await cond())) {
+    if (Date.now() > end) throw new Error(`timed out: ${what}`);
+    await page.waitForTimeout(250);
+  }
+}
+const waitNotCached = () => until(async () => !(await cachedCapture()), '/capture leaves the cache');
+const syncRoute = '**/capture/sync';
 
 async function login() {
   await page.goto(`${base}/login`);
@@ -90,11 +108,7 @@ async function waitCount(n) {
 // counted, so "counter hidden" alone proves nothing right after a navigation:
 // wait for the queue itself to empty, then for the counter.
 async function waitUploaded() {
-  const until = Date.now() + 45000;
-  while (await queueSize() > 0) {
-    if (Date.now() > until) throw new Error('queue did not empty in 45 s');
-    await page.waitForTimeout(500);
-  }
+  await until(async () => await queueSize() === 0, 'queue empties', 45000);
   await counter().waitFor({ state: 'hidden', timeout: 5000 });
 }
 
@@ -108,8 +122,8 @@ try {
   await login();
   await page.goto(`${base}/capture`);
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(async () => !!navigator.serviceWorker.controller
-    && !!(await caches.match('/capture')), null, { timeout: 10000 });
+  await until(async () => await page.evaluate(() => !!navigator.serviceWorker.controller)
+    && cachedCapture(), 'service worker in control, /capture cached');
   ok(true, 'service worker controls /capture and has it cached');
 
   await context.setOffline(true);
@@ -169,6 +183,14 @@ try {
   ok(await queueSize() === 1, 'no session, online: queue still holds 1');
   ok(await page.getAttribute('[data-login] a', 'href') === '/login', 'login prompt links to /login');
 
+  // a session expiry ends at /login: the cached form of whoever was logged
+  // in goes, the queue stays and is counted there
+  await page.goto(`${base}/login`);
+  await waitNotCached();
+  ok(true, '/login: Cache Storage emptied on load');
+  await waitCount(1);
+  ok(await queueSize() === 1, '/login: counter shows the 1 queued item, queue kept');
+
   await login();
   await page.goto(`${base}/capture`);
   await waitUploaded();
@@ -185,15 +207,69 @@ try {
     page.waitForURL(`${base}/login`),
     page.evaluate(() => document.querySelector('form[action="/logout"]').requestSubmit()),
   ]);
-  ok(!(await cachedCapture()), 'logout: /capture is gone from Cache Storage');
+  await waitNotCached();
+  ok(true, 'logout: /capture is gone from Cache Storage');
   ok(await queueSize() === 1, 'logout: the queue still holds 1');
+  await waitCount(1);
+  ok(true, 'logout: /login shows the counter');
   await page.unroute('**/capture/sync');
   await login();
   await waitUploaded();
   ok(true, 'next login: the item from before the logout uploaded');
   ok(await listedTimes(`Logout-${tag}`) === 1, 'next login: listed once');
-  await page.waitForFunction(async () => !!(await caches.match('/capture')), null, { timeout: 10000 });
+  await until(cachedCapture, '/capture cached again');
   ok(true, 'next login: /capture is cached again without visiting it');
+
+  // ---- 4. Pangolin's two shapes
+  for (const [shape, answer, amount] of [
+    ['302 to an external login', { status: 302, headers: { location: 'https://auth.example.invalid/login' } }, '12,70'],
+    ['200 HTML login page', { status: 200, contentType: 'text/html', body: '<!doctype html><title>Login</title><form></form>' }, '15,10'],
+  ]) {
+    const name = `Pangolin-${amount}-${tag}`;
+    await page.goto(`${base}/capture`);
+    await page.route(syncRoute, (r) => r.fulfill(answer));
+    await record(name, amount);
+    await page.locator('[data-login]').waitFor({ state: 'visible', timeout: 15000 });
+    ok(await queueSize() === 1, `Pangolin ${shape}: login prompt shows, item kept`);
+    await page.unroute(syncRoute);
+    await page.reload();
+    await waitUploaded();
+    ok(await listedTimes(name) === 1,
+      `Pangolin ${shape}: uploads once the wall is gone`);
+  }
+
+  // ---- 5. storage full while offline
+  await page.goto(`${base}/capture`);
+  await context.setOffline(true);
+  await page.evaluate(() => {
+    IDBObjectStore.prototype.put = () => { throw new DOMException('full', 'QuotaExceededError'); };
+  });
+  await record(`Quota-${tag}`, '13,80');
+  await page.locator('[data-error]').waitFor({ state: 'visible', timeout: 5000 });
+  ok((await page.textContent('[data-error]')).includes('kevés a tárhely')
+    && await page.inputValue('#f-amount') === '13,80'
+    && await page.inputValue('#f-merchant') === `Quota-${tag}`
+    && page.url() === `${base}/capture`, 'storage full offline: says so, keeps the typed entry');
+  await context.setOffline(false);
+  await page.reload();   // the real put again
+  ok(await queueSize() === 0, 'storage full offline: nothing half-queued');
+
+  // ---- 6. a refused item is explained and can be removed
+  await page.route(syncRoute, (r) => r.fulfill({
+    status: 409, contentType: 'application/json',
+    body: JSON.stringify({ client_uuid: JSON.parse(r.request().postData()).client_uuid, error: 'x' }),
+  }));
+  await record(`Refused-${tag}`, '14,90');
+  const item = page.locator('[data-refused] li', { hasText: `Refused-${tag}` });
+  await item.waitFor({ state: 'visible', timeout: 15000 });
+  ok((await item.textContent()).includes('másik felhasználó'), 'refused 409: listed with its reason');
+  await waitCount(1);
+  ok((await counterText()).includes('nem tölthető fel'), `refused 409: counter says so ("${(await counterText()).trim()}")`);
+  page.once('dialog', (d) => d.accept());
+  await item.getByRole('button', { name: 'Törlés a telefonról' }).click();
+  await counter().waitFor({ state: 'hidden', timeout: 5000 });
+  ok(await queueSize() === 0 && !(await item.isVisible()), 'refused 409: removed from the phone');
+  await page.unroute(syncRoute);
 } catch (err) {
   ok(false, `aborted: ${err.message.split('\n')[0]}`);
 }

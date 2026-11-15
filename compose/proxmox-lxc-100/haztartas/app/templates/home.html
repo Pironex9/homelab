@@ -83,7 +83,6 @@
   </main>
 
   <div class="dock">
-    <p class="pending{% if pending %} is-on{% endif %}" data-pending>{{ S["queue_pending"].format(n=pending or 0) }}</p>
     <div class="dock__row">
       <span class="capture" aria-disabled="true">{{ icon("camera") }}{{ S["capture_photo"] }}<small>{{ S["soon"] }}</small></span>
       <span class="capture" aria-disabled="true">{{ icon("mic") }}{{ S["capture_voice"] }}<small>{{ S["soon"] }}</small></span>

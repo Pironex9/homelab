@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 
 from sqlalchemy import func, select
@@ -210,8 +211,10 @@ def test_sw_served_from_root_with_js_type(client):
     r = client.get("/sw.js")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/javascript")
-    assert "haztartas-v1" in r.text
     assert "/capture" in r.text
+    # capture.js warms the same cache sw.js serves from: one name in both
+    name = re.search(r"const CACHE = '(haztartas-v\d+)'", r.text).group(1)
+    assert f"const CACHE = '{name}'" in client.get("/static/capture.js").text
 
 
 def test_capture_js_served(client):
@@ -237,3 +240,24 @@ def test_manifest_served(client):
         assert img.headers["content-type"] == "image/png"
         w, h = int.from_bytes(img.content[16:20], "big"), int.from_bytes(img.content[20:24], "big")
         assert f"{w}x{h}" == icon["sizes"]
+
+
+def test_every_page_has_exactly_one_counter(client, adult, users):
+    pages = [client.get("/login")] + [adult.get(p) for p in (
+        "/", "/capture", "/entries", "/entries/new", "/drafts", "/pocket",
+        "/settings")]
+    for page in pages:
+        assert page.status_code == 200, page.url
+        assert page.text.count("data-pending") == 1, page.url
+
+
+def test_queue_strings_reach_the_page(client):
+    html = client.get("/login").text
+    blob = html.split('id="queue-strings">', 1)[1].split("</script>", 1)[0]
+    strings = json.loads(blob)
+    for js, key in (("pending", "queue_pending"), ("refused", "queue_refused"),
+                    ("login", "queue_login"), ("other_user", "queue_other_user"),
+                    ("discard", "queue_discard"),
+                    ("discard_confirm", "queue_discard_confirm"),
+                    ("no_storage", "capture_no_storage")):
+        assert strings[js] == S[key], key
