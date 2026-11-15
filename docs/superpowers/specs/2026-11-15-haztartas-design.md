@@ -14,7 +14,7 @@ argues from code that exists.
 |---|---|---|
 | 1. Accounts, manual entry, categories and budgets, income, hidden entries, pocket money, monthly view, installable PWA with offline capture of the manual form | not written | |
 | 2. Receipt photo (eKasa QR, then Gemini), voice entry (Gemini audio), offline queuing of photo and audio, attachments, Drafts screen | not written | |
-| 3. Budget push notifications, month-over-month trends | not written | |
+| 3. Budget push notifications, month-over-month trends, Pedikur income draft | not written | |
 | Later | Hungarian price lookup (GVH Arfigyelo), AI questions over the ledger | not planned | |
 
 ## 1. Context
@@ -44,6 +44,13 @@ ledger and self-hosting:
 - Monairo, moneasy: voice and family sharing, but closed and hosted.
 - Firefly III / Actual Budget as a backend: the hidden-entry rule and the
   child role would have to be built against their permission models.
+
+**Every expense goes in, not only cash and receipts** (decided in the grilling
+pass): fixed bills and subscriptions as recurring items (section 4), receipts by
+photo, receipt-less card spending (online orders, small card payments) by voice
+or by hand. Once a month the adults compare the month against the bank statement
+by eye. A bank CSV import would automate that; it waits on the "later" list
+until the by-eye check proves to find a lot.
 
 ### What this is not
 
@@ -143,6 +150,27 @@ Line items are stored (`entry_line`) because a Tesco receipt holds food and
 detergent; budgets count lines by their own category, and an entry without
 lines by the entry's category.
 
+**A 40-line receipt is confirmed at a glance.** Gemini suggests a category per
+line; the confirm screen shows category subtotals, each expandable to its
+lines, and a line can be moved to another category:
+
+```
+Tesco, nov. 15.                 84,30 EUR
+  Elelmiszer      31 tetel      71,40   >
+  Haztartas        4 tetel       9,90   >
+  Higienia         2 tetel       3,00   >
+                               [ Mentes ]
+```
+
+**Corrections are remembered.** Moving a line stores `(merchant, normalised
+line name) -> category` in a `line_category_rule` table; from then on that pair
+takes the rule, not Gemini's guess.
+
+**Receipt photos are kept forever** and double as the warranty copy (thermal
+paper fades in 1-2 years; EU warranty is 2 years). Entry search covers merchant
+and line names, so "mosogep" finds the receipt and its photo. No warranty
+expiry tracking.
+
 **Hungarian receipts have no lookup path today.** The NAV eNyugta customer app
 can fetch e-receipts from new e-cash registers by QR, but third-party access is
 unverified, and old online cash registers (most chains) may run until
@@ -180,6 +208,29 @@ phase 2 extends it rather than migrating it.
 Everything except capture (reports, budgets, editing) needs the network and
 says so plainly when it is missing.
 
+### 3.5 Duplicates
+
+Three people on three capture paths will record the same purchase twice (voice
+at the till, the receipt photographed that evening). Before saving, the confirm
+screen looks for a likely duplicate: same wallet, same day or the day before,
+amount within 2%. If found: "Lehet, hogy ez mar rogzitve van: 32,00 EUR, Lidl,
+<author>, hangos, 17:40" with three choices:
+
+- **Merge** - the existing entry takes the new one's lines, photo and amount
+  (receipt data is the more exact).
+- **Save separately** - two real coffees on one day exist.
+- **Cancel.**
+
+Never automatic. A hidden entry is never offered for merging and the warning
+reveals nothing beyond what the redacted form already shows ("egy rejtett tetel
+hasonlo osszeggel").
+
+### 3.6 Business purchases
+
+Pedicure supplies are recorded only in Pedikur; the household gets the business
+result instead (section 4). The confirm screen has no business flag beyond a
+reminder in the category list ("Pedikur anyag -> a Pedikur appba").
+
 ## 4. Money
 
 - Amounts are integers in minor units (cents, filler). No floats.
@@ -190,6 +241,13 @@ says so plainly when it is missing.
   the latest earlier rate. A currency the ECB does not publish is entered with
   a manual rate on the confirm screen.
 - Reports and budgets are in EUR.
+- **ECB rate only, no "amount actually charged" override** (owner's decision):
+  a Hungarian card payment's bank-side EUR differs by the bank's spread and
+  fees, and that difference is accepted rather than modelled.
+- **Months are calendar months**, matching the bank statement. Two salaries on
+  different days make any pay cycle arbitrary. Next to the balance, one line of
+  expected income from pending recurring items ("+2 fizetes varhato 10-en es
+  15-en") keeps the early-month balance from reading as overspending.
 
 ### Income
 
@@ -197,6 +255,18 @@ Adults record income (salary, other). Salary is a **recurring item**: on its
 day each month a draft income entry is created with the usual amount, for the
 adult to confirm or correct (net pay varies). Same mechanism for any other
 recurring item later (rent, subscriptions) without new code.
+
+### Pedikur income (phase 3)
+
+The Pedikur app runs on the same LXC with an internal, token-protected `/api/*`
+(Pangolin-blocked). On the 1st of each month a draft income entry is created
+for the previous month: **Pedikur revenue minus Pedikur expenses**, not revenue,
+because supplies are already paid out of it. Social and health contributions
+and tax are paid from household money and are household recurring expenses.
+Pedikur's API exposes visits today but no expenses, so phase 3 adds one small
+read-only endpoint there (monthly expense sum). Revenue is summed from closed
+visits the way Pedikur's own dashboard will define it; the phase 3 plan reads
+Pedikur's code for that definition rather than re-deriving it.
 
 ### Budgets
 
