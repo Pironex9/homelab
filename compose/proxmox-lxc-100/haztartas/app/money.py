@@ -6,7 +6,7 @@ import re
 # A dot followed by exactly three digits is a thousands separator ("1.200");
 # a comma or dot followed by one or two digits is the decimal mark. "12,345"
 # is ambiguous and rejected. Spaces are thousands separators.
-_AMOUNT = re.compile(r"(\d{1,3}(?:\.\d{3})+|\d+)(?:[.,](\d{1,2}))?")
+_AMOUNT = re.compile(r"([1-9]\d{0,2}(?:\.\d{3})+|\d+)(?:[.,](\d{1,2}))?")
 
 
 def parse_amount(text: str) -> int:
@@ -27,5 +27,6 @@ def fmt_money(minor: int, currency: str) -> str:
     whole, cents = divmod(abs(minor), 100)
     grouped = f"{whole:,}".replace(",", " ")
     if currency == "HUF":
-        return f"{sign}{grouped} Ft"
+        frac = f",{cents:02d}" if cents else ""
+        return f"{sign}{grouped}{frac} Ft"
     return f"{sign}{grouped},{cents:02d} {currency}"

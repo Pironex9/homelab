@@ -13,7 +13,7 @@ def test_parse_amount_accepts(text, minor):
 
 
 @pytest.mark.parametrize("text", [
-    "", "abc", "-3", "0", "1,2,3", "12,345", "0,00", "12,"])
+    "", "abc", "-3", "0", "1,2,3", "12,345", "0,00", "12,", "0.500", "0.125"])
 def test_parse_amount_rejects(text):
     with pytest.raises(ValueError):
         parse_amount(text)
@@ -38,3 +38,8 @@ def test_scheduled_day_clamps():
     assert scheduled_day("2028-02", 31) == "2028-02-29"
     assert scheduled_day("2026-04", 31) == "2026-04-30"
     assert scheduled_day("2026-04", 5) == "2026-04-05"
+
+
+def test_fmt_money_huf_keeps_fractional_part():
+    assert fmt_money(12050, "HUF") == "120,50 Ft"
+    assert fmt_money(-12050, "HUF") == "-120,50 Ft"
