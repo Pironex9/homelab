@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ S["login_title"] }}</title>
+</head>
+<body class="is-login">
+<div class="login">
+  <p class="login__brand">{{ S["app_name"] }}</p>
+  <h1>{{ S["login_title"] }}</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/login">
+    <label for="username">{{ S["login_user"] }}</label>
+    <input id="username" name="username" autocomplete="username"
+           autocapitalize="none" autocorrect="off" required autofocus>
+    <label for="password">{{ S["login_password"] }}</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" required>
+    <button type="submit">{{ S["login_submit"] }}</button>
+  </form>
+</div>
+</body>
+</html>

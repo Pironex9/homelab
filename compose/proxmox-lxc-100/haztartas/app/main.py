@@ -11,6 +11,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import backup, config, migrate
+from app.routers import auth
+from app.strings.hu import S
 from app.db import Database
 
 BASE_DIR = Path(__file__).parent
@@ -25,6 +27,7 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.db = Database(settings.db_path)
     app.state.templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    app.state.templates.env.globals["S"] = S
     task = asyncio.create_task(
         backup.nightly_task(settings.db_path, settings.backup_dir))
     yield
@@ -54,6 +57,9 @@ app.add_middleware(
     same_site="lax",
     max_age=90 * 24 * 60 * 60,
 )
+
+
+app.include_router(auth.router)
 
 
 @app.get("/health")
