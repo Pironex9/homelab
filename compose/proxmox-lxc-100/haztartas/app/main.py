@@ -6,7 +6,9 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from urllib.parse import urlsplit
+
+from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -72,6 +74,29 @@ app.add_middleware(
     same_site="lax",
     max_age=90 * 24 * 60 * 60,
 )
+
+
+_UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+@app.middleware("http")
+async def origin_guard(request: Request, call_next):
+    """CSRF: the app is public on a registrable domain shared with other apps,
+    so SameSite=Lax alone is not enough. A browser always sends Origin or
+    Sec-Fetch-Site on a cross-site POST; clients that send neither (curl, old
+    browsers) pass. uvicorn's forwarded-allow-ips does not rewrite Host, so a
+    proxy's X-Forwarded-Host is accepted as well."""
+    if request.method in _UNSAFE:
+        origin = request.headers.get("origin")
+        if origin is not None:
+            hosts = {request.headers.get("host"),
+                     request.headers.get("x-forwarded-host")}
+            if urlsplit(origin).netloc not in hosts:
+                return PlainTextResponse("forbidden", status_code=403)
+        elif request.headers.get("sec-fetch-site") not in (
+                None, "same-origin", "none"):
+            return PlainTextResponse("forbidden", status_code=403)
+    return await call_next(request)
 
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

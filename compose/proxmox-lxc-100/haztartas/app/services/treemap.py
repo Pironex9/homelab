@@ -23,20 +23,28 @@ def squarify(items: list[tuple[Hashable, int]], width: float = 100,
              height: float = 100, min_share: float = 0.06) -> list[Rect]:
     """Rectangles that exactly tile width x height, largest first.
 
-    Items under `min_share` of the total are folded into one "other" item, so
-    a sliver of a category never becomes an unreadable tile. When every item
-    is that small there is nothing to fold them into and all keep a tile.
+    Two or more items under `min_share` of the total are folded into one
+    "other" item, and that tile (or a lone small item's) is weighted up to at
+    least `min_share` of the area, so no tile is an unreadable sliver. When
+    every item is that small nothing is folded.
     """
     live = [(k, v) for k, v in items if v > 0]
     if not live:
         return []
     total = sum(v for _, v in live)
     big = [(k, v) for k, v in live if v / total >= min_share]
-    small = sum(v for _, v in live if v / total < min_share)
-    if big and small:
-        big.append(("other", small))
-    elif not big:
+    small = [(k, v) for k, v in live if v / total < min_share]
+    if not big:
         big = live
+    elif small:
+        # Laid out with a floor weight so its tile gets min_share of the
+        # area, however little the small items add up to. The caller labels
+        # it with the true amount. One small item keeps its own key.
+        floor = min_share * sum(v for _, v in big) / (1 - min_share)
+        if len(small) == 1:
+            big.append((small[0][0], max(small[0][1], floor)))
+        else:
+            big.append(("other", max(sum(v for _, v in small), floor)))
     big.sort(key=lambda kv: -kv[1])
 
     scale = width * height / sum(v for _, v in big)

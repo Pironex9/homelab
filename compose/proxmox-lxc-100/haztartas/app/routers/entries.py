@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlencode
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -25,12 +26,21 @@ def _render(request, name, ctx, status=200):
         request, name, ctx, status_code=status)
 
 
-def _choices(s, user: User) -> dict:
-    cats = s.scalars(select(Category).where(Category.archived_at.is_(None))
-                     .order_by(Category.kind, Category.sort, Category.id)).all()
-    wallets = [(w.id, w.name) for w in s.scalars(select(Wallet).where(
-        or_(Wallet.owner_user_id.is_(None), Wallet.owner_user_id == user.id))
-        .order_by(Wallet.owner_user_id.is_(None).desc(), Wallet.id))]
+def _choices(s, user: User, entry: Entry | None = None) -> dict:
+    keep_cat = entry.category_id if entry else None
+    keep_wallet = entry.wallet_id if entry else None
+    cats = s.scalars(select(Category).where(or_(
+        Category.archived_at.is_(None), Category.id == keep_cat))
+        .order_by(Category.kind, Category.sort, Category.id)).all()
+    # An adult may write into any wallet (the service decides what is
+    # allowed); a child sees the household and their own. An edit always
+    # offers the entry's current wallet, or saving would silently move it.
+    q = select(Wallet).order_by(Wallet.owner_user_id.is_(None).desc(), Wallet.id)
+    if user.role != "adult":
+        q = q.where(or_(Wallet.owner_user_id.is_(None),
+                        Wallet.owner_user_id == user.id,
+                        Wallet.id == keep_wallet))
+    wallets = [(w.id, w.name) for w in s.scalars(q)]
     return dict(categories=[(c.id, c.name, c.kind) for c in cats],
                 wallets=wallets, currencies=CURRENCIES)
 
@@ -72,9 +82,9 @@ def _build(v: dict) -> svc.EntryInput:
         amount = money.parse_amount(v["amount"])
     except ValueError:
         raise ValueError("amount_invalid") from None
-    if not v["category_id"].isdigit():
+    if _int(v["category_id"]) is None:
         raise ValueError("category_required")
-    if not v["wallet_id"].isdigit():
+    if _int(v["wallet_id"]) is None:
         raise ValueError("form_invalid")
     rate = None
     if v["manual_rate"]:
@@ -94,8 +104,9 @@ def _build(v: dict) -> svc.EntryInput:
 
 def _form_page(request, s, user, values, status=200, error=None, hints=None,
                needs_rate=False, entry=None):
-    ctx = dict(_choices(s, user), values=values, error=error, hints=hints or [],
+    ctx = dict(_choices(s, user, entry), values=values, error=error, hints=hints or [],
                needs_rate=needs_rate, entry=entry,
+               confirm=values.get("confirm_duplicate") == "1",
                action=f"/entries/{entry.id}" if entry else "/entries",
                is_author=entry is None or entry.created_by == user.id,
                editable=entry is None or visibility.can_edit(
@@ -124,8 +135,15 @@ def _row(viewer, e, w, cat_name, author_name, today):
                 url=f"/entries/{e.id}", secret=visibility.is_secret(e, today))
 
 
+MAX_ID = 2 ** 53
+
+
 def _int(value: str | None) -> int | None:
-    return int(value) if value and value.isdigit() else None
+    """A filter id, or None for anything that is not a sane integer."""
+    if not value or not value.isdecimal() or not value.isascii():
+        return None
+    n = int(value)
+    return n if n <= MAX_ID else None
 
 
 @router.get("/entries")
@@ -167,7 +185,9 @@ def list_entries(request: Request, month: str | None = None,
                    f_author=author or "",
                    authors=[(u.id, u.name) for u in s.scalars(select(User))])
     if month:
-        keep = f"&wallet={wallet or ''}&category={category or ''}&author={author or ''}&q={q}"
+        keep = "&" + urlencode({"wallet": wallet or "",
+                                "category": category or "",
+                                "author": author or "", "q": q})
         ctx.update(
             month_label=f"{month[:4]}. {MONTHS[int(month[5:7]) - 1]}",
             prev_url=f"/entries?month={shift_month(month, -1)}{keep}",
@@ -208,10 +228,15 @@ async def create(request: Request, user: User = Depends(require_user)):
 
 # ---------------------------------------------------------------- one entry
 
+def _in_range(entry_id: int) -> None:
+    if not 0 < entry_id <= MAX_ID:
+        raise svc.NotAllowed("no such entry")
+
+
 def _load(s, user, entry_id: int) -> tuple[Entry, Wallet]:
     """The entry in full, or 404: a missing, deleted, redacted or invisible
     entry all look the same."""
-    e = s.get(Entry, entry_id)
+    e = s.get(Entry, entry_id) if 0 < entry_id <= MAX_ID else None
     w = s.get(Wallet, e.wallet_id) if e else None
     if e is None or not isinstance(
             visibility.present(user, e, w, clock.today()), Entry):
@@ -253,6 +278,7 @@ async def update(request: Request, entry_id: int,
 def delete(request: Request, entry_id: int, user: User = Depends(require_user)):
     with request.app.state.db.session() as s:
         try:
+            _in_range(entry_id)
             svc.delete_entry(s, user, entry_id)
         except svc.NotAllowed:
             raise HTTPException(status_code=403) from None
@@ -263,6 +289,7 @@ def delete(request: Request, entry_id: int, user: User = Depends(require_user)):
 def reveal(request: Request, entry_id: int, user: User = Depends(require_user)):
     with request.app.state.db.session() as s:
         try:
+            _in_range(entry_id)
             svc.reveal_entry(s, user, entry_id)
         except svc.NotAllowed:
             raise HTTPException(status_code=403) from None

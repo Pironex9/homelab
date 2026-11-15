@@ -105,7 +105,10 @@ def build(s, viewer, month: str, today: str) -> dict:
     recent = s.execute(
         select(Entry, Category.name)
         .outerjoin(Category, Category.id == Entry.category_id)
-        .where(*own).order_by(Entry.date.desc(), Entry.id.desc()).limit(20)).all()
+        # Everything the child may see: what they authored in either wallet
+        # plus what landed in their own (exactly visibility.listable).
+        .where(Entry.status == "confirmed", visibility.listable(viewer, today))
+        .order_by(Entry.date.desc(), Entry.id.desc()).limit(20)).all()
     ctx.update(
         wallet_balance_minor=summary.wallet_balance(s, wallet.id, viewer, today),
         tiles=_tiles([(cid, int(v)) for cid, _, v in spent], month,

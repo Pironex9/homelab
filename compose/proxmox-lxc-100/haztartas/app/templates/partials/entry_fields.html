@@ -13,7 +13,7 @@
   {% for c in currencies %}<option value="{{ c }}"{% if values.currency == c %} selected{% endif %}>{{ c }}</option>{% endfor %}
 </select>
 
-{% if needs_rate %}
+{% if needs_rate or values.manual_rate %}
 <label for="f-rate">{{ S["f_manual_rate"].format(currency=values.currency) }}</label>
 <input id="f-rate" name="manual_rate" type="text" inputmode="decimal" autocomplete="off" required value="{{ values.manual_rate }}">
 {% endif %}
@@ -53,3 +53,4 @@
 <label for="f-reveal">{{ S["f_reveal_on"] }}</label>
 <input id="f-reveal" name="reveal_on" type="date" value="{{ values.reveal_on }}">
 {% endif %}
+{% if confirm %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}

@@ -169,3 +169,104 @@ def test_only_author_can_reveal(adult, adult2, users):
 def test_child_cannot_delete_adult_entry(child, adult, users):
     eid = add(users, "anna")
     assert child.post(f"/entries/{eid}/delete").status_code in (403, 404)
+
+
+# ---- fix round 1
+
+def test_adult_edit_of_child_entry_keeps_wallet(adult, child, users):
+    own = child_wallet(users)
+    eid = add(users, "cili", wallet_id=own, merchant="Fagyy",
+              category_id=cat(users, "Szórakozás"))
+    page = adult.get(f"/entries/{eid}").text
+    assert f'value="{own}" selected>Cili' in page
+    r = adult.post(f"/entries/{eid}", data=form(
+        users, wallet_id=str(own), merchant="Fagyi",
+        category_id=str(cat(users, "Szórakozás"))))
+    assert r.status_code == 303
+    with users.state.db.session() as s:
+        e = s.get(Entry, eid)
+        assert (e.wallet_id, e.merchant) == (own, "Fagyi")
+
+
+def test_adult_form_offers_child_wallet(adult, users):
+    own = child_wallet(users)
+    assert f'value="{own}">Cili' in adult.get("/entries/new").text
+
+
+def test_missing_rate_then_duplicate_flow_saves_once(adult, adult2, users):
+    from decimal import Decimal
+    # 2000 HUF at a manual 400 = 5 EUR; an existing 5 EUR entry is the duplicate
+    add(users, "bela", amount_minor=500)
+    body = form(users, currency="HUF", amount="2000")
+    r1 = adult.post("/entries", data=body)
+    assert r1.status_code == 422 and 'name="manual_rate"' in r1.text
+    r2 = adult.post("/entries", data=dict(body, manual_rate="400"))
+    assert r2.status_code == 200 and S["duplicate_save"] in r2.text
+    assert 'name="manual_rate"' in r2.text and 'value="400"' in r2.text
+    r3 = adult.post("/entries", data=dict(body, manual_rate="400",
+                                          confirm_duplicate="1"))
+    assert r3.status_code == 303 and count(users) == 2
+
+
+def test_confirm_duplicate_survives_rate_rerender(adult, users):
+    r = adult.post("/entries", data=form(
+        users, currency="HUF", amount="2000", confirm_duplicate="1"))
+    assert r.status_code == 422
+    assert 'name="confirm_duplicate" value="1"' in r.text
+
+
+def test_junk_ids_do_not_500(adult, users):
+    assert adult.get("/entries?wallet=%C2%B2").status_code == 200
+    assert adult.get("/entries?category=99999999999999999999999").status_code == 200
+    assert adult.get("/entries/99999999999999999999999").status_code == 404
+    assert adult.post("/entries/99999999999999999999999/delete").status_code in (403, 404)
+
+
+def test_edit_keeps_archived_category(adult, users):
+    from app.models import Category
+    food = cat(users, "Élelmiszer")
+    eid = add(users, "anna", category_id=food)
+    with users.state.db.session() as s:
+        s.get(Category, food).archived_at = "2026-01-01T00:00:00Z"
+    page = adult.get(f"/entries/{eid}").text
+    assert f'value="{food}" selected>Élelmiszer' in page
+    r = adult.post(f"/entries/{eid}", data=form(
+        users, category_id=str(food), merchant="Billa"))
+    assert r.status_code == 303
+
+
+def test_month_links_encode_query(adult, users):
+    html = adult.get("/entries?month=2020-01&q=a%26b").text
+    assert "q=a%26b" in html
+    assert "q=a&b" not in html.replace("&amp;", "&")
+
+
+# ---- CSRF origin guard
+
+def test_cross_origin_post_is_refused(adult, users):
+    r = adult.post("/entries", data=form(users),
+                   headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403 and count(users) == 0
+
+
+def test_cross_site_fetch_metadata_refused(adult, users):
+    r = adult.post("/entries", data=form(users),
+                   headers={"Sec-Fetch-Site": "cross-site"})
+    assert r.status_code == 403
+
+
+def test_same_origin_and_headerless_posts_pass(adult, users):
+    ok = adult.post("/entries", data=form(users),
+                    headers={"Origin": "http://testserver"})
+    assert ok.status_code == 303
+    ok2 = adult.post("/entries", data=form(users, confirm_duplicate="1"),
+                     headers={"Sec-Fetch-Site": "same-origin"})
+    assert ok2.status_code == 303
+    assert adult.post("/entries", data=form(
+        users, confirm_duplicate="1")).status_code == 303
+
+
+def test_login_is_guarded_too(client):
+    r = client.post("/login", data={"username": "a", "password": "b"},
+                    headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403

@@ -107,3 +107,24 @@ def test_child_sees_at_most_20_entries(child, users):
             category_id=cat(users, "Szórakozás"))
     html = child.get("/").text
     assert html.count('class="what"') == 20
+
+
+def test_child_home_lists_entries_across_both_wallets(child, adult, users):
+    own = child_wallet(users)
+    add(users, "cili", merchant="KozosBolt", category_id=cat(users, "Szórakozás"))
+    add(users, "cili", wallet_id=own, merchant="SajatBolt",
+        category_id=cat(users, "Szórakozás"))
+    add(users, "anna", merchant="SzuloBolt")
+    html = child.get("/").text
+    assert "KozosBolt" in html and "SajatBolt" in html
+    assert "SzuloBolt" not in html
+
+
+def test_other_tile_is_not_a_sliver(adult, users):
+    add(users, "anna", amount_minor=100000)
+    for name in ("Autó", "Ruha"):
+        add(users, "anna", amount_minor=100, category_id=cat(users, name))
+    import re
+    html = adult.get("/").text
+    m = re.search(r'c-other[^>]*--w:([\d.]+);--h:([\d.]+)', html)
+    assert m and float(m[1]) * float(m[2]) >= 0.06 * 10000 - 1

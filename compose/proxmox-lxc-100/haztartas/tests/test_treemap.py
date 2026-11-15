@@ -56,3 +56,18 @@ def test_zero_and_negative_dropped_and_empty():
     assert squarify([("a", 0), ("b", -5)]) == []
     rects = squarify([("a", 10), ("b", 0), ("c", -1)])
     assert [r.key for r in rects] == ["a"]
+
+
+def test_other_tile_has_a_floor_weight():
+    rects = squarify([("a", 1000), ("b", 1000), ("c", 1), ("d", 1)],
+                     min_share=0.06)
+    other = next(r for r in rects if r.key == "other")
+    assert other.w * other.h >= 0.06 * 100 * 100 - 1e-6
+    assert sum(r.w * r.h for r in rects) == pytest.approx(10000, abs=1e-6)
+
+
+def test_single_small_item_keeps_its_key_with_floor_weight():
+    rects = squarify([("a", 1000), ("b", 1000), ("c", 1)], min_share=0.06)
+    assert sorted(r.key for r in rects) == ["a", "b", "c"]
+    c = next(r for r in rects if r.key == "c")
+    assert c.w * c.h >= 0.06 * 100 * 100 - 1e-6
