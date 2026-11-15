@@ -37,6 +37,11 @@ S = {
     "capture_manual": "Kézi",
     "soon": "hamarosan",
     "queue_pending": "{n} tétel vár feltöltésre",
+    "queue_login": "Jelentkezz be a feltöltéshez",
+    "queue_other_user": "Ezt a tételt egy másik felhasználó rögzítette. Az ő belépésével töltődik fel.",
+    "queue_fix": "Ezt a tételt nem sikerült feltölteni. Javítsd, és mentsd újra.",
+    "capture_saved": "Elmentve. Feltöltjük, amint van kapcsolat.",
+    "capture_draft": "Hasonló tétel már van, ezért a tervezetek közé került.",
     "other_tile": "Egyéb · {n} kategória",
     "hidden_count": "{n} rejtett tétel",
 

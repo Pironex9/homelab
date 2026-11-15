@@ -9,13 +9,13 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import backup, config, fx, migrate, money
-from app.routers import auth, drafts, entries, home, pocket, settings
+from app.routers import auth, capture, drafts, entries, home, pocket, settings
 from app.strings.hu import S
 from app.db import Database
 from app.services import recurring
@@ -106,6 +106,28 @@ app.include_router(entries.router)
 app.include_router(drafts.router)
 app.include_router(pocket.router)
 app.include_router(settings.router)
+app.include_router(capture.router)
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker() -> FileResponse:
+    """Served from the root, not from /static/.
+
+    A service worker's scope defaults to the directory it is served from, and
+    it cannot intercept anything outside it. At /static/sw.js the scope would
+    be /static/, and the one page it exists for, /capture, would never come
+    from the cache on a dead connection.
+    """
+    return FileResponse(BASE_DIR / "static" / "sw.js",
+                        media_type="application/javascript")
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest() -> FileResponse:
+    """At the root next to sw.js, so the installed app's scope is the whole
+    site rather than /static/."""
+    return FileResponse(BASE_DIR / "static" / "manifest.webmanifest",
+                        media_type="application/manifest+json")
 
 
 @app.get("/health")

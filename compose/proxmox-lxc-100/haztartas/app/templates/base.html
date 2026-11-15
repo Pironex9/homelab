@@ -7,7 +7,11 @@
 <title>{% block title %}{{ S["app_name"] }}{% endblock %}</title>
 <link rel="stylesheet" href="/static/tokens.css">
 <link rel="stylesheet" href="/static/app.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
 <script src="/static/htmx.min.js" defer></script>
+<script src="/static/capture.js" defer></script>
+<script type="application/json" id="queue-strings">{{ {"pending": S["queue_pending"], "login": S["queue_login"], "other_user": S["queue_other_user"], "fix": S["queue_fix"], "saved": S["capture_saved"], "draft": S["capture_draft"]} | tojson }}</script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
 <!--
