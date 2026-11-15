@@ -50,7 +50,7 @@ class DuplicateHint:
     eur_minor: int
     merchant: str | None   # None when the candidate is a secret of someone else
     author_name: str
-    created_at: str
+    created_at: str | None   # None unless the viewer sees the entry in full
     hidden: bool
 
 
@@ -80,7 +80,7 @@ def _validate_money(amount_minor: int, currency: str) -> None:
         raise ValueError("currency must be 3 uppercase letters")
 
 
-def _validate(s, data: EntryInput) -> None:
+def _validate(s, data: EntryInput, keep_category: int | None = None) -> None:
     if data.kind not in KINDS:
         raise ValueError("kind must be expense or income")
     if data.payment not in PAYMENTS:
@@ -89,11 +89,13 @@ def _validate(s, data: EntryInput) -> None:
         raise ValueError("source is required")
     _validate_money(data.amount_minor, data.currency)
     _valid_date(data.date)
-    if data.manual_rate is not None and data.manual_rate <= 0:
-        raise ValueError("manual rate must be positive")
+    if data.manual_rate is not None and not (
+            data.manual_rate.is_finite() and data.manual_rate > 0):
+        raise ValueError("manual rate must be a positive finite number")
     if data.category_id is not None:
         c = s.get(Category, data.category_id)
-        if c is None or c.archived_at is not None:
+        if c is None or (c.archived_at is not None
+                         and data.category_id != keep_category):
             raise ValueError("unknown or archived category")
         if c.kind != data.kind:
             raise ValueError("category kind does not match entry kind")
@@ -172,7 +174,11 @@ def _editable(s, viewer: User, entry_id: int) -> tuple[Entry, Wallet]:
 
 def update_entry(s, viewer: User, entry_id: int, data: EntryInput) -> Entry:
     e, _ = _editable(s, viewer, entry_id)
-    _validate(s, data)
+    _validate(s, data, keep_category=e.category_id)
+    if viewer.id != e.created_by and (
+            bool(data.hidden) != bool(e.hidden)
+            or data.reveal_on != e.reveal_on):
+        raise NotAllowed("only the author can hide or unhide an entry")
     if data.wallet_id != e.wallet_id:
         _check_target(s, viewer, _wallet(s, data.wallet_id), data.kind)
     elif data.kind != e.kind:
@@ -244,7 +250,8 @@ def find_duplicates(s, viewer: User, data: EntryInput,
         hints.append(DuplicateHint(
             entry_id=e.id, eur_minor=e.eur_minor,
             merchant=e.merchant if full else None, author_name=author_name,
-            created_at=e.created_at, hidden=bool(e.hidden)))
+            created_at=e.created_at if full else None,
+            hidden=visibility.is_secret(e, today())))
     return hints
 
 

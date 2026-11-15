@@ -208,7 +208,7 @@ def test_duplicate_not_found_two_days_back(s, adult, household):
 def test_duplicate_hint_hides_secret_merchant(s, adult, adult2, household):
     create_entry(s, adult, inp(household, hidden=True, merchant="Ring"))
     [h] = find_duplicates(s, adult2, inp(household))
-    assert h.merchant is None and h.hidden is True
+    assert h.merchant is None and h.hidden is True and h.created_at is None
 
 
 def test_child_never_gets_hint_about_adult_entries(s, adult, child, household):
@@ -228,3 +228,45 @@ def test_invalid_input_is_value_error(s, adult, household, change):
         change["category_id"] = cat(s, "Fizetés", "income")   # kind mismatch
     with pytest.raises(ValueError):
         create_entry(s, adult, inp(household, **change))
+
+
+def test_non_author_cannot_change_hidden_flags(s, adult, adult2, household):
+    e = create_entry(s, adult, inp(household))
+    with pytest.raises(NotAllowed):
+        update_entry(s, adult2, e.id, inp(household, hidden=True))
+    u = update_entry(s, adult2, e.id, inp(household, merchant="Tesco"))
+    assert u.hidden == 0 and u.merchant == "Tesco"
+    f = create_entry(s, adult, inp(household, hidden=True, reveal_on="2026-01-01"))
+    with pytest.raises(NotAllowed):   # revealed: editable, flags not
+        update_entry(s, adult2, f.id, inp(household, hidden=True,
+                                          reveal_on="2026-02-02"))
+    u = update_entry(s, adult2, f.id, inp(household, hidden=True,
+                                          reveal_on="2026-01-01", note="x"))
+    assert u.note == "x" and u.reveal_on == "2026-01-01"
+
+
+def test_duplicate_hint_not_hidden_after_reveal_on_passes(s, adult, adult2,
+                                                          household):
+    create_entry(s, adult, inp(household, hidden=True, reveal_on="2026-01-01"))
+    [h] = find_duplicates(s, adult2, inp(household))
+    assert h.hidden is False and h.merchant == "Lidl" and h.created_at
+
+
+def test_archived_category_ok_on_update_unless_changed(s, adult, household):
+    c = cat(s, "Egyéb", "expense")
+    e = create_entry(s, adult, inp(household, category_id=c))
+    s.get(Category, c).archived_at = "2026-11-01T00:00:00Z"
+    update_entry(s, adult, e.id, inp(household, category_id=c, merchant="Tesco"))
+    other = cat(s, "Ruha", "expense")
+    s.get(Category, other).archived_at = "2026-11-01T00:00:00Z"
+    with pytest.raises(ValueError):
+        update_entry(s, adult, e.id, inp(household, category_id=other))
+    with pytest.raises(ValueError):
+        create_entry(s, adult, inp(household, category_id=c))
+
+
+@pytest.mark.parametrize("rate", ["NaN", "Infinity", "-Infinity", "0", "-1"])
+def test_non_finite_manual_rate_is_value_error(s, adult, household, rate):
+    with pytest.raises(ValueError):
+        create_entry(s, adult, inp(household, currency="PLN",
+                                   manual_rate=Decimal(rate)))
