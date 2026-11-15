@@ -37,6 +37,56 @@ S = {
     "capture_manual": "Kézi",
     "soon": "hamarosan",
     "queue_pending": "{n} tétel vár feltöltésre",
+    "other_tile": "Egyéb · {n} kategória",
+    "hidden_count": "{n} rejtett tétel",
+
+    "entries_title": "Tételek",
+    "entry_new_title": "Új tétel",
+    "entry_detail_title": "Tétel",
+    "back_home": "Vissza",
+    "filter_search": "Keresés",
+    "filter_category": "Kategória",
+    "filter_wallet": "Pénztárca",
+    "filter_author": "Ki rögzítette",
+    "filter_all": "Mind",
+    "filter_apply": "Szűrés",
+    "entries_empty": "Nincs ilyen tétel.",
+    "redacted_entry": "Rejtett tétel",
+    "own_hidden": "rejtett",
+    "no_name": "(név nélkül)",
+
+    "f_kind": "Fajta",
+    "kind_expense": "Kiadás",
+    "kind_income": "Bevétel",
+    "f_amount": "Összeg",
+    "f_currency": "Pénznem",
+    "f_date": "Dátum",
+    "f_merchant": "Hol",
+    "f_note": "Megjegyzés",
+    "f_category": "Kategória",
+    "f_category_pick": "Válassz kategóriát",
+    "f_payment": "Fizetés módja",
+    "payment_card": "Kártya",
+    "payment_cash": "Készpénz",
+    "payment_other": "Egyéb",
+    "f_wallet": "Pénztárca",
+    "f_hidden": "Rejtett tétel (meglepetés)",
+    "f_reveal_on": "Felfedés napja (nem kötelező)",
+    "f_manual_rate": "Árfolyam (1 EUR = ? {currency})",
+    "category_business_hint": "Pedikűrös anyag? Azt a Pedikur appba rögzítsd.",
+    "save": "Mentés",
+    "delete": "Törlés",
+    "reveal_now": "Felfedés most",
+    "read_only": "Ezt a tételt nem módosíthatod.",
+    "amount_invalid": "Az összeg nem érvényes. Példa: 12,50",
+    "category_required": "Válassz kategóriát.",
+    "rate_needed": "Erre a napra nincs árfolyam. Add meg kézzel.",
+    "form_invalid": "Valamelyik mező nem érvényes.",
+    "duplicate_title": "Hasonló tétel már van:",
+    "duplicate_save": "Mégis mentem",
+    "duplicate_cancel": "Mégse",
+    "duplicate_secret": "Egy rejtett tétel hasonló összeggel",
+    "duplicate_unnamed": "Név nélküli tétel",
 }
 
 
@@ -47,3 +97,16 @@ MONTHS = ["január", "február", "március", "április", "május", "június",
 MONTHS_IN = ["Januárban", "Februárban", "Márciusban", "Áprilisban", "Májusban",
              "Júniusban", "Júliusban", "Augusztusban", "Szeptemberben",
              "Októberben", "Novemberben", "Decemberben"]
+
+
+# Dative-ish day suffix ("10-én"): the vowel harmony follows how the number is
+# said aloud, so the table is by day, not by a rule on the last digit.
+_DAY_SUFFIX = {1: "jén", 2: "án", 3: "án", 4: "én", 5: "én", 6: "án", 7: "én",
+               8: "án", 9: "én", 10: "én", 11: "én", 12: "én", 13: "án",
+               14: "én", 15: "én", 16: "án", 17: "én", 18: "án", 19: "én",
+               20: "án", 21: "jén", 22: "én", 23: "án", 24: "én", 25: "én",
+               26: "án", 27: "én", 28: "án", 29: "én", 30: "án", 31: "én"}
+
+
+def day_label(day: int) -> str:
+    return f"{day}-{_DAY_SUFFIX[day]}"

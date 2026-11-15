@@ -1,0 +1,10 @@
+<section class="duplicate" role="alert">
+  <p>{{ S["duplicate_title"] }}</p>
+  <ul>
+    {% for h in hints %}
+    <li>{% if h.hidden and h.merchant is none %}{{ S["duplicate_secret"] }}{% else %}{{ h.merchant or S["duplicate_unnamed"] }}{% endif %} · <span class="num">{{ h.eur_minor | eur }}</span> · {{ h.author_name }}</li>
+    {% endfor %}
+  </ul>
+  <button class="btn" type="submit" name="confirm_duplicate" value="1">{{ S["duplicate_save"] }}</button>
+  <a href="/">{{ S["duplicate_cancel"] }}</a>
+</section>

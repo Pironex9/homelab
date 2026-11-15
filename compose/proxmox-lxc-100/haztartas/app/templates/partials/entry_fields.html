@@ -1,0 +1,55 @@
+{# Shared by entry_form.html and entry_detail.html. Plain markup; the controller restyles it. #}
+<label for="f-kind">{{ S["f_kind"] }}</label>
+<select id="f-kind" name="kind">
+  <option value="expense"{% if values.kind == "expense" %} selected{% endif %}>{{ S["kind_expense"] }}</option>
+  <option value="income"{% if values.kind == "income" %} selected{% endif %}>{{ S["kind_income"] }}</option>
+</select>
+
+<label for="f-amount">{{ S["f_amount"] }}</label>
+<input id="f-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required value="{{ values.amount }}">
+
+<label for="f-currency">{{ S["f_currency"] }}</label>
+<select id="f-currency" name="currency">
+  {% for c in currencies %}<option value="{{ c }}"{% if values.currency == c %} selected{% endif %}>{{ c }}</option>{% endfor %}
+</select>
+
+{% if needs_rate %}
+<label for="f-rate">{{ S["f_manual_rate"].format(currency=values.currency) }}</label>
+<input id="f-rate" name="manual_rate" type="text" inputmode="decimal" autocomplete="off" required value="{{ values.manual_rate }}">
+{% endif %}
+
+<label for="f-date">{{ S["f_date"] }}</label>
+<input id="f-date" name="date" type="date" required value="{{ values.date }}">
+
+<label for="f-merchant">{{ S["f_merchant"] }}</label>
+<input id="f-merchant" name="merchant" type="text" autocomplete="off" value="{{ values.merchant }}">
+
+<label for="f-category">{{ S["f_category"] }}</label>
+<select id="f-category" name="category_id" required aria-describedby="f-category-hint">
+  <option value="">{{ S["f_category_pick"] }}</option>
+  {% for kind in ("expense", "income") %}
+  <optgroup label="{{ S['kind_' ~ kind] }}">
+    {% for id, name, k in categories if k == kind %}<option value="{{ id }}"{% if values.category_id == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}
+  </optgroup>
+  {% endfor %}
+</select>
+<p id="f-category-hint">{{ S["category_business_hint"] }}</p>
+
+<label for="f-payment">{{ S["f_payment"] }}</label>
+<select id="f-payment" name="payment">
+  {% for p in ("card", "cash", "other") %}<option value="{{ p }}"{% if values.payment == p %} selected{% endif %}>{{ S["payment_" ~ p] }}</option>{% endfor %}
+</select>
+
+<label for="f-wallet">{{ S["f_wallet"] }}</label>
+<select id="f-wallet" name="wallet_id">
+  {% for id, name in wallets %}<option value="{{ id }}"{% if values.wallet_id == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}
+</select>
+
+<label for="f-note">{{ S["f_note"] }}</label>
+<input id="f-note" name="note" type="text" autocomplete="off" value="{{ values.note }}">
+
+{% if is_author %}
+<label><input type="checkbox" name="hidden" value="1"{% if values.hidden %} checked{% endif %}> {{ S["f_hidden"] }}</label>
+<label for="f-reveal">{{ S["f_reveal_on"] }}</label>
+<input id="f-reveal" name="reveal_on" type="date" value="{{ values.reveal_on }}">
+{% endif %}

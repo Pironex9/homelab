@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ S["entry_detail_title"] }} · {{ S["app_name"] }}{% endblock %}
+{% block body %}
+<div class="shell">
+  <header class="topbar">
+    <a href="/entries">{{ S["back_home"] }}</a>
+    <h1>{{ S["entry_detail_title"] }}</h1>
+  </header>
+  <main>
+    {% if editable %}
+    <form class="form" method="post" action="{{ action }}">
+      {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+      {% include "partials/entry_fields.html" %}
+      <button class="btn" type="submit">{{ S["save"] }}</button>
+    </form>
+    <form method="post" action="{{ action }}/delete"><button class="btn" type="submit">{{ S["delete"] }}</button></form>
+    {% else %}
+    <p>{{ S["read_only"] }}</p>
+    <dl>
+      <dt>{{ S["f_amount"] }}</dt><dd class="num">{{ values.amount }} {{ values.currency }}</dd>
+      <dt>{{ S["f_date"] }}</dt><dd>{{ values.date }}</dd>
+      <dt>{{ S["f_merchant"] }}</dt><dd>{{ values.merchant }}</dd>
+      <dt>{{ S["f_note"] }}</dt><dd>{{ values.note }}</dd>
+    </dl>
+    {% endif %}
+    {% if can_reveal %}
+    <form method="post" action="{{ action }}/reveal"><button class="btn" type="submit">{{ S["reveal_now"] }}</button></form>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
