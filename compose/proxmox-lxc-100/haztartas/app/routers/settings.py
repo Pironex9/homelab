@@ -139,7 +139,19 @@ def archive_category(request: Request, cid: int,
                      user: User = Depends(require_adult)):
     with request.app.state.db.session() as s:
         c = _category(s, cid)
-        c.archived_at = None if c.archived_at else now_utc()
+        if c.archived_at:
+            c.archived_at = None
+        else:
+            err = None
+            if (c.name, c.kind) in LOCKED:
+                err = "e_archive_locked"
+            elif s.scalar(select(Recurring.id).where(
+                    Recurring.category_id == c.id,
+                    Recurring.archived_at.is_(None)).limit(1)) is not None:
+                err = "e_archive_in_use"
+            if err:
+                return _page(request, s, user, 422, S[err], f"cat-{cid}")
+            c.archived_at = now_utc()
     return RedirectResponse("/settings", status_code=303)
 
 

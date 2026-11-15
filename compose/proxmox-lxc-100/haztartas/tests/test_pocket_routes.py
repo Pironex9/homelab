@@ -81,3 +81,20 @@ def test_adult_sees_each_child_wallet(adult, users):
     add(users, "cili", wallet_id=w, merchant="Candy", amount_minor=200)
     html = adult.get("/pocket").text
     assert "Cili" in html and "Candy" in html
+
+
+def test_huge_topup_amount_422(adult, users):
+    w = child_wallet(users)
+    r = adult.post("/pocket/topup", data=dict(
+        wallet_id=str(w), amount="9" * 30, currency="EUR", date=clock.today()))
+    assert r.status_code == 422 and rows(users, w) == []
+
+
+def test_redacted_row_shows_author_not_text(adult2, users):
+    w = child_wallet(users)
+    add(users, "anna", wallet_id=w, kind="income", merchant="SecretGift",
+        note="SecretNote", hidden=True, amount_minor=777,
+        category_id=cat(users, "Egyéb bevétel", "income"))
+    html = adult2.get("/pocket").text
+    assert "SecretGift" not in html and "SecretNote" not in html
+    assert S["redacted_entry"] in html and "7,77 EUR" in html and "Anna" in html

@@ -275,14 +275,17 @@ async def update(request: Request, entry_id: int,
 
 
 @router.post("/entries/{entry_id}/delete")
-def delete(request: Request, entry_id: int, user: User = Depends(require_user)):
+def delete(request: Request, entry_id: int, user: User = Depends(require_user),
+           next: str = Form("")):
     with request.app.state.db.session() as s:
         try:
             _in_range(entry_id)
             svc.delete_entry(s, user, entry_id)
         except svc.NotAllowed:
             raise HTTPException(status_code=403) from None
-    return RedirectResponse("/entries", status_code=303)
+    # Only a same-site path: "//host" and "/\\host" would leave the site.
+    ok = next.startswith("/") and not next.startswith(("//", "/\\"))
+    return RedirectResponse(next if ok else "/entries", status_code=303)
 
 
 @router.post("/entries/{entry_id}/reveal")

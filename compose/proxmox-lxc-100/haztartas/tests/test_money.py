@@ -52,3 +52,13 @@ def test_fmt_eur_short_rounds_to_whole_euros():
     assert fmt_eur_short(128450) == "1 285 €"
     assert fmt_eur_short(0) == "0 €"
     assert fmt_eur_short(-1450) == "-15 €"
+
+
+def test_parse_amount_ceiling():
+    import pytest
+    from app.money import parse_amount
+    assert parse_amount("9999999999,99") == 999999999999
+    with pytest.raises(ValueError):
+        parse_amount("9" * 30)
+    with pytest.raises(ValueError):
+        parse_amount("10000000000,01")

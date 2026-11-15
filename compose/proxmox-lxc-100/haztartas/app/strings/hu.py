@@ -133,6 +133,8 @@ S = {
     "e_day": "A nap 1 és 31 között legyen.",
     "e_owner": "A tulajdonos felnőtt legyen.",
     "e_category_kind": "A kategória fajtája nem egyezik.",
+    "e_archive_locked": "Ezt a kategóriát a zsebpénz használja, nem archiválható.",
+    "e_archive_in_use": "Ezt a kategóriát egy ismétlődő tétel használja. Előbb archiváld vagy módosítsd azt.",
     "e_currency": "Ismeretlen pénznem.",
 }
 

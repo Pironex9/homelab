@@ -74,3 +74,49 @@ def test_recurring_drafts_listed(adult, users):
                         amount_minor=100000, currency="EUR", day_of_month=1))
         recurring.create_due_drafts(s, clock.today())
     assert "Salary" in adult.get("/drafts").text
+
+
+def test_hidden_draft_is_redacted_for_other_adult(adult2, users):
+    d = add(users, "anna", status="draft", merchant="SecretMerchant",
+            note="SecretNote", hidden=True, amount_minor=1234)
+    html = adult2.get("/drafts").text
+    assert "SecretMerchant" not in html and f"/drafts/{d}" not in html
+    assert "12,34" in html and "Anna" in html
+    assert adult2.get(f"/drafts/{d}").status_code == 404
+    assert adult2.post(f"/drafts/{d}/confirm", data=form(users)).status_code == 404
+    assert status_of(users, d) == "draft"
+
+
+def test_author_sees_own_hidden_draft(adult, users):
+    d = add(users, "anna", status="draft", merchant="Mine", hidden=True)
+    assert "Mine" in adult.get("/drafts").text
+    assert adult.get(f"/drafts/{d}").status_code == 200
+
+
+def test_confirm_keeps_draft_wallet(adult, users):
+    from helpers import child_wallet
+    d = make_draft(users)
+    r = adult.post(f"/drafts/{d}/confirm", data=form(
+        users, wallet_id=str(child_wallet(users))))
+    assert r.status_code == 303
+    hh = household(users)
+    with users.state.db.session() as s:
+        assert s.get(Entry, d).wallet_id == hh
+
+
+def test_delete_from_draft_returns_to_drafts(adult, users):
+    d = make_draft(users)
+    r = adult.post(f"/entries/{d}/delete", data=dict(next="/drafts"))
+    assert r.status_code == 303 and r.headers["location"] == "/drafts"
+    for bad in ("//evil.example", "https://evil.example", "drafts"):
+        d = make_draft(users)
+        r = adult.post(f"/entries/{d}/delete", data=dict(next=bad))
+        assert r.headers["location"] == "/entries"
+    assert 'name="next" value="/drafts"' in adult.get(
+        f"/drafts/{make_draft(users)}").text
+
+
+def test_huge_amount_422(adult, users):
+    d = make_draft(users)
+    r = adult.post(f"/drafts/{d}/confirm", data=form(users, amount="9" * 30))
+    assert r.status_code == 422

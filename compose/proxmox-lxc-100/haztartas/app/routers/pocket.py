@@ -27,6 +27,7 @@ def _wallet_view(s, viewer, wallet, owner, today):
         .where(Entry.wallet_id == wallet.id, Entry.status == "confirmed",
                visibility.listable(viewer, today))
         .order_by(Entry.date.desc(), Entry.id.desc()).limit(LIMIT)).all()
+    authors = dict(s.execute(select(User.id, User.name)).all())
     items = []
     for e, cname in rows:
         shown = visibility.present(viewer, e, wallet, today)
@@ -38,7 +39,8 @@ def _wallet_view(s, viewer, wallet, owner, today):
             (e.merchant or e.note or cname or S["no_name"]),
             kind=None if redacted else e.kind,
             amount=money.fmt_money(e.amount_minor, e.currency),
-            meta=f"{cname or ''} · {date_label(e.date)}".strip(" ·"),
+            meta=(f"{cname or ''} · {date_label(e.date)}".strip(" ·")
+                  + (f" · {authors[e.created_by]}" if redacted else "")),
             hue=hue(e.category_id)))
     return dict(wallet_id=wallet.id, name=owner.name, rows=items,
                 balance_minor=summary.wallet_balance(

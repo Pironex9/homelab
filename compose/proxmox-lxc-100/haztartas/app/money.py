@@ -9,6 +9,11 @@ import re
 _AMOUNT = re.compile(r"([1-9]\d{0,2}(?:\.\d{3})+|\d+)(?:[.,](\d{1,2}))?")
 
 
+# 10 billion units: far above any household figure, far below what SQLite or
+# Decimal arithmetic chokes on.
+MAX_MINOR = 10 ** 12
+
+
 def parse_amount(text: str) -> int:
     cleaned = re.sub(r"\s+", "", text)
     m = _AMOUNT.fullmatch(cleaned)
@@ -19,6 +24,8 @@ def parse_amount(text: str) -> int:
     minor = whole * 100 + cents
     if minor <= 0:
         raise ValueError("amount must be positive")
+    if minor > MAX_MINOR:
+        raise ValueError("amount too large")
     return minor
 
 

@@ -14,7 +14,7 @@
       {% include "partials/entry_fields.html" %}
       <button class="btn btn--wide" type="submit">{{ S["draft_confirm"] }}</button>
     </form>
-    <form class="aside-action" method="post" action="/entries/{{ entry.id }}/delete"><button class="btn btn--quiet" type="submit">{{ S["delete"] }}</button></form>
+    <form class="aside-action" method="post" action="/entries/{{ entry.id }}/delete"><input type="hidden" name="next" value="/drafts"><button class="btn btn--quiet" type="submit">{{ S["delete"] }}</button></form>
   </main>
 </div>
 {% endblock %}

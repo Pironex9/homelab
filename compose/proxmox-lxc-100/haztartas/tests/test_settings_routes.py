@@ -148,3 +148,22 @@ def test_recurring_validation_422(adult, users):
 
 def test_child_cannot_touch_recurring(child, users):
     assert child.post("/settings/recurring", data=rec_form(users)).status_code == 403
+
+
+def test_cannot_archive_category_used_by_active_recurring(adult, users):
+    adult.post("/settings/recurring", data=rec_form(users))
+    cid = cat(users, "Előfizetések")
+    r = adult.post(f"/settings/categories/{cid}/archive")
+    assert r.status_code == 422 and S["e_archive_in_use"] in r.text
+    assert cat_row(users, cid).archived_at is None
+    rid = only_recurring(users).id
+    adult.post(f"/settings/recurring/{rid}/archive")
+    assert adult.post(f"/settings/categories/{cid}/archive").status_code == 303
+
+
+def test_cannot_archive_locked_categories(adult, users):
+    for name, kind in (("Zsebpénz", "expense"), ("Egyéb bevétel", "income")):
+        cid = cat(users, name, kind)
+        r = adult.post(f"/settings/categories/{cid}/archive")
+        assert r.status_code == 422 and S["e_archive_locked"] in r.text
+        assert cat_row(users, cid).archived_at is None
