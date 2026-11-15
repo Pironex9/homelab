@@ -74,7 +74,6 @@ main { flex: 1; padding: var(--s-4) var(--s-4) 190px; }
   display: block; font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em;
   line-height: 1.05;
 }
-.statement h1 strong.neg { color: var(--error); }
 .statement p { margin: var(--s-2) 0 0; color: var(--ink-2); font-size: var(--fs-s); }
 
 /* ---------- the map ---------- */
