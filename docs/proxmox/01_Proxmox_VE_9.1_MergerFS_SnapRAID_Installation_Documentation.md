@@ -344,6 +344,36 @@ Data disks:
 Total: 11.5TB usable storage!
 ```
 
+### ext4 reserved blocks (changed 2026-11-15)
+
+`mkfs.ext4` reserves 5% of every filesystem for root. On a media-only data disk nothing needs that reserve, and on this pool it hid about 450 GB: 300 GB on disk1, 50 GB on disk3, 100 GB on disk4. The pool reported 1.7T free at 79% use.
+
+```bash
+tune2fs -m 1 /dev/sda1   # disk1 (data, largest): keep 1%
+tune2fs -m 0 /dev/sdc1   # disk3 (data)
+tune2fs -m 0 /dev/sdd1   # disk4 (data)
+# disk2 (parity) left at the default 5%
+```
+
+The change is online - no unmount, no remount, nothing restarted. LXC 100 sees the new space immediately through the `/mnt/storage` bind mount.
+
+| Disk | Reserve before | Reserve after | Free before | Free after |
+|---|---|---|---|---|
+| disk1 (sda1) | 5% (300 GB) | 1% (60 GB) | 775G | 999G |
+| disk3 (sdc1) | 5% (50 GB) | 0 | 157G | 204G |
+| disk4 (sdd1) | 5% (100 GB) | 0 | 731G | 824G |
+| `/mnt/storage` | | | 1.7T (79%) | 2.0T (76%) |
+
+**Why disk1 keeps 1%:** the parity file grows with the largest data disk. disk1 and disk2 are both 5.5T, and `snapraid.parity` was 4.37 TB at the time of the change. If disk1 could fill to the last block, the parity file would need all of disk2, with no room for SnapRAID's per-file block padding. The 1% (60 GB) on disk1 keeps that margin. disk2 stays at 5% because lowering it gains nothing: it holds only `snapraid.parity`, which SnapRAID writes as root, and root can already use the reserve.
+
+**Rollback:** `tune2fs -m 5 /dev/sdX1` restores the default. It always succeeds, even on a fuller disk. In that case non-root writers simply get `No space left on device` earlier.
+
+**Check the current value:**
+
+```bash
+tune2fs -l /dev/sda1 | grep -E "Reserved block count|Block size"
+```
+
 ---
 
 ## 🚀 Next Steps
