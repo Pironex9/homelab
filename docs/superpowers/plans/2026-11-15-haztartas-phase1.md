@@ -431,7 +431,7 @@ def wallet_balance(s, wallet_id: int) -> int                       # EUR minor, 
 - [ ] **Step 5: Phone test, by hand** (on a real Android phone, Chrome, app installed to the home screen), each result written into the commit message:
   1. Flight mode on, record two entries, close the app, reopen: counter shows 2.
   2. Flight mode off: counter goes to 0 within seconds, both entries listed once.
-  3. Log out (online). Flight mode on, open the app: the cached `/capture` form opens; record one entry. Flight mode off: the counter stays 1 and the login prompt shows. Log in: it uploads.
+  3. Flight mode on, record one entry; while still offline let the session expire (simulate: clear this site's cookies but not site storage). Flight mode off: the counter stays 1 and the login prompt shows. Log in: it uploads. (Logging out clears the cached capture form on purpose; queued items survive logout and upload at the next login of the same user.)
   4. Record the same amount as an existing entry offline: after sync it waits under drafts.
 - [ ] **Step 6: Commit** `feat(haztartas): installable PWA, offline capture queue`
 
