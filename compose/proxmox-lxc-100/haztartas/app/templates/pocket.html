@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ S["pocket_title"] }} · {{ S["app_name"] }}{% endblock %}
+{% from "partials/icons.html" import icon %}
+{% block body %}
+<div class="shell">
+  <header class="topbar subbar">
+    <a class="icon-btn icon-btn--back" href="/" aria-label="{{ S['back_home'] }}">{{ icon("left") }}</a>
+    <h1>{{ S["pocket_title"] }}</h1>
+  </header>
+  <main>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    {% for w in wallets %}
+    <section>
+      <h2>{{ w.name }}</h2>
+      <p>{{ S["pocket_balance"] }}: <strong class="num">{{ w.balance_minor | eur }}</strong></p>
+      {% if w.rows %}
+      <ul class="entries">
+        {% for r in w.rows %}
+        <li><span class="dot {{ r.hue }}"></span>
+          <span class="what">{{ r.what }}</span>
+          <span class="amt num{% if r.kind == 'income' %} in{% endif %}">{% if r.kind == 'income' %}+{% elif r.kind == 'expense' %}-{% endif %}{{ r.amount }}</span>
+          <span class="meta">{{ r.meta }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty">{{ S["pocket_empty"] }}</p>
+      {% endif %}
+    </section>
+    {% else %}
+    <p class="empty">{{ S["pocket_no_wallet"] }}</p>
+    {% endfor %}
+
+    {% if adult and wallets %}
+    {% for action, title, button in (("topup", "pocket_topup", "pocket_give"), ("opening", "pocket_opening", "pocket_set")) %}
+    <form class="form" method="post" action="/pocket/{{ action }}">
+      <h2>{{ S[title] }}</h2>
+      {% if error and error_in == action %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+      <label for="{{ action }}-child">{{ S["pocket_child"] }}</label>
+      <select id="{{ action }}-child" name="wallet_id">
+        {% for w in wallets %}<option value="{{ w.wallet_id }}"{% if error_in == action and values.wallet_id == w.wallet_id|string %} selected{% endif %}>{{ w.name }}</option>{% endfor %}
+      </select>
+      <div class="amount-row">
+        <div class="field field--grow">
+          <label for="{{ action }}-amount">{{ S["f_amount"] }}</label>
+          <input id="{{ action }}-amount" class="input-amount num" name="amount" type="text" inputmode="decimal" autocomplete="off" required value="{% if error_in == action %}{{ values.amount }}{% endif %}">
+        </div>
+        <div class="field">
+          <label for="{{ action }}-currency">{{ S["f_currency"] }}</label>
+          <select id="{{ action }}-currency" name="currency">
+            {% for c in currencies %}<option value="{{ c }}"{% if (values.currency if error_in == action else "EUR") == c %} selected{% endif %}>{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <label for="{{ action }}-date">{{ S["f_date"] }}</label>
+      <input id="{{ action }}-date" name="date" type="date" required value="{{ values.date }}">
+      <button class="btn btn--wide" type="submit">{{ S[button] }}</button>
+    </form>
+    {% endfor %}
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

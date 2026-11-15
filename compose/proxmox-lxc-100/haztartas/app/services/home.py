@@ -82,7 +82,8 @@ def build(s, viewer, month: str, today: str) -> dict:
             expected=[dict(name=e.name, day_label=day_label(int(e.day[8:])))
                       for e in expected],
             drafts_count=s.scalar(select(func.count()).select_from(Entry).where(
-                Entry.status == "draft", visibility.listable(viewer, today))),
+                Entry.status == "draft", Entry.deleted_at.is_(None),
+                Entry.wallet_id == summary._household_id(s))),
             tiles=_tiles(
                 [(c.category_id, c.spent_eur_minor) for c in sm.categories],
                 month, {c.category_id: c.name for c in sm.categories},

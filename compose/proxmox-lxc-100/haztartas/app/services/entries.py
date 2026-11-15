@@ -259,7 +259,8 @@ def find_duplicates(s, viewer: User, data: EntryInput,
 
 
 def top_up(s, adult: User, child_wallet_id: int, amount_minor: int,
-           currency: str, day: str) -> tuple[Entry, Entry]:
+           currency: str, day: str,
+           note: str | None = None) -> tuple[Entry, Entry]:
     if adult.role != "adult":
         raise NotAllowed("only an adult can give pocket money")
     wallet = _wallet(s, child_wallet_id)
@@ -286,7 +287,7 @@ def top_up(s, adult: User, child_wallet_id: int, amount_minor: int,
         e = Entry(
             wallet_id=wallet_id, kind=kind, status="confirmed", date=day,
             amount_minor=amount_minor, currency=currency, eur_minor=eur_minor,
-            fx_rate=rate, category_id=cat_id, payment="cash", hidden=0,
+            fx_rate=rate, category_id=cat_id, note=note, payment="cash", hidden=0,
             source="manual", created_by=adult.id, created_at=now_utc(),
             transfer_group=group)
         s.add(e)

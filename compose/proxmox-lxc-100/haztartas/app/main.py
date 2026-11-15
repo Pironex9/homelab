@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import backup, config, fx, migrate, money
-from app.routers import auth, entries, home
+from app.routers import auth, drafts, entries, home, pocket, settings
 from app.strings.hu import S
 from app.db import Database
 from app.services import recurring
@@ -103,6 +103,9 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(auth.router)
 app.include_router(home.router)
 app.include_router(entries.router)
+app.include_router(drafts.router)
+app.include_router(pocket.router)
+app.include_router(settings.router)
 
 
 @app.get("/health")
