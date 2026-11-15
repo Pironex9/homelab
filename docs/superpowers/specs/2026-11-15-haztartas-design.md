@@ -1,8 +1,8 @@
 # Haztartas: shared household budget - design
 
 **Date:** 2026-11-15
-**Status:** design written after a brainstorming session the same day, awaiting
-the owner's approval. Implementation plan not yet written.
+**Status:** approved design (2026-11-15), written after a brainstorming session
+and a builder check the same day. Implementation plan not yet written.
 **Name:** `haztartas` - directory, container, database and URL
 
 ## 0. The document set
