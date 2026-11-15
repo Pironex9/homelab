@@ -276,3 +276,26 @@ def test_search_matches_own_hidden_and_others_visible_text(s, adult, adult2):
         .where(listable(adult, TODAY), text_searchable(adult, TODAY),
                func.fold(Entry.merchant).contains("parfum"))).all()
     assert set(rows) == {mine.id, other.id, revealed.id}
+
+
+# --- fix round 1
+
+def test_listable_same_with_and_without_wallet_join(s, adult, child, household,
+                                                    cwallet):
+    add_entry(s, adult, household, merchant="AdultHouseholdEntry")
+    own = add_entry(s, child, household)
+    topup = add_entry(s, adult, cwallet)
+    joined = set(s.scalars(select(Entry.id).join(Wallet)
+                           .where(listable(child, TODAY))))
+    bare = set(s.scalars(select(Entry.id).where(listable(child, TODAY))))
+    assert joined == bare == {own.id, topup.id}
+
+
+def test_views_refuse_mismatched_wallet(s, adult, child, household, cwallet):
+    e = add_entry(s, adult, household)
+    with pytest.raises(ValueError):
+        view_of(child, e, cwallet, TODAY)
+    with pytest.raises(ValueError):
+        can_edit(child, e, cwallet, TODAY)
+    with pytest.raises(ValueError):
+        present(child, e, cwallet, TODAY)

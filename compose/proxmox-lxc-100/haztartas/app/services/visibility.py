@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import and_, not_, or_
+from sqlalchemy import and_, not_, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.models import Entry, User, Wallet
@@ -35,7 +35,14 @@ def is_secret(entry: Entry, today: str) -> bool:
                                    or entry.reveal_on > today)
 
 
+def _check_wallet(entry: Entry, wallet: Wallet) -> None:
+    # Not an assert: asserts vanish under -O, and a wrong wallet leaks.
+    if wallet.id != entry.wallet_id:
+        raise ValueError("wallet is not the entry's wallet")
+
+
 def view_of(viewer: User, entry: Entry, wallet: Wallet, today: str) -> View:
+    _check_wallet(entry, wallet)
     # The transfer_group row of the rule table only affects can_edit.
     if entry.deleted_at is not None:
         return "none"
@@ -51,6 +58,7 @@ def view_of(viewer: User, entry: Entry, wallet: Wallet, today: str) -> View:
 
 
 def can_edit(viewer: User, entry: Entry, wallet: Wallet, today: str) -> bool:
+    _check_wallet(entry, wallet)
     if entry.deleted_at is not None or entry.transfer_group is not None:
         return False
     if entry.created_by == viewer.id:
@@ -78,13 +86,15 @@ def _secret(today: str) -> ColumnElement[bool]:
 
 
 def listable(viewer: User, today: str) -> ColumnElement[bool]:
-    """Rows the viewer may see at all. Select from Entry joined to Wallet."""
+    """Rows the viewer may see at all. Correct with or without a Wallet join."""
     alive = Entry.deleted_at.is_(None)
     if viewer.role == "adult":
         return alive
     return and_(alive, or_(
         Entry.created_by == viewer.id,
-        and_(Wallet.owner_user_id == viewer.id, not_(_secret(today)))))
+        and_(Entry.wallet_id.in_(
+            select(Wallet.id).where(Wallet.owner_user_id == viewer.id)),
+            not_(_secret(today)))))
 
 
 def text_searchable(viewer: User, today: str) -> ColumnElement[bool]:
