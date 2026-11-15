@@ -30,3 +30,11 @@ def fmt_money(minor: int, currency: str) -> str:
         frac = f",{cents:02d}" if cents else ""
         return f"{sign}{grouped}{frac} Ft"
     return f"{sign}{grouped},{cents:02d} {currency}"
+
+
+def fmt_eur_short(minor: int) -> str:
+    """Whole euros, half away from zero: "312 €". For map tiles only, where a
+    narrow tile must still show its magnitude; exact cents live in the lists."""
+    sign = "-" if minor < 0 else ""
+    whole = (abs(minor) + 50) // 100
+    return f"{sign}{whole:,} €".replace(",", " ")

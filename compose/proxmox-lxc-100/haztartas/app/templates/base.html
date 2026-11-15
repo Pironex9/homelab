@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3f1ec">
+<title>{% block title %}{{ S["app_name"] }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<!--
+THESIS: The month is a map of where the money went: category tiles sized by
+spending, each with a thin limit rail. Refuses the white-card fintech
+dashboard with a hero metric and a donut.
+OWN-WORLD: warm stone ground #f3f1ec, ink #1c1b19, eight deep earthy tile hues
+(moss, brick, slate, ochre, plum, teal, rose, olive) carrying white text; 10px
+tile corners; one ink-black primary action; system sans, tabular numerals,
+heavy weight only on amounts.
+STORY: open the app, read one sentence of what is left this month, see at a
+glance which tile is biggest and which rail is full, record with the thumb.
+FIRST VIEWPORT: month stepper top; the statement sentence with the balance;
+the map filling the middle; capture dock (Fotó, Hang, Kézi) fixed at the bottom.
+FORM: Csempetérkép, chosen by the owner in round 2 of the companion; seed 6f4e6cf7 (degraded roll).
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+{% block body %}{% endblock %}
+</body>
+</html>

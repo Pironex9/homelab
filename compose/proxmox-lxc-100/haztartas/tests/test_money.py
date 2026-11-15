@@ -43,3 +43,12 @@ def test_scheduled_day_clamps():
 def test_fmt_money_huf_keeps_fractional_part():
     assert fmt_money(12050, "HUF") == "120,50 Ft"
     assert fmt_money(-12050, "HUF") == "-120,50 Ft"
+
+
+def test_fmt_eur_short_rounds_to_whole_euros():
+    from app.money import fmt_eur_short
+    assert fmt_eur_short(31249) == "312 €"
+    assert fmt_eur_short(31250) == "313 €"
+    assert fmt_eur_short(128450) == "1 285 €"
+    assert fmt_eur_short(0) == "0 €"
+    assert fmt_eur_short(-1450) == "-15 €"

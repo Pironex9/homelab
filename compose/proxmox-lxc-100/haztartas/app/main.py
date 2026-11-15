@@ -8,10 +8,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import backup, config, fx, migrate
+from app import backup, config, fx, migrate, money
 from app.routers import auth
 from app.strings.hu import S
 from app.db import Database
@@ -30,6 +31,9 @@ async def lifespan(app: FastAPI):
     app.state.db = Database(settings.db_path)
     app.state.templates = Jinja2Templates(directory=BASE_DIR / "templates")
     app.state.templates.env.globals["S"] = S
+    # Integer minor units in, "1 284,50 EUR" out. Never divide in a template.
+    app.state.templates.env.filters["eur"] = lambda minor: money.fmt_money(int(minor or 0), "EUR")
+    app.state.templates.env.filters["eur_short"] = lambda minor: money.fmt_eur_short(int(minor or 0))
     tasks = [
         asyncio.create_task(
             backup.nightly_task(settings.db_path, settings.backup_dir)),
@@ -70,6 +74,7 @@ app.add_middleware(
 )
 
 
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(auth.router)
 
 
