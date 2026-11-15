@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -10,10 +11,11 @@ from fastapi.responses import PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import backup, config, migrate
+from app import backup, config, fx, migrate
 from app.routers import auth
 from app.strings.hu import S
 from app.db import Database
+from app.services import recurring
 
 BASE_DIR = Path(__file__).parent
 
@@ -28,14 +30,23 @@ async def lifespan(app: FastAPI):
     app.state.db = Database(settings.db_path)
     app.state.templates = Jinja2Templates(directory=BASE_DIR / "templates")
     app.state.templates.env.globals["S"] = S
-    task = asyncio.create_task(
-        backup.nightly_task(settings.db_path, settings.backup_dir))
+    tasks = [
+        asyncio.create_task(
+            backup.nightly_task(settings.db_path, settings.backup_dir)),
+        asyncio.create_task(recurring.daily_task(app.state.db)),
+    ]
+    # HAZTARTAS_FX_FETCH=0 keeps the ECB fetch off (tests must not hit the
+    # network); anything else, including unset, runs it.
+    if os.environ.get("HAZTARTAS_FX_FETCH", "1") != "0":
+        tasks.append(asyncio.create_task(fx.daily_task(app.state.db)))
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 _settings = config.load()   # once, at import: the middleware needs it early

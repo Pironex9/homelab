@@ -28,6 +28,7 @@ def _app(tmp_path, monkeypatch):
 
     monkeypatch.setenv("HAZTARTAS_DATA", str(tmp_path))
     monkeypatch.setenv("HAZTARTAS_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("HAZTARTAS_FX_FETCH", "0")   # no network under pytest
     monkeypatch.setenv("HAZTARTAS_HTTPS_ONLY", "0")   # TestClient speaks http
     import app.main
     importlib.reload(app.main)

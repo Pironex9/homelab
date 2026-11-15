@@ -42,6 +42,8 @@ class EntryInput:
     manual_rate: Decimal | None = None
     client_uuid: str | None = None
     source: str = "manual"
+    recurring_id: int | None = None
+    recurring_month: str | None = None
 
 
 @dataclass
@@ -156,7 +158,8 @@ def create_entry(s, author: User, data: EntryInput,
         eur_minor=eur_minor, fx_rate=rate, category_id=data.category_id,
         payment=data.payment, hidden=1 if data.hidden else 0,
         reveal_on=data.reveal_on, source=data.source, created_by=author.id,
-        created_at=now_utc())
+        created_at=now_utc(), recurring_id=data.recurring_id,
+        recurring_month=data.recurring_month)
     s.add(e)
     s.flush()
     return e
