@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-15T19:32:30.932162Z",
+  "generatedAt": "2026-11-16T18:40:01Z",
   "title": "Design System: Háztartás",
   "extensions": {
     "colorMeta": {
@@ -256,7 +256,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Statement sentence, tile amounts."
+        "purpose": "Statement sentence, tile amounts, sub-page titles."
       },
       "body": {
         "displayName": "Body",
@@ -268,14 +268,23 @@
       },
       "caption": {
         "displayName": "Caption",
-        "purpose": "Notes, limit lines, meta, badges."
+        "purpose": "Notes, limit lines, meta, hints, badges, queue counter."
+      },
+      "amount-input": {
+        "displayName": "Amount input",
+        "purpose": "The amount field of the entry and pocket forms; money, so weight 800."
       }
     },
     "shadows": [
       {
         "name": "menu-float",
         "value": "0 8px 24px rgb(28 27 25 / 0.14)",
-        "purpose": "The popover menu, the single shadow in the system."
+        "purpose": "The popover menu; floats over content."
+      },
+      {
+        "name": "counter-float",
+        "value": "0 4px 14px rgb(28 27 25 / 0.18)",
+        "purpose": "The page-wide queue counter chip; floats over lists and tiles."
       },
       {
         "name": "focus-halo",
@@ -287,13 +296,21 @@
       {
         "name": "ease",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "Tile press feedback, 160ms scale to 0.98; off under reduced motion."
+        "purpose": "Tile press feedback (160ms scale to 0.98) and the switch track and thumb (160ms); tile press is off under reduced motion."
       }
     ],
     "breakpoints": [
       {
         "name": "wide",
         "value": "640px"
+      },
+      {
+        "name": "tile-narrow",
+        "value": "124px (container query on the tile)"
+      },
+      {
+        "name": "tile-narrowest",
+        "value": "92px (container query on the tile)"
       }
     ]
   },
@@ -353,16 +370,89 @@
       "description": "Round 48px arrows around the month label.",
       "html": "<nav class=\"ds-step\"><a href=\"#\" aria-label=\"Előző\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m15 18-6-6 6-6\"/></svg></a><span>2026. november</span><a href=\"#\" aria-label=\"Következő\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg></a></nav>",
       "css": ".ds-step{display:flex;align-items:center;gap:4px;font:600 .875rem system-ui,sans-serif;color:#1c1b19}.ds-step a{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;color:inherit;text-decoration:none}.ds-step a:hover{background:#e7e3da}.ds-step a:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Sub-page Header",
+      "kind": "nav",
+      "refersTo": "icon-button",
+      "description": "Back icon, bold page title, optional month stepper; replaces the home top bar on sub-pages.",
+      "html": "<header class=\"ds-sub\"><a class=\"ds-back\" href=\"#\" aria-label=\"Vissza\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m15 18-6-6 6-6\"/></svg></a><h1>Tételek</h1></header>",
+      "css": ".ds-sub{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;font-family:system-ui,sans-serif;color:#1c1b19}.ds-sub h1{margin:0 auto 0 0;font-size:1.25rem;font-weight:800;letter-spacing:-.01em}.ds-back{display:grid;place-items:center;width:48px;height:48px;margin-left:-12px;border-radius:50%;color:inherit;text-decoration:none}.ds-back:hover{background:#e7e3da}.ds-back:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Hairline-outlined secondary action beside or under the ink button.",
+      "html": "<button class=\"ds-quiet\">Archiválás</button>",
+      "css": ".ds-quiet{width:100%;min-height:52px;border:1.5px solid #d6d1c6;border-radius:12px;background:transparent;color:#1c1b19;font:700 1rem system-ui,sans-serif;cursor:pointer}.ds-quiet:hover{background:#e7e3da}.ds-quiet:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Amount Field",
+      "kind": "input",
+      "refersTo": "input-amount",
+      "description": "Large tabular amount input beside a narrow currency select.",
+      "html": "<div class=\"ds-amt\"><div><label for=\"a\">Összeg</label><input id=\"a\" value=\"12,50\"></div><div><label for=\"c\">Pénznem</label><select id=\"c\"><option>EUR</option></select></div></div>",
+      "css": ".ds-amt{display:grid;grid-template-columns:1fr 104px;gap:8px;align-items:end;font-family:system-ui,sans-serif;color:#1c1b19}.ds-amt label{display:block;margin-bottom:8px;font-size:.875rem;font-weight:600}.ds-amt input,.ds-amt select{width:100%;min-height:48px;padding:0 12px;border:1.5px solid #d6d1c6;border-radius:12px;background:#fff;font:inherit;color:#1c1b19;box-sizing:border-box}.ds-amt input{min-height:64px;font-size:2rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.ds-amt input:focus{border-color:#1c1b19;outline:none;box-shadow:0 0 0 3px rgb(43 91 215 / .25)}"
+    },
+    {
+      "name": "Segmented Choice",
+      "kind": "custom",
+      "refersTo": "seg-option",
+      "description": "Joined strip of exclusive options; selected fills ink.",
+      "html": "<fieldset class=\"ds-seg\"><legend>Fizetés</legend><label><input type=\"radio\" name=\"p\" checked><span>Kártya</span></label><label><input type=\"radio\" name=\"p\"><span>Készpénz</span></label><label><input type=\"radio\" name=\"p\"><span>Egyéb</span></label></fieldset>",
+      "css": ".ds-seg{display:flex;margin:0;padding:0;border:0;font-family:system-ui,sans-serif;color:#1c1b19}.ds-seg legend{padding:0;margin-bottom:8px;font-size:.875rem;font-weight:600}.ds-seg label{position:relative;flex:1}.ds-seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;pointer-events:none}.ds-seg span{display:grid;place-items:center;min-height:48px;border:1.5px solid #d6d1c6;background:#fff;font-size:.875rem;font-weight:600;cursor:pointer}.ds-seg label:first-of-type span{border-radius:12px 0 0 12px}.ds-seg label:last-of-type span{border-radius:0 12px 12px 0}.ds-seg label+label span{border-left-width:0}.ds-seg input:checked+span{background:#1c1b19;border-color:#1c1b19;color:#f3f1ec}.ds-seg input:focus-visible+span{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Hidden-entry Block",
+      "kind": "custom",
+      "refersTo": "secret-block",
+      "description": "Second-stone panel with a switch and a hint; the switch reveals the reveal-date field.",
+      "html": "<div class=\"ds-secret\"><label class=\"ds-switch\"><input type=\"checkbox\" checked><span>Rejtett tétel</span></label><p>Csak te látod, amíg fel nem fedjük.</p></div>",
+      "css": ".ds-secret{display:grid;gap:8px;padding:12px;border-radius:12px;background:#e7e3da;font-family:system-ui,sans-serif;color:#1c1b19}.ds-secret p{margin:0;font-size:.75rem;color:#5f5b53}.ds-switch{display:flex;align-items:center;gap:12px;min-height:48px;cursor:pointer;font-size:.875rem;font-weight:600}.ds-switch input{appearance:none;flex:none;width:44px;height:26px;margin:0;border:0;border-radius:13px;background:#8a857a;position:relative;cursor:pointer;transition:background 160ms cubic-bezier(.16,1,.3,1)}.ds-switch input::after{content:\"\";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform 160ms cubic-bezier(.16,1,.3,1)}.ds-switch input:checked{background:#1c1b19}.ds-switch input:checked::after{transform:translateX(18px)}.ds-switch input:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Duplicate Prompt",
+      "kind": "custom",
+      "refersTo": "duplicate-prompt",
+      "description": "Replaces the submit button when a similar entry exists; informs and asks, not red.",
+      "html": "<section class=\"ds-dup\" role=\"alert\"><p class=\"t\">Hasonló tétel már van</p><ul><li>Lidl · <span>12,50 €</span> · Anna</li></ul><button class=\"ds-ink\">Mentés mégis</button><a class=\"ds-q\" href=\"#\">Mégse</a></section>",
+      "css": ".ds-dup{padding:16px;border-radius:12px;background:#e7e3da;font-family:system-ui,sans-serif;color:#1c1b19}.ds-dup .t{margin:0 0 8px;font-weight:700}.ds-dup ul{margin:0 0 8px;padding-left:16px;font-size:.875rem;font-variant-numeric:tabular-nums}.ds-ink{width:100%;min-height:52px;margin-top:16px;border:0;border-radius:12px;background:#1c1b19;color:#f3f1ec;font:700 1rem system-ui,sans-serif;cursor:pointer}.ds-ink:hover{background:#33312d}.ds-q{display:grid;place-items:center;min-height:52px;margin-top:8px;border:1.5px solid #d6d1c6;border-radius:12px;color:#1c1b19;text-decoration:none;font-weight:700}.ds-q:hover{background:#d6d1c6}"
+    },
+    {
+      "name": "Expandable Row",
+      "kind": "custom",
+      "refersTo": "expandable-row",
+      "description": "Hairline row with a 56px summary (dot, name, value); opens to a form.",
+      "html": "<ul class=\"ds-rows\"><li><details class=\"ds-row\"><summary><span class=\"d\"></span><span class=\"n\">Élelmiszer</span><span class=\"v\">500 €</span></summary><p class=\"b\">Űrlap itt jelenik meg.</p></details></li></ul>",
+      "css": ".ds-rows{list-style:none;margin:0;padding:0;font-family:system-ui,sans-serif;color:#1c1b19}.ds-row{border-top:1px solid #d6d1c6;border-bottom:1px solid #d6d1c6}.ds-row summary{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px;cursor:pointer;list-style:none}.ds-row summary::-webkit-details-marker{display:none}.ds-row .d{width:12px;height:12px;border-radius:3px;background:#2e6b4f}.ds-row .n{font-weight:600}.ds-row .v{font-weight:700;font-variant-numeric:tabular-nums}.ds-row .b{margin:0;padding-bottom:16px;font-size:.875rem;color:#5f5b53}.ds-row summary:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Queue Counter",
+      "kind": "custom",
+      "refersTo": "pending-chip",
+      "description": "The one floating ink pill showing offline items waiting; fixed, above the dock where there is one.",
+      "html": "<p class=\"ds-pend\" role=\"status\">2 tétel vár a feltöltésre</p>",
+      "css": ".ds-pend{display:block;width:fit-content;margin:0 auto;padding:6px 12px;border-radius:999px;background:#1c1b19;color:#f3f1ec;font:600 .75rem system-ui,sans-serif;box-shadow:0 4px 14px rgb(28 27 25 / .18)}"
+    },
+    {
+      "name": "Refused Queue Box",
+      "kind": "custom",
+      "refersTo": "refused-box",
+      "description": "Error-wash panel listing queue items the server rejected, each with a fix or discard action.",
+      "html": "<div class=\"ds-ref\"><p class=\"h\">1 tételt elutasított a szerver</p><ul><li><span>Lidl · 12,50 €</span><button>Javít</button></li></ul></div>",
+      "css": ".ds-ref{padding:12px 16px;border-radius:12px;background:#f6e3df;font-family:system-ui,sans-serif;color:#1c1b19}.ds-ref .h{margin:0 0 8px;font-size:.75rem;font-weight:600;color:#a3271c}.ds-ref ul{list-style:none;margin:0;padding:0}.ds-ref li{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgb(163 39 28 / .2);font-size:.875rem}.ds-ref button{min-height:40px;padding:0 12px;border:0;border-radius:12px;background:#1c1b19;color:#f3f1ec;font:700 .75rem system-ui,sans-serif;cursor:pointer}"
     }
   ],
   "narrative": {
     "northStar": "The Month as a Map",
-    "overview": "The month is a map of where the money went: category tiles sized by spending, each with a thin limit rail. Everything else, the forms, lists and menus, stays plain so the map is the one loud thing on any screen. The tool is used two ways: one-handed at a till, in shop daylight, and in the evening under a kitchen lamp. It is a family's working ledger, not a fintech dashboard, and it refuses the white-card dashboard with a hero metric and a donut.\n\nThe palette is one light, warm set: a stone ground, near-black ink, and eight deep earthy hues that exist only to colour category tiles. Weight is spent on amounts (800) and nowhere else; type is the system sans with tabular numerals everywhere, so columns of money line up. Depth is flat: the screen is separated by tone and hairlines, not shadow.",
+    "overview": "**Creative North Star: \"The Month as a Map\"**\n\nThe month is a map of where the money went: category tiles sized by spending, each with a thin limit rail. Everything else, the forms, lists and menus, stays plain so the map is the one loud thing on any screen. The tool is used two ways: one-handed at a till, in shop daylight, and in the evening under a kitchen lamp. It is a family's working ledger, not a fintech dashboard, and it refuses the white-card dashboard with a hero metric and a donut.\n\nThe palette is one light, warm set: a stone ground, near-black ink, and eight deep earthy hues that exist only to colour category tiles. Weight is spent on amounts (800) and almost nowhere else; type is the system sans with tabular numerals everywhere, so columns of money line up. Depth is flat: the screen is separated by tone and hairlines, not shadow. The sub-pages (entries, entry form, pocket, settings) are plain forms and hairline rows on the same stone ground; none of them borrows the map's colour.",
     "keyCharacteristics": [
       "One light theme, tuned for daylight and lamplight; no dark theme.",
       "Colour carries category identity (tiles); ink-black carries the single action.",
       "Money is tabular, heavy and tight; labels are plain and quiet.",
-      "Thumb-first: 48px targets, capture dock fixed at the bottom of the screen.",
+      "Thumb-first: 48px targets, capture dock fixed at the bottom of the home screen, wide full-width submit buttons on forms.",
+      "Offline-aware: one queue counter floats on every page; refused queue items are shown, not dropped.",
       "Hungarian only; strings live in `app/strings/hu.py`, never in templates."
     ],
     "rules": [
@@ -378,17 +468,17 @@
       },
       {
         "name": "The Not-Red-For-Over Rule",
-        "body": "Brick is a category hue, so red cannot mean \"over limit\". Over-limit is a hatched limit rail plus bold \"+N € felett\" text on the tile. `--error` is for form errors only.",
+        "body": "Brick is a category hue, so red cannot mean \"over limit\". Over-limit is a hatched limit rail plus bold \"+N € felett\" text on the tile. `--error` is for form errors and refused queue items only.",
         "section": "colors"
       },
       {
         "name": "The Heavy Amounts Rule",
-        "body": "Weight 800 is reserved for money (statement balance, tile amounts, login title). Names and labels stay at 500 to 700.",
+        "body": "Weight 800 is reserved for money (statement balance, tile amounts, amount input, login title). Names and labels stay at 500 to 700.",
         "section": "typography"
       },
       {
         "name": "The Step-Down Rule",
-        "body": "Type shrinks by scale step, never below `--fs-xs`; a narrow tile (container under 124px) drops name to xs and amount to m before a word breaks.",
+        "body": "Type shrinks by scale step, never below 0.6875rem; a narrow tile (container under 124px) drops name to xs and amount to m, and under 92px it also tightens its padding to 8px and drops the name to 0.6875rem, before a word breaks.",
         "section": "typography"
       },
       {
@@ -402,8 +492,13 @@
         "section": "layout"
       },
       {
+        "name": "The Counter Floats Rule",
+        "body": "The offline queue counter exists once per page, fixed and centred at the bottom; where a capture dock exists it sits 92px above the bottom edge, clear of the dock, otherwise 16px.",
+        "section": "layout"
+      },
+      {
         "name": "The Flat-By-Default Rule",
-        "body": "Surfaces carry no shadow at rest; the menu popover is the single exception.",
+        "body": "Surfaces carry no shadow at rest; only elements that float over scrolling content (the menu popover, the queue counter) are lifted.",
         "section": "elevation"
       }
     ],
@@ -414,15 +509,18 @@
       "**Do** show whole euros on tiles and exact cents in lists.",
       "**Do** signal over-limit with the hatched rail and \"+N € felett\" text.",
       "**Do** keep touch targets at 48px or more and every string in `app/strings/hu.py`.",
+      "**Do** make secondary actions quiet buttons (hairline outline), so the ink button stays the single action.",
+      "**Do** use a segmented choice for two to three exclusive options and a `details` row for anything that needs a form but is rarely opened.",
       "**Do** pick palette decisions from the scene: shop daylight and kitchen lamp, one light theme."
     ],
     "donts": [
       "**Don't** add a dark theme; one tuned palette beats two half-tuned ones.",
-      "**Don't** use red, or `--error`, for over-limit, deletions or counts; it is for form errors only.",
+      "**Don't** use red, or `--error`, for over-limit, deletions or counts; it is for form errors and refused queue items only.",
       "**Don't** drop a tile's hidden-entry note to keep its limit line; the limit goes first.",
       "**Don't** add a hero-metric card, a donut chart, or white dashboard cards around the map.",
       "**Don't** use `--ink-3` for text people must read; it is disabled-only.",
       "**Don't** introduce a webfont or a second family; the system sans is a recorded decision.",
+      "**Don't** add a second floating element or a second queue counter; one chip per page.",
       "**Don't** reuse the repo owner's `brand/` identity; this is the family's tool."
     ]
   }
