@@ -365,6 +365,14 @@
             description: Appointment book
             siteMonitor: http://192.168.0.110:3010/health
             statusStyle: dot
+        - Háztartás:
+            # Same split as Pedikur: the public route for the browser (Secure
+            # cookie, installable PWA), the container's /health for the dot.
+            icon: mdi-wallet-outline
+            href: https://penz.homelabor.net
+            description: Family budget
+            siteMonitor: http://192.168.0.110:3011/health
+            statusStyle: dot
         - Paperless:
             icon: paperless-ngx.png
             href: https://paperless.lan
