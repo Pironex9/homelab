@@ -59,3 +59,14 @@ def test_reset_password_clears_lock(env):
     cli.reset_password("anna")
     user, _ = _wallets(env, "anna")
     assert user.failed_logins == 0 and user.locked_until is None
+
+
+def test_eight_character_password_is_accepted(env, monkeypatch):
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt="": "nyolcbet")
+    cli.create_user("csaba", "Csaba", "adult")
+
+
+def test_seven_character_password_exits(env, monkeypatch):
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt="": "hetbetu")
+    with pytest.raises(SystemExit):
+        cli.create_user("csaba", "Csaba", "adult")

@@ -42,7 +42,7 @@ only (see `.env.example`).
     docker compose exec haztartas python -m app.cli create-user <username> "<Full Name>" --role child
 
 Roles are `adult` and `child`; a child also gets a pocket-money wallet. The
-password is asked for twice and is at least 10 characters. Passwords go to the
+password is asked for twice and is at least 8 characters. Passwords go to the
 family directly, never into the repo, a chat or a log.
 
 ## Reverse proxy

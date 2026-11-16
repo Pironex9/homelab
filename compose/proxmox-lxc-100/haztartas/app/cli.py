@@ -12,7 +12,7 @@ from app import config, migrate, security
 from app.db import Database
 from app.models import User, Wallet
 
-MIN_PASSWORD = 10
+MIN_PASSWORD = 8
 
 
 def _db() -> Database:
