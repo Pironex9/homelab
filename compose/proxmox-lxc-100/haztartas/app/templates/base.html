@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3f1ec">
+<title>{% block title %}{{ S["app_name"] }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/app.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/capture.js" defer></script>
+<script type="application/json" id="queue-strings">{{ {"pending": S["queue_pending"], "refused": S["queue_refused"], "refused_title": S["queue_refused_title"], "login": S["queue_login"], "other_user": S["queue_other_user"], "other_user_count": S["queue_other_user_count"], "fix": S["queue_fix"], "discard": S["queue_discard"], "discard_confirm": S["queue_discard_confirm"], "saved": S["capture_saved"], "draft": S["capture_draft"], "no_storage": S["capture_no_storage"]} | tojson }}</script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<!--
+THESIS: The month is a map of where the money went: category tiles sized by
+spending, each with a thin limit rail. Refuses the white-card fintech
+dashboard with a hero metric and a donut.
+OWN-WORLD: warm stone ground #f3f1ec, ink #1c1b19, eight deep earthy tile hues
+(moss, brick, slate, ochre, plum, teal, rose, olive) carrying white text; 10px
+tile corners; one ink-black primary action; system sans, tabular numerals,
+heavy weight only on amounts.
+STORY: open the app, read what is left this month (a short sentence carrying
+the balance, owner-approved 2026-11-15), see at a glance which tile is biggest
+and which rail is full, record with the thumb.
+FIRST VIEWPORT: month stepper top; the statement sentence with the balance;
+the map filling the middle; capture dock (Fotó, Hang, Kézi) fixed at the bottom.
+FORM: Csempetérkép, chosen by the owner in round 2 of the companion; seed 6f4e6cf7 (degraded roll).
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+{% block body %}{% endblock %}
+{# The offline queue's counter, on every page: capture.js fills it and adds
+   is-on while anything waits or was refused. #}
+<p class="pending pending--global" data-pending role="status"></p>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ S["entries_title"] }} · {{ S["app_name"] }}{% endblock %}
+{% from "partials/icons.html" import icon %}
+{% block body %}
+<div class="shell">
+  <header class="topbar subbar">
+    <a class="icon-btn icon-btn--back" href="/" aria-label="{{ S['back_home'] }}">{{ icon("left") }}</a>
+    <h1>{{ S["entries_title"] }}</h1>
+    {% if month %}
+    <nav class="month-step" aria-label="{{ S['month_nav'] }}">
+      <a href="{{ prev_url }}" aria-label="{{ S['month_prev'] }}">{{ icon("left") }}</a>
+      <span>{{ month_label }}</span>
+      {% if next_url %}<a href="{{ next_url }}" aria-label="{{ S['month_next'] }}">{{ icon("right") }}</a>{% endif %}
+    </nav>
+    {% endif %}
+  </header>
+  <main>
+    <form class="form form--filters" method="get" action="/entries" role="search">
+      {% if month %}<input type="hidden" name="month" value="{{ month }}">{% endif %}
+      <div class="search">
+        <label class="visually-hidden" for="q">{{ S["filter_search"] }}</label>
+        <input id="q" name="q" type="search" value="{{ q }}" placeholder="{{ S['filter_search'] }}">
+        <button class="btn btn--small" type="submit">{{ S["filter_apply"] }}</button>
+      </div>
+      <details class="filters"{% if f_category or f_wallet or f_author %} open{% endif %}>
+        <summary>{{ S["filter_more"] }}</summary>
+      <label for="c">{{ S["filter_category"] }}</label>
+      <select id="c" name="category">
+        <option value="">{{ S["filter_all"] }}</option>
+        {% for id, name, k in categories %}<option value="{{ id }}"{% if f_category == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+      <label for="w">{{ S["filter_wallet"] }}</label>
+      <select id="w" name="wallet">
+        <option value="">{{ S["filter_all"] }}</option>
+        {% for id, name in wallets %}<option value="{{ id }}"{% if f_wallet == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+      <label for="a">{{ S["filter_author"] }}</label>
+      <select id="a" name="author">
+        <option value="">{{ S["filter_all"] }}</option>
+        {% for id, name in authors %}<option value="{{ id }}"{% if f_author == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+      </details>
+    </form>
+
+    {% if rows %}
+    <ul class="entries">
+      {% for r in rows %}
+      <li><span class="dot {{ r.hue }}"></span>
+        <span class="what">{% if r.url %}<a href="{{ r.url }}">{{ r.what }}</a>{% else %}{{ r.what }}{% endif %}{% if r.secret and not r.redacted %} <small>({{ S["own_hidden"] }})</small>{% endif %}</span>
+        <span class="amt num{% if r.kind == 'income' %} in{% endif %}">{% if r.kind == 'income' %}+{% elif r.kind == 'expense' %}-{% endif %}{{ r.amount }}</span>
+        <span class="meta">{{ r.category }} · {{ r.author }} · {{ r.date }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">{{ S["entries_empty"] }}</p>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

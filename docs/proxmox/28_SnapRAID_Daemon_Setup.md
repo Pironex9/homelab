@@ -399,6 +399,31 @@ mornings' digests, not in the catch-up.
 Full context, and the three unrelated fixes from the same evening, in
 [51 - Two Alerts, and the One Nobody Raised](51_Two_Alerts_And_The_One_Nobody_Raised.md).
 
+## Incident 2026-10-28 to 2026-11-14: a torrent pack in flight froze sync for 17 nights
+
+From 2026-10-29 every nightly sync aborted with `Too many files were updated (136..142,
+limit is 100). Sync aborted.` The scrub never ran either, so the oldest scrub reached 39
+days. The chain started on 2026-10-28: the sync ran while qBittorrent was still writing the
+`The.Big.Bang.Theory.S01-S12` pack in `media/downloads/` (`Unexpected time change ...
+You cannot modify files while running`). The partial files were indexed, and once the
+download finished, each episode counted as `updated`, every night, until something
+absorbed them. A read-only `snapraid diff -v` showed 141 of the 142 updates under that one
+torrent directory and the 1115 removals as restic prune plus rotated vzdumps - nothing a
+missing mount would produce.
+
+`sync_threshold_updates` was left at 100. Instead, one more line in `/etc/snapraid.conf`:
+
+```
+exclude /media/downloads/
+```
+
+`media/downloads/` is the only directory that is written to mid-sync by design, and with
+hardlinks deliberately off in the arr stack, every finished file is copied into
+`media/tv`, `media/anime` or `media/movies`, which stay protected. What loses parity is
+the seeding copy, which can be downloaded again. After the exclude, `snapraid diff` dropped
+to 6 updated, but 2056 removed (the downloads files leaving the index), so the catch-up
+went through the API with `{"ignore_thresholds":true}` as in the earlier exclude changes.
+
 ## Removed: old manual cron
 
 The old weekly sync cron (`0 3 * * 0 /usr/local/bin/snapraid sync` in root's crontab) was removed - the daemon's `maintenance_schedule = Sun 03:00` now covers sync + scrub + report at the same time slot. Backup of the old crontab: `/tmp/crontab.bak` on `pve`.

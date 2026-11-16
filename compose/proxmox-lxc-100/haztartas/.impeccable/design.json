@@ -1,0 +1,429 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T19:32:30.932162Z",
+  "title": "Design System: Háztartás",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Warm Stone",
+        "canonical": "#f3f1ec",
+        "tonalRamp": [
+          "oklch(15% 0.007 89)",
+          "oklch(25% 0.007 89)",
+          "oklch(35% 0.007 89)",
+          "oklch(45% 0.007 89)",
+          "oklch(60% 0.007 89)",
+          "oklch(75% 0.007 89)",
+          "oklch(86% 0.007 89)",
+          "oklch(95% 0.007 89)"
+        ]
+      },
+      "ground-2": {
+        "role": "neutral",
+        "displayName": "Second Stone",
+        "canonical": "#e7e3da",
+        "tonalRamp": [
+          "oklch(15% 0.013 87)",
+          "oklch(25% 0.013 87)",
+          "oklch(35% 0.013 87)",
+          "oklch(45% 0.013 87)",
+          "oklch(60% 0.013 87)",
+          "oklch(75% 0.013 87)",
+          "oklch(86% 0.013 87)",
+          "oklch(95% 0.013 87)"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Ink",
+        "canonical": "#1c1b19",
+        "tonalRamp": [
+          "oklch(15% 0.004 85)",
+          "oklch(25% 0.004 85)",
+          "oklch(35% 0.004 85)",
+          "oklch(45% 0.004 85)",
+          "oklch(60% 0.004 85)",
+          "oklch(75% 0.004 85)",
+          "oklch(86% 0.004 85)",
+          "oklch(95% 0.004 85)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Secondary",
+        "canonical": "#5f5b53",
+        "tonalRamp": [
+          "oklch(15% 0.014 85)",
+          "oklch(25% 0.014 85)",
+          "oklch(35% 0.014 85)",
+          "oklch(45% 0.014 85)",
+          "oklch(60% 0.014 85)",
+          "oklch(75% 0.014 85)",
+          "oklch(86% 0.014 85)",
+          "oklch(95% 0.014 85)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#d6d1c6",
+        "tonalRamp": [
+          "oklch(15% 0.016 86)",
+          "oklch(25% 0.016 86)",
+          "oklch(35% 0.016 86)",
+          "oklch(45% 0.016 86)",
+          "oklch(60% 0.016 86)",
+          "oklch(75% 0.016 86)",
+          "oklch(86% 0.016 86)",
+          "oklch(95% 0.016 86)"
+        ]
+      },
+      "tile-moss": {
+        "role": "secondary",
+        "displayName": "Moss",
+        "canonical": "#2e6b4f",
+        "tonalRamp": [
+          "oklch(15% 0.079 161)",
+          "oklch(25% 0.079 161)",
+          "oklch(35% 0.079 161)",
+          "oklch(45% 0.079 161)",
+          "oklch(60% 0.079 161)",
+          "oklch(75% 0.079 161)",
+          "oklch(86% 0.079 161)",
+          "oklch(95% 0.079 161)"
+        ]
+      },
+      "tile-brick": {
+        "role": "secondary",
+        "displayName": "Brick",
+        "canonical": "#b2532d",
+        "tonalRamp": [
+          "oklch(15% 0.134 41)",
+          "oklch(25% 0.134 41)",
+          "oklch(35% 0.134 41)",
+          "oklch(45% 0.134 41)",
+          "oklch(60% 0.134 41)",
+          "oklch(75% 0.134 41)",
+          "oklch(86% 0.134 41)",
+          "oklch(95% 0.134 41)"
+        ]
+      },
+      "tile-slate": {
+        "role": "secondary",
+        "displayName": "Slate",
+        "canonical": "#3c5a9a",
+        "tonalRamp": [
+          "oklch(15% 0.110 264)",
+          "oklch(25% 0.110 264)",
+          "oklch(35% 0.110 264)",
+          "oklch(45% 0.110 264)",
+          "oklch(60% 0.110 264)",
+          "oklch(75% 0.110 264)",
+          "oklch(86% 0.110 264)",
+          "oklch(95% 0.110 264)"
+        ]
+      },
+      "tile-ochre": {
+        "role": "secondary",
+        "displayName": "Ochre",
+        "canonical": "#7d6326",
+        "tonalRamp": [
+          "oklch(15% 0.085 86)",
+          "oklch(25% 0.085 86)",
+          "oklch(35% 0.085 86)",
+          "oklch(45% 0.085 86)",
+          "oklch(60% 0.085 86)",
+          "oklch(75% 0.085 86)",
+          "oklch(86% 0.085 86)",
+          "oklch(95% 0.085 86)"
+        ]
+      },
+      "tile-plum": {
+        "role": "secondary",
+        "displayName": "Plum",
+        "canonical": "#6b5a7a",
+        "tonalRamp": [
+          "oklch(15% 0.054 309)",
+          "oklch(25% 0.054 309)",
+          "oklch(35% 0.054 309)",
+          "oklch(45% 0.054 309)",
+          "oklch(60% 0.054 309)",
+          "oklch(75% 0.054 309)",
+          "oklch(86% 0.054 309)",
+          "oklch(95% 0.054 309)"
+        ]
+      },
+      "tile-teal": {
+        "role": "secondary",
+        "displayName": "Teal",
+        "canonical": "#1f6f78",
+        "tonalRamp": [
+          "oklch(15% 0.075 206)",
+          "oklch(25% 0.075 206)",
+          "oklch(35% 0.075 206)",
+          "oklch(45% 0.075 206)",
+          "oklch(60% 0.075 206)",
+          "oklch(75% 0.075 206)",
+          "oklch(86% 0.075 206)",
+          "oklch(95% 0.075 206)"
+        ]
+      },
+      "tile-rose": {
+        "role": "secondary",
+        "displayName": "Rose",
+        "canonical": "#8c4a5b",
+        "tonalRamp": [
+          "oklch(15% 0.091 5)",
+          "oklch(25% 0.091 5)",
+          "oklch(35% 0.091 5)",
+          "oklch(45% 0.091 5)",
+          "oklch(60% 0.091 5)",
+          "oklch(75% 0.091 5)",
+          "oklch(86% 0.091 5)",
+          "oklch(95% 0.091 5)"
+        ]
+      },
+      "tile-olive": {
+        "role": "secondary",
+        "displayName": "Olive",
+        "canonical": "#55622b",
+        "tonalRamp": [
+          "oklch(15% 0.080 121)",
+          "oklch(25% 0.080 121)",
+          "oklch(35% 0.080 121)",
+          "oklch(45% 0.080 121)",
+          "oklch(60% 0.080 121)",
+          "oklch(75% 0.080 121)",
+          "oklch(86% 0.080 121)",
+          "oklch(95% 0.080 121)"
+        ]
+      },
+      "tile-other": {
+        "role": "neutral",
+        "displayName": "Egyéb Charcoal",
+        "canonical": "#4a4740",
+        "tonalRamp": [
+          "oklch(15% 0.012 88)",
+          "oklch(25% 0.012 88)",
+          "oklch(35% 0.012 88)",
+          "oklch(45% 0.012 88)",
+          "oklch(60% 0.012 88)",
+          "oklch(75% 0.012 88)",
+          "oklch(86% 0.012 88)",
+          "oklch(95% 0.012 88)"
+        ]
+      },
+      "focus": {
+        "role": "utility",
+        "displayName": "Focus Blue",
+        "canonical": "#2b5bd7",
+        "tonalRamp": [
+          "oklch(15% 0.198 264)",
+          "oklch(25% 0.198 264)",
+          "oklch(35% 0.198 264)",
+          "oklch(45% 0.198 264)",
+          "oklch(60% 0.198 264)",
+          "oklch(75% 0.198 264)",
+          "oklch(86% 0.198 264)",
+          "oklch(95% 0.198 264)"
+        ]
+      },
+      "error": {
+        "role": "utility",
+        "displayName": "Error Brick-Red",
+        "canonical": "#a3271c",
+        "tonalRamp": [
+          "oklch(15% 0.162 30)",
+          "oklch(25% 0.162 30)",
+          "oklch(35% 0.162 30)",
+          "oklch(45% 0.162 30)",
+          "oklch(60% 0.162 30)",
+          "oklch(75% 0.162 30)",
+          "oklch(86% 0.162 30)",
+          "oklch(95% 0.162 30)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The balance in the month statement only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Login title and big tile amount."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Statement sentence, tile amounts."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tile names, form labels, stepper."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Notes, limit lines, meta, badges."
+      }
+    },
+    "shadows": [
+      {
+        "name": "menu-float",
+        "value": "0 8px 24px rgb(28 27 25 / 0.14)",
+        "purpose": "The popover menu, the single shadow in the system."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgb(43 91 215 / 0.25)",
+        "purpose": "Input focus halo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Tile press feedback, 160ms scale to 0.98; off under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink submit button on forms.",
+      "html": "<button class=\"ds-btn\">Belépés</button>",
+      "css": ".ds-btn{min-height:52px;padding:0 24px;border:0;border-radius:12px;background:var(--ink,#1c1b19);color:var(--ground,#f3f1ec);font:700 1rem system-ui,sans-serif;cursor:pointer}.ds-btn:hover{background:#33312d}.ds-btn:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Capture Row",
+      "kind": "custom",
+      "refersTo": "button-capture-primary",
+      "description": "Bottom dock: two disabled captures and the live Kézi button.",
+      "html": "<div class=\"ds-dock\"><span class=\"ds-cap off\">Fotó<small>hamarosan</small></span><span class=\"ds-cap off\">Hang<small>hamarosan</small></span><a class=\"ds-cap pri\" href=\"#\">Kézi</a></div>",
+      "css": ".ds-dock{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:8px;font-family:system-ui,sans-serif}.ds-cap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:60px;border-radius:12px;background:#e7e3da;color:#1c1b19;font:600 .875rem system-ui,sans-serif;text-decoration:none}.ds-cap small{font-size:.6875rem;font-weight:500;color:#5f5b53}.ds-cap.off{color:#8a857a}.ds-cap.pri{background:#1c1b19;color:#f3f1ec;font-size:1rem}.ds-cap.pri:hover{background:#33312d}.ds-cap.pri:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "White field with hairline border and ink focus.",
+      "html": "<input class=\"ds-input\" value=\"Felhasználó\">",
+      "css": ".ds-input{width:100%;min-height:48px;padding:0 12px;border:1.5px solid #d6d1c6;border-radius:12px;background:#fff;font:inherit;color:#1c1b19;box-sizing:border-box}.ds-input:focus{border-color:#1c1b19;outline:none;box-shadow:0 0 0 3px rgb(43 91 215 / .25)}"
+    },
+    {
+      "name": "Error Note",
+      "kind": "custom",
+      "refersTo": "error-note",
+      "description": "Form error only.",
+      "html": "<p class=\"ds-err\" role=\"alert\">Hibás jelszó.</p>",
+      "css": ".ds-err{margin:0;padding:12px;border-radius:12px;background:#f6e3df;color:#a3271c;font:.875rem system-ui,sans-serif}"
+    },
+    {
+      "name": "Category Tile",
+      "kind": "card",
+      "refersTo": "tile",
+      "description": "Map tile with amount, limit and limit rail.",
+      "html": "<a class=\"ds-tile\"><span class=\"n\">Élelmiszer</span><span><span class=\"a\">412 €</span><span class=\"l\">500 € keretből</span></span><span class=\"rail\"><i></i></span></a>",
+      "css": ".ds-tile{position:relative;display:flex;flex-direction:column;justify-content:space-between;width:180px;height:140px;padding:8px 12px 12px;box-sizing:border-box;border-radius:10px;overflow:hidden;background:var(--tile-0,#2e6b4f);color:#fff;text-decoration:none;font-family:system-ui,sans-serif;font-variant-numeric:tabular-nums;transition:transform 160ms cubic-bezier(.16,1,.3,1)}.ds-tile:active{transform:scale(.98)}.ds-tile:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}.ds-tile .n{font-size:.875rem;font-weight:600}.ds-tile .a{display:block;font-size:1.25rem;font-weight:800;letter-spacing:-.01em}.ds-tile .l{display:block;font-size:.75rem;font-weight:500;opacity:.9}.ds-tile .rail{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgb(0 0 0 / .28)}.ds-tile .rail i{display:block;height:100%;width:82%;background:#fff}"
+    },
+    {
+      "name": "Over-limit Rail",
+      "kind": "custom",
+      "refersTo": "tile",
+      "description": "The over-limit signal: hatched rail plus bold text.",
+      "html": "<a class=\"ds-tile over\"><span class=\"n\">Szórakozás</span><span><span class=\"a\">130 €</span><span class=\"l\">+30 € felett</span></span><span class=\"rail\"><i></i></span></a>",
+      "css": ".ds-tile{position:relative;display:flex;flex-direction:column;justify-content:space-between;width:180px;height:140px;padding:8px 12px 12px;box-sizing:border-box;border-radius:10px;overflow:hidden;background:var(--tile-2,#3c5a9a);color:#fff;font-family:system-ui,sans-serif}.ds-tile .n{font-size:.875rem;font-weight:600}.ds-tile .a{display:block;font-size:1.25rem;font-weight:800}.ds-tile .l{display:block;font-size:.75rem;font-weight:700}.ds-tile .rail{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgb(0 0 0 / .28)}.ds-tile .rail i{display:block;height:100%;width:100%;background:repeating-linear-gradient(-45deg,#fff 0 4px,transparent 4px 7px)}"
+    },
+    {
+      "name": "Month Stepper",
+      "kind": "nav",
+      "refersTo": "icon-button",
+      "description": "Round 48px arrows around the month label.",
+      "html": "<nav class=\"ds-step\"><a href=\"#\" aria-label=\"Előző\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m15 18-6-6 6-6\"/></svg></a><span>2026. november</span><a href=\"#\" aria-label=\"Következő\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg></a></nav>",
+      "css": ".ds-step{display:flex;align-items:center;gap:4px;font:600 .875rem system-ui,sans-serif;color:#1c1b19}.ds-step a{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;color:inherit;text-decoration:none}.ds-step a:hover{background:#e7e3da}.ds-step a:focus-visible{outline:3px solid #2b5bd7;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Month as a Map",
+    "overview": "The month is a map of where the money went: category tiles sized by spending, each with a thin limit rail. Everything else, the forms, lists and menus, stays plain so the map is the one loud thing on any screen. The tool is used two ways: one-handed at a till, in shop daylight, and in the evening under a kitchen lamp. It is a family's working ledger, not a fintech dashboard, and it refuses the white-card dashboard with a hero metric and a donut.\n\nThe palette is one light, warm set: a stone ground, near-black ink, and eight deep earthy hues that exist only to colour category tiles. Weight is spent on amounts (800) and nowhere else; type is the system sans with tabular numerals everywhere, so columns of money line up. Depth is flat: the screen is separated by tone and hairlines, not shadow.",
+    "keyCharacteristics": [
+      "One light theme, tuned for daylight and lamplight; no dark theme.",
+      "Colour carries category identity (tiles); ink-black carries the single action.",
+      "Money is tabular, heavy and tight; labels are plain and quiet.",
+      "Thumb-first: 48px targets, capture dock fixed at the bottom of the screen.",
+      "Hungarian only; strings live in `app/strings/hu.py`, never in templates."
+    ],
+    "rules": [
+      {
+        "name": "The Map Owns Colour Rule",
+        "body": "Saturated colour appears only as a category tile hue. Chrome, buttons, rows and menus are stone and ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stable Hue Rule",
+        "body": "A category's hue is a function of its id (`c{id % 8}`), never of its rank or size, so it does not change between months or screens.",
+        "section": "colors"
+      },
+      {
+        "name": "The Not-Red-For-Over Rule",
+        "body": "Brick is a category hue, so red cannot mean \"over limit\". Over-limit is a hatched limit rail plus bold \"+N € felett\" text on the tile. `--error` is for form errors only.",
+        "section": "colors"
+      },
+      {
+        "name": "The Heavy Amounts Rule",
+        "body": "Weight 800 is reserved for money (statement balance, tile amounts, login title). Names and labels stay at 500 to 700.",
+        "section": "typography"
+      },
+      {
+        "name": "The Step-Down Rule",
+        "body": "Type shrinks by scale step, never below `--fs-xs`; a narrow tile (container under 124px) drops name to xs and amount to m before a word breaks.",
+        "section": "typography"
+      },
+      {
+        "name": "The Whole Euros On Tiles Rule",
+        "body": "Tiles show whole euros (`eur_short`) because they are glanceable; lists and totals show exact cents (`eur`).",
+        "section": "layout"
+      },
+      {
+        "name": "The Limit Yields First Rule",
+        "body": "A short tile (`tile--small`) hides its limit line before the hidden-entry note, because the note is part of the truth of the number and the limit is still visible on the rail.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces carry no shadow at rest; the menu popover is the single exception.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use ink `#1c1b19` for the single primary action on a screen, and the tile hues only for categories.",
+      "**Do** assign category hue by `c{id % 8}` and keep \"Egyéb\" neutral.",
+      "**Do** put tabular numerals on every amount and weight 800 only on amounts.",
+      "**Do** show whole euros on tiles and exact cents in lists.",
+      "**Do** signal over-limit with the hatched rail and \"+N € felett\" text.",
+      "**Do** keep touch targets at 48px or more and every string in `app/strings/hu.py`.",
+      "**Do** pick palette decisions from the scene: shop daylight and kitchen lamp, one light theme."
+    ],
+    "donts": [
+      "**Don't** add a dark theme; one tuned palette beats two half-tuned ones.",
+      "**Don't** use red, or `--error`, for over-limit, deletions or counts; it is for form errors only.",
+      "**Don't** drop a tile's hidden-entry note to keep its limit line; the limit goes first.",
+      "**Don't** add a hero-metric card, a donut chart, or white dashboard cards around the map.",
+      "**Don't** use `--ink-3` for text people must read; it is disabled-only.",
+      "**Don't** introduce a webfont or a second family; the system sans is a recorded decision.",
+      "**Don't** reuse the repo owner's `brand/` identity; this is the family's tool."
+    ]
+  }
+}

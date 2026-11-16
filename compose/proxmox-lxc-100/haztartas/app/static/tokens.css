@@ -1,0 +1,52 @@
+/* Háztartás tokens. One light palette, chosen from the use scene: a phone in
+   a shop's daylight or under a kitchen lamp in the evening. No dark theme;
+   one tuned palette beats two half-tuned ones. */
+:root {
+  /* ground and ink */
+  --ground: #f3f1ec;          /* warm stone, not cream: no paper costume */
+  --ground-2: #e7e3da;        /* second layer: bars, inactive controls */
+  --ink: #1c1b19;
+  --ink-2: #5f5b53;           /* secondary text, 6.1:1 on --ground */
+  --ink-3: #8a857a;           /* disabled only, never body text */
+  --line: #d6d1c6;
+
+  /* the map: eight deep tile hues, each carries white text at >= 4.5:1.
+     A category keeps its hue by id, so "Élelmiszer" is moss every month. */
+  --tile-0: #2e6b4f;          /* moss   */
+  --tile-1: #b2532d;          /* brick  */
+  --tile-2: #3c5a9a;          /* slate  */
+  --tile-3: #7d6326;          /* ochre  */
+  --tile-4: #6b5a7a;          /* plum   */
+  --tile-5: #1f6f78;          /* teal   */
+  --tile-6: #8c4a5b;          /* rose   */
+  --tile-7: #55622b;          /* olive  */
+  --tile-other: #4a4740;      /* the "Egyéb" tile */
+
+  --on-tile: #ffffff;
+  --rail: rgb(0 0 0 / 0.28);  /* limit rail track on a tile */
+
+  /* states */
+  --focus: #2b5bd7;
+  --error: #a3271c;           /* form errors only */
+
+  /* type: a product UI, one family, tabular numbers wherever money shows */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-s: 0.875rem;
+  --fs-m: 1rem;
+  --fs-l: 1.25rem;
+  --fs-xl: 1.75rem;
+
+  /* shape and space */
+  --r-tile: 10px;
+  --r-ctl: 12px;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+
+  --tap: 48px;                /* minimum touch target */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}

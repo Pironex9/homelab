@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from urllib.parse import urlsplit
+
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from app import backup, config, fx, migrate, money
+from app.routers import auth, capture, drafts, entries, home, pocket, settings
+from app.strings.hu import S
+from app.db import Database
+from app.services import recurring
+
+BASE_DIR = Path(__file__).parent
+
+log = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = _settings
+    migrate.run(settings.db_path, backup_dir=settings.backup_dir)
+    app.state.settings = settings
+    app.state.db = Database(settings.db_path)
+    app.state.templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    app.state.templates.env.globals["S"] = S
+    # Integer minor units in, "1 284,50 EUR" out. Never divide in a template.
+    app.state.templates.env.filters["eur"] = lambda minor: money.fmt_money(int(minor or 0), "EUR")
+    app.state.templates.env.filters["eur_short"] = lambda minor: money.fmt_eur_short(int(minor or 0))
+    tasks = [
+        asyncio.create_task(
+            backup.nightly_task(settings.db_path, settings.backup_dir)),
+        asyncio.create_task(recurring.daily_task(app.state.db)),
+    ]
+    # HAZTARTAS_FX_FETCH=0 keeps the ECB fetch off (tests must not hit the
+    # network); anything else, including unset, runs it.
+    if os.environ.get("HAZTARTAS_FX_FETCH", "1") != "0":
+        tasks.append(asyncio.create_task(fx.daily_task(app.state.db)))
+    yield
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
+_settings = config.load()   # once, at import: the middleware needs it early
+
+if not _settings.https_only:
+    log.warning("HAZTARTAS_HTTPS_ONLY=0: session cookies are sent without the "
+                "Secure flag. Never do this on the public route.")
+
+# openapi_url off as well as the docs pages: it would publish the whole route
+# table.
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_settings.secret_key,
+    # Secure cookie, so a plain-http origin silently drops it and the login
+    # form just reloads. HAZTARTAS_HTTPS_ONLY=0 is for reaching the app over
+    # http on the LAN or in the screenshot loop, never for the public route.
+    https_only=_settings.https_only,
+    same_site="lax",
+    max_age=90 * 24 * 60 * 60,
+)
+
+
+_UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+@app.middleware("http")
+async def origin_guard(request: Request, call_next):
+    """CSRF: the app is public on a registrable domain shared with other apps,
+    so SameSite=Lax alone is not enough. A browser always sends Origin or
+    Sec-Fetch-Site on a cross-site POST; clients that send neither (curl, old
+    browsers) pass. uvicorn's forwarded-allow-ips does not rewrite Host, so a
+    proxy's X-Forwarded-Host is accepted as well."""
+    if request.method in _UNSAFE:
+        origin = request.headers.get("origin")
+        if origin is not None:
+            hosts = {request.headers.get("host"),
+                     request.headers.get("x-forwarded-host")}
+            if urlsplit(origin).netloc not in hosts:
+                return PlainTextResponse("forbidden", status_code=403)
+        elif request.headers.get("sec-fetch-site") not in (
+                None, "same-origin", "none"):
+            return PlainTextResponse("forbidden", status_code=403)
+    return await call_next(request)
+
+
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.include_router(auth.router)
+app.include_router(home.router)
+app.include_router(entries.router)
+app.include_router(drafts.router)
+app.include_router(pocket.router)
+app.include_router(settings.router)
+app.include_router(capture.router)
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker() -> FileResponse:
+    """Served from the root, not from /static/.
+
+    A service worker's scope defaults to the directory it is served from, and
+    it cannot intercept anything outside it. At /static/sw.js the scope would
+    be /static/, and the one page it exists for, /capture, would never come
+    from the cache on a dead connection.
+    """
+    return FileResponse(BASE_DIR / "static" / "sw.js",
+                        media_type="application/javascript")
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest() -> FileResponse:
+    """At the root next to sw.js, so the installed app's scope is the whole
+    site rather than /static/."""
+    return FileResponse(BASE_DIR / "static" / "manifest.webmanifest",
+                        media_type="application/manifest+json")
+
+
+@app.get("/health")
+def health() -> PlainTextResponse:
+    return PlainTextResponse("ok")
