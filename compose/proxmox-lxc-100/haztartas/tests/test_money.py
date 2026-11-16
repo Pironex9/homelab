@@ -7,13 +7,15 @@ from app.money import fmt_money, parse_amount
 @pytest.mark.parametrize("text,minor", [
     ("12,50", 1250), ("12.50", 1250), ("12,5", 1250), ("12", 1200),
     ("1 200", 120000), ("1200", 120000), ("1.200,50", 120050), (" 7 ", 700),
-    ("1.200", 120000)])
+    ("1.200", 120000), ("12 000", 1200000), ("1 200,50", 120050),
+    ("1 200 000", 120000000)])
 def test_parse_amount_accepts(text, minor):
     assert parse_amount(text) == minor
 
 
 @pytest.mark.parametrize("text", [
-    "", "abc", "-3", "0", "1,2,3", "12,345", "0,00", "12,", "0.500", "0.125"])
+    "", "abc", "-3", "0", "1,2,3", "12,345", "0,00", "12,", "0.500", "0.125",
+    "12 50", "1 2", "1 20", "1 2000", "١٢"])
 def test_parse_amount_rejects(text):
     with pytest.raises(ValueError):
         parse_amount(text)

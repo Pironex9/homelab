@@ -44,7 +44,7 @@ def test_topup_non_child_wallet_rejected(adult, users):
     r = adult.post("/pocket/topup", data=dict(
         wallet_id=str(household(users)), amount="5", currency="EUR",
         date=clock.today()))
-    assert r.status_code in (403, 404, 422)
+    assert r.status_code == 422
     assert rows(users, household(users)) == []
 
 
@@ -123,3 +123,18 @@ def test_child_gets_no_undo_on_a_topup(adult, child, users):
     assert f'href="/entries/{half.id}"' not in child.get("/pocket").text
     html = child.get(f"/entries/{half.id}").text
     assert "/delete" not in html
+
+
+def test_overflow_link_when_more_than_fifty_rows(adult, users):
+    w = child_wallet(users)
+    for _ in range(51):
+        add(users, "anna", wallet_id=w, kind="income", merchant=None, category_id=cat(users, "Fizetés", "income"))
+    html = adult.get("/pocket").text
+    assert f'<a href="/entries?wallet={w}">{S["pocket_all"]}</a>' in html
+
+
+def test_no_overflow_link_at_fifty_rows(adult, users):
+    w = child_wallet(users)
+    for _ in range(50):
+        add(users, "anna", wallet_id=w, kind="income", merchant=None, category_id=cat(users, "Fizetés", "income"))
+    assert S["pocket_all"] not in adult.get("/pocket").text

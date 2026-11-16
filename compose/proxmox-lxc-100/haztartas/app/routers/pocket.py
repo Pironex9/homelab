@@ -26,7 +26,9 @@ def _wallet_view(s, viewer, wallet, owner, today):
         .outerjoin(Category, Category.id == Entry.category_id)
         .where(Entry.wallet_id == wallet.id, Entry.status == "confirmed",
                visibility.listable(viewer, today))
-        .order_by(Entry.date.desc(), Entry.id.desc()).limit(LIMIT)).all()
+        .order_by(Entry.date.desc(), Entry.id.desc()).limit(LIMIT + 1)).all()
+    more = len(rows) > LIMIT
+    rows = rows[:LIMIT]
     authors = dict(s.execute(select(User.id, User.name)).all())
     items = []
     for e, cname in rows:
@@ -45,7 +47,7 @@ def _wallet_view(s, viewer, wallet, owner, today):
             # An adult opens a row to undo it (a top-up has no edit form).
             url=None if redacted or viewer.role != "adult"
             else f"/entries/{e.id}"))
-    return dict(wallet_id=wallet.id, name=owner.name, rows=items,
+    return dict(wallet_id=wallet.id, name=owner.name, rows=items, more=more,
                 balance_minor=summary.wallet_balance(
                     s, wallet.id, viewer, today))
 

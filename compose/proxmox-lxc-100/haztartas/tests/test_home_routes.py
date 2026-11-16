@@ -128,3 +128,14 @@ def test_other_tile_is_not_a_sliver(adult, users):
     html = adult.get("/").text
     m = re.search(r'c-other[^>]*--w:([\d.]+);--h:([\d.]+)', html)
     assert m and float(m[1]) * float(m[2]) >= 0.06 * 10000 - 1
+
+
+def test_drafts_hint_for_adult_with_draft_not_child(adult, child, users):
+    add(users, "anna", status="draft")
+    html = adult.get("/").text
+    assert '<a href="/drafts">' + S["drafts_waiting"].format(n=1) + "</a>" in html
+    assert S["drafts_waiting"].format(n=1) not in child.get("/").text
+
+
+def test_no_drafts_hint_without_drafts(adult, users):
+    assert S["drafts_waiting"].format(n=0) not in adult.get("/").text

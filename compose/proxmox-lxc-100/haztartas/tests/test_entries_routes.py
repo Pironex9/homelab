@@ -168,7 +168,7 @@ def test_only_author_can_reveal(adult, adult2, users):
 
 def test_child_cannot_delete_adult_entry(child, adult, users):
     eid = add(users, "anna")
-    assert child.post(f"/entries/{eid}/delete").status_code in (403, 404)
+    assert child.post(f"/entries/{eid}/delete").status_code == 403
 
 
 # ---- fix round 1
@@ -285,3 +285,19 @@ def test_detail_shows_the_rate_used(adult, adult2, users):
     assert line in adult.get(f"/entries/{t}").text
     eur = add(users, "anna")
     assert "Árfolyam:" not in adult.get(f"/entries/{eur}").text
+
+
+import pytest
+
+
+@pytest.mark.parametrize("bad", [
+    "/\t/evil.example", "/\\evil", "/%2F%2Fevil", "javascript:alert(1)",
+    "//evil.example", "/\n/evil.example", "/ /evil.example"])
+def test_delete_next_stays_same_site(adult, users, bad):
+    eid = add(users, "anna")
+    r = adult.post(f"/entries/{eid}/delete", data=dict(next=bad))
+    assert r.status_code == 303
+    loc = r.headers["location"]
+    assert loc.startswith("/") and not loc.startswith("//")
+    assert not any(c in loc for c in "\\\t\n\r ")
+    assert not loc.lower().startswith("javascript")

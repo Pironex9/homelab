@@ -22,6 +22,7 @@
           <span class="meta">{{ r.meta }}</span></li>
         {% endfor %}
       </ul>
+      {% if w.more %}<p class="hint"><a href="/entries?wallet={{ w.wallet_id }}">{{ S["pocket_all"] }}</a></p>{% endif %}
       {% else %}
       <p class="empty">{{ S["pocket_empty"] }}</p>
       {% endif %}

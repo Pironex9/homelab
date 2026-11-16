@@ -33,6 +33,7 @@
       {% if expected %}
       <p>{{ S["expected_prefix"] }} {% for e in expected %}{{ e.name }}, {{ e.day_label }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>
       {% endif %}
+      {% if drafts_count %}<p class="hint"><a href="/drafts">{{ S["drafts_waiting"].format(n=drafts_count) }}</a></p>{% endif %}
     </section>
     {% else %}
     <section class="statement">

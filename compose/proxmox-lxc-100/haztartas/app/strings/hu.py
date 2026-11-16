@@ -112,6 +112,7 @@ S = {
 
     "pocket_title": "Zsebpénz",
     "pocket_balance": "Egyenleg",
+    "pocket_all": "Összes tétel",
     "pocket_empty": "Még nincs tétel.",
     "pocket_no_wallet": "Nincs zsebpénz-pénztárca.",
     "pocket_topup": "Zsebpénz átadása",
