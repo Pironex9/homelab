@@ -89,14 +89,18 @@ records.
 ## Restore
 
     docker compose stop pedikur
+    rm -f /srv/docker-data/pedikur/db.sqlite-wal \
+          /srv/docker-data/pedikur/db.sqlite-shm
     cp /srv/docker-data/pedikur/backup/daily-<stamp>.sqlite \
        /srv/docker-data/pedikur/db.sqlite
     docker compose start pedikur
 
-Loses at most one day of entries. The `db.sqlite-wal` and `db.sqlite-shm`
-files next to it can be left alone: a WAL whose salt no longer matches the
-database file is discarded rather than replayed, measured on this schema
-rather than assumed.
+Loses at most one day of entries. The `rm` comes before the copy and is not
+optional: SQLite replays any `db.sqlite-wal` it finds onto whatever
+`db.sqlite` sits next to it, the restored backup included, so a WAL left
+over from a crash would write newer pages over the old copy (measured
+2026-11-15: a row written after the backup reappeared in the restored
+database).
 
 ## Rollback a bad deploy
 
