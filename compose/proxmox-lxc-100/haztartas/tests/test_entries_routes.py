@@ -270,3 +270,18 @@ def test_login_is_guarded_too(client):
     r = client.post("/login", data={"username": "a", "password": "b"},
                     headers={"Origin": "https://evil.example"})
     assert r.status_code == 403
+
+
+def test_detail_shows_the_rate_used(adult, adult2, users):
+    from decimal import Decimal
+    e = add(users, "anna", currency="HUF", amount_minor=500000,
+            manual_rate=Decimal("400"))
+    line = S["fx_line"].format(rate="400", currency="HUF", eur="12,50")
+    assert line in adult.get(f"/entries/{e}").text          # editable
+    t = add(users, "anna", currency="HUF", amount_minor=500000,
+            manual_rate=Decimal("400"))
+    with users.state.db.session() as s:
+        s.get(Entry, t).transfer_group = "g"                # read-only
+    assert line in adult.get(f"/entries/{t}").text
+    eur = add(users, "anna")
+    assert "Árfolyam:" not in adult.get(f"/entries/{eur}").text

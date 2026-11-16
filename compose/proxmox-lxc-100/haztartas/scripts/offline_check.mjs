@@ -22,10 +22,14 @@
 //      before the logout uploads after the next login.
 //   4. Pangolin in front, abroad: a 302 to an external login and a 200 HTML
 //      login page both keep the item queued and show the login prompt.
+//   4b. abroad on a live connection, Pangolin answers /capture itself with a
+//      302 to its SSO login: the cached form opens anyway, a capture queues,
+//      and it uploads once the wall is gone.
 //   5. the phone's storage is full while offline: the form says so and keeps
 //      what was typed instead of navigating to an error page.
-//   6. a refused item (409, another user's) is listed with its reason and can
-//      be removed from the phone.
+//   6. a refused item of another user (409) is only counted: no amount,
+//      merchant or date on screen, no discard button; it uploads once its
+//      author's session is back.
 const PW = process.env.PLAYWRIGHT_CORE
   || '/usr/lib/node_modules/@playwright/cli/node_modules/playwright-core/index.mjs';
 const { chromium } = await import(PW);
@@ -238,6 +242,25 @@ try {
       `Pangolin ${shape}: uploads once the wall is gone`);
   }
 
+  // ---- 4b. the login wall in front of /capture itself, online.
+  // context.route, not page.route: the service worker's own fetch of
+  // /capture is what meets the wall, and page.route cannot see it.
+  const wall = { status: 302, headers: { location: 'https://auth.example.invalid/login' } };
+  await until(cachedCapture, '/capture cached before the wall');
+  await context.route(`${base}/capture`, (r) => r.fulfill(wall));
+  await page.route(syncRoute, (r) => r.fulfill(wall));
+  await page.goto(`${base}/capture`);
+  ok(page.url() === `${base}/capture` && await page.locator('form[data-capture]').isVisible(),
+    'login wall on /capture, online: the cached form opens');
+  await record(`Abroad-${tag}`, '16,30');
+  await page.locator('[data-login]').waitFor({ state: 'visible', timeout: 15000 });
+  ok(await queueSize() === 1, 'login wall on /capture: the capture queues');
+  await context.unroute(`${base}/capture`);
+  await page.unroute(syncRoute);
+  await page.reload();
+  await waitUploaded();
+  ok(await listedTimes(`Abroad-${tag}`) === 1, 'login wall gone: uploads once');
+
   // ---- 5. storage full while offline
   await page.goto(`${base}/capture`);
   await context.setOffline(true);
@@ -254,22 +277,28 @@ try {
   await page.reload();   // the real put again
   ok(await queueSize() === 0, 'storage full offline: nothing half-queued');
 
-  // ---- 6. a refused item is explained and can be removed
+  // ---- 6. another user's item: a count line, nothing of its content
   await page.route(syncRoute, (r) => r.fulfill({
     status: 409, contentType: 'application/json',
     body: JSON.stringify({ client_uuid: JSON.parse(r.request().postData()).client_uuid, error: 'x' }),
   }));
-  await record(`Refused-${tag}`, '14,90');
-  const item = page.locator('[data-refused] li', { hasText: `Refused-${tag}` });
-  await item.waitFor({ state: 'visible', timeout: 15000 });
-  ok((await item.textContent()).includes('másik felhasználó'), 'refused 409: listed with its reason');
+  await record(`Refused-${tag}`, '19,90');
+  const others = page.locator('[data-refused] [data-others]');
+  await others.waitFor({ state: 'visible', timeout: 15000 });
+  ok((await others.textContent()).trim() === '1 tétel egy másik felhasználótól: csak ő töltheti fel',
+    `refused 409: count line shows "${(await others.textContent()).trim()}"`);
+  const box = (await page.textContent('[data-refused]')) || '';
+  ok(!box.includes(`Refused-${tag}`) && !box.includes('19,90')
+    && await page.locator('[data-refused] li').count() === 0
+    && await page.locator('[data-refused] button').count() === 0,
+  'refused 409: no amount, merchant or discard button on screen');
   await waitCount(1);
   ok((await counterText()).includes('nem tölthető fel'), `refused 409: counter says so ("${(await counterText()).trim()}")`);
-  page.once('dialog', (d) => d.accept());
-  await item.getByRole('button', { name: 'Törlés a telefonról' }).click();
-  await counter().waitFor({ state: 'hidden', timeout: 5000 });
-  ok(await queueSize() === 0 && !(await item.isVisible()), 'refused 409: removed from the phone');
   await page.unroute(syncRoute);
+  await page.reload();   // its author is logged in after all: a page load retries it
+  await waitUploaded();
+  ok(await listedTimes(`Refused-${tag}`) === 1 && !(await others.isVisible()),
+    'refused 409: uploads once its author is back, count line gone');
 } catch (err) {
   ok(false, `aborted: ${err.message.split('\n')[0]}`);
 }

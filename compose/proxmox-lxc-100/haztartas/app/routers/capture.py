@@ -81,9 +81,12 @@ async def sync(request: Request, user: User = Depends(require_user_json)):
             data.client_uuid = uid
             status = "confirmed"
             # The person could not see a duplicate prompt offline, so a likely
-            # duplicate waits under /drafts instead. /drafts shows household
-            # drafts only, so elsewhere a draft would be lost from sight.
-            if svc.find_duplicates(s, user, data):
+            # duplicate waits under /drafts instead. /drafts is adult-only,
+            # shows household drafts only and 404s a hidden one for the other
+            # adult: anything else would be a draft nobody can resolve, so it
+            # saves confirmed.
+            if (user.role == "adult" and not data.hidden
+                    and svc.find_duplicates(s, user, data)):
                 wallet = s.get(Wallet, data.wallet_id)
                 if wallet is not None and wallet.owner_user_id is None:
                     status = "draft"

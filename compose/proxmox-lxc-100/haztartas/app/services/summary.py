@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 
 from app.clock import scheduled_day
 from app.models import Category, Entry, Recurring, User, Wallet
@@ -95,8 +95,11 @@ def month_summary(s, month: str, today: str) -> MonthSummary:
         .group_by(User.id, User.name)
         .order_by(func.sum(Entry.eur_minor).desc(), User.name)).all()]
 
+    # Settled for the month: confirmed, or deleted ("not this month", the same
+    # rule recurring._exists uses to make no other draft). Only a live draft
+    # or no entry at all is still expected.
     confirmed = set(s.scalars(select(Entry.recurring_id).where(
-        Entry.status == "confirmed", Entry.deleted_at.is_(None),
+        or_(Entry.status == "confirmed", Entry.deleted_at.is_not(None)),
         Entry.recurring_id.is_not(None), Entry.recurring_month == month)))
     expected = sorted(
         (ExpectedIncome(r.name, scheduled_day(month, r.day_of_month),

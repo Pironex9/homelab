@@ -120,3 +120,25 @@ def test_huge_amount_422(adult, users):
     d = make_draft(users)
     r = adult.post(f"/drafts/{d}/confirm", data=form(users, amount="9" * 30))
     assert r.status_code == 422
+
+
+def test_other_adult_confirms_a_revealed_hidden_draft(adult2, users):
+    # Hidden until a day already past: no longer a secret, so the other adult
+    # may confirm it, and the form (which shows no secrecy fields to a
+    # non-author) must not count as an attempt to unhide it.
+    d = add(users, "anna", status="draft", merchant="Gift", hidden=True,
+            reveal_on="2000-01-01")
+    r = adult2.post(f"/drafts/{d}/confirm", data=form(users))
+    assert r.status_code == 303
+    with users.state.db.session() as s:
+        e = s.get(Entry, d)
+        assert e.status == "confirmed"
+        assert e.hidden and e.reveal_on == "2000-01-01"
+
+
+def test_draft_confirm_shows_the_rate_used(adult, users):
+    from decimal import Decimal
+    d = add(users, "anna", status="draft", currency="HUF",
+            amount_minor=500000, manual_rate=Decimal("400"))
+    html = adult.get(f"/drafts/{d}").text
+    assert S["fx_line"].format(rate="400", currency="HUF", eur="12,50") in html

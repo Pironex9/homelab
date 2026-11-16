@@ -9,7 +9,7 @@
 (() => {
   const DB = 'haztartas';
   const STORE = 'queue';
-  const CACHE = 'haztartas-v2';   // same name as in sw.js
+  const CACHE = 'haztartas-v3';   // same name as in sw.js
   const RETRY_MS = 15000;
   const FETCH_TIMEOUT_MS = 20000;
   const strings = document.getElementById('queue-strings');
@@ -81,11 +81,18 @@
     showRefused(no);
   }
 
-  // On /capture: every refused item with its reason and a way off the phone.
-  // Built here rather than in the template: the cached page cannot know.
+  // On /capture: every refused item of this user with its reason and a way
+  // off the phone. Another user's items (a 409, or queued under another
+  // user id) are only counted: on a shared phone their amount, merchant and
+  // date are not this user's to read, nor to throw away; they upload when
+  // their author logs back in. Built here rather than in the template: the
+  // cached page cannot know.
   function showRefused(items) {
     const form = document.querySelector('form[data-capture]');
     if (!form) return;
+    const mine = (i) => i.status !== 409 && (i.payload || {}).user_id === form.dataset.user;
+    const own = items.filter(mine);
+    const others = items.length - own.length;
     let box = document.querySelector('[data-refused]');
     if (!box) {
       box = document.createElement('section');
@@ -94,17 +101,21 @@
       const title = document.createElement('p');
       title.className = 'hint';
       title.textContent = S.refused_title || '';
-      box.append(title, document.createElement('ul'));
+      const count = document.createElement('p');
+      count.dataset.others = '';
+      box.append(title, count, document.createElement('ul'));
       form.before(box);
     }
+    const count = box.querySelector('[data-others]');
+    count.textContent = others ? (S.other_user_count || '{n}').replace('{n}', others) : '';
+    count.hidden = !others;
     const list = box.querySelector('ul');
-    list.replaceChildren(...items.map((item) => {
+    list.replaceChildren(...own.map((item) => {
       const p = item.payload || {};
       const li = document.createElement('li');
       const what = document.createElement('span');
-      const reason = item.status === 409 ? S.other_user : item.error;
       what.textContent = [`${p.amount || ''} ${p.currency || ''}`.trim(), p.merchant, p.date]
-        .filter(Boolean).join(' · ') + (reason ? ` - ${reason}` : '');
+        .filter(Boolean).join(' · ') + (item.error ? ` - ${item.error}` : '');
       const drop = document.createElement('button');
       drop.type = 'button';
       drop.className = 'btn btn--quiet';

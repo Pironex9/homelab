@@ -74,15 +74,20 @@ original host through.
 The service worker serves `/capture` from cache with the network off. An entry
 recorded offline is kept in IndexedDB on the phone and uploaded when the
 connection returns, exactly once. The page-wide counter shows how many wait. A
-refused item (for example another user's) is listed with its reason and can be
-removed from the phone. Logging out empties the cache but not the queue.
+refused item of the logged-in user is listed with its reason and can be removed
+from the phone. Another user's queued items on a shared phone are only counted,
+with nothing of their content shown, and upload when that user logs back in.
+Logging out empties the cache but not the queue. Abroad, where
+Pangolin answers `/capture` itself with a redirect to its SSO login, the cached
+form opens anyway and what is recorded waits in the queue until the phone is
+back home.
 
 Proof in a real Chrome against a running app with an empty month:
 
     node scripts/offline_check.mjs http://127.0.0.1:3011 <username> <password>
 
-It runs the offline, expired-session, logout, Pangolin-redirect, full-storage
-and refused-item scenarios. Run it against a throwaway instance, not the
+It runs the offline, expired-session, logout, Pangolin-redirect (on the upload
+and on the form itself), full-storage and refused-item scenarios. Run it against a throwaway instance, not the
 family's data.
 
 ## Password reset
@@ -111,14 +116,19 @@ data and its backup together. The in-app copies cover the database only, not
 ## Restore
 
     docker compose stop haztartas
+    rm -f /srv/docker-data/haztartas/db.sqlite-wal \
+          /srv/docker-data/haztartas/db.sqlite-shm
     cp /srv/docker-data/haztartas/backup/daily-<stamp>.sqlite \
        /srv/docker-data/haztartas/db.sqlite
     docker compose start haztartas
 
-Loses at most one day of entries. The `db.sqlite-wal` and `db.sqlite-shm`
-files next to it can be left alone: a WAL whose salt no longer matches is
-discarded rather than replayed. Check a copy first with
-`sqlite3 <file> 'PRAGMA integrity_check'`, which must print `ok`.
+Loses at most one day of entries. The `rm` comes before the copy and is not
+optional: SQLite replays any `db.sqlite-wal` it finds onto whatever
+`db.sqlite` sits next to it, the restored backup included, so a WAL left
+over from a crash would write newer pages over the old copy (measured
+2026-11-15: a row written after the backup reappeared in the restored
+database). Check a copy first with `sqlite3 <file> 'PRAGMA integrity_check'`,
+which must print `ok`.
 
 ## Rollback a bad deploy
 
@@ -128,4 +138,9 @@ went wrong, restore the `pre-migration-*` copy from `backup/` as above.
 
 ## Tests
 
-    docker compose exec haztartas pytest -q
+The image carries no tests (`.dockerignore`), so they run on the host, from
+this directory, in a throwaway environment built from `requirements.txt`
+(pytest is pinned there) on the image's Python:
+
+    uv run --no-project --python 3.13 --with-requirements requirements.txt \
+      python -m pytest -q -p no:cacheprovider

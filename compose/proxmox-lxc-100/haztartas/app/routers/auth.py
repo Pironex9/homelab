@@ -24,7 +24,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
             return templates.TemplateResponse(
                 request, "login.html",
                 {"error": S[error]}, status_code=401)
-        request.session["user_id"] = user.id
+        security.start_session(request, user)
     return RedirectResponse("/", status_code=303)
 
 

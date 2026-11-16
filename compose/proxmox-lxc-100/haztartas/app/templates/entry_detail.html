@@ -12,6 +12,7 @@
     <form class="form" method="post" action="{{ action }}">
       {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
       {% include "partials/entry_fields.html" %}
+      {% if rate_line %}<p class="hint num">{{ rate_line }}</p>{% endif %}
       <button class="btn btn--wide" type="submit">{{ S["save"] }}</button>
     </form>
     <form class="aside-action" method="post" action="{{ action }}/delete"><button class="btn btn--quiet" type="submit">{{ S["delete"] }}</button></form>
@@ -23,6 +24,10 @@
       <dt>{{ S["f_merchant"] }}</dt><dd>{{ values.merchant }}</dd>
       <dt>{{ S["f_note"] }}</dt><dd>{{ values.note }}</dd>
     </dl>
+    {% if rate_line %}<p class="hint num">{{ rate_line }}</p>{% endif %}
+    {% if can_undo %}
+    <form class="aside-action" method="post" action="{{ action }}/delete"><input type="hidden" name="next" value="/pocket"><button class="btn btn--quiet" type="submit">{{ S["delete"] }}</button></form>
+    {% endif %}
     {% endif %}
     {% if can_reveal %}
     <form class="aside-action" method="post" action="{{ action }}/reveal"><button class="btn btn--quiet" type="submit">{{ S["reveal_now"] }}</button></form>

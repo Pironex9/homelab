@@ -6,6 +6,8 @@ not be the only thing between the internet and the household's finances.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
 
 from argon2 import PasswordHasher
@@ -102,6 +104,21 @@ def attempt_login(session: Session, username: str,
     return user, None
 
 
+def fingerprint(user: User) -> str:
+    """A short digest of the password hash, kept in the session cookie.
+
+    A password reset changes the hash, so every session issued before it stops
+    matching and is logged out. The cookie is signed, not encrypted: it gets a
+    digest, never characters of the hash itself.
+    """
+    return hashlib.sha256(user.password_hash.encode()).hexdigest()[:16]
+
+
+def start_session(request: Request, user: User) -> None:
+    request.session["user_id"] = user.id
+    request.session["pw"] = fingerprint(user)
+
+
 def current_user(request: Request) -> User | None:
     user_id = request.session.get("user_id")
     if user_id is None:
@@ -111,7 +128,11 @@ def current_user(request: Request) -> User | None:
         # Readable after the session closes only because Database uses
         # expire_on_commit=False. User has no relationships, so nothing lazy
         # loads off it either.
-        return s.get(User, user_id)
+        user = s.get(User, user_id)
+    if user is None or not hmac.compare_digest(
+            str(request.session.get("pw", "")), fingerprint(user)):
+        return None
+    return user
 
 
 def require_user(request: Request) -> User:

@@ -41,7 +41,10 @@ def _wallet_view(s, viewer, wallet, owner, today):
             amount=money.fmt_money(e.amount_minor, e.currency),
             meta=(f"{cname or ''} · {date_label(e.date)}".strip(" ·")
                   + (f" · {authors[e.created_by]}" if redacted else "")),
-            hue=hue(e.category_id)))
+            hue=hue(e.category_id),
+            # An adult opens a row to undo it (a top-up has no edit form).
+            url=None if redacted or viewer.role != "adult"
+            else f"/entries/{e.id}"))
     return dict(wallet_id=wallet.id, name=owner.name, rows=items,
                 balance_minor=summary.wallet_balance(
                     s, wallet.id, viewer, today))

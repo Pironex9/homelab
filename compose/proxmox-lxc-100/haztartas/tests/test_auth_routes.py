@@ -84,3 +84,31 @@ def test_logout_clears_the_session(adult):
 
 def test_openapi_is_not_published(client):
     assert client.get("/openapi.json").status_code == 404
+
+
+def test_password_reset_ends_other_sessions(users, adult, child):
+    from sqlalchemy import select
+    from app import security
+    from app.models import User
+    assert adult.get("/_guarded").status_code == 200
+    with users.state.db.session() as s:
+        u = s.scalars(select(User).where(User.username == "anna")).one()
+        u.password_hash = security.hash_password("uj-jelszo-tesztre")
+    r = adult.get("/_guarded")
+    assert r.status_code == 303 and r.headers["location"] == "/login"
+    assert adult.get("/_json").status_code == 401
+    assert child.get("/_guarded").status_code == 200   # others untouched
+
+
+def test_session_carries_a_fingerprint_not_the_hash(users, adult):
+    import base64
+    import json
+    from sqlalchemy import select
+    from app.models import User
+    cookie = adult.cookies.get("session")
+    raw = cookie.split(".")[0]
+    data = json.loads(base64.b64decode(raw + "=" * (-len(raw) % 4)))
+    with users.state.db.session() as s:
+        h = s.scalars(select(User).where(User.username == "anna")).one().password_hash
+    fp = data["pw"]
+    assert len(fp) == 16 and fp not in h

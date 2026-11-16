@@ -205,3 +205,18 @@ def test_categories_limit_archived_and_order(s, adult, household):
 def test_bad_month_is_value_error(s, household, bad):
     with pytest.raises(ValueError):
         month_summary(s, bad, TODAY)
+
+
+def test_deleted_recurring_draft_is_not_expected(s, adult, household):
+    pay = cat(s, "Fizetés", "income")
+    r1 = Recurring(name="Fizetes A", kind="income", category_id=pay.id,
+                   amount_minor=200000, currency="EUR", day_of_month=15)
+    s.add(r1)
+    s.flush()
+    d = create_entry(s, adult, inp(household, kind="income", category_id=pay.id,
+                                   amount_minor=200000), status="draft")
+    d.recurring_id, d.recurring_month = r1.id, M
+    d.deleted_at = "2026-11-12T08:00:00Z"   # "not this month"
+    s.flush()
+    assert month_summary(s, M, TODAY).expected == []
+    assert len(month_summary(s, "2026-12", TODAY).expected) == 1

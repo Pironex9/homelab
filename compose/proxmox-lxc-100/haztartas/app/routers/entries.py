@@ -102,6 +102,15 @@ def _build(v: dict) -> svc.EntryInput:
         manual_rate=rate)
 
 
+def _rate_line(entry: Entry | None) -> str | None:
+    """The stored rate and EUR amount of a non-EUR entry (spec section 8)."""
+    if entry is None or entry.currency == "EUR" or not entry.fx_rate:
+        return None
+    return S["fx_line"].format(
+        rate=entry.fx_rate.replace(".", ","), currency=entry.currency,
+        eur=money.fmt_money(entry.eur_minor, "EUR").removesuffix(" EUR"))
+
+
 def _form_page(request, s, user, values, status=200, error=None, hints=None,
                needs_rate=False, entry=None):
     ctx = dict(_choices(s, user, entry), values=values, error=error, hints=hints or [],
@@ -112,7 +121,12 @@ def _form_page(request, s, user, values, status=200, error=None, hints=None,
                editable=entry is None or visibility.can_edit(
                    user, entry, s.get(Wallet, entry.wallet_id), clock.today()),
                can_reveal=entry is not None and entry.created_by == user.id
-               and bool(entry.hidden))
+               and bool(entry.hidden),
+               # A top-up has no edit form, but an adult may undo it:
+               # delete_entry removes both halves.
+               can_undo=entry is not None and entry.transfer_group is not None
+               and user.role == "adult",
+               rate_line=_rate_line(entry))
     return _render(request, "entry_detail.html" if entry else "entry_form.html",
                    ctx, status)
 

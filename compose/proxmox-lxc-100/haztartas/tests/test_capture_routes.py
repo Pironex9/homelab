@@ -141,6 +141,20 @@ def test_sync_duplicate_in_child_wallet_stays_confirmed(child, users):
     assert r.status_code == 200 and r.json()["status"] == "confirmed"
 
 
+def test_sync_child_household_duplicate_stays_confirmed(child, users):
+    # /drafts is adult-only: a child's draft would be an entry nobody sees.
+    add(users, "cili", amount_minor=1250)
+    r = child.post("/capture/sync", json=payload(users, merchant="Kaufland"))
+    assert r.status_code == 200 and r.json()["status"] == "confirmed"
+
+
+def test_sync_hidden_duplicate_stays_confirmed(adult, adult2, users):
+    # A hidden draft 404s for the other adult under /drafts: saved confirmed.
+    add(users, "bela", amount_minor=1250)
+    r = adult.post("/capture/sync", json=payload(users, hidden="1"))
+    assert r.status_code == 200 and r.json()["status"] == "confirmed"
+
+
 def test_sync_uuid_of_other_author_is_409(adult, adult2, users):
     p = payload(users)
     assert adult.post("/capture/sync", json=p).status_code == 200
@@ -257,6 +271,7 @@ def test_queue_strings_reach_the_page(client):
     strings = json.loads(blob)
     for js, key in (("pending", "queue_pending"), ("refused", "queue_refused"),
                     ("login", "queue_login"), ("other_user", "queue_other_user"),
+                    ("other_user_count", "queue_other_user_count"),
                     ("discard", "queue_discard"),
                     ("discard_confirm", "queue_discard_confirm"),
                     ("no_storage", "capture_no_storage")):

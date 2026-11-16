@@ -16,6 +16,8 @@ services:
       - HAZTARTAS_SECRET_KEY=${HAZTARTAS_SECRET_KEY:?set it in the Komodo Stack Environment}
       # 1 unless the app is reached over plain http; see .env.example
       - HAZTARTAS_HTTPS_ONLY=${HAZTARTAS_HTTPS_ONLY:-1}
+      # the daily ECB rate fetch; 0 is for tests only, see .env.example
+      - HAZTARTAS_FX_FETCH=${HAZTARTAS_FX_FETCH:-1}
     volumes:
       # The container runs as uid 1000, but Docker creates a missing bind
       # mount source as root:root and the image's chown does not apply to it.

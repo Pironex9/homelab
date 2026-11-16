@@ -5,7 +5,7 @@
 // The cache name is also in capture.js (its warm-up fills it). Change both
 // together, and bump it whenever this file changes: activate then drops the
 // old cache, so a deploy cannot leave an installed phone on stale assets.
-const CACHE = 'haztartas-v2';
+const CACHE = 'haztartas-v3';
 const STATIC = ['/static/tokens.css', '/static/app.css', '/static/capture.js',
   '/static/htmx.min.js'];
 // Shops have bad signal: a connection that answers nothing for this long gets
@@ -40,7 +40,12 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
-function networkFirst(request, key, wait) {
+// preferCache: an answer that is not the page itself (a redirect to a login
+// wall, an error) gives way to the cached copy when there is one. Abroad,
+// Pangolin answers /capture with a redirect to its SSO login even on a live
+// connection; the cached form still opens there and its captures wait in the
+// queue until the phone is back home.
+function networkFirst(request, key, wait, preferCache = false) {
   const fromCache = () => caches.match(key, { ignoreSearch: true });
   // no-cache: revalidate with the server rather than take the HTTP cache's
   // copy, or "network first" could still be last deploy's file.
@@ -49,6 +54,10 @@ function networkFirst(request, key, wait) {
       try {
         await (await caches.open(CACHE)).put(key, res.clone());
       } catch (err) { /* storage full: the good network answer still stands */ }
+      return res;
+    }
+    if (preferCache && (!res.ok || res.redirected || res.type === 'opaqueredirect')) {
+      return (await fromCache()) || res;
     }
     return res;
   });
@@ -67,7 +76,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname === '/capture') {
-    e.respondWith(networkFirst(e.request, '/capture', CAPTURE_WAIT_MS));
+    e.respondWith(networkFirst(e.request, '/capture', CAPTURE_WAIT_MS, true));
   } else if (url.pathname.startsWith('/static/')) {
     e.respondWith(networkFirst(e.request, url.pathname, 0));
   }

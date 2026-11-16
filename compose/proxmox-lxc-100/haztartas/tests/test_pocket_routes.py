@@ -98,3 +98,28 @@ def test_redacted_row_shows_author_not_text(adult2, users):
     html = adult2.get("/pocket").text
     assert "SecretGift" not in html and "SecretNote" not in html
     assert S["redacted_entry"] in html and "7,77 EUR" in html and "Anna" in html
+
+
+def test_topup_can_be_undone_from_its_entry(adult, adult2, child, users):
+    w = child_wallet(users)
+    adult.post("/pocket/topup", data=dict(
+        wallet_id=str(w), amount="5,50", currency="EUR", date=clock.today()))
+    [half] = rows(users, w)
+    assert f'href="/entries/{half.id}"' in adult.get("/pocket").text
+    html = adult2.get(f"/entries/{half.id}").text   # either adult may undo it
+    assert f'action="/entries/{half.id}/delete"' in html
+    assert 'name="next" value="/pocket"' in html
+    r = adult2.post(f"/entries/{half.id}/delete", data=dict(next="/pocket"))
+    assert r.status_code == 303 and r.headers["location"] == "/pocket"
+    both = rows(users, w) + rows(users, household(users))
+    assert len(both) == 2 and all(e.deleted_at for e in both)
+
+
+def test_child_gets_no_undo_on_a_topup(adult, child, users):
+    w = child_wallet(users)
+    adult.post("/pocket/topup", data=dict(
+        wallet_id=str(w), amount="5,50", currency="EUR", date=clock.today()))
+    [half] = rows(users, w)
+    assert f'href="/entries/{half.id}"' not in child.get("/pocket").text
+    html = child.get(f"/entries/{half.id}").text
+    assert "/delete" not in html

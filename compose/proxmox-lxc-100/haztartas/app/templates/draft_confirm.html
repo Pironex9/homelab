@@ -12,6 +12,7 @@
       <p class="hint">{{ S["draft_confirm_hint"] }}</p>
       {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
       {% include "partials/entry_fields.html" %}
+      {% if rate_line %}<p class="hint num">{{ rate_line }}</p>{% endif %}
       <button class="btn btn--wide" type="submit">{{ S["draft_confirm"] }}</button>
     </form>
     <form class="aside-action" method="post" action="/entries/{{ entry.id }}/delete"><input type="hidden" name="next" value="/drafts"><button class="btn btn--quiet" type="submit">{{ S["delete"] }}</button></form>

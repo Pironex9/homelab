@@ -17,7 +17,7 @@
       <ul class="entries">
         {% for r in w.rows %}
         <li><span class="dot {{ r.hue }}"></span>
-          <span class="what">{{ r.what }}</span>
+          <span class="what">{% if r.url %}<a href="{{ r.url }}">{{ r.what }}</a>{% else %}{{ r.what }}{% endif %}</span>
           <span class="amt num{% if r.kind == 'income' %} in{% endif %}">{% if r.kind == 'income' %}+{% elif r.kind == 'expense' %}-{% endif %}{{ r.amount }}</span>
           <span class="meta">{{ r.meta }}</span></li>
         {% endfor %}

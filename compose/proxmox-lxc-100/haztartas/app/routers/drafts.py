@@ -37,7 +37,8 @@ def _page(request, s, user, e, values, status=200, error=None,
     ctx = dict(er._choices(s, user, e), values=values, error=error,
                needs_rate=needs_rate, confirm=False, entry=e,
                action=f"/drafts/{e.id}/confirm", hints=[],
-               is_author=e.created_by == user.id)
+               is_author=e.created_by == user.id,
+               rate_line=er._rate_line(e))
     return er._render(request, "draft_confirm.html", ctx, status)
 
 
@@ -88,6 +89,11 @@ async def confirm(request: Request, entry_id: int,
     with request.app.state.db.session() as s:
         e = _load(s, user, entry_id)
         v["wallet_id"] = str(e.wallet_id)   # a confirm never moves a draft
+        if e.created_by != user.id:
+            # Only the author controls secrecy; keep it as it is (the form
+            # shows no secrecy fields to anyone else).
+            v["hidden"] = "1" if e.hidden else ""
+            v["reveal_on"] = e.reveal_on or ""
         try:
             recurring.confirm_draft(s, user, entry_id, er._build(v))
         except svc.NeedsRate:
