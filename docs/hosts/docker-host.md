@@ -87,6 +87,7 @@ ML (face recognition, smart search) is offloaded to Nobara GPU at `http://192.16
 | `form` | `caddy:alpine` | 3004 | Static intake form; `/api/submit` is proxied to the n8n webhook on 192.168.0.112:5678 |
 | `garage` | `dxflrs/garage:v2.3.0` | 3900 | S3 server; the backup target for the K3s Longhorn volumes (see [Longhorn Storage](../k3s/03_Longhorn_Storage.md)) |
 | `pedikur` | built from `python:3.13-slim` | 3010 | Appointment book for a pedicure practice, written here rather than deployed (see [Pedicure Practice App](../proxmox/46_Pedicure_Practice_App.md)) |
+| `haztartas` | built from `python:3.13-slim` | 3011 | Family budget PWA with an offline capture queue (see [Family Budget PWA](../proxmox/56_Family_Budget_PWA.md)) |
 | `paperless` | `ghcr.io/paperless-ngx/paperless-ngx:3.2` | 8000 | Document archive with OCR (Hungarian + Slovak); SQLite (see [Paperless and the HP Smart Tank](../proxmox/50_Paperless_And_The_HP_Smart_Tank.md)) |
 | `paperless-broker` | `valkey/valkey:9-alpine` | - | Task broker for Paperless |
 | `scanservjs` | `sbs20/scanservjs:v3.3.0` | 8086 | Web scan UI; pulls from the HP Smart Tank 750 over eSCL into the Paperless consume folder |
@@ -153,6 +154,7 @@ Most containers use **bind mounts** to `/mnt/storage` for persistent data.
 | 3003 | TCP | DocuSeal |
 | 3005 | TCP | Dawarich |
 | 3010 | TCP | Pedicure appointment book |
+| 3011 | TCP | Family budget PWA |
 | 8000 | TCP | Paperless-ngx |
 | 8086 | TCP | scanservjs |
 | 3300 | TCP | Rails learning lab |
