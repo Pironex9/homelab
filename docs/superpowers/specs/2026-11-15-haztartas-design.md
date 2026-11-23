@@ -2,7 +2,9 @@
 
 **Date:** 2026-11-15
 **Status:** approved design (2026-11-15), written after a brainstorming session
-and a builder check the same day. Implementation plan not yet written.
+and a builder check the same day. Phase 1 deployed 2026-11-16. Phase 2
+decisions (drafts, extraction flow, Gemini terms) added 2026-11-16 after a
+second brainstorming session: section 3.7.
 **Name:** `haztartas` - directory, container, database and URL
 
 ## 0. The document set
@@ -13,7 +15,7 @@ argues from code that exists.
 | Phase | Plan | Status |
 |---|---|---|
 | 1. Accounts, manual entry, categories and budgets, income, hidden entries, pocket money, monthly view, installable PWA with offline capture of the manual form | `docs/superpowers/plans/2026-11-15-haztartas-phase1.md` | deployed 2026-11-16 |
-| 2. Receipt photo (eKasa QR, then Gemini), voice entry (Gemini audio), offline queuing of photo and audio, attachments, Drafts screen | not written | |
+| 2. Receipt photo (eKasa QR, then Gemini), voice entry (Gemini audio), offline queuing of photo and audio, attachments, Drafts screen | not written | designed (3.2-3.7) |
 | 3. Budget push notifications, month-over-month trends, Pedikur income draft | not written | |
 | Later | Hungarian price lookup (GVH Arfigyelo), AI questions over the ledger | not planned | |
 
@@ -101,6 +103,9 @@ once in the service layer:
   screen for it, so no edit path can leak its fields.
 - Either adult can confirm or correct a recurring draft (a salary draft is not
   private to its owner; income is adult-visible anyway).
+- Photo and voice drafts (phase 2, section 3.7): the author can confirm their
+  own; a non-hidden draft can also be confirmed by either adult, the child's
+  included; a hidden draft only by its author.
 - The child changes only their own entries.
 - Delete is soft (`deleted_at`), as in Pedikur. Deleted entries leave every
   total; restore is by SQL in phase 1, no UI.
@@ -208,6 +213,79 @@ phase 2 extends it rather than migrating it.
 Everything except capture (reports, budgets, editing) needs the network and
 says so plainly when it is missing.
 
+The photo and voice capture screen carries the **hidden toggle before
+upload** (phase 2): an offline capture has no confirm screen until later, and
+the toggle decides who may open the draft (3.7).
+
+### 3.7 Drafts and the extraction flow (phase 2, decided 2026-11-16)
+
+**Who confirms a draft** (owner's choice B, with the hidden exception):
+
+| Draft | Confirmed by | Where |
+|---|---|---|
+| Captured online | its author, straight away | the prefilled confirm screen opens after the upload, for the child too |
+| Not confirmed then, or uploaded from the offline queue, not hidden | either adult (the author too) | the shared adult `/drafts` screen, beside the salary drafts; the child's drafts sit in the child's wallet there |
+| Hidden | its author only | adults: `/drafts`; the child: a "Rejtett piszkozataim" list on the pocket money screen |
+
+A draft counts in no total, budget or balance until confirmed. The child's
+pocket money screen shows how many of their non-hidden drafts wait for a
+parent ("2 tetel var szuloi jovahagyasra"), as a count, not a list: without it
+a queued photo looks lost. Builder's call: the permission rule is "author, or
+an adult for a non-hidden draft" in one place; that the child reaches their
+own non-hidden draft only from the screen right after the upload is a matter
+of which links exist, not a second rule.
+
+**Extraction runs inside the upload request** (owner's choice A):
+
+1. The upload (photo or audio, the QR text if `BarcodeDetector` found one, the
+   hidden flag, `client_uuid`) arrives.
+2. The server saves the file under `media/` and an empty draft row with its
+   attachment, and commits, **before any outside call**. From here nothing is
+   lost.
+3. In the same request: eKasa if a QR text came with it, Gemini if that found
+   nothing or for audio. The draft is filled in and the response carries it.
+4. A retry with the same `client_uuid` gets the existing draft back. A failed
+   extraction, or a restart in the middle, leaves the empty draft with its
+   file (section 8).
+
+The phone waits roughly 5-20 s for a photo, worst case about 45 s (eKasa
+timeout and retries, then Gemini). The phase 1 queue aborts a fetch after
+20 s, so media uploads need their own longer timeout (builder's call: 60 s);
+the plan verifies that Pangolin does not cut the request first.
+
+**Settled after the builder check (builder's calls, 2026-11-16):**
+
+- **Wallet.** The photo and voice capture screen carries the same wallet
+  choice the manual form already has (only the child has two wallets), next to
+  the hidden toggle. A confirm never moves a draft between wallets, as in
+  phase 1; a wrong wallet is fixed by deleting and recapturing.
+- **One photo per receipt** (owner, 2026-11-16). Slovak receipts are covered
+  by the QR; a long Hungarian receipt goes up as one photo at a resolution high
+  enough to stay legible, so the queue item keeps its single `blob` slot.
+- **Slovak receipts get categories too.** After eKasa answers, one text-only
+  Gemini call suggests a category per line (rules from `line_category_rule`
+  first). If that call fails, the lines take the entry's category; the draft
+  is never held back for it.
+- **Entry category of a receipt with lines** is the category with the
+  largest subtotal. It is what the redacted row shows and what every phase 1
+  report that reads `entry.category_id` keeps reading.
+- **A hidden entry counts under its entry category only**, not per line,
+  until revealed: per-line budget bars would show its category split, which
+  is what hiding protects. On reveal its lines count by their own categories.
+- **Totals that do not add up.** The entry amount is the receipt total, what
+  was paid. Lines may be negative (discounts such as Lidl Plus "Zlava",
+  returned bottle deposit). A remaining difference between the line sum and
+  the total is shown on the confirm screen and saved as one adjustment line
+  ("Elteres") in the entry's category, so budgets always agree with the
+  balance. Line EUR values are rounded so they sum to the entry's EUR value
+  exactly (largest remainder).
+
+| Approach | Trade-off | Outcome |
+|---|---|---|
+| **Extract inside the upload request, draft committed first** | No worker, no polling, no recovery job; the phone waits at the till when online | **Chosen** |
+| Background worker, the page polls | Feels instant; a queue, a restart sweep and a status endpoint for three users | Rejected |
+| The phone calls Gemini itself | No server wait; the API key would sit on every phone | Rejected |
+
 ### 3.5 Duplicates
 
 Three people on three capture paths will record the same purchase twice (voice
@@ -308,9 +386,14 @@ volume: /srv/docker-data/haztartas/{db.sqlite, media/, backup/}
 - **Gemini key** in the Komodo Stack Environment. The model is a current
   Flash-class model chosen at plan time; extraction prompts and JSON schemas
   live in `extract/`, versioned with the code.
-- **Gemini data terms:** in the EEA the paid-service data terms apply to free
-  quota as well (Gemini API Additional Terms), so receipts are not used for
-  training. Re-check at plan time; terms change.
+- **Gemini terms (checked 2026-11-16, terms effective 2026-03-23):** "You may
+  use only Paid Services when making API Clients available to users in the
+  European Economic Area, Switzerland, or the United Kingdom", and Gemini API
+  access is a Paid Service only through a Cloud project with an active billing
+  account. So the key comes from a **billing-enabled** project, free quota is
+  not an option, and paid-service data terms apply (prompts and files are not
+  used for training). Current stable Flash model on 2026-11-16:
+  `gemini-3.8-flash`; the plan pins the id it tests against.
 
 ### Data model (sketch, the plan finalises it)
 
@@ -424,6 +507,12 @@ internet; the owner ruled it out, hence section 6.
 ## 12. Left to the builder
 
 - Gemini model id and prompt wording, schema field names
+- photo size before upload (a downscale in the browser keeps IndexedDB, the
+  upload over bad signal and the Gemini cost small; the QR is read before it;
+  one photo must keep a 40-line receipt legible, so test the limit on a real
+  long receipt rather than picking a number)
+- the audio container `MediaRecorder` produces on Chrome for Android, and
+  whether Gemini takes it as is
 - exact table and column names, indexes
 - screen layouts (with `impeccable`)
 - the default category list (Hungarian names; adults can edit)
