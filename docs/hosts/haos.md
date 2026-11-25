@@ -233,9 +233,9 @@ docker logs pangolin 2>&1 | grep -E "(offline|unhealthy|healthcheck)"
 | Stekker_Konyha | Kitchen | Smart plug (power monitoring) | SONOFF | |
 | Stekker_Balkon | Balkon | Smart plug | SONOFF | Az Ajto_Szenzor_Bejarati szülő routere - maradjon áram alatt |
 | Szenzor_Bejarati | Kert | PIR mozgásérzékelő | SONOFF | |
-| Szenzor_Folyoso_Fent | Folyoso | PIR mozgásérzékelő | Tuya | |
-| Szenzor_Folyoso_Kozep | Folyoso | PIR mozgásérzékelő | Tuya | |
-| Szenzor_Folyoso_Lent | Folyoso | PIR mozgásérzékelő | Tuya | |
+| Szenzor_Folyoso_Fent | Folyoso | PIR mozgásérzékelő | Tuya | TS0202_1 |
+| Szenzor_Folyoso_Kozep | Folyoso | PIR mozgásérzékelő | Tuya | ZMS-102; gets stuck on, watchdog in doc 58 |
+| Szenzor_Folyoso_Lent | Folyoso | PIR mozgásérzékelő | Tuya | TS0202_1 |
 | Ajto_Szenzor_Bejarati | Folyoso | Ajtószenzor | Aqara | Szülő: Stekker_Balkon (rögzítve 2026-10-11, lásd doc 52) |
 | Ajto_Szenzor_Fent | Folyoso | Ajtószenzor | Aqara | |
 | Leak sensor | Technikai | Vízszivárgás szenzor | Moes | |

@@ -168,6 +168,7 @@ nav:
           - 55 - PHP2Shell, Which of Our Services Run PHP: proxmox/55_PHP2Shell_Exposure_Check.md
           - 56 - Family Budget PWA: proxmox/56_Family_Budget_PWA.md
           - "57 - Jellyfin Android TV 0.20: Three Settings the Update Changed": proxmox/57_Jellyfin_Android_TV_0.20_Three_Settings.md
+          - "58 - Stuck PIR Sensor: Hallway Lights On for Hours": proxmox/58_Stuck_PIR_Sensor_Hallway_Lights_Watchdog.md
       - Deprecated:
           - Recommendarr: proxmox/deprecated/Recommendarr_Setup_Troubleshooting_Guide.md
           - Scanopy: proxmox/deprecated/Scanopy.md
